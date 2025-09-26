@@ -1,42 +1,38 @@
-import { Link, NavLink } from "react-router"
+import { Link, NavLink } from "react-router-dom"
+import logo from "../assets/images/logo.svg"
 
 
 function Header() {
   return (
-    <header className="w-full bg-neutral-900 text-white">
-      <div className="hidden md:block border-b border-white/10">
-        <div className="max-w-7xl mx-auto px-4 py-2 flex items-center justify-between text-sm">
-          <div className="flex items-center gap-6">
-            <span className="opacity-80">+12505550199</span>
-            <span className="opacity-80">Autovault@gmail.com</span>
-            <span className="opacity-80">280 Augusta Avenue, M5T 2L9 Toronto, Canada</span>
-          </div>
-          <div className="flex items-center gap-3 opacity-80">
-            <span>in</span>
-            <span>fb</span>
-          </div>
-        </div>
-      </div>
+    <header className="w-full sticky top-0 z-50 bg-white/90 backdrop-blur supports-[backdrop-filter]:bg-white/70 text-neutral-900 shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 lg:px-6 h-20 flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-3">
+          <img src={logo} alt="Logo" className="h-10 w-auto object-contain" />
+        </Link>
 
-      <div className="bg-neutral-900">
-        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
-            <div className="w-10 h-6 rounded-sm bg-orange-500" />
-            <span className="font-extrabold tracking-wider">AUTO<span className="text-orange-500">VAULT</span></span>
-          </Link>
+        <nav className="hidden xl:flex items-center gap-8 text-[16px]">
+          <NavLink to="/about" className={({ isActive }) => `relative py-2 transition-colors hover:text-blue-600 ${isActive ? 'text-blue-600' : ''}`}>
+            <span className="after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:w-0 after:bg-blue-600 hover:after:w-full after:transition-all">Giới thiệu</span>
+          </NavLink>
+          <NavLink to="/listing" className={({ isActive }) => `relative py-2 transition-colors hover:text-blue-600 ${isActive ? 'text-blue-600' : ''}`}>
+            <span className="after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:w-0 after:bg-blue-600 hover:after:w-full after:transition-all">Ô tô</span>
+          </NavLink>
+          <a href="#" className="relative py-2 hover:text-blue-600 transition-colors">
+            <span className="after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:w-0 after:bg-blue-600 hover:after:w-full after:transition-all">Phụ kiện xe</span>
+          </a>
+          <a href="#" className="relative py-2 hover:text-blue-600 transition-colors">
+            <span className="after:absolute after:left-0 after:-bottom-1 after:h-[2px] after:w-0 after:bg-blue-600 hover:after:w-full after:transition-all">Pin và trạm sạc</span>
+          </a>
+        </nav>
 
-          <nav className="hidden lg:flex items-center gap-6">
-            <NavLink to="/" className={({ isActive }) => `hover:text-orange-500 ${isActive ? 'text-orange-500' : ''}`}>Home</NavLink>
-            <NavLink to="/about" className={({ isActive }) => `hover:text-orange-500 ${isActive ? 'text-orange-500' : ''}`}>About Us</NavLink>
-            <NavLink to="/listing" className={({ isActive }) => `hover:text-orange-500 ${isActive ? 'text-orange-500' : ''}`}>Listing</NavLink>
-            <NavLink to="/shop" className={({ isActive }) => `hover:text-orange-500 ${isActive ? 'text-orange-500' : ''}`}>Shop</NavLink>
-            <NavLink to="/contact" className={({ isActive }) => `hover:text-orange-500 ${isActive ? 'text-orange-500' : ''}`}>Contact</NavLink>
-          </nav>
-
-          <div className="flex items-center gap-3">
-            <Link to="/signin" className="hidden md:inline-flex px-4 py-2 rounded-md bg-white text-neutral-900 hover:bg-gray-100">Sign In</Link>
-            <Link to="/add-car" className="inline-flex px-4 py-2 rounded-md bg-orange-600 hover:bg-orange-500">Add Car</Link>
-          </div>
+        <div className="flex items-center gap-4">
+          <Link to="/signin" className="hidden md:inline-flex text-blue-600 hover:text-blue-700 font-medium text-[16px]">Đăng nhập</Link>
+          <button aria-label="Menu" className="inline-flex xl:hidden p-2 rounded-md hover:bg-neutral-100">
+            <span className="sr-only">Open menu</span>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-6 h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
+          </button>
         </div>
       </div>
     </header>
@@ -44,5 +40,4 @@ function Header() {
 }
 
 export default Header
-
 
