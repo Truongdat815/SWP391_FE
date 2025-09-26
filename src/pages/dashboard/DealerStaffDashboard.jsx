@@ -60,7 +60,7 @@ function DealerStaffDashboard() {
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <button className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
+              <button onClick={() => navigate('/dashboard/dealer-staff/orders/new')} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
                 Tạo đơn hàng mới
               </button>
               <div className="flex items-center space-x-2">
@@ -152,7 +152,7 @@ function DealerStaffDashboard() {
                 <h3 className="text-lg font-medium text-gray-900">Thao tác nhanh</h3>
               </div>
               <div className="p-6 space-y-4">
-                <button className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                <button onClick={() => navigate('/dashboard/dealer-staff/orders/new')} className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
                   <div className="flex items-center">
                     <div className="p-2 bg-red-100 rounded-lg mr-3">
                       <svg className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -227,7 +227,7 @@ function DealerStaffDashboard() {
                   </div>
                   <h4 className="font-medium text-gray-900 mb-2">Tạo báo giá</h4>
                   <p className="text-sm text-gray-500 mb-4">Tạo báo giá chi tiết cho khách hàng</p>
-                  <button className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
+                  <button onClick={() => navigate('/dashboard/dealer-staff/sales/create-quote')} className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
                     Tạo mới
                   </button>
                 </div>
@@ -240,7 +240,7 @@ function DealerStaffDashboard() {
                   </div>
                   <h4 className="font-medium text-gray-900 mb-2">Quản lý đơn hàng</h4>
                   <p className="text-sm text-gray-500 mb-4">Theo dõi và xử lý đơn hàng</p>
-                  <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+                  <button onClick={() => navigate('/dashboard/dealer-staff/sales/orders')} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
                     Xem tất cả
                   </button>
                 </div>
@@ -253,7 +253,7 @@ function DealerStaffDashboard() {
                   </div>
                   <h4 className="font-medium text-gray-900 mb-2">Thanh toán</h4>
                   <p className="text-sm text-gray-500 mb-4">Quản lý thanh toán và công nợ</p>
-                  <button className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
+                  <button onClick={() => navigate('/dashboard/dealer-staff/sales/payments')} className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition">
                     Xem chi tiết
                   </button>
                 </div>

@@ -1,3 +1,28 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --vin-primary: 0 52 89; /* #003459 */
+    --vin-accent: 0 167 225; /* #00A7E1 */
+    --vin-red: 225 6 0; /* #E10600 */
+    --vin-dark: 11 18 32; /* #0B1220 */
+  }
+
+  html, body, #root {
+    @apply h-full bg-white text-gray-900 font-vinfast;
+  }
+}
+
+@layer components {
+  .vin-button-primary {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-lg bg-[rgb(var(--vin-primary))] text-white hover:bg-[rgb(var(--vin-primary))]/90 transition shadow;
+  }
+  .vin-link {
+    @apply text-[rgb(var(--vin-accent))] hover:text-[rgb(var(--vin-accent))]/80;
+  }
+  .vin-card {
+    @apply bg-white rounded-xl shadow border border-gray-100;
+  }
+}

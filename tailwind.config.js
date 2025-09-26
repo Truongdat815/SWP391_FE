@@ -14,7 +14,32 @@ export default {
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        vin: {
+          primary: '#003459',
+          accent: '#00A7E1',
+          red: '#E10600',
+          dark: '#0B1220',
+        }
+      },
+      fontFamily: {
+        vinfast: [
+          'Inter',
+          'ui-sans-serif',
+          'system-ui',
+          'Segoe UI',
+          'Roboto',
+          'Helvetica Neue',
+          'Arial',
+          'Noto Sans',
+          'sans-serif'
+        ]
+      },
+      boxShadow: {
+        header: '0 8px 30px rgba(0,0,0,0.06)'
+      }
+    },
   },
   plugins: [],
 }
