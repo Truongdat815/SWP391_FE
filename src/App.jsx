@@ -3,18 +3,17 @@ import './index.css'
 import Header from './components/Header'
 import Footer from './components/Footer'
 import Home from './pages/Home'
-import About from './pages/About'
-import Listing from './pages/Listing'
-import Shop from './pages/Shop'
-import Contact from './pages/Contact'
+import CarListing from './pages/CarListing'
+import CarDetail from './pages/CarDetail'
 import SignIn from './pages/SignIn'
-import AddCar from './pages/AddCar'
 import DealerStaffDashboard from './pages/dashboard/DealerStaffDashboard'
 import DealerManagerDashboard from './pages/dashboard/DealerManagerDashboard'
 import EVMDashboard from './pages/dashboard/EVMDashboard'
 import AdminDashboard from './pages/dashboard/AdminDashboard'
 import VehicleDetail from './pages/VehicleDetail'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import AboutVinfast from './components/AboutVinfast'
+
 
 function App() {
   return (
@@ -28,38 +27,17 @@ function App() {
             <Footer />
           </div>
         } />
-        <Route path="/about" element={
+        <Route path="/cars" element={
           <div className="min-h-screen bg-white flex flex-col">
             <Header />
-            <About />
+            <CarListing />
             <Footer />
           </div>
         } />
-        <Route path="/listing" element={
+        <Route path="/car/:model" element={
           <div className="min-h-screen bg-white flex flex-col">
             <Header />
-            <Listing />
-            <Footer />
-          </div>
-        } />
-        <Route path="/shop" element={
-          <div className="min-h-screen bg-white flex flex-col">
-            <Header />
-            <Shop />
-            <Footer />
-          </div>
-        } />
-        <Route path="/contact" element={
-          <div className="min-h-screen bg-white flex flex-col">
-            <Header />
-            <Contact />
-            <Footer />
-          </div>
-        } />
-        <Route path="/add-car" element={
-          <div className="min-h-screen bg-white flex flex-col">
-            <Header />
-            <AddCar />
+            <CarDetail />
             <Footer />
           </div>
         } />
