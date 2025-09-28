@@ -1,60 +1,60 @@
 import { Link } from 'react-router-dom'
-import vf3 from "../assets/images/vf3.jpg"
-import vf5 from "../assets/images/vf5-color-4.webp"
-import vf6 from "../assets/images/vf6.webp"
-import vf7 from "../assets/images/vf7-uu-diem-3.webp"
-import vf8 from "../assets/images/vf8.webp"
-import vf9 from "../assets/images/vf9.webp"
+import electraAscent from "../assets/images/electra ascent.png"
+import electraCitylink from "../assets/images/electra citylink poster.png"
+import electraGrandtour from "../assets/images/electra grandtour.png"
+import electraMicro from "../assets/images/electra micro.png"
+import electraSummit from "../assets/images/electra summit.png"
+import electraVelocity from "../assets/images/electra velocity.png"
 
 function CarListing() {
   const cars = [
     {
-      id: 'vf3',
-      name: 'VinFast VF3',
-      image: vf3,
+      id: 'electra-ascent',
+      name: 'Electra Ascent',
+      image: electraAscent,
       price: '299.000.000',
-      description: 'Xe điện nhỏ gọn, linh hoạt cho thành phố hiện đại',
-      specs: ['Pin 42kWh', 'Quãng đường 200km', 'Sạc nhanh 30 phút']
+      description: 'Xe điện đô thị thông minh, thiết kế nhỏ gọn và hiệu quả',
+      specs: ['Pin 45kWh', 'Quãng đường 250km', 'Sạc nhanh 20 phút']
     },
     {
-      id: 'vf5',
-      name: 'VinFast VF5',
-      image: vf5,
+      id: 'electra-citylink',
+      name: 'Electra CityLink',
+      image: electraCitylink,
       price: '529.000.000',
-      description: 'Crossover thông minh với công nghệ tiên tiến',
-      specs: ['Pin 57kWh', 'Quãng đường 300km', 'Sạc nhanh 25 phút']
+      description: 'Crossover điện cao cấp với công nghệ AI thông minh',
+      specs: ['Pin 60kWh', 'Quãng đường 350km', 'Sạc nhanh 18 phút']
     },
     {
-      id: 'vf6',
-      name: 'VinFast VF6',
-      image: vf6,
+      id: 'electra-grandtour',
+      name: 'Electra GrandTour',
+      image: electraGrandtour,
       price: '765.000.000',
-      description: 'SUV crossover linh hoạt cho gia đình trẻ',
-      specs: ['Pin 64kWh', 'Quãng đường 350km', 'Sạc nhanh 22 phút']
+      description: 'SUV điện cao cấp cho gia đình hiện đại',
+      specs: ['Pin 70kWh', 'Quãng đường 400km', 'Sạc nhanh 16 phút']
     },
     {
-      id: 'vf7',
-      name: 'VinFast VF7',
-      image: vf7,
+      id: 'electra-micro',
+      name: 'Electra Micro',
+      image: electraMicro,
       price: '999.000.000',
-      description: 'SUV cao cấp với thiết kế hiện đại',
-      specs: ['Pin 75kWh', 'Quãng đường 450km', 'Sạc nhanh 20 phút']
+      description: 'SUV điện cao cấp với thiết kế tương lai',
+      specs: ['Pin 80kWh', 'Quãng đường 500km', 'Sạc nhanh 15 phút']
     },
     {
-      id: 'vf8',
-      name: 'VinFast VF8',
-      image: vf8,
+      id: 'electra-summit',
+      name: 'Electra Summit',
+      image: electraSummit,
       price: '1.199.000.000',
-      description: 'SUV điện tầm trung đa dụng cho mọi hành trình',
-      specs: ['Pin 82kWh', 'Quãng đường 500km', 'Sạc nhanh 18 phút']
+      description: 'SUV điện tầm trung, hiệu suất cao cho mọi hành trình',
+      specs: ['Pin 85kWh', 'Quãng đường 550km', 'Sạc nhanh 14 phút']
     },
     {
-      id: 'vf9',
-      name: 'VinFast VF9',
-      image: vf9,
+      id: 'electra-velocity',
+      name: 'Electra Velocity',
+      image: electraVelocity,
       price: '1.599.000.000',
-      description: 'SUV flagship sang trọng, 3 hàng ghế rộng rãi',
-      specs: ['Pin 92kWh', 'Quãng đường 550km', 'Sạc nhanh 15 phút']
+      description: 'SUV flagship điện sang trọng, 3 hàng ghế cao cấp',
+      specs: ['Pin 100kWh', 'Quãng đường 600km', 'Sạc nhanh 12 phút']
     }
   ]
 
@@ -64,10 +64,10 @@ function CarListing() {
       <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 lg:px-6 text-center">
           <h1 className="text-4xl md:text-6xl font-bold mb-6">
-            Dòng xe VinFast
+            Dòng xe Electra
           </h1>
           <p className="text-xl md:text-2xl opacity-90 max-w-3xl mx-auto">
-            Khám phá bộ sưu tập xe điện thông minh với công nghệ tiên tiến và thiết kế hiện đại
+            Khám phá bộ sưu tập xe điện thông minh với công nghệ AI tiên tiến và thiết kế tương lai
           </p>
         </div>
       </div>
@@ -150,10 +150,10 @@ function CarListing() {
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
               </svg>
-              Gọi 1900 23 23 89
+              Gọi 1900 444 444
             </a>
             <a 
-              href="mailto:support.vn@vinfastauto.com"
+              href="mailto:support@electra.com"
               className="inline-flex items-center justify-center px-6 py-3 border-2 border-emerald-600 text-emerald-600 hover:bg-emerald-600 hover:text-white font-semibold rounded-lg transition-colors duration-200"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
