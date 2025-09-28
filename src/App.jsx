@@ -20,7 +20,6 @@ import OrderManagement from './pages/dashboard/dealer-staff/OrderManagement'
 import PaymentManagement from './pages/dashboard/dealer-staff/PaymentManagement'
 import VehicleDetail from './pages/VehicleDetail'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
-import AboutVinfast from './components/AboutVinfast'
 
 
 function App() {
@@ -28,13 +27,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         {/* Public Routes with Header and Footer */}
-        <Route path="/" element={
-          <div className="min-h-screen bg-white flex flex-col">
-            <Header />
-            <Home />
-            <Footer />
-          </div>
-        } />
+        <Route path="/" element={<Home />} />
         <Route path="/cars" element={
           <div className="min-h-screen bg-white flex flex-col">
             <Header />

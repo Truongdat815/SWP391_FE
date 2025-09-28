@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import logo from "../assets/images/logo.svg";
+import logo from "../assets/images/logo.png";
 
 function SignIn() {
   const [formData, setFormData] = useState({
@@ -45,12 +45,12 @@ function SignIn() {
         {/* Sign In Card */}
         <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
           <div className="text-center mb-8">
-            <img src={logo} alt="VinFast" className="h-12 w-auto mx-auto mb-6" />
+            <img src={logo} alt="Electra" className="h-10 w-auto mx-auto mb-6" />
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
               Đăng nhập
             </h2>
             <p className="text-gray-600">
-              Chào mừng trở lại với VinFast
+              Chào mừng trở lại với Electra
             </p>
           </div>
         

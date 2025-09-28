@@ -13,11 +13,11 @@ function CarDetail() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitMessage, setSubmitMessage] = useState('');
 
-  // Mock data for VinFast vehicles
+  // Mock data for Electra vehicles
   const vehicles = {
-    'vf3': {
-      name: 'VinFast VF3',
-      image: '/src/assets/images/vf3.jpg',
+    'electra-ascent': {
+      name: 'Electra Ascent',
+      image: '/src/assets/images/electra ascent.png',
       colors: [
         { name: 'Đỏ Cherry', code: '#8B0000' },
         { name: 'Trắng Ngọc Trai', code: '#F8F8FF' },
@@ -25,14 +25,14 @@ function CarDetail() {
       ],
       variants: [
         {
-          name: 'VF3 Eco',
+          name: 'Electra Ascent Base',
           price: '240.000.000',
-          features: ['Động cơ điện 41.9 kW', 'Pin LFP 18.64 kWh', 'Tốc độ tối đa 100 km/h', 'Phạm vi di chuyển 210 km']
+          features: ['Động cơ điện 45 kW', 'Pin LFP 42 kWh', 'Tốc độ tối đa 110 km/h', 'Phạm vi di chuyển 220 km']
         },
         {
-          name: 'VF3 Plus',
+          name: 'Electra Ascent Plus',
           price: '280.000.000',
-          features: ['Động cơ điện 41.9 kW', 'Pin LFP 18.64 kWh', 'Tốc độ tối đa 100 km/h', 'Phạm vi di chuyển 210 km', 'Camera 360°']
+          features: ['Động cơ điện 45 kW', 'Pin LFP 42 kWh', 'Tốc độ tối đa 110 km/h', 'Phạm vi di chuyển 220 km', 'Camera 360° AI']
         }
       ],
       specifications: {
@@ -46,9 +46,9 @@ function CarDetail() {
         'Chỗ ngồi': '4 chỗ'
       }
     },
-    'vf5': {
-      name: 'VinFast VF5',
-      image: '/src/assets/images/vf5-color-4.webp',
+    'electra-citylink': {
+      name: 'Electra CityLink',
+      image: '/src/assets/images/electra citylink poster.png',
       colors: [
         { name: 'Xanh Dương', code: '#1E40AF' },
         { name: 'Trắng Ngọc Trai', code: '#F8F8FF' },
@@ -56,14 +56,14 @@ function CarDetail() {
       ],
       variants: [
         {
-          name: 'VF5 Base',
+          name: 'Electra CityLink Base',
           price: '458.000.000',
-          features: ['Động cơ điện 100 kW', 'Pin LFP 37.23 kWh', 'Tốc độ tối đa 140 km/h', 'Phạm vi di chuyển 285 km']
+          features: ['Động cơ điện 110 kW', 'Pin LFP 57 kWh', 'Tốc độ tối đa 150 km/h', 'Phạm vi di chuyển 320 km']
         },
         {
-          name: 'VF5 Plus',
+          name: 'Electra CityLink Plus',
           price: '508.000.000',
-          features: ['Động cơ điện 100 kW', 'Pin LFP 37.23 kWh', 'Tốc độ tối đa 140 km/h', 'Phạm vi di chuyển 285 km', 'Màn hình 10 inch']
+          features: ['Động cơ điện 110 kW', 'Pin LFP 57 kWh', 'Tốc độ tối đa 150 km/h', 'Phạm vi di chuyển 320 km', 'Màn hình AI 12 inch']
         }
       ],
       specifications: {
@@ -77,9 +77,9 @@ function CarDetail() {
         'Chỗ ngồi': '5 chỗ'
       }
     },
-    'vf6': {
-      name: 'VinFast VF6',
-      image: '/src/assets/images/vf6.webp',
+    'electra-grandtour': {
+      name: 'Electra GrandTour',
+      image: '/src/assets/images/electra grandtour.png',
       colors: [
         { name: 'Xanh Dương', code: '#1E40AF' },
         { name: 'Đen Huyền Bí', code: '#1F2937' },
@@ -87,9 +87,9 @@ function CarDetail() {
       ],
       variants: [
         {
-          name: 'VF6 Base',
+          name: 'Electra GrandTour Base',
           price: '765.000.000',
-          features: ['Động cơ điện 130 kW', 'Pin LFP 59.6 kWh', 'Tốc độ tối đa 160 km/h', 'Phạm vi di chuyển 445 km']
+          features: ['Động cơ điện 140 kW', 'Pin LFP 64 kWh', 'Tốc độ tối đa 170 km/h', 'Phạm vi di chuyển 370 km']
         }
       ],
       specifications: {
@@ -216,7 +216,7 @@ function CarDetail() {
                   <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"/>
                   </svg>
-                  Xe điện VinFast
+                  Xe điện Electra
                 </div>
                 <h1 className="text-5xl font-bold text-gray-900 mb-4 leading-tight">{vehicle.name}</h1>
                 <p className="text-2xl text-emerald-600 font-bold">
@@ -431,7 +431,7 @@ function CarDetail() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
                     </svg>
                   </div>
-                  <span className="text-white font-bold text-lg">Hotline: 1900 23 23 89</span>
+                  <span className="text-white font-bold text-lg">Hotline: 1900 555 123</span>
                 </div>
                 <div className="flex items-center">
                   <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center mr-4">
@@ -439,7 +439,7 @@ function CarDetail() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M3 8l7.89 4.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 002 2z"/>
                     </svg>
                   </div>
-                  <span className="text-white font-bold text-lg">support.vn@vinfastauto.com</span>
+                  <span className="text-white font-bold text-lg">support@electra.com</span>
                 </div>
               </div>
             </div>

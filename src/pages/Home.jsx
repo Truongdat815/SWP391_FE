@@ -1,21 +1,34 @@
-import HeroSlider from "../components/HeroSlider"
-import AboutVinfast from "../components/AboutVinfast"
-import SimpleAccessories from "../components/SimpleAccessories"
-import SimpleBattery from "../components/SimpleBattery"
+
+import React from 'react';
+import Navbar from '../components/Navbar';
+import Hero from '../components/Hero';
+import About from '../components/About';
+import Models from '../components/Models';
+import Specs from '../components/Specs';
+import Footer from '../components/Footer';
 
 function Home() {
   return (
-    <main className="bg-white">
-      <section className="px-4 lg:px-6 py-6">
-        <HeroSlider />
-      </section>
-      <AboutVinfast />
-      <SimpleAccessories />
-      <SimpleBattery />
-    </main>
-  )
+    <div className="min-h-screen bg-white">
+      {/* Navigation */}
+      <Navbar />
+      
+      {/* Hero Section */}
+      <Hero />
+      
+      {/* About Section */}
+      <About />
+      
+      {/* Models Section */}
+      <Models />
+      
+      {/* Specifications Section */}
+      <Specs />
+      
+      {/* Footer */}
+      <Footer />
+    </div>
+  );
 }
 
-export default Home
-
-
+export default Home;
