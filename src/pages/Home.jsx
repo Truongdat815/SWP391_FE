@@ -1,5 +1,7 @@
 import HeroSlider from "../components/HeroSlider"
 import AboutVinfast from "../components/AboutVinfast"
+import SimpleAccessories from "../components/SimpleAccessories"
+import SimpleBattery from "../components/SimpleBattery"
 
 function Home() {
   return (
@@ -8,6 +10,8 @@ function Home() {
         <HeroSlider />
       </section>
       <AboutVinfast />
+      <SimpleAccessories />
+      <SimpleBattery />
     </main>
   )
 }
