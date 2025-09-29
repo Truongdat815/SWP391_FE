@@ -3,7 +3,6 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay, EffectFade } from 'swiper/modules';
 import { motion } from 'framer-motion';
 
-// Import poster images
 import ascentPoster from '../assets/images/electra ascent poster.png';
 import citylinkPoster from '../assets/images/electra citylink poster.png';
 import grandtourPoster from '../assets/images/electra grandtour poster.png';
@@ -13,7 +12,6 @@ import urbanplusePoster from '../assets/images/electra urbanpluse poster.png';
 import velocityPoster from '../assets/images/electra velocity poster.png';
 import voyagerPoster from '../assets/images/electra voyager poster.png';
 
-// Import Swiper styles
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
@@ -155,7 +153,7 @@ const Hero = () => {
                         href="/signin"
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-xl hover:shadow-2xl transition-all duration-300 inline-block text-center"
+                        className="bg-gradient-to-r bg-[#6CA12B] text-white px-8 py-4 rounded-full font-semibold text-lg shadow-xl hover:shadow-2xl transition-all duration-300 inline-block text-center"
                       >
                         Đăng nhập
                       </motion.a>

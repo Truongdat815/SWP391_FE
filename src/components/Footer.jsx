@@ -19,7 +19,7 @@ function Footer() {
             <div className="flex items-center space-x-3 mb-6">
               <img src={logo} alt="Electra" className="h-12 w-auto object-contain" />
               <div>
-                <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                <h3 className="text-2xl font-bold text-green-600">
                   Electra
                 </h3>
                 <p className="text-gray-400">Tương lai của di chuyển</p>
@@ -44,7 +44,7 @@ function Footer() {
                   transition={{ duration: 0.3, delay: index * 0.1 }}
                   viewport={{ once: true }}
                   whileHover={{ scale: 1.1 }}
-                  className="bg-gray-800 p-3 rounded-full text-gray-400 hover:text-white hover:bg-blue-600 transition-all duration-300"
+                  className="bg-gray-800 p-3 rounded-full text-gray-400 hover:text-white hover:bg-green-600 transition-all duration-300"
                 >
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d={social.icon} />
@@ -82,7 +82,7 @@ function Footer() {
                     href={link.href} 
                     className="text-gray-300 hover:text-white transition-colors duration-300 flex items-center group"
                   >
-                    <span className="w-0 h-0 border-l-2 border-transparent group-hover:border-blue-400 transition-all duration-300 mr-2"></span>
+                    <span className="w-0 h-0 border-l-2 border-transparent group-hover:border-green-400 transition-all duration-300 mr-2"></span>
                     {link.name}
                   </a>
                 </motion.li>
@@ -113,7 +113,7 @@ function Footer() {
                   viewport={{ once: true }}
                   className="flex items-start space-x-3 hover:text-white transition-colors duration-300"
                 >
-                  <span className="text-blue-400 mt-1">{contact.icon}</span>
+                  <span className="text-green-400 mt-1">{contact.icon}</span>
                   <span>{contact.text}</span>
                 </motion.li>
               ))}
@@ -138,12 +138,12 @@ function Footer() {
               <input
                 type="email"
                 placeholder="Nhập email của bạn"
-                className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-l-lg focus:outline-none focus:border-blue-500 text-white"
+                className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-l-lg focus:outline-none focus:border-green-500 text-white"
               />
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-r-lg font-semibold hover:shadow-lg transition-all duration-300"
+                className="bg-gradient-to-r from-green-600 to-green-800 text-white px-6 py-3 rounded-r-lg font-semibold hover:shadow-lg transition-all duration-300"
               >
                 Đăng ký
               </motion.button>
@@ -160,7 +160,7 @@ function Footer() {
           className="border-t border-gray-800 mt-8 pt-8 text-center"
         >
           <p className="text-gray-400">
-            © 2024 Electra. Tất cả quyền được bảo lưu. | 
+            © 2024 <span className="text-green-600">Electra</span>. Tất cả quyền được bảo lưu. | 
             <a href="#" className="hover:text-white transition-colors ml-2">Chính sách bảo mật</a> | 
             <a href="#" className="hover:text-white transition-colors ml-2">Điều khoản sử dụng</a>
           </p>
