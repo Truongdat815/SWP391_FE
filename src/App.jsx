@@ -1,10 +1,12 @@
 
 import './index.css'
-import Header from './components/Header'
+import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import Home from './pages/Home'
 import CarListing from './pages/CarListing'
 import CarDetail from './pages/CarDetail'
+import Dealers from './pages/Dealers'
+import DealerDetail from './pages/DealerDetail'
 import SignIn from './pages/SignIn'
 import DealerStaffDashboard from './pages/dashboard/DealerStaffDashboard'
 import DealerManagerDashboard from './pages/dashboard/DealerManagerDashboard'
@@ -18,9 +20,7 @@ import CreateOrder from './pages/dashboard/dealer-staff/CreateOrder'
 import SalesQuoteManagement from './pages/dashboard/dealer-staff/SalesQuoteManagement'
 import OrderManagement from './pages/dashboard/dealer-staff/OrderManagement'
 import PaymentManagement from './pages/dashboard/dealer-staff/PaymentManagement'
-import VehicleDetail from './pages/VehicleDetail'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
-
 
 function App() {
   return (
@@ -30,15 +30,29 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/cars" element={
           <div className="min-h-screen bg-white flex flex-col">
-            <Header />
+            <Navbar />
             <CarListing />
             <Footer />
           </div>
         } />
         <Route path="/car/:model" element={
           <div className="min-h-screen bg-white flex flex-col">
-            <Header />
+            <Navbar />
             <CarDetail />
+            <Footer />
+          </div>
+        } />
+        <Route path="/dealers" element={
+          <div className="min-h-screen bg-white flex flex-col">
+            <Navbar />
+            <Dealers />
+            <Footer />
+          </div>
+        } />
+        <Route path="/dealers/:id" element={
+          <div className="min-h-screen bg-white flex flex-col">
+            <Navbar />
+            <DealerDetail />
             <Footer />
           </div>
         } />
@@ -60,12 +74,9 @@ function App() {
         <Route path="/dashboard/evm-staff" element={<EVMDashboard />} />
         <Route path="/dashboard/admin" element={<AdminDashboard />} />
         
-        {/* Vehicle Detail Routes */}
-        <Route path="/vehicle/:model" element={<VehicleDetail />} />
-        
         <Route path="*" element={
           <div className="min-h-screen bg-white flex flex-col">
-            <Header />
+            <Navbar />
             <Home />
             <Footer />
           </div>

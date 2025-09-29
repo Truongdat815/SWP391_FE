@@ -2,7 +2,6 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
-// Import vehicle images
 import electraAscent from '../assets/images/electra ascent.png';
 import electraCitylink from '../assets/images/electra citylink poster.png';
 import electraGrandtour from '../assets/images/electra grandtour.png';
@@ -101,8 +100,8 @@ const Models = () => {
         >
           <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
             Dòng xe{' '}
-            <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              Electra
+            <span className="bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent">
+              <span className="text-green-600">Electra</span>
             </span>
           </h2>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
@@ -134,7 +133,7 @@ const Models = () => {
                 
                 {/* Category Badge */}
                 <div className="absolute top-4 left-4">
-                  <span className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                  <span className="bg-gradient-to-r from-green-600 to-green-800 text-white px-3 py-1 rounded-full text-xs font-semibold">
                     {vehicle.category}
                   </span>
                 </div>
@@ -161,7 +160,7 @@ const Models = () => {
 
               {/* Content */}
               <div className="p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors duration-300">
+                <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-green-600 transition-colors duration-300">
                   {vehicle.name}
                 </h3>
                 <p className="text-gray-600 text-sm mb-4 line-clamp-2">
@@ -178,7 +177,7 @@ const Models = () => {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-300"
+                    className="w-full bg-[#6CA12B] text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-300"
                   >
                     Xem chi tiết
                   </motion.button>
@@ -196,7 +195,7 @@ const Models = () => {
           viewport={{ once: true }}
           className="text-center mt-16"
         >
-          <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl p-8 text-white">
+          <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-2xl p-8 text-white">
             <h3 className="text-3xl font-bold mb-4">
               Chưa tìm thấy mẫu xe phù hợp?
             </h3>
@@ -208,9 +207,9 @@ const Models = () => {
               href="/signin"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="bg-white text-blue-600 px-8 py-4 rounded-full font-semibold hover:shadow-lg transition-all duration-300 inline-block text-center"
+              className="bg-white text-green-600 px-8 py-4 rounded-full font-semibold hover:shadow-lg transition-all duration-300 inline-block text-center"
             >
-              Đăng nhập
+              Liên hệ với đại lí 
             </motion.a>
           </div>
         </motion.div>

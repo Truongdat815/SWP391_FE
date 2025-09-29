@@ -2,7 +2,6 @@ import React from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay } from 'swiper/modules';
 
-// Import poster images
 import ascentPoster from '../assets/images/electra ascent poster.png';
 import citylinkPoster from '../assets/images/electra citylink poster.png';
 import grandtourPoster from '../assets/images/electra grandtour poster.png';
@@ -12,7 +11,6 @@ import urbanplusePoster from '../assets/images/electra urbanpluse poster.png';
 import velocityPoster from '../assets/images/electra velocity poster.png';
 import voyagerPoster from '../assets/images/electra voyager poster.png';
 
-// Import Swiper styles
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
@@ -140,10 +138,6 @@ const PosterSwiper = () => {
                 </div>
               </div>
 
-              {/* Badge */}
-              {/* <div className="absolute top-6 right-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-2 rounded-full text-base font-bold shadow-xl">
-                Electra
-              </div> */}
             </div>
           </SwiperSlide>
         ))}

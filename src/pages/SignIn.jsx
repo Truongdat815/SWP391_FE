@@ -50,7 +50,7 @@ function SignIn() {
               Đăng nhập
             </h2>
             <p className="text-gray-600">
-              Chào mừng trở lại với Electra
+              Chào mừng trở lại với <span className="text-green-600">Electra</span>
             </p>
           </div>
         

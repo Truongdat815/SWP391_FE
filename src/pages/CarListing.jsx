@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import electraAscent from "../assets/images/electra ascent.png"
-import electraCitylink from "../assets/images/electra citylink poster.png"
+import electraCitylink from "../assets/images/electracitylink.png"
 import electraGrandtour from "../assets/images/electra grandtour.png"
 import electraMicro from "../assets/images/electra micro.png"
 import electraSummit from "../assets/images/electra summit.png"
@@ -10,6 +10,7 @@ function CarListing() {
   const cars = [
     {
       id: 'electra-ascent',
+      
       name: 'Electra Ascent',
       image: electraAscent,
       price: '299.000.000',
@@ -64,7 +65,7 @@ function CarListing() {
       <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 text-white py-20">
         <div className="max-w-7xl mx-auto px-4 lg:px-6 text-center">
           <h1 className="text-4xl md:text-6xl font-bold mb-6">
-            Dòng xe Electra
+            Dòng xe <span className="text-green-600">Electra</span>
           </h1>
           <p className="text-xl md:text-2xl opacity-90 max-w-3xl mx-auto">
             Khám phá bộ sưu tập xe điện thông minh với công nghệ AI tiên tiến và thiết kế tương lai

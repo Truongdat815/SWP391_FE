@@ -62,8 +62,8 @@ const About = () => {
                 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6"
               >
                 Về{' '}
-                <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  Electra
+                <span className="bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent">
+                  <span className="text-green-600">Electra</span>
                 </span>
               </motion.h2>
               <motion.p
@@ -91,7 +91,7 @@ const About = () => {
                   className="bg-white p-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
                 >
                   <div className="flex items-center space-x-4">
-                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 p-3 rounded-lg text-white">
+                    <div className="bg-gradient-to-r from-green-600 to-green-800 p-3 rounded-lg text-white">
                       {feature.icon}
                     </div>
                     <div>
@@ -119,14 +119,14 @@ const About = () => {
                 href="/signin"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 inline-block text-center"
+                className="bg-gradient-to-r from-green-600 to-green-800 text-white px-8 py-4 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 inline-block text-center"
               >
                 Đăng nhập
               </motion.a>
               <motion.button
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
-                className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-full font-semibold hover:border-blue-600 hover:text-blue-600 transition-all duration-300"
+                className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-full font-semibold hover:border-green-600 hover:text-green-600 transition-all duration-300"
               >
                 Xem video giới thiệu
               </motion.button>
@@ -141,7 +141,7 @@ const About = () => {
             viewport={{ once: true }}
             className="relative"
           >
-            <div className="relative bg-gradient-to-br from-blue-600 to-purple-600 rounded-2xl p-8 shadow-2xl">
+            <div className="relative bg-gradient-to-br from-green-600 to-green-800 rounded-2xl p-8 shadow-2xl">
               {/* Decorative elements */}
               <div className="absolute top-4 right-4 w-20 h-20 bg-white/20 rounded-full"></div>
               <div className="absolute bottom-4 left-4 w-16 h-16 bg-white/20 rounded-full"></div>

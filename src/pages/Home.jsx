@@ -5,6 +5,8 @@ import Hero from '../components/Hero';
 import About from '../components/About';
 import Models from '../components/Models';
 import Specs from '../components/Specs';
+import NewsSection from '../components/NewsSection';
+import StatisticsSection from '../components/StatisticsSection';
 import Footer from '../components/Footer';
 
 function Home() {
@@ -24,6 +26,12 @@ function Home() {
       
       {/* Specifications Section */}
       <Specs />
+      
+      {/* News Section */}
+      <NewsSection />
+      
+      {/* Statistics Section */}
+      <StatisticsSection />
       
       {/* Footer */}
       <Footer />

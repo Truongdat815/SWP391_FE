@@ -72,7 +72,7 @@ const Specs = () => {
   ];
 
   return (
-    <section className="py-20 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900">
+    <section className="py-20 bg-gradient-to-br from-gray-900 via-green-900 to-emerald-900">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <motion.div
@@ -195,14 +195,14 @@ const Specs = () => {
           viewport={{ once: true }}
           className="text-center mt-12"
         >
-          <motion.a
+          {/* <motion.a
             href="/signin"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-full font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-300 inline-block"
           >
-            Đăng nhập ngay
-          </motion.a>
+            
+          </motion.a> */}
         </motion.div>
       </div>
     </section>
