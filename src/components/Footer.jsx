@@ -64,29 +64,34 @@ function Footer() {
             <h4 className="text-lg font-semibold mb-6">Liên kết nhanh</h4>
             <ul className="space-y-3">
               {[
-                { name: 'Trang chủ', href: '#home' },
-                { name: 'Dòng xe', href: '#models' },
-                { name: 'Phụ kiện', href: '#accessories' },
-                { name: 'Trạm sạc', href: '#charging' },
-                { name: 'Về chúng tôi', href: '#about' },
-                { name: 'Liên hệ', href: '#contact' }
-              ].map((link, index) => (
-                <motion.li
-                  key={link.name}
-                  initial={{ opacity: 0, x: -20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  transition={{ duration: 0.3, delay: 0.3 + index * 0.1 }}
-                  viewport={{ once: true }}
-                >
-                  <a 
-                    href={link.href} 
-                    className="text-gray-300 hover:text-white transition-colors duration-300 flex items-center group"
+                { name: 'Trang chủ', href: '/', isHash: false },
+                { name: 'Dòng xe', href: '/cars', isHash: false },
+                { name: 'Đại lý', href: '/dealers', isHash: false },
+                { name: 'Phụ kiện', href: '#accessories', isHash: true },
+                { name: 'Trạm sạc', href: '#charging', isHash: true },
+                { name: 'Về chúng tôi', href: '#about', isHash: true }
+              ].map((link, index) => {
+                const LinkComponent = link.isHash ? 'a' : Link;
+                const linkProps = link.isHash ? { href: link.href } : { to: link.href };
+                
+                return (
+                  <motion.li
+                    key={link.name}
+                    initial={{ opacity: 0, x: -20 }}
+                    whileInView={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: 0.3 + index * 0.1 }}
+                    viewport={{ once: true }}
                   >
-                    <span className="w-0 h-0 border-l-2 border-transparent group-hover:border-green-400 transition-all duration-300 mr-2"></span>
-                    {link.name}
-                  </a>
-                </motion.li>
-              ))}
+                    <LinkComponent 
+                      {...linkProps}
+                      className="text-gray-300 hover:text-white transition-colors duration-300 flex items-center group"
+                    >
+                      <span className="w-0 h-0 border-l-2 border-transparent group-hover:border-green-400 transition-all duration-300 mr-2"></span>
+                      {link.name}
+                    </LinkComponent>
+                  </motion.li>
+                );
+              })}
             </ul>
           </motion.div>
 
