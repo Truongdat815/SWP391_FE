@@ -125,6 +125,7 @@ function Footer() {
             </ul>
           </motion.div>
         </div>
+        //dat
 
         {/* Newsletter */}
         <motion.div
