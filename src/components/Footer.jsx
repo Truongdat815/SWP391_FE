@@ -120,7 +120,7 @@ function Footer() {
                 >
                   <span className="text-green-400 mt-1">{contact.icon}</span>
                   <span>{contact.text}</span>
-                </motion.li>
+                </motion.li> //phu
               ))}
             </ul>
           </motion.div>
