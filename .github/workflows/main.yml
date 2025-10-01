@@ -19,29 +19,25 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # GỘP TẤT CẢ LOGIC DEPLOY VÀO MỘT BƯỚC DUY NHẤT
+      # Deploy frontend bằng 1 bước PowerShell duy nhất
       - name: Deploy Frontend via Single PowerShell Script
-        shell: powershell
+        shell: powershell -ExecutionPolicy Bypass
         run: |
-          # 1. Khắc phục lỗi Execution Policy cho phiên làm việc này
-          Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-          
-          # 2. Định nghĩa biến để dễ dùng hơn trong script
+          # 1. Định nghĩa biến để dễ dùng hơn trong script
           $CNAME = "${{ env.CONTAINER_NAME }}"
           $IMAGE_FULL = "${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
           $PORTMAP = "${{ env.PORT_HOST }}:${{ env.PORT_CONTAINER }}"
           
-          # 3. Xóa Image cũ
+          # 2. Xóa Image cũ
           Write-Host ":: Removing old Docker image if exists..."
           docker rmi -f $IMAGE_FULL | Out-Null
           
-          # 4. Build Image mới
+          # 3. Build Image mới
           Write-Host ":: Building Docker image for frontend..."
           docker build -t $IMAGE_FULL -f ./Dockerfile .
           
-          # 5. Dừng và Xóa Container cũ (Logic IF)
+          # 4. Dừng và Xóa Container cũ (nếu có)
           $ContainerId = docker ps -aq -f name=$CNAME
-          
           if ($ContainerId) {
               Write-Host ":: Stopping and removing existing container - $CNAME"
               docker stop $CNAME
@@ -50,10 +46,10 @@ jobs:
               Write-Host ":: No existing container '$CNAME' found. Skipping stop/remove."
           }
           
-          # 6. Chạy Container mới
+          # 5. Chạy Container mới
           Write-Host ":: Running new frontend container - $CNAME"
           docker run -d -p $PORTMAP --name $CNAME $IMAGE_FULL
           
-          # 7. Dọn dẹp Image không dùng
+          # 6. Dọn dẹp Image không dùng
           Write-Host ":: Cleaning up unused Docker images..."
           docker system prune -af
