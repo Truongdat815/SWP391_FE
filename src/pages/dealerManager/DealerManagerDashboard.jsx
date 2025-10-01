@@ -49,33 +49,7 @@ function DealerManagerDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <div className="h-8 w-8 bg-red-600 rounded-lg flex items-center justify-center mr-3">
-                <span className="text-white text-sm font-bold">DM</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">Dealer Manager Dashboard</h1>
-                <p className="text-sm text-gray-500">Quản lý và báo cáo tổng quan</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
-                Tạo báo cáo
-              </button>
-              <div className="flex items-center space-x-2">
-                <div className="h-8 w-8 bg-gray-300 rounded-full"></div>
-                <span className="text-sm text-gray-700">Quản lý</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <>
       {/* Navigation Tabs */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -97,8 +71,6 @@ function DealerManagerDashboard() {
           </nav>
         </div>
       </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat, index) => (
@@ -390,8 +362,7 @@ function DealerManagerDashboard() {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </>
   );
 }
 

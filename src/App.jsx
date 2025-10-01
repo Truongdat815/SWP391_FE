@@ -8,18 +8,29 @@ import CarDetail from './pages/CarDetail'
 import Dealers from './pages/Dealers'
 import DealerDetail from './pages/DealerDetail'
 import SignIn from './pages/SignIn'
-import DealerStaffDashboard from './pages/dashboard/DealerStaffDashboard'
-import DealerManagerDashboard from './pages/dashboard/DealerManagerDashboard'
-import EVMDashboard from './pages/dashboard/EVMDashboard'
-import AdminDashboard from './pages/dashboard/AdminDashboard'
-import CreateQuote from './pages/dashboard/dealer-staff/CreateQuote'
-import AddCustomer from './pages/dashboard/dealer-staff/AddCustomer'
-import OrderFromManufacturer from './pages/dashboard/dealer-staff/OrderFromManufacturer'
-import TestDriveSchedule from './pages/dashboard/dealer-staff/TestDriveSchedule'
-import CreateOrder from './pages/dashboard/dealer-staff/CreateOrder'
-import SalesQuoteManagement from './pages/dashboard/dealer-staff/SalesQuoteManagement'
-import OrderManagement from './pages/dashboard/dealer-staff/OrderManagement'
-import PaymentManagement from './pages/dashboard/dealer-staff/PaymentManagement'
+
+// Layouts
+import AdminLayout from './layouts/Adminlayout'
+import DealerStaffLayout from './layouts/DealerStaffLayout'
+import DealerManagerLayout from './layouts/DealerManagerLayout'
+import EVMStaffLayout from './layouts/EVMStaffLayout'
+
+// Dashboard Pages
+import AdminDashboard from './pages/admin/AdminDashboard'
+import DealerStaffDashboard from './pages/dealerStaff/DealerStaffDashboard'
+import DealerManagerDashboard from './pages/dealerManager/DealerManagerDashboard'
+import EVMDashboard from './pages/EvmStaff/EVMDashboard'
+
+// Dealer Staff Sub Pages
+import CreateQuote from './pages/dealerStaff/dealer-staff/CreateQuote'
+import AddCustomer from './pages/dealerStaff/dealer-staff/AddCustomer'
+import OrderFromManufacturer from './pages/dealerStaff/dealer-staff/OrderFromManufacturer'
+import TestDriveSchedule from './pages/dealerStaff/dealer-staff/TestDriveSchedule'
+import CreateOrder from './pages/dealerStaff/dealer-staff/CreateOrder'
+import SalesQuoteManagement from './pages/dealerStaff/dealer-staff/SalesQuoteManagement'
+import OrderManagement from './pages/dealerStaff/dealer-staff/OrderManagement'
+import PaymentManagement from './pages/dealerStaff/dealer-staff/PaymentManagement'
+
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
 function App() {
@@ -60,19 +71,33 @@ function App() {
         {/* Login Route without Header/Footer */}
         <Route path="/signin" element={<SignIn />} />
         
-        {/* Dashboard Routes without Header/Footer */}
-        <Route path="/dashboard/dealer-staff" element={<DealerStaffDashboard />} />
-        <Route path="/dashboard/dealer-staff/create-quote" element={<CreateQuote />} />
-        <Route path="/dashboard/dealer-staff/add-customer" element={<AddCustomer />} />
-        <Route path="/dashboard/dealer-staff/order-from-manufacturer" element={<OrderFromManufacturer />} />
-        <Route path="/dashboard/dealer-staff/test-drive-schedule" element={<TestDriveSchedule />} />
-        <Route path="/dashboard/dealer-staff/create-order" element={<CreateOrder />} />
-        <Route path="/dashboard/dealer-staff/sales-quote" element={<SalesQuoteManagement />} />
-        <Route path="/dashboard/dealer-staff/order-management" element={<OrderManagement />} />
-        <Route path="/dashboard/dealer-staff/payment-management" element={<PaymentManagement />} />
-        <Route path="/dashboard/dealer-manager" element={<DealerManagerDashboard />} />
-        <Route path="/dashboard/evm-staff" element={<EVMDashboard />} />
-        <Route path="/dashboard/admin" element={<AdminDashboard />} />
+        {/* Admin Routes */}
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<AdminDashboard />} />
+        </Route>
+
+        {/* Dealer Staff Routes */}
+        <Route path="/dealer-staff" element={<DealerStaffLayout />}>
+          <Route index element={<DealerStaffDashboard />} />
+          <Route path="create-quote" element={<CreateQuote />} />
+          <Route path="add-customer" element={<AddCustomer />} />
+          <Route path="order-from-manufacturer" element={<OrderFromManufacturer />} />
+          <Route path="test-drive-schedule" element={<TestDriveSchedule />} />
+          <Route path="create-order" element={<CreateOrder />} />
+          <Route path="sales-quote" element={<SalesQuoteManagement />} />
+          <Route path="order-management" element={<OrderManagement />} />
+          <Route path="payment-management" element={<PaymentManagement />} />
+        </Route>
+
+        {/* Dealer Manager Routes */}
+        <Route path="/dealer-manager" element={<DealerManagerLayout />}>
+          <Route index element={<DealerManagerDashboard />} />
+        </Route>
+
+        {/* EVM Staff Routes */}
+        <Route path="/evm-staff" element={<EVMStaffLayout />}>
+          <Route index element={<EVMDashboard />} />
+        </Route>
         
         <Route path="*" element={
           <div className="min-h-screen bg-white flex flex-col">
