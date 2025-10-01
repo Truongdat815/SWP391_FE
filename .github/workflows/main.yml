@@ -20,24 +20,28 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # BƯỚC KHẮC PHỤC LỖI SECURITY TRIỆT ĐỂ
+      # 1. BƯỚC KHẮC PHỤC LỖI SECURITY TRIỆT ĐỂ (Execution Policy)
+      # Sử dụng CMD để gọi PowerShell, dùng 'Bypass' để vượt qua hạn chế ban đầu.
       - name: Force Set PowerShell Execution Policy
-        # Sử dụng CMD để gọi PowerShell, dùng 'Bypass' để vượt qua hạn chế ban đầu
-        shell: cmd
+        shell: cmd 
         run: |
           powershell.exe -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process"
         
+      # 2. Xóa Image cũ
       - name: Remove Old Docker Image if Exists
-        # Lệnh này sẽ chạy trơn tru sau khi chính sách được đặt
+        # BẮT BUỘC chỉ định shell: powershell để áp dụng chính sách mới
+        shell: powershell
         run: docker rmi -f ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} | Out-Null
         
+      # 3. Build Image mới
       - name: Build Docker Image
+        shell: powershell
         run: |
           Write-Host ":: Building Docker image for frontend..."
           docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} -f ./Dockerfile .
 
+      # 4. Dừng và Xóa Container cũ
       - name: Stop and Remove Existing Container if Any
-        # Sử dụng cú pháp PowerShell để xử lý điều kiện IF logic
         shell: powershell
         run: |
           $CNAME = "${{ env.CONTAINER_NAME }}"
@@ -53,7 +57,9 @@ jobs:
               Write-Host ":: No existing container '$CNAME' found. Skipping stop/remove."
           }
 
+      # 5. Chạy Container mới
       - name: Run New Docker Container
+        shell: powershell
         run: |
           $CNAME = "${{ env.CONTAINER_NAME }}"
           $IMAGE = "${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
@@ -62,7 +68,9 @@ jobs:
           Write-Host ":: Running new frontend container - $CNAME"
           docker run -d -p $PORTMAP --name $CNAME $IMAGE
 
+      # 6. Dọn dẹp Image không dùng
       - name: Cleanup Unused Docker Images
+        shell: powershell
         run: |
           Write-Host ":: Cleaning up unused Docker images..."
           docker system prune -af
