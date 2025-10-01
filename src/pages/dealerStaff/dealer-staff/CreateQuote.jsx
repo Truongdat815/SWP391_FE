@@ -16,12 +16,12 @@ function CreateQuote() {
   });
 
   const vehicleModels = [
-    { id: 'vf3', name: 'VinFast VF3', basePrice: 299000000 },
-    { id: 'vf5', name: 'VinFast VF5 Plus', basePrice: 529000000 },
-    { id: 'vf6', name: 'VinFast VF6', basePrice: 689000000 },
-    { id: 'vf7', name: 'VinFast VF7', basePrice: 799000000 },
-    { id: 'vf8', name: 'VinFast VF8', basePrice: 1019000000 },
-    { id: 'vf9', name: 'VinFast VF9', basePrice: 1499000000 }
+    { id: 'electra_micro', name: 'Electra Micro', basePrice: 1200000000 },
+    { id: 'electra_urbanpulse', name: 'Electra UrbanPulse', basePrice: 1500000000 },
+    { id: 'electra_citylink', name: 'Electra CityLink', basePrice: 1800000000 },
+    { id: 'electra_ascent', name: 'Electra Ascent', basePrice: 2500000000 },
+    { id: 'electra_grandtour', name: 'Electra GrandTour', basePrice: 3200000000 },
+    { id: 'electra_summit', name: 'Electra Summit', basePrice: 4500000000 }
   ];
 
   const colors = [

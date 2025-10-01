@@ -10,7 +10,7 @@ function SalesQuoteManagement() {
       id: 'BG001',
       customerName: 'Nguyễn Văn A',
       customerPhone: '0901234567',
-      vehicle: 'VinFast VF8 Plus',
+      vehicle: 'Electra Ascent',
       totalAmount: 1200000000,
       status: 'pending',
       createdDate: '2024-01-10',
@@ -21,7 +21,7 @@ function SalesQuoteManagement() {
       id: 'BG002',
       customerName: 'Lê Văn C',
       customerPhone: '0907654321',
-      vehicle: 'VinFast VF7 Eco',
+      vehicle: 'Electra CityLink',
       totalAmount: 850000000,
       status: 'approved',
       createdDate: '2024-01-08',
@@ -32,7 +32,7 @@ function SalesQuoteManagement() {
       id: 'BG003',
       customerName: 'Trần Thị E',
       customerPhone: '0912345678',
-      vehicle: 'VinFast VF9 Plus',
+      vehicle: 'Electra Summit',
       totalAmount: 1680000000,
       status: 'converted',
       createdDate: '2024-01-05',
@@ -384,7 +384,7 @@ function SalesQuoteManagement() {
                     <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-3">
                       <span className="text-xs font-bold text-red-600">1</span>
                     </div>
-                    <span className="text-sm font-medium text-gray-900">VinFast VF8</span>
+                    <span className="text-sm font-medium text-gray-900">Electra Ascent</span>
                   </div>
                   <div className="flex items-center">
                     <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
@@ -399,7 +399,7 @@ function SalesQuoteManagement() {
                     <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-3">
                       <span className="text-xs font-bold text-red-600">2</span>
                     </div>
-                    <span className="text-sm font-medium text-gray-900">VinFast VF7</span>
+                    <span className="text-sm font-medium text-gray-900">Electra CityLink</span>
                   </div>
                   <div className="flex items-center">
                     <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">
@@ -414,7 +414,7 @@ function SalesQuoteManagement() {
                     <div className="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center mr-3">
                       <span className="text-xs font-bold text-red-600">3</span>
                     </div>
-                    <span className="text-sm font-medium text-gray-900">VinFast VF9</span>
+                    <span className="text-sm font-medium text-gray-900">Electra Summit</span>
                   </div>
                   <div className="flex items-center">
                     <div className="w-32 bg-gray-200 rounded-full h-2 mr-3">

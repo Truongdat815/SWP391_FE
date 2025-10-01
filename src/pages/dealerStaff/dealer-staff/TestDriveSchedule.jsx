@@ -25,27 +25,27 @@ function TestDriveSchedule() {
       id: 1,
       customerName: 'Nguyễn Văn A',
       phone: '0901234567',
-      vehicle: 'VinFast VF8',
+      vehicle: 'Electra Ascent',
       date: '2024-01-15',
       time: '09:00',
       status: 'confirmed',
-      location: 'Showroom VinFast Hà Nội'
+      location: 'Showroom Electra Hà Nội'
     },
     {
       id: 2,
       customerName: 'Trần Thị B',
       phone: '0907654321',
-      vehicle: 'VinFast VF7',
+      vehicle: 'Electra CityLink',
       date: '2024-01-15',
       time: '14:00',
       status: 'pending',
-      location: 'Showroom VinFast Hà Nội'
+      location: 'Showroom Electra Hà Nội'
     },
     {
       id: 3,
       customerName: 'Lê Văn C',
       phone: '0912345678',
-      vehicle: 'VinFast VF6',
+      vehicle: 'Electra Micro',
       date: '2024-01-16',
       time: '10:30',
       status: 'completed',
@@ -54,8 +54,8 @@ function TestDriveSchedule() {
   ]);
 
   const vehicleModels = [
-    'VinFast VF3', 'VinFast VF5 Plus', 'VinFast VF6',
-    'VinFast VF7', 'VinFast VF8', 'VinFast VF9'
+    'Electra Micro', 'Electra UrbanPulse', 'Electra CityLink',
+    'Electra Ascent', 'Electra GrandTour', 'Electra Summit'
   ];
 
   const timeSlots = [
@@ -83,7 +83,7 @@ function TestDriveSchedule() {
       date: formData.testDriveDate,
       time: formData.testDriveTime,
       status: 'pending',
-      location: formData.pickupLocation === 'showroom' ? 'Showroom VinFast' : formData.customLocation
+      location: formData.pickupLocation === 'showroom' ? 'Showroom Electra' : formData.customLocation
     };
     
     setAppointments(prev => [...prev, newAppointment]);
@@ -381,7 +381,7 @@ function TestDriveSchedule() {
                         onChange={handleInputChange}
                         className="mr-3 text-red-600"
                       />
-                      <span className="text-sm text-gray-700">Tại showroom VinFast</span>
+                      <span className="text-sm text-gray-700">Tại showroom Electra</span>
                     </label>
                     <label className="flex items-center">
                       <input
