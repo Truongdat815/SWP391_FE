@@ -11,10 +11,10 @@ function EVMDashboard() {
   ];
 
   const inventory = [
-    { model: 'Tesla Model 3', color: 'Đen', stock: 45, reserved: 12, available: 33 },
-    { model: 'VinFast VF8', color: 'Trắng', stock: 78, reserved: 25, available: 53 },
-    { model: 'BMW iX3', color: 'Xám', stock: 32, reserved: 8, available: 24 },
-    { model: 'Audi e-tron', color: 'Đỏ', stock: 28, reserved: 15, available: 13 }
+    { model: 'Electra Ascent', color: 'Trắng', stock: 45, reserved: 12, available: 33 },
+    { model: 'Electra CityLink', color: 'Xanh', stock: 78, reserved: 25, available: 53 },
+    { model: 'Electra GrandTour', color: 'Đen', stock: 32, reserved: 8, available: 24 },
+    { model: 'Electra Micro', color: 'Cam', stock: 28, reserved: 15, available: 13 }
   ];
 
   const dealers = [
@@ -298,7 +298,7 @@ function EVMDashboard() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                       </svg>
                     </div>
-                    <h4 className="font-medium text-gray-900 mb-2">Tesla Model 3</h4>
+                    <h4 className="font-medium text-gray-900 mb-2">Electra Ascent</h4>
                     <p className="text-sm text-gray-500 mb-2">Dự báo tháng tới</p>
                     <p className="text-2xl font-bold text-red-600">+25%</p>
                   </div>
@@ -309,7 +309,7 @@ function EVMDashboard() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                       </svg>
                     </div>
-                    <h4 className="font-medium text-gray-900 mb-2">VinFast VF8</h4>
+                    <h4 className="font-medium text-gray-900 mb-2">Electra CityLink</h4>
                     <p className="text-sm text-gray-500 mb-2">Dự báo tháng tới</p>
                     <p className="text-2xl font-bold text-blue-600">+18%</p>
                   </div>
@@ -320,7 +320,7 @@ function EVMDashboard() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                       </svg>
                     </div>
-                    <h4 className="font-medium text-gray-900 mb-2">BMW iX3</h4>
+                    <h4 className="font-medium text-gray-900 mb-2">Electra GrandTour</h4>
                     <p className="text-sm text-gray-500 mb-2">Dự báo tháng tới</p>
                     <p className="text-2xl font-bold text-green-600">+12%</p>
                   </div>
@@ -455,7 +455,7 @@ function EVMDashboard() {
                       <div className="h-12 w-12 bg-gray-100 rounded-lg mr-4"></div>
                       <div>
                         <h4 className="font-medium text-gray-900">Đơn hàng #001</h4>
-                        <p className="text-sm text-gray-500">Đại lý Hà Nội - 5 xe Tesla Model 3</p>
+                        <p className="text-sm text-gray-500">Đại lý Hà Nội - 5 xe Electra Ascent</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">
@@ -473,7 +473,7 @@ function EVMDashboard() {
                       <div className="h-12 w-12 bg-gray-100 rounded-lg mr-4"></div>
                       <div>
                         <h4 className="font-medium text-gray-900">Đơn hàng #002</h4>
-                        <p className="text-sm text-gray-500">Đại lý TP.HCM - 8 xe VinFast VF8</p>
+                        <p className="text-sm text-gray-500">Đại lý TP.HCM - 8 xe Electra CityLink</p>
                       </div>
                     </div>
                     <div className="flex items-center space-x-4">

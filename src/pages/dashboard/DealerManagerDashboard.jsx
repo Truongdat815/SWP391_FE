@@ -241,7 +241,7 @@ function DealerManagerDashboard() {
                     <div className="flex items-center">
                       <div className="h-12 w-12 bg-gray-100 rounded-lg mr-4"></div>
                       <div>
-                        <h4 className="font-medium text-gray-900">Tesla Model 3</h4>
+                        <h4 className="font-medium text-gray-900">Electra Ascent</h4>
                         <p className="text-sm text-gray-500">28 đơn hàng</p>
                       </div>
                     </div>
@@ -255,7 +255,7 @@ function DealerManagerDashboard() {
                     <div className="flex items-center">
                       <div className="h-12 w-12 bg-gray-100 rounded-lg mr-4"></div>
                       <div>
-                        <h4 className="font-medium text-gray-900">VinFast VF8</h4>
+                        <h4 className="font-medium text-gray-900">Electra CityLink</h4>
                         <p className="text-sm text-gray-500">24 đơn hàng</p>
                       </div>
                     </div>
@@ -269,7 +269,7 @@ function DealerManagerDashboard() {
                     <div className="flex items-center">
                       <div className="h-12 w-12 bg-gray-100 rounded-lg mr-4"></div>
                       <div>
-                        <h4 className="font-medium text-gray-900">BMW iX3</h4>
+                        <h4 className="font-medium text-gray-900">Electra GrandTour</h4>
                         <p className="text-sm text-gray-500">22 đơn hàng</p>
                       </div>
                     </div>
