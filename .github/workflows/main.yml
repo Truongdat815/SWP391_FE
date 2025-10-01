@@ -6,37 +6,65 @@ on:
 
 jobs:
   build_and_deploy:
+    # Runner của bạn là self-hosted
     runs-on: [self-hosted]
+    
+    # Định nghĩa biến môi trường
     env:
       CONTAINER_NAME: frontendContainer
+      IMAGE_NAME: fe_tixclick
+      IMAGE_TAG: latest
+      PORT_HOST: 5173
+      PORT_CONTAINER: 5173
+      
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
+      # BƯỚC KHẮC PHỤC LỖI SECURITY (Execution Policy)
+      - name: Set PowerShell Execution Policy
+        # Đảm bảo các script tạm thời được phép chạy
+        run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+        shell: powershell
+        
       - name: Remove Old Docker Image if Exists
-        run: |
-          echo "Removing old Docker image if exists..."
-          docker rmi -f fe_tixclick:latest || true
-
+        # Lệnh PowerShell và Docker thuần
+        run: docker rmi -f ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} | Out-Null
+        
       - name: Build Docker Image
         run: |
-          echo "Building Docker image for frontend..."
-          docker build -t fe_tixclick:latest -f ./Dockerfile .
+          Write-Host ":: Building Docker image for frontend..."
+          docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} -f ./Dockerfile .
 
       - name: Stop and Remove Existing Container if Any
+        # Chuyển sang cú pháp PowerShell để xử lý điều kiện IF
+        shell: powershell
         run: |
-          CNAME=${{ env.CONTAINER_NAME }}
-          if [ "$(docker ps -aq -f name=$CNAME)" ]; then
-              echo ":: Stopping and removing existing container - $CNAME"
+          $CNAME = "${{ env.CONTAINER_NAME }}"
+          
+          # Kiểm tra xem container có tồn tại và đang chạy không
+          $ContainerId = docker ps -aq -f name=$CNAME
+          
+          if ($ContainerId) {
+              Write-Host ":: Stopping and removing existing container - $CNAME"
+              # Sử dụng lệnh Docker thuần
               docker stop $CNAME
               docker rm $CNAME
-          fi
+          } else {
+              Write-Host ":: No existing container '$CNAME' found. Skipping stop/remove."
+          }
 
       - name: Run New Docker Container
         run: |
-          CNAME=${{ env.CONTAINER_NAME }}
-          echo ":: Running new frontend container - $CNAME"
-          docker run -d -p 5173:5173 --name $CNAME fe_tixclick:latest
+          $CNAME = "${{ env.CONTAINER_NAME }}"
+          $IMAGE = "${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+          $PORTMAP = "${{ env.PORT_HOST }}:${{ env.PORT_CONTAINER }}"
+          
+          Write-Host ":: Running new frontend container - $CNAME"
+          # Lệnh run:
+          docker run -d -p $PORTMAP --name $CNAME $IMAGE
+
       - name: Cleanup Unused Docker Images
         run: |
-          echo "Cleaning up unused Docker images..."
+          Write-Host ":: Cleaning up unused Docker images..."
           docker system prune -af
