@@ -13,10 +13,10 @@ function DealerStaffDashboard() {
   ];
 
   const recentOrders = [
-    { id: '#001', customer: 'Nguyễn Văn A', vehicle: 'Tesla Model 3', amount: '1,200,000,000', status: 'pending' },
-    { id: '#002', customer: 'Trần Thị B', vehicle: 'VinFast VF8', amount: '890,000,000', status: 'completed' },
-    { id: '#003', customer: 'Lê Văn C', vehicle: 'BMW iX3', amount: '1,500,000,000', status: 'processing' },
-    { id: '#004', customer: 'Phạm Thị D', vehicle: 'Audi e-tron', amount: '2,100,000,000', status: 'pending' }
+    { id: '#001', customer: 'Nguyễn Văn A', vehicle: 'Electra Ascent', amount: '1,200,000,000', status: 'pending' },
+    { id: '#002', customer: 'Trần Thị B', vehicle: 'Electra CityLink', amount: '890,000,000', status: 'completed' },
+    { id: '#003', customer: 'Lê Văn C', vehicle: 'Electra GrandTour', amount: '1,500,000,000', status: 'processing' },
+    { id: '#004', customer: 'Phạm Thị D', vehicle: 'Electra Summit', amount: '2,100,000,000', status: 'pending' }
   ];
 
   const tabs = [
@@ -318,186 +318,221 @@ function DealerStaffDashboard() {
         {activeTab === 'vehicles' && (
           <div className="bg-white rounded-lg shadow">
             <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Danh mục xe VinFast</h3>
+              <h3 className="text-lg font-medium text-gray-900">Danh mục xe Electra</h3>
             </div>
             <div className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* VinFast VF3 */}
+                {/* Electra Ascent */}
                 <div className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition">
                   <div className="h-48 rounded-lg mb-4 overflow-hidden relative">
                     <img 
-                      src="https://images.unsplash.https://vinfasthadong.com.vn/wp-content/uploads/2023/10/VinFast-VF3-mau-trang-noc-trang-scaled-1.jpgcom/photo-1595435934249-5b2d2e8b5b5b?w=600&h=400&fit=crop&crop=center" 
-                      alt="VinFast VF3"
-                      className="w-full h-full object-cover"
+                      src="/src/assets/images/electra ascent.png" 
+                      alt="Electra Ascent"
+                      className="w-full h-full object-contain"
                       onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/600x400/FFD700/000000?text=VinFast+VF3';
+                        e.target.src = 'https://via.placeholder.com/600x400/6CA12B/FFFFFF?text=Electra+Ascent';
                       }}
                     />
-                    <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">
-                      VF3
+                    <div className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">
+                      Ascent
                     </div>
                   </div>
-                  <h4 className="font-medium text-gray-900 mb-2">VinFast VF3 2025</h4>
-                  <p className="text-sm text-gray-500 mb-2">Giá từ: 299.000.000 VNĐ</p>
-                  <p className="text-sm text-gray-500 mb-4">Quãng đường: 200km</p>
-                  <button 
-                    onClick={() => navigate('/vehicle/vf3')}
-                    className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition"
-                  >
-                    Xem chi tiết
-                  </button>
-                </div>
-
-                {/* VinFast VF5 */}
-                <div className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition">
-                  <div className="h-48 rounded-lg mb-4 overflow-hidden relative">
-                    <img 
-                      src="https://images.https://images2.thanhnien.vn/528068263637045248/2023/5/3/vf5-white-1-1683086959276932591825.jpgunsplash.com/photo-1609521263047-f8f205293f24?w=600&h=400&fit=crop&crop=center" 
-                      alt="VinFast VF5"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/600x400/DC143C/FFFFFF?text=VinFast+VF5';
-                      }}
-                    />
-                    <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">
-                      VF5
-                    </div>
-                  </div>
-                  <h4 className="font-medium text-gray-900 mb-2">VinFast VF5 Plus</h4>
-                  <p className="text-sm text-gray-500 mb-2">Giá từ: 529.000.000 VNĐ</p>
-                  <p className="text-sm text-gray-500 mb-4">Quãng đường: 300km</p>
-                  <button 
-                    onClick={() => navigate('/vehicle/vf5')}
-                    className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition"
-                  >
-                    Xem chi tiết
-                  </button>
-                </div>
-
-                {/* VinFast VF6 */}
-                <div className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition">
-                  <div className="h-48 rounded-lg mb-4 overflow-hidden relative">
-                    <img 
-                      src="https://images.unsplash.com/photo-1617788138017-80ad40651399?w=600&h=400&fit=crop&crop=center" 
-                      alt="VinFast VF6"
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/600x400/0066CC/FFFFFF?text=VinFast+VF6';
-                      }}
-                    />
-                    <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">
-                      VF6
-                    </div>
-                  </div>
-                  <h4 className="font-medium text-gray-900 mb-2">VinFast VF6 Eco/Plus</h4>
-                  <p className="text-sm text-gray-500 mb-2">Giá từ: 689.000.000 VNĐ</p>
+                  <h4 className="font-medium text-gray-900 mb-2">Electra Ascent</h4>
+                  <p className="text-sm text-gray-500 mb-2">Giá từ: 320.000.000 VNĐ</p>
                   <p className="text-sm text-gray-500 mb-4">Quãng đường: 380km</p>
                   <button 
-                    onClick={() => navigate('/vehicle/vf6')}
-                    className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition"
+                    onClick={() => navigate('/car/electra-ascent')}
+                    className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition"
                   >
                     Xem chi tiết
                   </button>
                 </div>
 
-                {/* VinFast VF7 */}
+                {/* Electra CityLink */}
                 <div className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition">
                   <div className="h-48 rounded-lg mb-4 overflow-hidden relative">
                     <img 
-                      src="https://images.unsplash.com/photo-1621007947382-bb3c3994e3fb?w=600&h=400&fit=crop&crop=center" 
-                      alt="VinFast VF7"
-                      className="w-full h-full object-cover"
+                      src="/src/assets/images/electra citylink poster.png" 
+                      alt="Electra CityLink"
+                      className="w-full h-full object-contain"
                       onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/600x400/DC143C/FFFFFF?text=VinFast+VF7';
+                        e.target.src = 'https://via.placeholder.com/600x400/6CA12B/FFFFFF?text=Electra+CityLink';
                       }}
                     />
-                    <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">
-                      VF7
+                    <div className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">
+                      CityLink
                     </div>
                   </div>
-                  <h4 className="font-medium text-gray-900 mb-2">VinFast VF7 Eco/Plus</h4>
-                  <p className="text-sm text-gray-500 mb-2">Giá từ: 799.000.000 VNĐ</p>
+                  <h4 className="font-medium text-gray-900 mb-2">Electra CityLink</h4>
+                  <p className="text-sm text-gray-500 mb-2">Giá từ: 280.000.000 VNĐ</p>
+                  <p className="text-sm text-gray-500 mb-4">Quãng đường: 320km</p>
+                  <button 
+                    onClick={() => navigate('/car/electra-citylink')}
+                    className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition"
+                  >
+                    Xem chi tiết
+                  </button>
+                </div>
+
+                {/* Electra GrandTour */}
+                <div className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition">
+                  <div className="h-48 rounded-lg mb-4 overflow-hidden relative">
+                    <img 
+                      src="/src/assets/images/electra grandtour.png" 
+                      alt="Electra GrandTour"
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/600x400/6CA12B/FFFFFF?text=Electra+GrandTour';
+                      }}
+                    />
+                    <div className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">
+                      GrandTour
+                    </div>
+                  </div>
+                  <h4 className="font-medium text-gray-900 mb-2">Electra GrandTour</h4>
+                  <p className="text-sm text-gray-500 mb-2">Giá từ: 450.000.000 VNĐ</p>
+                  <p className="text-sm text-gray-500 mb-4">Quãng đường: 420km</p>
+                  <button 
+                    onClick={() => navigate('/car/electra-grandtour')}
+                    className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition"
+                  >
+                    Xem chi tiết
+                  </button>
+                </div>
+
+                {/* Electra Micro */}
+                <div className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition">
+                  <div className="h-48 rounded-lg mb-4 overflow-hidden relative">
+                    <img 
+                      src="/src/assets/images/electra micro.png" 
+                      alt="Electra Micro"
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/600x400/6CA12B/FFFFFF?text=Electra+Micro';
+                      }}
+                    />
+                    <div className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">
+                      Micro
+                    </div>
+                  </div>
+                  <h4 className="font-medium text-gray-900 mb-2">Electra Micro</h4>
+                  <p className="text-sm text-gray-500 mb-2">Giá từ: 180.000.000 VNĐ</p>
+                  <p className="text-sm text-gray-500 mb-4">Quãng đường: 200km</p>
+                  <button 
+                    onClick={() => navigate('/car/electra-micro')}
+                    className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition"
+                  >
+                    Xem chi tiết
+                  </button>
+                </div>
+
+                {/* Electra Summit */}
+                <div className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition">
+                  <div className="h-48 rounded-lg mb-4 overflow-hidden relative">
+                    <img 
+                      src="/src/assets/images/electra summit.png" 
+                      alt="Electra Summit"
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/600x400/6CA12B/FFFFFF?text=Electra+Summit';
+                      }}
+                    />
+                    <div className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">
+                      Summit
+                    </div>
+                  </div>
+                  <h4 className="font-medium text-gray-900 mb-2">Electra Summit</h4>
+                  <p className="text-sm text-gray-500 mb-2">Giá từ: 680.000.000 VNĐ</p>
                   <p className="text-sm text-gray-500 mb-4">Quãng đường: 450km</p>
                   <button 
-                    onClick={() => navigate('/vehicle/vf7')}
-                    className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition"
+                    onClick={() => navigate('/car/electra-summit')}
+                    className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition"
                   >
                     Xem chi tiết
                   </button>
                 </div>
 
-                {/* VinFast VF8 */}
+                {/* Electra Velocity */}
                 <div className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition">
                   <div className="h-48 rounded-lg mb-4 overflow-hidden relative">
                     <img 
-                      src="https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=600&h=400&fit=crop&crop=center" 
-                      alt="VinFast VF8"
-                      className="w-full h-full object-cover"
+                      src="/src/assets/images/electra velocity.png" 
+                      alt="Electra Velocity"
+                      className="w-full h-full object-contain"
                       onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/600x400/FFFFFF/000000?text=VinFast+VF8';
+                        e.target.src = 'https://via.placeholder.com/600x400/6CA12B/FFFFFF?text=Electra+Velocity';
                       }}
                     />
-                    <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">
-                      VF8
+                    <div className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">
+                      Velocity
                     </div>
                   </div>
-                  <h4 className="font-medium text-gray-900 mb-2">VinFast VF8 Eco/Plus</h4>
-                  <p className="text-sm text-gray-500 mb-2">Giá từ: 1.019.000.000 VNĐ</p>
+                  <h4 className="font-medium text-gray-900 mb-2">Electra Velocity</h4>
+                  <p className="text-sm text-gray-500 mb-2">Giá từ: 850.000.000 VNĐ</p>
                   <p className="text-sm text-gray-500 mb-4">Quãng đường: 500km</p>
                   <button 
-                    onClick={() => navigate('/vehicle/vf8')}
-                    className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition"
+                    onClick={() => navigate('/car/electra-velocity')}
+                    className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition"
                   >
                     Xem chi tiết
                   </button>
                 </div>
 
-                {/* VinFast VF9 */}
+                {/* Electra UrbanPulse */}
                 <div className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition">
                   <div className="h-48 rounded-lg mb-4 overflow-hidden relative">
                     <img 
-                      src="https://images.unsplash.com/photo-1619767886558-efdc259cde1a?w=600&h=400&fit=crop&crop=center" 
-                      alt="VinFast VF9"
-                      className="w-full h-full object-cover"
+                      src="/src/assets/images/electra urbanpluse.png" 
+                      alt="Electra UrbanPulse"
+                      className="w-full h-full object-contain"
                       onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/600x400/0066CC/FFFFFF?text=VinFast+VF9';
+                        e.target.src = 'https://via.placeholder.com/600x400/6CA12B/FFFFFF?text=Electra+UrbanPulse';
                       }}
                     />
-                    <div className="absolute top-2 right-2 bg-red-600 text-white px-2 py-1 rounded text-xs font-bold">
-                      VF9
+                    <div className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">
+                      UrbanPulse
                     </div>
                   </div>
-                  <h4 className="font-medium text-gray-900 mb-2">VinFast VF9 Eco/Plus</h4>
-                  <p className="text-sm text-gray-500 mb-2">Giá từ: 1.499.000.000 VNĐ</p>
-                  <p className="text-sm text-gray-500 mb-4">Quãng đường: 600km</p>
+                  <h4 className="font-medium text-gray-900 mb-2">Electra UrbanPulse</h4>
+                  <p className="text-sm text-gray-500 mb-2">Giá từ: 220.000.000 VNĐ</p>
+                  <p className="text-sm text-gray-500 mb-4">Quãng đường: 280km</p>
                   <button 
-                    onClick={() => navigate('/vehicle/vf9')}
-                    className="w-full bg-red-600 text-white py-2 rounded-lg hover:bg-red-700 transition"
+                    onClick={() => navigate('/car/electra-urbanpluse')}
+                    className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition"
+                  >
+                    Xem chi tiết
+                  </button>
+                </div>
+
+                {/* Electra Voyager */}
+                <div className="border border-gray-200 rounded-lg p-4 hover:shadow-lg transition">
+                  <div className="h-48 rounded-lg mb-4 overflow-hidden relative">
+                    <img 
+                      src="/src/assets/images/electra voyager.png" 
+                      alt="Electra Voyager"
+                      className="w-full h-full object-contain"
+                      onError={(e) => {
+                        e.target.src = 'https://via.placeholder.com/600x400/6CA12B/FFFFFF?text=Electra+Voyager';
+                      }}
+                    />
+                    <div className="absolute top-2 right-2 bg-green-600 text-white px-2 py-1 rounded text-xs font-bold">
+                      Voyager
+                    </div>
+                  </div>
+                  <h4 className="font-medium text-gray-900 mb-2">Electra Voyager</h4>
+                  <p className="text-sm text-gray-500 mb-2">Giá từ: 750.000.000 VNĐ</p>
+                  <p className="text-sm text-gray-500 mb-4">Quãng đường: 400km</p>
+                  <button 
+                    onClick={() => navigate('/car/electra-voyager')}
+                    className="w-full bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition"
                   >
                     Xem chi tiết
                   </button>
                 </div>
               </div>
 
-              {/* Promotion Banner */}
-              <div className="mt-8 bg-gradient-to-r from-red-600 to-red-700 rounded-lg p-6 text-white">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-xl font-bold mb-2">Chương trình ưu đãi Cực Khủng</h3>
-                    <p className="text-red-100">
-                      Vui lòng liên hệ Hotline <span className="font-bold">0964.054.962</span> để được tư vấn tốt nhất!
-                    </p>
-                  </div>
-                  <div className="flex space-x-4">
-                    <button className="bg-white text-red-600 px-6 py-3 rounded-lg font-semibold hover:bg-gray-100 transition">
-                      Hotline 0964.054.962
-                    </button>
-                    <button className="bg-yellow-500 text-white px-6 py-3 rounded-lg font-semibold hover:bg-yellow-600 transition">
-                      BÁO GIÁ NGAY
-                    </button>
-                  </div>
-                </div>
-              </div>
+          
+              
             </div>
           </div>
         )}
