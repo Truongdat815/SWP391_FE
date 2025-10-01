@@ -37,9 +37,19 @@ jobs:
 
           $ContainerId = docker ps -aq -f name=$CNAME
           if ($ContainerId) {
-            Write-Host ":: Stopping and removing existing container..."
-            docker stop $CNAME || Write-Host "Warning: stop failed"
-            docker rm $CNAME   || Write-Host "Warning: rm failed"
+            Write-Host ":: Stopping existing container..."
+            try {
+              docker stop $CNAME
+            } catch {
+              Write-Host "Warning: stop failed"
+            }
+
+            Write-Host ":: Removing existing container..."
+            try {
+              docker rm $CNAME
+            } catch {
+              Write-Host "Warning: rm failed"
+            }
           } else {
             Write-Host ":: No existing container found. Skipping stop/rm."
           }
