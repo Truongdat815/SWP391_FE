@@ -7,49 +7,46 @@ on:
 jobs:
   build_and_deploy:
     runs-on: [self-hosted]
-    
+
     env:
       CONTAINER_NAME: frontendContainer
-      IMAGE_NAME: fe_tixclick
+      IMAGE_NAME: swp391-fe
       IMAGE_TAG: latest
       PORT_HOST: 5173
       PORT_CONTAINER: 5173
-      
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # Deploy frontend bằng 1 bước PowerShell duy nhất
       - name: Deploy Frontend via Single PowerShell Script
-        shell: powershell -ExecutionPolicy Bypass
+        shell: pwsh
         run: |
-          # 1. Định nghĩa biến để dễ dùng hơn trong script
+          Write-Host "=== Deploy start ==="
+
           $CNAME = "${{ env.CONTAINER_NAME }}"
           $IMAGE_FULL = "${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
           $PORTMAP = "${{ env.PORT_HOST }}:${{ env.PORT_CONTAINER }}"
-          
-          # 2. Xóa Image cũ
+
           Write-Host ":: Removing old Docker image if exists..."
-          docker rmi -f $IMAGE_FULL | Out-Null
-          
-          # 3. Build Image mới
+          docker rmi -f $IMAGE_FULL 2>$null | Out-Null
+
           Write-Host ":: Building Docker image for frontend..."
           docker build -t $IMAGE_FULL -f ./Dockerfile .
-          
-          # 4. Dừng và Xóa Container cũ (nếu có)
+
           $ContainerId = docker ps -aq -f name=$CNAME
           if ($ContainerId) {
               Write-Host ":: Stopping and removing existing container - $CNAME"
-              docker stop $CNAME
-              docker rm $CNAME
+              docker stop $CNAME || Write-Host "Warning: stop failed"
+              docker rm $CNAME || Write-Host "Warning: rm failed"
           } else {
               Write-Host ":: No existing container '$CNAME' found. Skipping stop/remove."
           }
-          
-          # 5. Chạy Container mới
+
           Write-Host ":: Running new frontend container - $CNAME"
           docker run -d -p $PORTMAP --name $CNAME $IMAGE_FULL
-          
-          # 6. Dọn dẹp Image không dùng
+
           Write-Host ":: Cleaning up unused Docker images..."
           docker system prune -af
+
+          Write-Host "=== Deploy finished successfully ==="
