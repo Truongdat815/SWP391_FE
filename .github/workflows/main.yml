@@ -6,7 +6,6 @@ on:
 
 jobs:
   build_and_deploy:
-    # Runner của bạn là self-hosted
     runs-on: [self-hosted]
     
     # Định nghĩa biến môi trường
@@ -21,14 +20,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # BƯỚC KHẮC PHỤC LỖI SECURITY (Execution Policy)
-      - name: Set PowerShell Execution Policy
-        # Đảm bảo các script tạm thời được phép chạy
-        run: Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
-        shell: powershell
+      # BƯỚC KHẮC PHỤC LỖI SECURITY TRIỆT ĐỂ
+      - name: Force Set PowerShell Execution Policy
+        # Sử dụng CMD để gọi PowerShell, dùng 'Bypass' để vượt qua hạn chế ban đầu
+        shell: cmd
+        run: |
+          powershell.exe -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process"
         
       - name: Remove Old Docker Image if Exists
-        # Lệnh PowerShell và Docker thuần
+        # Lệnh này sẽ chạy trơn tru sau khi chính sách được đặt
         run: docker rmi -f ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} | Out-Null
         
       - name: Build Docker Image
@@ -37,17 +37,16 @@ jobs:
           docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} -f ./Dockerfile .
 
       - name: Stop and Remove Existing Container if Any
-        # Chuyển sang cú pháp PowerShell để xử lý điều kiện IF
+        # Sử dụng cú pháp PowerShell để xử lý điều kiện IF logic
         shell: powershell
         run: |
           $CNAME = "${{ env.CONTAINER_NAME }}"
           
-          # Kiểm tra xem container có tồn tại và đang chạy không
+          # Kiểm tra xem container có tồn tại không
           $ContainerId = docker ps -aq -f name=$CNAME
           
           if ($ContainerId) {
               Write-Host ":: Stopping and removing existing container - $CNAME"
-              # Sử dụng lệnh Docker thuần
               docker stop $CNAME
               docker rm $CNAME
           } else {
@@ -61,7 +60,6 @@ jobs:
           $PORTMAP = "${{ env.PORT_HOST }}:${{ env.PORT_CONTAINER }}"
           
           Write-Host ":: Running new frontend container - $CNAME"
-          # Lệnh run:
           docker run -d -p $PORTMAP --name $CNAME $IMAGE
 
       - name: Cleanup Unused Docker Images
