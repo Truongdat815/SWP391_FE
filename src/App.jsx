@@ -47,7 +47,7 @@ function App() {
           </div>
         } />
         <Route path="/car/:model" element={
-          <div className="min-h-screen bg-white flex flex-col">
+          <div className="bg-white">
             <Navbar />
             <CarDetail />
             <Footer />

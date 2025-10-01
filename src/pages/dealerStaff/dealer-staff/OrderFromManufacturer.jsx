@@ -18,43 +18,43 @@ function OrderFromManufacturer() {
 
   const vehicleModels = [
     { 
-      id: 'vf3', 
-      name: 'VinFast VF3', 
+      id: 'electra_micro', 
+      name: 'Electra Micro', 
       basePrice: 299000000,
       productionTime: '8-10 tuần',
       availability: 'Có sẵn'
     },
     { 
-      id: 'vf5', 
-      name: 'VinFast VF5 Plus', 
+      id: 'electra_urbanpulse', 
+      name: 'Electra UrbanPulse', 
       basePrice: 529000000,
       productionTime: '6-8 tuần',
       availability: 'Có sẵn'
     },
     { 
-      id: 'vf6', 
-      name: 'VinFast VF6', 
+      id: 'electra_citylink', 
+      name: 'Electra CityLink', 
       basePrice: 689000000,
       productionTime: '10-12 tuần',
       availability: 'Đặt hàng trước'
     },
     { 
-      id: 'vf7', 
-      name: 'VinFast VF7', 
+      id: 'electra_ascent', 
+      name: 'Electra Ascent', 
       basePrice: 799000000,
       productionTime: '8-10 tuần',
       availability: 'Có sẵn'
     },
     { 
-      id: 'vf8', 
-      name: 'VinFast VF8', 
+      id: 'electra_grandtour', 
+      name: 'Electra GrandTour', 
       basePrice: 1019000000,
       productionTime: '12-14 tuần',
       availability: 'Đặt hàng trước'
     },
     { 
-      id: 'vf9', 
-      name: 'VinFast VF9', 
+      id: 'electra_summit', 
+      name: 'Electra Summit', 
       basePrice: 1499000000,
       productionTime: '14-16 tuần',
       availability: 'Đặt hàng trước'

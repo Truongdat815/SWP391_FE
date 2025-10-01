@@ -9,45 +9,53 @@ const NewsSection = () => {
   const newsData = [
     {
       id: 1,
-      image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop",
-      date: "22/05/2025",
+      image: "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=400&h=300&fit=crop&auto=format",
+      date: "22/01/2025",
       type: "SỰ KIỆN",
       title: "Electra ra mắt dòng xe điện mới với công nghệ pin tiên tiến"
     },
     {
       id: 2,
-      image: "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=400&h=300&fit=crop",
-      date: "20/05/2025",
+      image: "https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=400&h=300&fit=crop&auto=format",
+      date: "20/01/2025",
       type: "TIN TỨC",
       title: "Electra mở rộng mạng lưới trạm sạc tại 15 tỉnh thành trên cả nước"
     },
     {
       id: 3,
-      image: "https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=400&h=300&fit=crop",
-      date: "18/05/2025",
+      image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop&auto=format",
+      date: "18/01/2025",
       type: "SỰ KIỆN",
       title: "Triển lãm xe điện quốc tế: Electra giới thiệu công nghệ tự lái Level 3"
     },
     {
       id: 4,
-      image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop",
-      date: "16/05/2025",
+      image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop&auto=format",
+      date: "16/01/2025",
       type: "TIN TỨC",
       title: "Electra đạt doanh số 10.000 xe trong quý đầu năm 2025"
     },
-    {
-      id: 5,
-      image: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&h=300&fit=crop",
-      date: "14/05/2025",
-      type: "SỰ KIỆN",
-      title: "Chương trình lái thử miễn phí Electra tại các thành phố lớn"
-    },
+   
     {
       id: 6,
-      image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop",
-      date: "12/05/2025",
+      image: "https://images.unsplash.com/photo-1558618047-3c8c76ca7d13?w=400&h=300&fit=crop&auto=format",
+      date: "12/01/2025",
       type: "TIN TỨC",
       title: "Electra hợp tác với các ngân hàng để hỗ trợ tài chính mua xe"
+    },
+    {
+      id: 7,
+      image: "https://images.unsplash.com/photo-1593941707882-a5bac6861d75?w=400&h=300&fit=crop&auto=format",
+      date: "10/01/2025",
+      type: "TIN TỨC",
+      title: "Electra công bố kế hoạch đầu tư 500 triệu USD vào R&D"
+    },
+    {
+      id: 8,
+      image: "https://images.unsplash.com/photo-1583121274602-3e2820c69888?w=400&h=300&fit=crop&auto=format",
+      date: "08/01/2025",
+      type: "SỰ KIỆN",
+      title: "Lễ khai trương showroom Electra tại TP.HCM với quy mô lớn"
     }
   ];
 

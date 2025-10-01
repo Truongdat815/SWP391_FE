@@ -37,12 +37,12 @@ function CreateOrder() {
   });
 
   const vehicleModels = [
-    { id: 'vf3', name: 'VinFast VF3', price: 299000000 },
-    { id: 'vf5', name: 'VinFast VF5 Plus', price: 529000000 },
-    { id: 'vf6', name: 'VinFast VF6', price: 689000000 },
-    { id: 'vf7', name: 'VinFast VF7', price: 799000000 },
-    { id: 'vf8', name: 'VinFast VF8', price: 1019000000 },
-    { id: 'vf9', name: 'VinFast VF9', price: 1499000000 }
+    { id: 'electra_micro', name: 'Electra Micro', price: 1200000000 },
+    { id: 'electra_urbanpulse', name: 'Electra UrbanPulse', price: 1500000000 },
+    { id: 'electra_citylink', name: 'Electra CityLink', price: 1800000000 },
+    { id: 'electra_ascent', name: 'Electra Ascent', price: 2500000000 },
+    { id: 'electra_grandtour', name: 'Electra GrandTour', price: 3200000000 },
+    { id: 'electra_summit', name: 'Electra Summit', price: 4500000000 }
   ];
 
   const colors = [

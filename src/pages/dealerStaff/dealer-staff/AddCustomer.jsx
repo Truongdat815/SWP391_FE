@@ -37,8 +37,8 @@ function AddCustomer() {
   ];
 
   const vehicleModels = [
-    'VinFast VF3', 'VinFast VF5', 'VinFast VF6', 
-    'VinFast VF7', 'VinFast VF8', 'VinFast VF9'
+    'Electra Micro', 'Electra UrbanPulse', 'Electra CityLink', 
+    'Electra Ascent', 'Electra GrandTour', 'Electra Summit'
   ];
 
   const customerSources = [
