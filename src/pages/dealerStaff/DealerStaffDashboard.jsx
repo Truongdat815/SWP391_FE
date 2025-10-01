@@ -45,33 +45,7 @@ function DealerStaffDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center py-4">
-            <div className="flex items-center">
-              <div className="h-8 w-8 bg-red-600 rounded-lg flex items-center justify-center mr-3">
-                <span className="text-white text-sm font-bold">DS</span>
-              </div>
-              <div>
-                <h1 className="text-xl font-semibold text-gray-900">Dealer Staff Dashboard</h1>
-                <p className="text-sm text-gray-500">Quản lý bán hàng và khách hàng</p>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              <button className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
-                Tạo đơn hàng mới
-              </button>
-              <div className="flex items-center space-x-2">
-                <div className="h-8 w-8 bg-gray-300 rounded-full"></div>
-                <span className="text-sm text-gray-700">Nhân viên</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
+    <>
       {/* Navigation Tabs */}
       <div className="bg-white border-b">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -93,8 +67,6 @@ function DealerStaffDashboard() {
           </nav>
         </div>
       </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat, index) => (
@@ -153,7 +125,7 @@ function DealerStaffDashboard() {
               </div>
               <div className="p-6 space-y-4">
                 <button 
-                  onClick={() => navigate('/dashboard/dealer-staff/create-quote')}
+                  onClick={() => navigate('/dealer-staff/create-quote')}
                   className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
                 >
                   <div className="flex items-center">
@@ -170,7 +142,7 @@ function DealerStaffDashboard() {
                 </button>
 
                 <button 
-                  onClick={() => navigate('/dashboard/dealer-staff/add-customer')}
+                  onClick={() => navigate('/dealer-staff/add-customer')}
                   className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
                 >
                   <div className="flex items-center">
@@ -187,7 +159,7 @@ function DealerStaffDashboard() {
                 </button>
 
                 <button 
-                  onClick={() => navigate('/dashboard/dealer-staff/order-from-manufacturer')}
+                  onClick={() => navigate('/dealer-staff/order-from-manufacturer')}
                   className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
                 >
                   <div className="flex items-center">
@@ -204,7 +176,7 @@ function DealerStaffDashboard() {
                 </button>
 
                 <button 
-                  onClick={() => navigate('/dashboard/dealer-staff/test-drive-schedule')}
+                  onClick={() => navigate('/dealer-staff/test-drive-schedule')}
                   className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
                 >
                   <div className="flex items-center">
@@ -240,7 +212,7 @@ function DealerStaffDashboard() {
                   <h4 className="font-medium text-gray-900 mb-2">Tạo báo giá</h4>
                   <p className="text-sm text-gray-500 mb-4">Tạo báo giá chi tiết cho khách hàng</p>
                   <button 
-                    onClick={() => navigate('/dashboard/dealer-staff/sales-quote')}
+                    onClick={() => navigate('/dealer-staff/sales-quote')}
                     className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
                   >
                     Tạo mới
@@ -256,7 +228,7 @@ function DealerStaffDashboard() {
                   <h4 className="font-medium text-gray-900 mb-2">Quản lý đơn hàng</h4>
                   <p className="text-sm text-gray-500 mb-4">Theo dõi và xử lý đơn hàng</p>
                   <button 
-                    onClick={() => navigate('/dashboard/dealer-staff/order-management')}
+                    onClick={() => navigate('/dealer-staff/order-management')}
                     className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
                   >
                     Xem tất cả
@@ -272,7 +244,7 @@ function DealerStaffDashboard() {
                   <h4 className="font-medium text-gray-900 mb-2">Thanh toán</h4>
                   <p className="text-sm text-gray-500 mb-4">Quản lý thanh toán và công nợ</p>
                   <button 
-                    onClick={() => navigate('/dashboard/dealer-staff/payment-management')}
+                    onClick={() => navigate('/dealer-staff/payment-management')}
                     className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
                   >
                     Xem chi tiết
@@ -536,8 +508,7 @@ function DealerStaffDashboard() {
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </>
   );
 }
 

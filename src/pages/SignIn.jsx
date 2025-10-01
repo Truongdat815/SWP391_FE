@@ -14,12 +14,12 @@ function SignIn() {
     e.preventDefault();
     // Simulate login logic
     const roleRoutes = {
-      'dealer-staff': '/dashboard/dealer-staff',
-      'dealer-manager': '/dashboard/dealer-manager', 
-      'evm-staff': '/dashboard/evm-staff',
-      'admin': '/dashboard/admin'
+      'dealer-staff': '/dealer-staff',
+      'dealer-manager': '/dealer-manager', 
+      'evm-staff': '/evm-staff',
+      'admin': '/admin'
     };
-    navigate(roleRoutes[formData.role] || '/dashboard/dealer-staff');
+    navigate(roleRoutes[formData.role] || '/dealer-staff');
   };
 
   const handleChange = (e) => {
