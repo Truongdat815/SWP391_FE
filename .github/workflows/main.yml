@@ -8,7 +8,6 @@ jobs:
   build_and_deploy:
     runs-on: [self-hosted]
     
-    # Định nghĩa biến môi trường
     env:
       CONTAINER_NAME: frontendContainer
       IMAGE_NAME: fe_tixclick
@@ -20,33 +19,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      # 1. BƯỚC KHẮC PHỤC LỖI SECURITY TRIỆT ĐỂ (Execution Policy)
-      # Sử dụng CMD để gọi PowerShell, dùng 'Bypass' để vượt qua hạn chế ban đầu.
-      - name: Force Set PowerShell Execution Policy
-        shell: cmd 
-        run: |
-          powershell.exe -ExecutionPolicy Bypass -Command "Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process"
-        
-      # 2. Xóa Image cũ
-      - name: Remove Old Docker Image if Exists
-        # BẮT BUỘC chỉ định shell: powershell để áp dụng chính sách mới
-        shell: powershell
-        run: docker rmi -f ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} | Out-Null
-        
-      # 3. Build Image mới
-      - name: Build Docker Image
+      # GỘP TẤT CẢ LOGIC DEPLOY VÀO MỘT BƯỚC DUY NHẤT
+      - name: Deploy Frontend via Single PowerShell Script
         shell: powershell
         run: |
-          Write-Host ":: Building Docker image for frontend..."
-          docker build -t ${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }} -f ./Dockerfile .
-
-      # 4. Dừng và Xóa Container cũ
-      - name: Stop and Remove Existing Container if Any
-        shell: powershell
-        run: |
-          $CNAME = "${{ env.CONTAINER_NAME }}"
+          # 1. Khắc phục lỗi Execution Policy cho phiên làm việc này
+          Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
           
-          # Kiểm tra xem container có tồn tại không
+          # 2. Định nghĩa biến để dễ dùng hơn trong script
+          $CNAME = "${{ env.CONTAINER_NAME }}"
+          $IMAGE_FULL = "${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
+          $PORTMAP = "${{ env.PORT_HOST }}:${{ env.PORT_CONTAINER }}"
+          
+          # 3. Xóa Image cũ
+          Write-Host ":: Removing old Docker image if exists..."
+          docker rmi -f $IMAGE_FULL | Out-Null
+          
+          # 4. Build Image mới
+          Write-Host ":: Building Docker image for frontend..."
+          docker build -t $IMAGE_FULL -f ./Dockerfile .
+          
+          # 5. Dừng và Xóa Container cũ (Logic IF)
           $ContainerId = docker ps -aq -f name=$CNAME
           
           if ($ContainerId) {
@@ -56,21 +49,11 @@ jobs:
           } else {
               Write-Host ":: No existing container '$CNAME' found. Skipping stop/remove."
           }
-
-      # 5. Chạy Container mới
-      - name: Run New Docker Container
-        shell: powershell
-        run: |
-          $CNAME = "${{ env.CONTAINER_NAME }}"
-          $IMAGE = "${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}"
-          $PORTMAP = "${{ env.PORT_HOST }}:${{ env.PORT_CONTAINER }}"
           
+          # 6. Chạy Container mới
           Write-Host ":: Running new frontend container - $CNAME"
-          docker run -d -p $PORTMAP --name $CNAME $IMAGE
-
-      # 6. Dọn dẹp Image không dùng
-      - name: Cleanup Unused Docker Images
-        shell: powershell
-        run: |
+          docker run -d -p $PORTMAP --name $CNAME $IMAGE_FULL
+          
+          # 7. Dọn dẹp Image không dùng
           Write-Host ":: Cleaning up unused Docker images..."
           docker system prune -af
