@@ -1,0 +1,42 @@
+name: Deploy Frontend
+on:
+  push:
+    branches:
+      - develop
+
+jobs:
+  build_and_deploy:
+    runs-on: [self-hosted]
+    env:
+      CONTAINER_NAME: frontendContainer
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Remove Old Docker Image if Exists
+        run: |
+          echo "Removing old Docker image if exists..."
+          docker rmi -f fe_tixclick:latest || true
+
+      - name: Build Docker Image
+        run: |
+          echo "Building Docker image for frontend..."
+          docker build -t fe_tixclick:latest -f ./Dockerfile .
+
+      - name: Stop and Remove Existing Container if Any
+        run: |
+          CNAME=${{ env.CONTAINER_NAME }}
+          if [ "$(docker ps -aq -f name=$CNAME)" ]; then
+              echo ":: Stopping and removing existing container - $CNAME"
+              docker stop $CNAME
+              docker rm $CNAME
+          fi
+
+      - name: Run New Docker Container
+        run: |
+          CNAME=${{ env.CONTAINER_NAME }}
+          echo ":: Running new frontend container - $CNAME"
+          docker run -d -p 5173:5173 --name $CNAME fe_tixclick:latest
+      - name: Cleanup Unused Docker Images
+        run: |
+          echo "Cleaning up unused Docker images..."
+          docker system prune -af
