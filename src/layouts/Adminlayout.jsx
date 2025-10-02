@@ -5,6 +5,7 @@ const AdminLayout = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
+{/* TODO: change class add  hello claude nhé  */}
       <div className="bg-red shadow-sm border-b hello claude nhé">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
