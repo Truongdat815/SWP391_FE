@@ -30,11 +30,10 @@ import XuatBaoCao from './pages/dealerManager/XuatBaoCao'
 import TestPage from './pages/dealerManager/TestPage'
 
 // Dealer Staff Sub Pages
-import CreateQuote from './pages/dealerStaff/dealer-staff/CreateQuote'
+import QuoteOrderManagement from './pages/dealerStaff/QuoteOrderManagement'
 import AddCustomer from './pages/dealerStaff/dealer-staff/AddCustomer'
 import OrderFromManufacturer from './pages/dealerStaff/dealer-staff/OrderFromManufacturer'
 import TestDriveSchedule from './pages/dealerStaff/dealer-staff/TestDriveSchedule'
-import CreateOrder from './pages/dealerStaff/dealer-staff/CreateOrder'
 import SalesQuoteManagement from './pages/dealerStaff/dealer-staff/SalesQuoteManagement'
 import OrderManagement from './pages/dealerStaff/dealer-staff/OrderManagement'
 import PaymentManagement from './pages/dealerStaff/dealer-staff/PaymentManagement'
@@ -87,11 +86,10 @@ function App() {
         {/* Dealer Staff Routes */}
         <Route path="/dealer-staff" element={<DealerStaffLayout />}>
           <Route index element={<DealerStaffDashboard />} />
-          <Route path="create-quote" element={<CreateQuote />} />
+          <Route path="quote-order-management" element={<QuoteOrderManagement />} />
           <Route path="add-customer" element={<AddCustomer />} />
           <Route path="order-from-manufacturer" element={<OrderFromManufacturer />} />
           <Route path="test-drive-schedule" element={<TestDriveSchedule />} />
-          <Route path="create-order" element={<CreateOrder />} />
           <Route path="sales-quote" element={<SalesQuoteManagement />} />
           <Route path="order-management" element={<OrderManagement />} />
           <Route path="payment-management" element={<PaymentManagement />} />

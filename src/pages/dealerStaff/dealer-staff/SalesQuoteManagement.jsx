@@ -107,7 +107,7 @@ function SalesQuoteManagement() {
               </div>
             </div>
             <button 
-              onClick={() => navigate('/dashboard/dealer-staff/create-quote')}
+              onClick={() => navigate('/dealer-staff/quote-order-management')}
               className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
             >
               Tạo báo giá mới
@@ -303,10 +303,20 @@ function SalesQuoteManagement() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <div className="flex space-x-2">
-                            <button className="text-blue-600 hover:text-blue-900">
+                            <button 
+                              onClick={() => navigate('/dealer-staff/quote-order-management', {
+                                state: { quoteData: quote, mode: 'view' }
+                              })}
+                              className="text-blue-600 hover:text-blue-900"
+                            >
                               Xem
                             </button>
-                            <button className="text-green-600 hover:text-green-900">
+                            <button 
+                              onClick={() => navigate('/dealer-staff/quote-order-management', {
+                                state: { quoteData: quote, mode: 'edit' }
+                              })}
+                              className="text-green-600 hover:text-green-900"
+                            >
                               Sửa
                             </button>
                             {quote.status === 'pending' && (
@@ -319,7 +329,9 @@ function SalesQuoteManagement() {
                             )}
                             {quote.status === 'approved' && (
                               <button 
-                                onClick={() => updateQuoteStatus(quote.id, 'converted')}
+                                onClick={() => navigate('/dealer-staff/quote-order-management', {
+                                  state: { quoteData: quote, mode: 'convert' }
+                                })}
                                 className="text-indigo-600 hover:text-indigo-900"
                               >
                                 Chuyển đổi
