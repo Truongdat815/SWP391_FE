@@ -163,7 +163,7 @@ function OrderManagement() {
               </div>
             </div>
             <button 
-              onClick={() => navigate('/dashboard/dealer-staff/create-order')}
+              onClick={() => navigate('/dealer-staff/quote-order-management')}
               className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
             >
               Tạo đơn hàng mới
