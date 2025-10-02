@@ -61,7 +61,7 @@ const DealerStaffLayout = () => {
             </div>
             <div className="flex items-center space-x-4">
               <button 
-                onClick={() => navigate('/dealer-staff/create-quote')}
+                onClick={() => navigate('/dealer-staff/quote-order-management')}
                 className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition flex items-center"
               >
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

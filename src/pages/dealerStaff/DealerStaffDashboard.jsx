@@ -125,7 +125,7 @@ function DealerStaffDashboard() {
               </div>
               <div className="p-6 space-y-4">
                 <button 
-                  onClick={() => navigate('/dealer-staff/create-quote')}
+                  onClick={() => navigate('/dealer-staff/quote-order-management')}
                   className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
                 >
                   <div className="flex items-center">
