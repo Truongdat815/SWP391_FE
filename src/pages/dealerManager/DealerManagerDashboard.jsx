@@ -1,7 +1,7 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 
 function DealerManagerDashboard() {
-  const [activeTab, setActiveTab] = useState('overview');
 
   const stats = [
     { title: 'Doanh số tháng', value: '8.5M VNĐ', change: '+15%', color: 'bg-red-500' },
@@ -23,12 +23,6 @@ function DealerManagerDashboard() {
     { customer: 'Chị Trần DEF', amount: '800,000,000', days: 25, status: 'critical' }
   ];
 
-  const tabs = [
-    { id: 'overview', name: 'Tổng quan', icon: '📊' },
-    { id: 'sales-report', name: 'Báo cáo doanh số', icon: '💰' },
-    { id: 'team-management', name: 'Quản lý nhân viên', icon: '👥' },
-    { id: 'debt-management', name: 'Quản lý công nợ', icon: '📋' }
-  ];
 
   const getDebtStatusColor = (status) => {
     switch (status) {
@@ -50,27 +44,6 @@ function DealerManagerDashboard() {
 
   return (
     <>
-      {/* Navigation Tabs */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex space-x-8">
-            {tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                  activeTab === tab.id
-                    ? 'border-red-500 text-red-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                <span className="mr-2">{tab.icon}</span>
-                {tab.name}
-              </button>
-            ))}
-          </nav>
-        </div>
-      </div>
         {/* Stats Overview */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {stats.map((stat, index) => (
@@ -92,7 +65,6 @@ function DealerManagerDashboard() {
         </div>
 
         {/* Main Content */}
-        {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Sales Performance Chart */}
             <div className="bg-white rounded-lg shadow">
@@ -117,7 +89,21 @@ function DealerManagerDashboard() {
                 <h3 className="text-lg font-medium text-gray-900">Thao tác nhanh</h3>
               </div>
               <div className="p-6 space-y-4">
-                <button className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                <Link to="/dealer-manager/tao-bao-cao" className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition block">
+                  <div className="flex items-center">
+                    <div className="p-2 bg-purple-100 rounded-lg mr-3">
+                      <svg className="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Tạo báo cáo</p>
+                      <p className="text-sm text-gray-500">Tạo báo cáo tùy chỉnh mới</p>
+                    </div>
+                  </div>
+                </Link>
+
+                <Link to="/dealer-manager/bao-cao-doanh-so" className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition block">
                   <div className="flex items-center">
                     <div className="p-2 bg-red-100 rounded-lg mr-3">
                       <svg className="h-5 w-5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -129,9 +115,9 @@ function DealerManagerDashboard() {
                       <p className="text-sm text-gray-500">Xem báo cáo chi tiết doanh số</p>
                     </div>
                   </div>
-                </button>
+                </Link>
 
-                <button className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                <Link to="/dealer-manager/quan-ly-nhan-vien" className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition block">
                   <div className="flex items-center">
                     <div className="p-2 bg-blue-100 rounded-lg mr-3">
                       <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -143,9 +129,9 @@ function DealerManagerDashboard() {
                       <p className="text-sm text-gray-500">Theo dõi hiệu suất nhân viên</p>
                     </div>
                   </div>
-                </button>
+                </Link>
 
-                <button className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                <Link to="/dealer-manager/quan-ly-cong-no" className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition block">
                   <div className="flex items-center">
                     <div className="p-2 bg-yellow-100 rounded-lg mr-3">
                       <svg className="h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -157,9 +143,9 @@ function DealerManagerDashboard() {
                       <p className="text-sm text-gray-500">Theo dõi công nợ khách hàng</p>
                     </div>
                   </div>
-                </button>
+                </Link>
 
-                <button className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition">
+                <Link to="/dealer-manager/xuat-bao-cao" className="w-full text-left p-4 border border-gray-200 rounded-lg hover:bg-gray-50 transition block">
                   <div className="flex items-center">
                     <div className="p-2 bg-green-100 rounded-lg mr-3">
                       <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -171,197 +157,10 @@ function DealerManagerDashboard() {
                       <p className="text-sm text-gray-500">Xuất báo cáo Excel/PDF</p>
                     </div>
                   </div>
-                </button>
+                </Link>
               </div>
             </div>
           </div>
-        )}
-
-        {activeTab === 'sales-report' && (
-          <div className="space-y-6">
-            {/* Sales Summary */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">Tổng quan doanh số</h3>
-              </div>
-              <div className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="text-center p-6 bg-red-50 rounded-lg">
-                    <h4 className="text-2xl font-bold text-red-600 mb-2">8.5M VNĐ</h4>
-                    <p className="text-gray-600">Doanh số tháng này</p>
-                  </div>
-                  <div className="text-center p-6 bg-green-50 rounded-lg">
-                    <h4 className="text-2xl font-bold text-green-600 mb-2">156</h4>
-                    <p className="text-gray-600">Tổng số đơn hàng</p>
-                  </div>
-                  <div className="text-center p-6 bg-blue-50 rounded-lg">
-                    <h4 className="text-2xl font-bold text-blue-600 mb-2">72%</h4>
-                    <p className="text-gray-600">Tỷ lệ chuyển đổi</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Sales by Vehicle Model */}
-            <div className="bg-white rounded-lg shadow">
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">Doanh số theo mẫu xe</h3>
-              </div>
-              <div className="p-6">
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div className="flex items-center">
-                      <div className="h-12 w-12 bg-gray-100 rounded-lg mr-4"></div>
-                      <div>
-                        <h4 className="font-medium text-gray-900">Electra Ascent</h4>
-                        <p className="text-sm text-gray-500">28 đơn hàng</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-gray-900">2.1M VNĐ</p>
-                      <p className="text-sm text-green-600">+15%</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div className="flex items-center">
-                      <div className="h-12 w-12 bg-gray-100 rounded-lg mr-4"></div>
-                      <div>
-                        <h4 className="font-medium text-gray-900">Electra CityLink</h4>
-                        <p className="text-sm text-gray-500">24 đơn hàng</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-gray-900">1.8M VNĐ</p>
-                      <p className="text-sm text-green-600">+12%</p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div className="flex items-center">
-                      <div className="h-12 w-12 bg-gray-100 rounded-lg mr-4"></div>
-                      <div>
-                        <h4 className="font-medium text-gray-900">Electra GrandTour</h4>
-                        <p className="text-sm text-gray-500">22 đơn hàng</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium text-gray-900">1.6M VNĐ</p>
-                      <p className="text-sm text-green-600">+8%</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'team-management' && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900">Hiệu suất nhân viên bán hàng</h3>
-                <button className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
-                  Thêm nhân viên
-                </button>
-              </div>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Nhân viên
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Doanh số
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Số đơn hàng
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Tỷ lệ chuyển đổi
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                      Thao tác
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
-                  {salesTeam.map((member, index) => (
-                    <tr key={index}>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="h-10 w-10 bg-gray-300 rounded-full mr-4"></div>
-                          <div>
-                            <div className="text-sm font-medium text-gray-900">{member.name}</div>
-                            <div className="text-sm text-gray-500">Nhân viên bán hàng</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">{member.sales}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{member.orders}</div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                          {member.conversion}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-red-600 hover:text-red-900 mr-3">Xem chi tiết</button>
-                        <button className="text-blue-600 hover:text-blue-900">Chỉnh sửa</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'debt-management' && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-medium text-gray-900">Báo cáo công nợ khách hàng</h3>
-                <button className="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
-                  Xuất báo cáo
-                </button>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {debtReport.map((debt, index) => (
-                  <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                    <div className="flex items-center">
-                      <div className="h-12 w-12 bg-gray-100 rounded-full mr-4 flex items-center justify-center">
-                        <span className="text-gray-600 font-medium">{debt.customer.charAt(0)}</span>
-                      </div>
-                      <div>
-                        <h4 className="font-medium text-gray-900">{debt.customer}</h4>
-                        <p className="text-sm text-gray-500">{debt.days} ngày quá hạn</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right">
-                        <p className="font-medium text-gray-900">{debt.amount} VNĐ</p>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getDebtStatusColor(debt.status)}`}>
-                          {getDebtStatusText(debt.status)}
-                        </span>
-                      </div>
-                      <button className="text-red-600 hover:text-red-900 text-sm font-medium">
-                        Liên hệ
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
     </>
   );
 }

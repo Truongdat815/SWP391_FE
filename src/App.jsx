@@ -21,6 +21,14 @@ import DealerStaffDashboard from './pages/dealerStaff/DealerStaffDashboard'
 import DealerManagerDashboard from './pages/dealerManager/DealerManagerDashboard'
 import EVMDashboard from './pages/EvmStaff/EVMDashboard'
 
+// Dealer Manager Sub Pages
+import TaoBaoCao from './pages/dealerManager/TaoBaoCao'
+import BaoCaoDoanhSo from './pages/dealerManager/BaoCaoDoanhSo'
+import QuanLyNhanVien from './pages/dealerManager/QuanLyNhanVien'
+import QuanLyCongNo from './pages/dealerManager/QuanLyCongNo'
+import XuatBaoCao from './pages/dealerManager/XuatBaoCao'
+import TestPage from './pages/dealerManager/TestPage'
+
 // Dealer Staff Sub Pages
 import CreateQuote from './pages/dealerStaff/dealer-staff/CreateQuote'
 import AddCustomer from './pages/dealerStaff/dealer-staff/AddCustomer'
@@ -92,6 +100,12 @@ function App() {
         {/* Dealer Manager Routes */}
         <Route path="/dealer-manager" element={<DealerManagerLayout />}>
           <Route index element={<DealerManagerDashboard />} />
+          <Route path="tao-bao-cao" element={<TaoBaoCao />} />
+          <Route path="bao-cao-doanh-so" element={<BaoCaoDoanhSo />} />
+          <Route path="quan-ly-nhan-vien" element={<QuanLyNhanVien />} />
+          <Route path="quan-ly-cong-no" element={<QuanLyCongNo />} />
+          <Route path="xuat-bao-cao" element={<XuatBaoCao />} />
+          <Route path="test" element={<TestPage />} />
         </Route>
 
         {/* EVM Staff Routes */}
@@ -102,7 +116,13 @@ function App() {
         <Route path="*" element={
           <div className="min-h-screen bg-white flex flex-col">
             <Navbar />
-            <Home />
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <h1 className="text-4xl font-bold text-red-600 mb-4">404 - Page Not Found</h1>
+                <p className="text-gray-600 mb-4">The page you're looking for doesn't exist.</p>
+                <p className="text-sm text-gray-400">Current URL: {window.location.pathname}</p>
+              </div>
+            </div>
             <Footer />
           </div>
         } />
