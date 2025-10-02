@@ -2,7 +2,7 @@ name: AI Code Review (Claude)
 
 on:
   pull_request:
-    branches: [J920-FanClub]
+    branches: [J92-FanClub]
     types: [opened, synchronize, reopened]
   workflow_dispatch:
 
