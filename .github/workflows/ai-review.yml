@@ -24,10 +24,37 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "20"
+          cache: "npm"
 
       - name: Install deps
-        run: npm i undici
+        # Ưu tiên cài deps của project (nếu có). Nếu repo chưa có lockfile hoặc thiếu eslint, vẫn đảm bảo có undici.
+        run: |
+          npm ci || true
+          npm i undici --no-audit --no-fund || true
 
+      # ===================== ESLint & Issue =====================
+      - name: Lint (ESLint JSON)
+        # Tạo báo cáo JSON để máy đọc; không làm fail job ngay (để còn tạo issue & chạy AI review)
+        run: |
+          npx eslint . -f json -o eslint-report.json || true
+
+      - name: Upload ESLint report (artifact)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eslint-report
+          path: eslint-report.json
+
+      - name: Create/Update Issue from ESLint errors
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          node scripts/eslint-to-issues.mjs eslint-report.json
+
+      # ===================== AI Review (giữ nguyên nghiệp vụ) =====================
       - name: Run Claude review
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
