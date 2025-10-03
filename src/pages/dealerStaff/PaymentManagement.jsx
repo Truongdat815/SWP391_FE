@@ -267,6 +267,7 @@ function PaymentManagement({ onBack }) {
                         {getStatusText(payment.status)}
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-sm text-gray-700">{getPaymentMethodText(payment.paymentMethod)}</td>
                     <td className="px-4 py-3">
                       {payment.remainingAmount > 0 && (
                         <button

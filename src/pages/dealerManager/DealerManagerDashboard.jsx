@@ -1,4 +1,4 @@
-import { useState } from 'react';
+ 
 import { Link } from 'react-router-dom';
 
 function DealerManagerDashboard() {
@@ -10,21 +10,21 @@ function DealerManagerDashboard() {
     { title: 'Tỷ lệ chuyển đổi', value: '72%', change: '+3%', color: 'bg-purple-500' }
   ];
 
-  const salesTeam = [
+  const _salesTeam = [
     { name: 'Nguyễn Văn A', sales: '2.1M', orders: 28, conversion: '78%' },
     { name: 'Trần Thị B', sales: '1.8M', orders: 24, conversion: '75%' },
     { name: 'Lê Văn C', sales: '1.6M', orders: 22, conversion: '73%' },
     { name: 'Phạm Thị D', sales: '1.4M', orders: 19, conversion: '71%' }
   ];
 
-  const debtReport = [
+  const _debtReport = [
     { customer: 'Công ty ABC', amount: '500,000,000', days: 15, status: 'warning' },
     { customer: 'Ông Nguyễn XYZ', amount: '200,000,000', days: 8, status: 'normal' },
     { customer: 'Chị Trần DEF', amount: '800,000,000', days: 25, status: 'critical' }
   ];
 
 
-  const getDebtStatusColor = (status) => {
+  const _getDebtStatusColor = (status) => {
     switch (status) {
       case 'critical': return 'bg-red-100 text-red-800';
       case 'warning': return 'bg-yellow-100 text-yellow-800';
@@ -33,7 +33,7 @@ function DealerManagerDashboard() {
     }
   };
 
-  const getDebtStatusText = (status) => {
+  const _getDebtStatusText = (status) => {
     switch (status) {
       case 'critical': return 'Nghiêm trọng';
       case 'warning': return 'Cảnh báo';

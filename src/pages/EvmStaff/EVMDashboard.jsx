@@ -10,7 +10,7 @@ import ContractManagement from './ContractManagement';
 import SalesReport from './SalesReport';
 
 function EVMDashboard() {
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed] = useState(false);
   const [activePage, setActivePage] = useState('dashboard');
   const [isUserDropdownOpen, setIsUserDropdownOpen] = useState(false);
   const navigate = useNavigate();

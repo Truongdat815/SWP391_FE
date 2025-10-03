@@ -3,7 +3,6 @@ import { readFileSync } from "node:fs";
 
 const token = process.env.GITHUB_TOKEN;
 const repo = process.env.GITHUB_REPOSITORY || process.env.REPO;
-const prNumber = process.env.PR_NUMBER;
 const prUrl = process.env.PR_URL;
 
 if (!token || !repo) {

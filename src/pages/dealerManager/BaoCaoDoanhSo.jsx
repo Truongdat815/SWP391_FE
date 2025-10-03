@@ -37,6 +37,20 @@ function BaoCaoDoanhSo() {
     ]
   };
 
+  // Colors for models (tailwind palette hex values)
+  const modelColors = ['#ef4444', '#10b981', '#3b82f6', '#a855f7', '#f59e0b', '#64748b'];
+
+  const buildConicGradient = (models) => {
+    let start = 0;
+    const segments = models.map((m, idx) => {
+      const end = start + m.percentage;
+      const segment = `${modelColors[idx % modelColors.length]} ${start}% ${end}%`;
+      start = end;
+      return segment;
+    });
+    return `conic-gradient(${segments.join(',')})`;
+  };
+
   const periods = [
     { id: 'week', name: 'Tuần này' },
     { id: 'month', name: 'Tháng này' },
@@ -211,32 +225,67 @@ function BaoCaoDoanhSo() {
           <h3 className="text-lg font-medium text-gray-900">Doanh số theo mẫu xe</h3>
         </div>
         <div className="p-6">
-          <div className="space-y-4">
-            {salesData.byModel.map((model, index) => (
-              <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
-                <div className="flex items-center">
-                  <div className="h-12 w-12 bg-gray-100 rounded-lg mr-4 flex items-center justify-center">
-                    <span className="text-gray-600 font-medium text-sm">{model.name.split(' ')[1]}</span>
-                  </div>
-                  <div>
-                    <h4 className="font-medium text-gray-900">{model.name}</h4>
-                    <p className="text-sm text-gray-500">{model.orders} đơn hàng</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-4">
-                  <div className="text-right">
-                    <p className="font-medium text-gray-900">{model.sales}</p>
-                    <p className="text-sm text-gray-500">{model.percentage}% tổng doanh số</p>
-                  </div>
-                  <div className="w-20 bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-red-600 h-2 rounded-full" 
-                      style={{ width: `${model.percentage}%` }}
-                    ></div>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+            {/* Donut Chart */}
+            <div className="col-span-1 flex flex-col items-center">
+              <div
+                className="relative h-64 w-64 rounded-full"
+                style={{ backgroundImage: buildConicGradient(salesData.byModel) }}
+                aria-label="Biểu đồ tròn doanh số theo mẫu xe"
+              >
+                <div className="absolute inset-8 bg-white rounded-full flex items-center justify-center">
+                  <div className="text-center">
+                    <p className="text-sm text-gray-500">Tổng doanh thu</p>
+                    <p className="text-xl font-semibold text-gray-900">{salesData.monthly.totalRevenue}</p>
                   </div>
                 </div>
               </div>
-            ))}
+              {/* Legend */}
+              <div className="mt-6 grid grid-cols-2 gap-x-6 gap-y-2 w-full">
+                {salesData.byModel.map((m, idx) => (
+                  <div key={idx} className="flex items-center">
+                    <span
+                      className="inline-block w-3 h-3 rounded-sm mr-2"
+                      style={{ backgroundColor: modelColors[idx % modelColors.length] }}
+                    ></span>
+                    <span className="text-sm text-gray-700 truncate">{m.name}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Detailed List */}
+            <div className="lg:col-span-2">
+              <div className="space-y-4">
+                {salesData.byModel.map((model, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">
+                    <div className="flex items-center">
+                      <div
+                        className="h-10 w-10 rounded-md mr-4"
+                        style={{ backgroundColor: modelColors[index % modelColors.length] }}
+                        aria-hidden="true"
+                      ></div>
+                      <div>
+                        <h4 className="font-medium text-gray-900">{model.name}</h4>
+                        <p className="text-sm text-gray-500">{model.orders} đơn hàng</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-6">
+                      <div className="text-right">
+                        <p className="font-medium text-gray-900">{model.sales}</p>
+                        <p className="text-sm text-gray-500">{model.percentage}% tổng doanh số</p>
+                      </div>
+                      <div className="w-24 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="h-2 rounded-full"
+                          style={{ width: `${model.percentage}%`, backgroundColor: modelColors[index % modelColors.length] }}
+                        ></div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>

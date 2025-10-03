@@ -102,7 +102,7 @@ const Specs = () => {
           viewport={{ once: true }}
           className="flex flex-wrap justify-center gap-4 mb-12"
         >
-          {specifications.map((spec, index) => (
+          {specifications.map((spec, _index) => (
             <motion.button
               key={spec.id}
               whileHover={{ scale: 1.05 }}
@@ -133,12 +133,12 @@ const Specs = () => {
             className="bg-white/10 backdrop-blur-lg rounded-2xl p-8 border border-white/20"
           >
             <div className="grid md:grid-cols-2 gap-8">
-              {specifications[activeSpec].stats.map((stat, index) => (
+              {specifications[activeSpec].stats.map((stat, idx) => (
                 <motion.div
-                  key={index}
+                  key={idx}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  transition={{ duration: 0.5, delay: idx * 0.1 }}
                   className="bg-white/5 rounded-xl p-6 border border-white/10 hover:bg-white/10 transition-all duration-300"
                 >
                   <div className="flex items-center justify-between mb-3">

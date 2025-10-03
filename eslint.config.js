@@ -23,7 +23,30 @@ export default defineConfig([
       },
     },
     rules: {
-      'no-unused-vars': ['error', { varsIgnorePattern: '^[A-Z_]' }],
+      // Allow unused variables that are intentionally prefixed or known library ids
+      'no-unused-vars': [
+        'error',
+        {
+          varsIgnorePattern: '^(motion|[A-Z_])',
+          argsIgnorePattern: '^_',
+        },
+      ],
+    },
+  },
+  // Node.js environment for scripts and build config
+  {
+    files: ['scripts/**/*.js', 'vite.config.js'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+      parserOptions: {
+        ecmaVersion: 'latest',
+        sourceType: 'module',
+      },
+    },
+    rules: {
+      'no-empty': ['error', { allowEmptyCatch: false }],
     },
   },
 ])

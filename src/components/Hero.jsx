@@ -110,7 +110,7 @@ const Hero = () => {
         loop={true}
         className="hero-swiper h-full"
       >
-        {slides.map((slide, index) => (
+        {slides.map((slide, _index) => (
           <SwiperSlide key={slide.id}>
             <div className="relative h-screen w-full">
               {/* Background Image */}

@@ -15,7 +15,9 @@ const BASE = process.env.PR_BASE_SHA || "origin/master";
 const HEAD = process.env.PR_HEAD_SHA || "HEAD";
 try {
   execSync("git fetch --all --prune", { stdio: "ignore" });
-} catch {}
+} catch {
+  // ignore fetch errors in CI-less environments
+}
 const diff = execSync(`git diff --unified=0 ${BASE}...${HEAD}`, {
   encoding: "utf8",
 });
@@ -123,7 +125,7 @@ function extractSections(text) {
     if (m) {
       try {
         issues = JSON.parse(m[1].trim());
-      } catch (e) {
+      } catch {
         // fallback: empty
       }
     }
@@ -156,8 +158,8 @@ let allIssues = [];
             allIssues.push(it);
           }
         }
-      } catch (e) {
-        reviewAll += `\n**Error reviewing a chunk:** ${String(e)}\n`;
+      } catch (error) {
+        reviewAll += `\n**Error reviewing a chunk:** ${String(error)}\n`;
       }
     }
   }

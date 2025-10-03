@@ -14,18 +14,7 @@ import logo from '../assets/images/logo.png';
 
 function CarDetail() {
   const { model } = useParams();
-  const [selectedVariant, setSelectedVariant] = useState(0);
-  const [selectedColor, setSelectedColor] = useState(0);
-  const [contactForm, setContactForm] = useState({
-    name: '',
-    phone: '',
-    email: ''
-  });
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitMessage, setSubmitMessage] = useState('');
-
-
-  const [models, setModels] = useState([])
+  
   const [currentModel, setCurrentModel] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -47,7 +36,6 @@ function CarDetail() {
         }
         
       const data = await response.json()
-      setModels(data)
         
         // Tìm model theo tên từ URL params
         const modelName = model.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
