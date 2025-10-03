@@ -229,8 +229,8 @@ function CarComparison({ onBack }) {
                     key={vehicle.id}
                     className={`border rounded-lg p-4 cursor-pointer transition-colors ${
                       selectedVehicles.find(v => v.id === vehicle.id)
-                        ? 'border-blue-500 bg-blue-50'
-                        : 'border-gray-200 hover:border-blue-300'
+                        ? 'border-emerald-500 bg-emerald-50'
+                        : 'border-gray-200 hover:border-emerald-300'
                     }`}
                     onClick={() => addVehicle(vehicle)}
                   >
@@ -244,7 +244,7 @@ function CarComparison({ onBack }) {
                     />
                     <h4 className="font-semibold text-gray-900">{vehicle.name}</h4>
                     <p className="text-sm text-gray-600">{vehicle.category}</p>
-                    <p className="text-sm font-medium text-blue-600">
+                    <p className="text-sm font-medium text-emerald-600">
                       {vehicle.price.toLocaleString('vi-VN')} VNĐ
                     </p>
                   </div>

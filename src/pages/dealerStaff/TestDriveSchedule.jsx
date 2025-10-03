@@ -103,7 +103,7 @@ function TestDriveSchedule({ onBack }) {
           <div className="flex items-center space-x-4">
             <button
               onClick={() => setShowAddForm(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
             >
               Thêm lịch hẹn
             </button>
@@ -144,7 +144,7 @@ function TestDriveSchedule({ onBack }) {
                   name="customerName"
                   value={newAppointment.customerName}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   required
                 />
               </div>
@@ -155,7 +155,7 @@ function TestDriveSchedule({ onBack }) {
                   name="phone"
                   value={newAppointment.phone}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   required
                 />
               </div>
@@ -165,7 +165,7 @@ function TestDriveSchedule({ onBack }) {
                   name="vehicleModel"
                   value={newAppointment.vehicleModel}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   required
                 >
                   <option value="">Chọn mẫu xe</option>
@@ -181,7 +181,7 @@ function TestDriveSchedule({ onBack }) {
                   name="date"
                   value={newAppointment.date}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   required
                 />
               </div>
@@ -191,7 +191,7 @@ function TestDriveSchedule({ onBack }) {
                   name="time"
                   value={newAppointment.time}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   required
                 >
                   <option value="">Chọn giờ</option>
@@ -207,7 +207,7 @@ function TestDriveSchedule({ onBack }) {
                   name="notes"
                   value={newAppointment.notes}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 />
               </div>
               <div className="md:col-span-2 lg:col-span-3 flex justify-end space-x-4">
@@ -218,12 +218,12 @@ function TestDriveSchedule({ onBack }) {
                 >
                   Hủy
                 </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                >
-                  Thêm lịch hẹn
-                </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                  >
+                    Thêm lịch hẹn
+                  </button>
               </div>
             </form>
           </div>

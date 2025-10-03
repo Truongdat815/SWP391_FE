@@ -236,7 +236,7 @@ function FeedbackManagement({ onBack }) {
                     value={resolveForm.resolution}
                     onChange={(e) => setResolveForm(prev => ({ ...prev, resolution: e.target.value }))}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     required
                     placeholder="Mô tả giải pháp đã thực hiện..."
                   />
@@ -247,7 +247,7 @@ function FeedbackManagement({ onBack }) {
                     value={resolveForm.notes}
                     onChange={(e) => setResolveForm(prev => ({ ...prev, notes: e.target.value }))}
                     rows={2}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     placeholder="Ghi chú thêm (nếu có)..."
                   />
                 </div>
@@ -261,7 +261,7 @@ function FeedbackManagement({ onBack }) {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                   >
                     Đánh dấu đã giải quyết
                   </button>
@@ -314,7 +314,7 @@ function FeedbackManagement({ onBack }) {
                       {feedback.status === 'pending' && (
                         <button
                           onClick={() => updateFeedbackStatus(feedback.id, 'in_progress')}
-                          className="px-3 py-1 text-sm bg-blue-100 text-blue-800 rounded-lg hover:bg-blue-200 transition-colors"
+                          className="px-3 py-1 text-sm bg-emerald-100 text-emerald-800 rounded-lg hover:bg-emerald-200 transition-colors"
                         >
                           Bắt đầu xử lý
                         </button>

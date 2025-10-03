@@ -123,7 +123,7 @@ function OrderFromManufacturer({ onBack }) {
                   name="vehicleModel"
                   value={formData.vehicleModel}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   required
                 >
                   <option value="">Chọn mẫu xe</option>
@@ -145,7 +145,7 @@ function OrderFromManufacturer({ onBack }) {
                   value={formData.quantity}
                   onChange={handleInputChange}
                   min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   required
                 />
               </div>
@@ -159,7 +159,7 @@ function OrderFromManufacturer({ onBack }) {
                   name="expectedDelivery"
                   value={formData.expectedDelivery}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   required
                 />
               </div>
@@ -173,7 +173,7 @@ function OrderFromManufacturer({ onBack }) {
                   value={formData.specialRequirements}
                   onChange={handleInputChange}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   placeholder="Nhập yêu cầu đặc biệt (nếu có)..."
                 />
               </div>
@@ -187,17 +187,17 @@ function OrderFromManufacturer({ onBack }) {
                   value={formData.notes}
                   onChange={handleInputChange}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   placeholder="Nhập ghi chú thêm..."
                 />
               </div>
 
               {/* Total Calculation */}
               {formData.vehicleModel && (
-                <div className="p-4 bg-blue-50 rounded-lg">
+                <div className="p-4 bg-emerald-50 rounded-lg">
                   <div className="flex justify-between items-center">
                     <span className="text-lg font-semibold text-gray-900">Tổng tiền:</span>
-                    <span className="text-2xl font-bold text-blue-600">
+                    <span className="text-2xl font-bold text-emerald-600">
                       {(vehicleModels.find(m => m.id === formData.vehicleModel)?.price * formData.quantity || 0).toLocaleString('vi-VN')} VNĐ
                     </span>
                   </div>
@@ -206,7 +206,7 @@ function OrderFromManufacturer({ onBack }) {
 
               <button
                 type="submit"
-                className="w-full px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="w-full px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
               >
                 Tạo đơn đặt hàng
               </button>

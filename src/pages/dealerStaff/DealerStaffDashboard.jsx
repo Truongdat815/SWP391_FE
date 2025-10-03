@@ -194,7 +194,7 @@ function DealerStaffDashboard() {
                 <div key={index} className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition-all duration-200">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center">
-                      <div className="p-3 rounded-lg bg-blue-50 text-blue-600">
+                      <div className="p-3 rounded-lg bg-emerald-50 text-emerald-600">
                         {stat.icon}
                       </div>
                       <div className="ml-4">
@@ -218,9 +218,9 @@ function DealerStaffDashboard() {
                   <button
                     key={item.id}
                     onClick={() => setActivePage(item.id)}
-                    className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-blue-300 transition-colors group"
+                    className="flex items-center p-4 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-emerald-300 transition-colors group"
                   >
-                    <div className="p-2 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
+                    <div className="p-2 bg-emerald-100 rounded-lg group-hover:bg-emerald-200 transition-colors">
                       {item.icon}
                     </div>
                     <span className="ml-3 font-medium text-gray-700">{item.title}</span>
@@ -290,7 +290,7 @@ function DealerStaffDashboard() {
               </div>
             )}
             {sidebarCollapsed && (
-              <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
+              <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
                 <img 
                   src="/src/assets/images/logo.png" 
                   alt="Electra Logo" 
@@ -313,7 +313,7 @@ function DealerStaffDashboard() {
                   onClick={() => setActivePage(item.id)}
                   className={`w-full flex items-center p-3 rounded-lg transition-colors ${
                     activePage === item.id
-                      ? 'bg-blue-100 text-blue-700 border border-blue-200'
+                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
@@ -351,7 +351,7 @@ function DealerStaffDashboard() {
                   onClick={() => setIsUserDropdownOpen(!isUserDropdownOpen)}
                   className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
                 >
-                  <div className="h-8 w-8 bg-blue-500 rounded-full flex items-center justify-center">
+                  <div className="h-8 w-8 bg-emerald-500 rounded-full flex items-center justify-center">
                     <span className="text-white font-medium text-sm">SN</span>
                   </div>
                   <div className="text-left">
