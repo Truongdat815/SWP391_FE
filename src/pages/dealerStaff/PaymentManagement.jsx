@@ -125,10 +125,10 @@ function PaymentManagement({ onBack }) {
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-green-50 rounded-lg p-6">
+          <div className="bg-emerald-50 rounded-lg p-6">
             <div className="flex items-center">
-              <div className="p-3 bg-green-100 rounded-lg">
-                <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <div className="p-3 bg-emerald-100 rounded-lg">
+                <svg className="h-6 w-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
                 </svg>
               </div>
@@ -188,7 +188,7 @@ function PaymentManagement({ onBack }) {
                     type="number"
                     value={paymentForm.amount}
                     onChange={(e) => setPaymentForm(prev => ({ ...prev, amount: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     required
                     max={selectedPayment.remainingAmount}
                   />
@@ -198,7 +198,7 @@ function PaymentManagement({ onBack }) {
                   <select
                     value={paymentForm.paymentMethod}
                     onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentMethod: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     required
                   >
                     <option value="">Chọn phương thức</option>
@@ -213,7 +213,7 @@ function PaymentManagement({ onBack }) {
                     value={paymentForm.notes}
                     onChange={(e) => setPaymentForm(prev => ({ ...prev, notes: e.target.value }))}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   />
                 </div>
                 <div className="flex justify-end space-x-4">
@@ -226,7 +226,7 @@ function PaymentManagement({ onBack }) {
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                   >
                     Ghi nhận
                   </button>
@@ -271,7 +271,7 @@ function PaymentManagement({ onBack }) {
                       {payment.remainingAmount > 0 && (
                         <button
                           onClick={() => openPaymentForm(payment)}
-                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                          className="text-emerald-600 hover:text-emerald-800 text-sm font-medium"
                         >
                           Ghi nhận thanh toán
                         </button>

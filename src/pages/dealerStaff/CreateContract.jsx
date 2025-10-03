@@ -136,7 +136,7 @@ function CreateContract({ onBack }) {
                       name="customerName"
                       value={formData.customerName}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       required
                     />
                   </div>
@@ -148,7 +148,7 @@ function CreateContract({ onBack }) {
                         name="customerPhone"
                         value={formData.customerPhone}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                         required
                       />
                     </div>
@@ -159,7 +159,7 @@ function CreateContract({ onBack }) {
                         name="customerEmail"
                         value={formData.customerEmail}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -170,7 +170,7 @@ function CreateContract({ onBack }) {
                       value={formData.customerAddress}
                       onChange={handleInputChange}
                       rows={2}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       required
                     />
                   </div>
@@ -187,7 +187,7 @@ function CreateContract({ onBack }) {
                       name="vehicleModel"
                       value={formData.vehicleModel}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       required
                     >
                       <option value="">Chọn mẫu xe</option>
@@ -213,7 +213,7 @@ function CreateContract({ onBack }) {
                         name="contractDate"
                         value={formData.contractDate}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                         required
                       />
                     </div>
@@ -224,7 +224,7 @@ function CreateContract({ onBack }) {
                         name="deliveryDate"
                         value={formData.deliveryDate}
                         onChange={handleInputChange}
-                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       />
                     </div>
                   </div>
@@ -234,7 +234,7 @@ function CreateContract({ onBack }) {
                       name="paymentMethod"
                       value={formData.paymentMethod}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       required
                     >
                       <option value="">Chọn phương thức</option>
@@ -250,7 +250,7 @@ function CreateContract({ onBack }) {
                       name="depositAmount"
                       value={formData.depositAmount}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       placeholder="Nhập số tiền cọc"
                     />
                   </div>
@@ -265,7 +265,7 @@ function CreateContract({ onBack }) {
                   value={formData.terms}
                   onChange={handleInputChange}
                   rows={4}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   placeholder="Nhập các điều khoản của hợp đồng..."
                 />
               </div>
@@ -277,14 +277,14 @@ function CreateContract({ onBack }) {
                   value={formData.notes}
                   onChange={handleInputChange}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   placeholder="Nhập ghi chú thêm..."
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="w-full px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
               >
                 Tạo hợp đồng
               </button>

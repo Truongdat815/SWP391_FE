@@ -161,7 +161,7 @@ function CarListing({ onBack }) {
                   placeholder="Tìm kiếm xe..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 />
               </div>
             </div>
@@ -172,7 +172,7 @@ function CarListing({ onBack }) {
                   onClick={() => setSelectedCategory(category.id)}
                   className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors ${
                     selectedCategory === category.id
-                      ? 'bg-blue-600 text-white'
+                      ? 'bg-emerald-600 text-white'
                       : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                   }`}
                 >
@@ -197,7 +197,7 @@ function CarListing({ onBack }) {
                   }}
                 />
                 <div className="absolute top-2 right-2">
-                  <span className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-bold">
+                  <span className="bg-emerald-600 text-white px-2 py-1 rounded text-xs font-bold">
                     {getCategoryName(vehicle.category)}
                   </span>
                 </div>
@@ -230,7 +230,7 @@ function CarListing({ onBack }) {
                   <p className="text-sm text-gray-600 mb-1">Tính năng nổi bật:</p>
                   <div className="flex flex-wrap gap-1">
                     {vehicle.features.slice(0, 2).map((feature, index) => (
-                      <span key={index} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                      <span key={index} className="bg-emerald-100 text-emerald-800 text-xs px-2 py-1 rounded">
                         {feature}
                       </span>
                     ))}
@@ -242,11 +242,11 @@ function CarListing({ onBack }) {
 
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-lg font-bold text-blue-600">
+                    <p className="text-lg font-bold text-emerald-600">
                       {vehicle.price.toLocaleString('vi-VN')} VNĐ
                     </p>
                   </div>
-                  <button className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm">
+                  <button className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors text-sm">
                     Xem chi tiết
                   </button>
                 </div>

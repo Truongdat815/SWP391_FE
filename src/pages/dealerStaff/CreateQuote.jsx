@@ -77,7 +77,7 @@ function CreateQuote({ onBack }) {
                   name="customerName"
                   value={formData.customerName}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   required
                 />
               </div>
@@ -90,7 +90,7 @@ function CreateQuote({ onBack }) {
                   name="customerPhone"
                   value={formData.customerPhone}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   required
                 />
               </div>
@@ -103,7 +103,7 @@ function CreateQuote({ onBack }) {
                   name="customerEmail"
                   value={formData.customerEmail}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 />
               </div>
             </div>
@@ -121,7 +121,7 @@ function CreateQuote({ onBack }) {
                   name="vehicleModel"
                   value={formData.vehicleModel}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   required
                 >
                   <option value="">Chọn mẫu xe</option>
@@ -142,7 +142,7 @@ function CreateQuote({ onBack }) {
                   value={formData.quantity}
                   onChange={handleInputChange}
                   min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   required
                 />
               </div>
@@ -178,16 +178,16 @@ function CreateQuote({ onBack }) {
                   onChange={handleInputChange}
                   min="0"
                   max="100"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 />
               </div>
             </div>
             
             {/* Total Calculation */}
-            <div className="mt-4 p-4 bg-blue-50 rounded-lg">
+            <div className="mt-4 p-4 bg-emerald-50 rounded-lg">
               <div className="flex justify-between items-center">
                 <span className="text-lg font-semibold text-gray-900">Tổng tiền:</span>
-                <span className="text-2xl font-bold text-blue-600">
+                <span className="text-2xl font-bold text-emerald-600">
                   {calculateTotal().toLocaleString('vi-VN')} VNĐ
                 </span>
               </div>
@@ -220,7 +220,7 @@ function CreateQuote({ onBack }) {
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
             >
               Tạo báo giá
             </button>
