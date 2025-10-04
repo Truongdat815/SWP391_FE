@@ -76,7 +76,7 @@ const DealerStaffLayout = () => {
                 <div className="relative" ref={dropdownRef}>
                   <button
                     onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                    className="flex items-center space-x-2 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+                    className="flex items-center space-x-2 text-sm rounded-full focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition active:scale-[0.98]"
                   >
                     <div className="h-8 w-8 bg-emerald-100 rounded-full flex items-center justify-center">
                       <span className="text-emerald-600 font-semibold text-sm">NV</span>
@@ -99,7 +99,7 @@ const DealerStaffLayout = () => {
 
                   {/* Dropdown Menu */}
                   {isDropdownOpen && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50 origin-top-right animate-in fade-in zoom-in-95">
                       <div className="py-1">
                         {/* User Info */}
                         <div className="px-4 py-3 border-b border-gray-100">

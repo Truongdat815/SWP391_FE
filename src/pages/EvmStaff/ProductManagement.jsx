@@ -1,7 +1,9 @@
 import { useState } from 'react';
 
 function ProductManagement({ onBack }) {
-  const [activeTab, setActiveTab] = useState('models');
+  const [activeTab, setActiveTab] = useState('versions');
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
 
   const carModels = [
     { id: 1, name: 'Electra Ascent', category: 'SUV', basePrice: 850000000, colors: ['Trắng', 'Đen', 'Xanh', 'Đỏ'], status: 'active' },
@@ -19,6 +21,38 @@ function ProductManagement({ onBack }) {
     { id: 'versions', name: 'Quản lý phiên bản', icon: '⚙️' },
   
   ];
+
+  const [versions, setVersions] = useState([
+    { id: 1, modelName: 'Electra Ascent', version: 'Base', price: 850000000, stock: 45, status: 'active' },
+    { id: 2, modelName: 'Electra Ascent', version: 'Premium', price: 950000000, stock: 28, status: 'active' },
+    { id: 3, modelName: 'Electra CityLink', version: 'Standard', price: 650000000, stock: 78, status: 'active' },
+  ]);
+
+  const [newVersion, setNewVersion] = useState({ modelId: carModels[0].id, version: '', price: '', stock: '', status: 'active' });
+
+  const formatCurrency = (value) => Number(value).toLocaleString('vi-VN') + ' VNĐ';
+
+  const openAddModal = () => {
+    setNewVersion({ modelId: carModels[0].id, version: '', price: '', stock: '', status: 'active' });
+    setIsAddOpen(true);
+  };
+
+  const handleCreateVersion = (e) => {
+    e.preventDefault();
+    const model = carModels.find(m => m.id === Number(newVersion.modelId));
+    const created = {
+      id: Date.now(),
+      modelName: model?.name || '',
+      version: newVersion.version || '—',
+      price: Number(newVersion.price || 0),
+      stock: Number(newVersion.stock || 0),
+      status: newVersion.status,
+    };
+    setVersions(prev => [created, ...prev]);
+    setIsAddOpen(false);
+    setSuccessMsg('Đã thêm phiên bản mới');
+    setTimeout(() => setSuccessMsg(''), 2000);
+  };
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -54,6 +88,12 @@ function ProductManagement({ onBack }) {
           Quay lại
         </button>
       </div>
+
+      {successMsg && (
+        <div className="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 p-3 text-sm">
+          {successMsg}
+        </div>
+      )}
 
       {/* Navigation Tabs */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100">
@@ -141,7 +181,7 @@ function ProductManagement({ onBack }) {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-gray-900">Quản lý phiên bản xe</h3>
-                <button className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition">
+                <button onClick={openAddModal} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 active:scale-[0.98] transition shadow-sm">
                   Thêm phiên bản mới
                 </button>
               </div>
@@ -171,75 +211,23 @@ function ProductManagement({ onBack }) {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        Electra Ascent
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        Base
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        850,000,000 VNĐ
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        45
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                          Hoạt động
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-emerald-600 hover:text-emerald-900 mr-3">Sửa</button>
-                        <button className="text-blue-600 hover:text-blue-900">Chi tiết</button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        Electra Ascent
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        Premium
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        950,000,000 VNĐ
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        28
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                          Hoạt động
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-emerald-600 hover:text-emerald-900 mr-3">Sửa</button>
-                        <button className="text-blue-600 hover:text-blue-900">Chi tiết</button>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        Electra CityLink
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        Standard
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        650,000,000 VNĐ
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        78
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
-                          Hoạt động
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button className="text-emerald-600 hover:text-emerald-900 mr-3">Sửa</button>
-                        <button className="text-blue-600 hover:text-blue-900">Chi tiết</button>
-                      </td>
-                    </tr>
+                    {versions.map(v => (
+                      <tr key={v.id}>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{v.modelName}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{v.version}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{formatCurrency(v.price)}</td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{v.stock}</td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(v.status)}`}>
+                            {getStatusText(v.status)}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button className="text-emerald-600 hover:text-emerald-900 mr-3">Sửa</button>
+                          <button className="text-blue-600 hover:text-blue-900">Chi tiết</button>
+                        </td>
+                      </tr>
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -250,6 +238,56 @@ function ProductManagement({ onBack }) {
          
         </div>
       </div>
+
+      {/* Add Version Modal */}
+      {isAddOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setIsAddOpen(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-xl border border-gray-200 p-6 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Thêm phiên bản mới</h3>
+              <button onClick={() => setIsAddOpen(false)} className="p-2 rounded-lg hover:bg-gray-100">
+                <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <form onSubmit={handleCreateVersion} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mẫu xe</label>
+                  <select value={newVersion.modelId} onChange={(e) => setNewVersion(v => ({ ...v, modelId: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    {carModels.map(m => (
+                      <option key={m.id} value={m.id}>{m.name}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tên phiên bản</label>
+                  <input value={newVersion.version} onChange={(e) => setNewVersion(v => ({ ...v, version: e.target.value }))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Base / Premium / ..." />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Giá bán (VNĐ)</label>
+                  <input type="number" min="0" value={newVersion.price} onChange={(e) => setNewVersion(v => ({ ...v, price: e.target.value }))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="850000000" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tồn kho</label>
+                  <input type="number" min="0" value={newVersion.stock} onChange={(e) => setNewVersion(v => ({ ...v, stock: e.target.value }))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="0" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+                  <select value={newVersion.status} onChange={(e) => setNewVersion(v => ({ ...v, status: e.target.value }))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="active">Hoạt động</option>
+                    <option value="inactive">Ngưng bán</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setIsAddOpen(false)} className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50">Hủy</button>
+                <button type="submit" className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98] transition">Tạo phiên bản</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -158,7 +158,7 @@ const DealerManagerLayout = () => {
             <div className="relative" ref={dropdownRef}>
               <button
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors"
+                className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors active:scale-[0.98]"
               >
                 <div className="h-8 w-8 bg-red-600 rounded-full flex items-center justify-center">
                   <span className="text-white font-medium text-sm">QL</span>
@@ -179,8 +179,8 @@ const DealerManagerLayout = () => {
                 </svg>
               </button>
 
-            {isDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
+              {isDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50 origin-top-right animate-in fade-in zoom-in-95">
                   <div className="py-1">
                     <div className="px-4 py-3 border-b border-gray-100">
                       <p className="text-sm font-medium text-gray-900">Nguyễn Văn A</p>
