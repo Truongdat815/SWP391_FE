@@ -31,20 +31,17 @@ const AdminLayout = () => {
   };
 
   const handleProfile = () => {
-    // Handle profile logic here
-    console.log('Profile clicked');
+    navigate('/admin/profile');
     setIsDropdownOpen(false);
   };
 
   const handleSettings = () => {
-    // Handle settings logic here
-    console.log('Settings clicked');
+    navigate('/admin/settings');
     setIsDropdownOpen(false);
   };
 
   const handleHelp = () => {
-    // Handle help logic here
-    console.log('Help clicked');
+    navigate('/admin/help');
     setIsDropdownOpen(false);
   };
 

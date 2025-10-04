@@ -31,20 +31,17 @@ const DealerStaffLayout = () => {
   };
 
   const handleProfile = () => {
-    // Handle profile logic here
-    console.log('Profile clicked');
+    navigate('/dealer-staff/profile');
     setIsDropdownOpen(false);
   };
 
   const handleSettings = () => {
-    // Handle settings logic here
-    console.log('Settings clicked');
+    navigate('/dealer-staff/settings');
     setIsDropdownOpen(false);
   };
 
   const handleHelp = () => {
-    // Handle help logic here
-    console.log('Help clicked');
+    navigate('/dealer-staff/help');
     setIsDropdownOpen(false);
   };
 

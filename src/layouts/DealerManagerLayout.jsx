@@ -179,7 +179,7 @@ const DealerManagerLayout = () => {
                 </svg>
               </button>
 
-              {isDropdownOpen && (
+            {isDropdownOpen && (
                 <div className="absolute right-0 mt-2 w-56 bg-white rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50">
                   <div className="py-1">
                     <div className="px-4 py-3 border-b border-gray-100">
@@ -188,7 +188,7 @@ const DealerManagerLayout = () => {
                       <p className="text-xs text-gray-400">ID: DM001</p>
                     </div>
                     <button
-                      onClick={() => setIsDropdownOpen(false)}
+                      onClick={() => { setIsDropdownOpen(false); navigate('/dealer-manager/profile'); }}
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                     >
                       <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -197,7 +197,7 @@ const DealerManagerLayout = () => {
                       Thông tin cá nhân
                     </button>
                     <button
-                      onClick={() => setIsDropdownOpen(false)}
+                      onClick={() => { setIsDropdownOpen(false); navigate('/dealer-manager/settings'); }}
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                     >
                       <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -207,7 +207,7 @@ const DealerManagerLayout = () => {
                       Cài đặt
                     </button>
                     <button
-                      onClick={() => setIsDropdownOpen(false)}
+                      onClick={() => { setIsDropdownOpen(false); navigate('/dealer-manager/help'); }}
                       className="flex items-center w-full px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                     >
                       <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">

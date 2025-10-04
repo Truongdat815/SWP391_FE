@@ -21,6 +21,11 @@ import DealerStaffDashboard from './pages/dealerStaff/DealerStaffDashboard'
 import DealerManagerDashboard from './pages/dealerManager/DealerManagerDashboard'
 import EVMDashboard from './pages/EvmStaff/EVMDashboard'
 
+// Common sub pages
+import CommonProfile from './pages/CommonProfile'
+import CommonSettings from './pages/CommonSettings'
+import CommonHelp from './pages/CommonHelp'
+
 // Dealer Manager Sub Pages
 import TaoBaoCao from './pages/dealerManager/TaoBaoCao'
 import BaoCaoDoanhSo from './pages/dealerManager/BaoCaoDoanhSo'
@@ -81,11 +86,17 @@ function App() {
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
+          <Route path="profile" element={<CommonProfile />} />
+          <Route path="settings" element={<CommonSettings />} />
+          <Route path="help" element={<CommonHelp />} />
         </Route>
 
         {/* Dealer Staff Routes */}
         <Route path="/dealer-staff" element={<DealerStaffLayout />}>
           <Route index element={<DealerStaffDashboard />} />
+          <Route path="profile" element={<CommonProfile />} />
+          <Route path="settings" element={<CommonSettings />} />
+          <Route path="help" element={<CommonHelp />} />
           <Route path="quote-order-management" element={<QuoteOrderManagement />} />
           <Route path="add-customer" element={<AddCustomer />} />
           <Route path="order-from-manufacturer" element={<OrderFromManufacturer />} />
@@ -98,6 +109,9 @@ function App() {
         {/* Dealer Manager Routes */}
         <Route path="/dealer-manager" element={<DealerManagerLayout />}>
           <Route index element={<DealerManagerDashboard />} />
+          <Route path="profile" element={<CommonProfile />} />
+          <Route path="settings" element={<CommonSettings />} />
+          <Route path="help" element={<CommonHelp />} />
           <Route path="tao-bao-cao" element={<TaoBaoCao />} />
           <Route path="bao-cao-doanh-so" element={<BaoCaoDoanhSo />} />
           <Route path="quan-ly-nhan-vien" element={<QuanLyNhanVien />} />
@@ -109,6 +123,9 @@ function App() {
         {/* EVM Staff Routes */}
         <Route path="/evm-staff" element={<EVMStaffLayout />}>
           <Route index element={<EVMDashboard />} />
+          <Route path="profile" element={<CommonProfile />} />
+          <Route path="settings" element={<CommonSettings />} />
+          <Route path="help" element={<CommonHelp />} />
         </Route>
         
         <Route path="*" element={

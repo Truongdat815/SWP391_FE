@@ -31,20 +31,17 @@ const EVMStaffLayout = () => {
   };
 
   const handleProfile = () => {
-    // Handle profile logic here
-    console.log('Profile clicked');
+    navigate('/evm-staff/profile');
     setIsDropdownOpen(false);
   };
 
   const handleSettings = () => {
-    // Handle settings logic here
-    console.log('Settings clicked');
+    navigate('/evm-staff/settings');
     setIsDropdownOpen(false);
   };
 
   const handleHelp = () => {
-    // Handle help logic here
-    console.log('Help clicked');
+    navigate('/evm-staff/help');
     setIsDropdownOpen(false);
   };
 
