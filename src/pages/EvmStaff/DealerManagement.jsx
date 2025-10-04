@@ -2,8 +2,11 @@ import { useState } from 'react';
 
 function DealerManagement({ onBack }) {
   const [activeTab, setActiveTab] = useState('dealers');
-
-  const dealers = [
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isEditOpen, setIsEditOpen] = useState(false);
+  const [successMsg, setSuccessMsg] = useState('');
+  const [dealers, setDealers] = useState([
     {
       id: 1,
       name: 'Đại lý Hà Nội',
@@ -60,7 +63,62 @@ function DealerManagement({ onBack }) {
       performance: 'average',
       contractStatus: 'pending'
     }
-  ];
+  ]);
+
+  const [newDealer, setNewDealer] = useState({
+    name: '',
+    location: '',
+    contact: '',
+    phone: '',
+    email: '',
+    establishedDate: '',
+    status: 'active',
+    orders: 0,
+    revenue: '0',
+    performance: 'good',
+    contractStatus: 'pending'
+  });
+
+  const openAddModal = () => {
+    setNewDealer({
+      name: '', location: '', contact: '', phone: '', email: '', establishedDate: '',
+      status: 'active', orders: 0, revenue: '0', performance: 'good', contractStatus: 'pending'
+    })
+    setIsAddOpen(true)
+  }
+
+  const handleCreateDealer = (e) => {
+    e.preventDefault()
+    const created = {
+      id: Date.now(),
+      ...newDealer
+    }
+    setDealers(prev => [created, ...prev])
+    setIsAddOpen(false)
+    setSuccessMsg('Đã thêm đại lý mới')
+    setTimeout(() => setSuccessMsg(''), 2000)
+  }
+
+  const [selectedDealer, setSelectedDealer] = useState(null);
+  const [editDealer, setEditDealer] = useState(null);
+
+  const openDetail = (dealer) => {
+    setSelectedDealer(dealer);
+    setIsDetailOpen(true);
+  };
+
+  const openEdit = (dealer) => {
+    setEditDealer({ ...dealer });
+    setIsEditOpen(true);
+  };
+
+  const handleUpdateDealer = (e) => {
+    e.preventDefault();
+    setDealers(prev => prev.map(d => d.id === editDealer.id ? { ...editDealer } : d));
+    setIsEditOpen(false);
+    setSuccessMsg('Đã cập nhật thông tin đại lý');
+    setTimeout(() => setSuccessMsg(''), 2000);
+  };
 
   const contracts = [
     {
@@ -253,10 +311,16 @@ function DealerManagement({ onBack }) {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-gray-900">Danh sách đại lý</h3>
-                <button className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition">
+                <button onClick={openAddModal} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition">
                   Thêm đại lý mới
                 </button>
               </div>
+
+              {successMsg && (
+                <div className="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 p-3 text-sm">
+                  {successMsg}
+                </div>
+              )}
 
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {dealers.map((dealer) => (
@@ -316,10 +380,10 @@ function DealerManagement({ onBack }) {
                     </div>
 
                     <div className="flex space-x-2">
-                      <button className="flex-1 bg-emerald-600 text-white py-2 px-4 rounded-lg hover:bg-emerald-700 transition">
+                      <button onClick={() => openDetail(dealer)} className="flex-1 bg-emerald-600 text-white py-2 px-4 rounded-lg hover:bg-emerald-700 transition">
                         Xem chi tiết
                       </button>
-                      <button className="flex-1 border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 transition">
+                      <button onClick={() => openEdit(dealer)} className="flex-1 border border-gray-300 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-50 transition">
                         Chỉnh sửa
                       </button>
                     </div>
@@ -520,6 +584,230 @@ function DealerManagement({ onBack }) {
           )}
         </div>
       </div>
+ 
+      {/* Add Dealer Modal */}
+      {isAddOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setIsAddOpen(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl border border-gray-200 p-6 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Thêm đại lý mới</h3>
+              <button onClick={() => setIsAddOpen(false)} className="p-2 rounded-lg hover:bg-gray-100">
+                <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <form onSubmit={handleCreateDealer} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tên đại lý</label>
+                  <input value={newDealer.name} onChange={(e)=>setNewDealer(v=>({...v,name:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Đại lý ABC" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Khu vực</label>
+                  <input value={newDealer.location} onChange={(e)=>setNewDealer(v=>({...v,location:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Hà Nội / TP.HCM" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Người liên hệ</label>
+                  <input value={newDealer.contact} onChange={(e)=>setNewDealer(v=>({...v,contact:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Nguyễn Văn A" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
+                  <input value={newDealer.phone} onChange={(e)=>setNewDealer(v=>({...v,phone:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="0123 456 789" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input type="email" value={newDealer.email} onChange={(e)=>setNewDealer(v=>({...v,email:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="dealer@electra.com" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ngày thành lập</label>
+                  <input type="date" value={newDealer.establishedDate} onChange={(e)=>setNewDealer(v=>({...v,establishedDate:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+                  <select value={newDealer.status} onChange={(e)=>setNewDealer(v=>({...v,status:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="active">Hoạt động</option>
+                    <option value="warning">Cảnh báo</option>
+                    <option value="inactive">Không hoạt động</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Hiệu suất</label>
+                  <select value={newDealer.performance} onChange={(e)=>setNewDealer(v=>({...v,performance:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="excellent">Xuất sắc</option>
+                    <option value="good">Tốt</option>
+                    <option value="average">Trung bình</option>
+                    <option value="poor">Kém</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Đơn hàng</label>
+                  <input type="number" min="0" value={newDealer.orders} onChange={(e)=>setNewDealer(v=>({...v,orders:Number(e.target.value)}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Doanh thu</label>
+                  <input value={newDealer.revenue} onChange={(e)=>setNewDealer(v=>({...v,revenue:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="8.5M" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tình trạng hợp đồng</label>
+                  <select value={newDealer.contractStatus} onChange={(e)=>setNewDealer(v=>({...v,contractStatus:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="active">Đang hiệu lực</option>
+                    <option value="pending">Chờ duyệt</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setIsAddOpen(false)} className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50">Hủy</button>
+                <button type="submit" className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98] transition">Tạo đại lý</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Detail Dealer Modal */}
+      {isDetailOpen && selectedDealer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setIsDetailOpen(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl border border-gray-200 p-6 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Chi tiết đại lý</h3>
+              <button onClick={() => setIsDetailOpen(false)} className="p-2 rounded-lg hover:bg-gray-100">
+                <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-500">Tên đại lý</p>
+                <p className="font-semibold text-gray-900">{selectedDealer.name}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-500">Khu vực</p>
+                <p className="font-semibold text-gray-900">{selectedDealer.location}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-500">Người liên hệ</p>
+                <p className="font-semibold text-gray-900">{selectedDealer.contact}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-500">Số điện thoại</p>
+                <p className="font-semibold text-gray-900">{selectedDealer.phone}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-500">Email</p>
+                <p className="font-semibold text-gray-900">{selectedDealer.email}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-500">Ngày thành lập</p>
+                <p className="font-semibold text-gray-900">{selectedDealer.establishedDate}</p>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-500">Trạng thái</p>
+                <span className={`mt-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedDealer.status)}`}>{getStatusText(selectedDealer.status)}</span>
+              </div>
+              <div className="bg-gray-50 rounded-lg p-4">
+                <p className="text-sm text-gray-500">Hiệu suất</p>
+                <span className={`mt-1 inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getPerformanceColor(selectedDealer.performance)}`}>{getPerformanceText(selectedDealer.performance)}</span>
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <p className="text-lg font-bold text-gray-900">{selectedDealer.orders}</p>
+                <p className="text-sm text-gray-500">Đơn hàng</p>
+              </div>
+              <div className="text-center p-3 bg-gray-50 rounded-lg">
+                <p className="text-lg font-bold text-gray-900">{selectedDealer.revenue}</p>
+                <p className="text-sm text-gray-500">Doanh thu</p>
+              </div>
+            </div>
+            <div className="flex justify-end mt-4">
+              <button onClick={() => setIsDetailOpen(false)} className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50">Đóng</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Dealer Modal */}
+      {isEditOpen && editDealer && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setIsEditOpen(false)}></div>
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl border border-gray-200 p-6 animate-in fade-in zoom-in-95">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Chỉnh sửa đại lý</h3>
+              <button onClick={() => setIsEditOpen(false)} className="p-2 rounded-lg hover:bg-gray-100">
+                <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg>
+              </button>
+            </div>
+            <form onSubmit={handleUpdateDealer} className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tên đại lý</label>
+                  <input value={editDealer.name} onChange={(e)=>setEditDealer(v=>({...v,name:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Khu vực</label>
+                  <input value={editDealer.location} onChange={(e)=>setEditDealer(v=>({...v,location:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" required />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Người liên hệ</label>
+                  <input value={editDealer.contact} onChange={(e)=>setEditDealer(v=>({...v,contact:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
+                  <input value={editDealer.phone} onChange={(e)=>setEditDealer(v=>({...v,phone:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input type="email" value={editDealer.email} onChange={(e)=>setEditDealer(v=>({...v,email:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ngày thành lập</label>
+                  <input type="date" value={editDealer.establishedDate} onChange={(e)=>setEditDealer(v=>({...v,establishedDate:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Trạng thái</label>
+                  <select value={editDealer.status} onChange={(e)=>setEditDealer(v=>({...v,status:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="active">Hoạt động</option>
+                    <option value="warning">Cảnh báo</option>
+                    <option value="inactive">Không hoạt động</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Hiệu suất</label>
+                  <select value={editDealer.performance} onChange={(e)=>setEditDealer(v=>({...v,performance:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="excellent">Xuất sắc</option>
+                    <option value="good">Tốt</option>
+                    <option value="average">Trung bình</option>
+                    <option value="poor">Kém</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Đơn hàng</label>
+                  <input type="number" min="0" value={editDealer.orders} onChange={(e)=>setEditDealer(v=>({...v,orders:Number(e.target.value)}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Doanh thu</label>
+                  <input value={editDealer.revenue} onChange={(e)=>setEditDealer(v=>({...v,revenue:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tình trạng hợp đồng</label>
+                  <select value={editDealer.contractStatus} onChange={(e)=>setEditDealer(v=>({...v,contractStatus:e.target.value}))} className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <option value="active">Đang hiệu lực</option>
+                    <option value="pending">Chờ duyệt</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setIsEditOpen(false)} className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50">Hủy</button>
+                <button type="submit" className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 active:scale-[0.98] transition">Lưu thay đổi</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
