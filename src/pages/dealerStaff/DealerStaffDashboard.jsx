@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom';
 
 // Import các component con
 import CreateQuote from './CreateQuote';
-import AddCustomer from './AddCustomer';
+import ViewQuotes from './ViewQuotes';
+import ViewOrders from './ViewOrders';
 import TestDriveSchedule from './TestDriveSchedule';
 import OrderFromManufacturer from './OrderFromManufacturer';
 import CreateContract from './CreateContract';
@@ -102,11 +103,20 @@ function DealerStaffDashboard() {
       )
     },
     {
-      id: 'add-customer',
-      title: 'Thêm khách hàng',
+      id: 'view-quotes',
+      title: 'Xem báo giá',
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+      )
+    },
+    {
+      id: 'view-orders',
+      title: 'Xem đơn hàng',
+      icon: (
+        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
         </svg>
       )
     },
@@ -245,8 +255,10 @@ function DealerStaffDashboard() {
         );
       case 'create-quote':
         return <CreateQuote onBack={() => setActivePage('dashboard')} />;
-      case 'add-customer':
-        return <AddCustomer onBack={() => setActivePage('dashboard')} />;
+      case 'view-quotes':
+        return <ViewQuotes onBack={() => setActivePage('dashboard')} />;
+      case 'view-orders':
+        return <ViewOrders onBack={() => setActivePage('dashboard')} />;
       case 'test-drive':
         return <TestDriveSchedule onBack={() => setActivePage('dashboard')} />;
       case 'order-manufacturer':
