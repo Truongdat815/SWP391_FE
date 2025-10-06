@@ -1,13 +1,19 @@
 import { useState } from 'react';
 
 function CreateQuote({ onBack }) {
-  // State cho thông tin đơn hàng (orders table)
+  // State cho thông tin đơn hàng (orders table) - phù hợp với cấu trúc database
   const [orderData, setOrderData] = useState({
-    customer_id: '',
-    staff_id: '', // Sẽ được set từ session
+    order_id: null, // Sẽ được tạo tự động
     contract_id: null, // Có thể null ban đầu
-    order_date: new Date().toISOString().split('T')[0],
+    customer_id: '', // Sẽ được tạo từ thông tin khách hàng
+    staff_id: 'DS001', // Sẽ được set từ session
+    total_price: 0, // Tổng tiền hàng (tính từ order_details)
+    total_tax_price: 0, // Tổng thuế VAT (tính từ order_details)
+    total_promotion_amount: 0, // Tổng khuyến mãi (tính từ order_details)
+    total_payment: 0, // Tổng thanh toán cuối cùng
     status: 'draft', // draft, pending, approved, rejected
+    order_date: new Date().toISOString().split('T')[0],
+    updated_at: new Date().toISOString(),
     notes: ''
   });
 
@@ -25,12 +31,17 @@ function CreateQuote({ onBack }) {
     total_price: 0
   }]);
 
-  // State cho customer info (để hiển thị, không lưu trực tiếp)
+  // State cho customer info (mở rộng với thông tin chi tiết)
   const [customerInfo, setCustomerInfo] = useState({
     name: '',
     phone: '',
     email: '',
-    address: ''
+    address: '',
+    dateOfBirth: '',
+    gender: '',
+    occupation: '',
+    idNumber: '',
+    notes: ''
   });
 
   // Danh sách xe trong kho (store_stock)
@@ -97,6 +108,11 @@ function CreateQuote({ onBack }) {
     }
 
     setOrderDetails(updatedDetails);
+    
+    // Tự động tính toán lại tổng tiền khi có thay đổi
+    setTimeout(() => {
+      calculateOrderTotals();
+    }, 0);
   };
 
   // Thêm dòng sản phẩm mới
@@ -123,12 +139,22 @@ function CreateQuote({ onBack }) {
     }
   };
 
-  // Tính tổng đơn hàng
+  // Tính tổng đơn hàng và cập nhật orderData
   const calculateOrderTotals = () => {
     const total_price = orderDetails.reduce((sum, detail) => sum + (detail.unit_price * detail.quantity), 0);
     const total_tax_price = orderDetails.reduce((sum, detail) => sum + detail.vat_amount, 0);
     const total_promotion_amount = orderDetails.reduce((sum, detail) => sum + detail.discount_amount, 0);
     const total_payment = orderDetails.reduce((sum, detail) => sum + detail.total_price, 0);
+
+    // Cập nhật orderData với các giá trị tính toán
+    setOrderData(prev => ({
+      ...prev,
+      total_price,
+      total_tax_price,
+      total_promotion_amount,
+      total_payment,
+      updated_at: new Date().toISOString()
+    }));
 
     return {
       total_price,
@@ -141,25 +167,54 @@ function CreateQuote({ onBack }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Tính toán tổng tiền cuối cùng
-    const totals = calculateOrderTotals();
+    // Đảm bảo tính toán tổng tiền trước khi submit
+    calculateOrderTotals();
     
-    // Chuẩn bị dữ liệu để gửi lên server
+    // Chuẩn bị dữ liệu để gửi lên server theo cấu trúc bảng orders
     const orderPayload = {
-      ...orderData,
-      total_price: totals.total_price,
-      total_tax_price: totals.total_tax_price,
-      total_promotion_amount: totals.total_promotion_amount,
-      total_payment: totals.total_payment,
-      customer_info: customerInfo,
+      // Dữ liệu bảng orders
+      order: {
+        contract_id: orderData.contract_id,
+        customer_id: orderData.customer_id, // Sẽ được tạo từ customerInfo
+        staff_id: orderData.staff_id,
+        total_price: orderData.total_price,
+        total_tax_price: orderData.total_tax_price,
+        total_promotion_amount: orderData.total_promotion_amount,
+        total_payment: orderData.total_payment,
+        status: orderData.status,
+        order_date: orderData.order_date,
+        updated_at: orderData.updated_at,
+        notes: orderData.notes
+      },
+      // Dữ liệu khách hàng (để tạo customer record)
+      customer: customerInfo,
+      // Chi tiết đơn hàng
       order_details: orderDetails
     };
     
-    console.log('Quote created:', orderPayload);
+    console.log('Quote created with full order data:', orderPayload);
     alert('Báo giá đã được tạo thành công!');
     
     // TODO: Gửi dữ liệu lên API
-    // fetch('/api/orders', { method: 'POST', body: JSON.stringify(orderPayload) })
+    // fetch('/api/orders', { 
+    //   method: 'POST', 
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify(orderPayload) 
+    // })
+  };
+
+  // Hàm chuyển đổi báo giá thành đơn hàng
+  const handleConvertToOrder = () => {
+    if (orderData.status === 'draft') {
+      const updatedOrderData = {
+        ...orderData,
+        status: 'pending'
+      };
+      setOrderData(updatedOrderData);
+      alert('Báo giá đã được chuyển thành đơn hàng chờ duyệt!');
+    } else {
+      alert('Chỉ có thể chuyển đổi báo giá ở trạng thái "Bản nháp" thành đơn hàng!');
+    }
   };
 
   return (
@@ -182,55 +237,147 @@ function CreateQuote({ onBack }) {
           {/* Customer Information */}
           <div className="bg-gray-50 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Thông tin khách hàng</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tên khách hàng *
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  value={customerInfo.name}
-                  onChange={handleCustomerChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  required
-                />
+            
+            {/* Personal Information */}
+            <div className="mb-6">
+              <h4 className="text-md font-medium text-gray-800 mb-3">Thông tin cá nhân</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Họ và tên *
+                  </label>
+                  <input
+                    type="text"
+                    name="name"
+                    value={customerInfo.name}
+                    onChange={handleCustomerChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Số điện thoại *
+                  </label>
+                  <input
+                    type="tel"
+                    name="phone"
+                    value={customerInfo.phone}
+                    onChange={handleCustomerChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={customerInfo.email}
+                    onChange={handleCustomerChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Ngày sinh
+                  </label>
+                  <input
+                    type="date"
+                    name="dateOfBirth"
+                    value={customerInfo.dateOfBirth}
+                    onChange={handleCustomerChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Giới tính
+                  </label>
+                  <select
+                    name="gender"
+                    value={customerInfo.gender}
+                    onChange={handleCustomerChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  >
+                    <option value="">Chọn giới tính</option>
+                    <option value="male">Nam</option>
+                    <option value="female">Nữ</option>
+                    <option value="other">Khác</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nghề nghiệp
+                  </label>
+                  <input
+                    type="text"
+                    name="occupation"
+                    value={customerInfo.occupation}
+                    onChange={handleCustomerChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Số điện thoại *
-                </label>
-                <input
-                  type="tel"
-                  name="phone"
-                  value={customerInfo.phone}
-                  onChange={handleCustomerChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  required
-                />
+            </div>
+
+            {/* Contact Information */}
+            <div className="mb-6">
+              <h4 className="text-md font-medium text-gray-800 mb-3">Thông tin liên hệ</h4>
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Địa chỉ *
+                  </label>
+                  <textarea
+                    name="address"
+                    value={customerInfo.address}
+                    onChange={handleCustomerChange}
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    placeholder="Nhập địa chỉ chi tiết..."
+                    required
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  value={customerInfo.email}
-                  onChange={handleCustomerChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                />
+            </div>
+
+            {/* Identity Information */}
+            <div className="mb-6">
+              <h4 className="text-md font-medium text-gray-800 mb-3">Thông tin định danh</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Số CMND/CCCD
+                  </label>
+                  <input
+                    type="text"
+                    name="idNumber"
+                    value={customerInfo.idNumber}
+                    onChange={handleCustomerChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    placeholder="Nhập số CMND/CCCD"
+                  />
+                </div>
               </div>
+            </div>
+
+            {/* Additional Information */}
+            <div>
+              <h4 className="text-md font-medium text-gray-800 mb-3">Ghi chú thêm</h4>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Địa chỉ
+                  Ghi chú về khách hàng
                 </label>
-                <input
-                  type="text"
-                  name="address"
-                  value={customerInfo.address}
+                <textarea
+                  name="notes"
+                  value={customerInfo.notes}
                   onChange={handleCustomerChange}
+                  rows={3}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Nhập ghi chú thêm về khách hàng (nếu có)..."
                 />
               </div>
             </div>
@@ -239,7 +386,9 @@ function CreateQuote({ onBack }) {
           {/* Order Information */}
           <div className="bg-gray-50 rounded-lg p-6">
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Thông tin đơn hàng</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            
+            {/* Basic Order Info */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Ngày tạo *
@@ -281,6 +430,65 @@ function CreateQuote({ onBack }) {
                   onChange={handleOrderChange}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   placeholder="Tự động tạo sau khi duyệt"
+                />
+              </div>
+            </div>
+
+            {/* Order Summary - Real-time calculation */}
+            <div className="bg-white rounded-lg p-4 border border-gray-200">
+              <h4 className="text-md font-semibold text-gray-800 mb-3">Tổng kết đơn hàng (tự động tính toán)</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="text-center p-3 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Tổng tiền hàng</p>
+                  <p className="text-lg font-bold text-gray-900">
+                    {orderData.total_price.toLocaleString('vi-VN')} VNĐ
+                  </p>
+                </div>
+                <div className="text-center p-3 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Tổng thuế VAT</p>
+                  <p className="text-lg font-bold text-blue-600">
+                    {orderData.total_tax_price.toLocaleString('vi-VN')} VNĐ
+                  </p>
+                </div>
+                <div className="text-center p-3 bg-green-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Tổng khuyến mãi</p>
+                  <p className="text-lg font-bold text-green-600">
+                    -{orderData.total_promotion_amount.toLocaleString('vi-VN')} VNĐ
+                  </p>
+                </div>
+                <div className="text-center p-3 bg-emerald-100 rounded-lg border-2 border-emerald-300">
+                  <p className="text-sm text-emerald-700">Tổng thanh toán</p>
+                  <p className="text-xl font-bold text-emerald-800">
+                    {orderData.total_payment.toLocaleString('vi-VN')} VNĐ
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* System Info */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mã nhân viên
+                </label>
+                <input
+                  type="text"
+                  name="staff_id"
+                  value={orderData.staff_id}
+                  onChange={handleOrderChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                  disabled
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Cập nhật lần cuối
+                </label>
+                <input
+                  type="text"
+                  value={new Date(orderData.updated_at).toLocaleString('vi-VN')}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                  disabled
                 />
               </div>
             </div>
@@ -445,33 +653,6 @@ function CreateQuote({ onBack }) {
             ))}
           </div>
 
-          {/* Order Summary */}
-          <div className="bg-emerald-50 rounded-lg p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Tổng kết đơn hàng</h3>
-            {(() => {
-              const totals = calculateOrderTotals();
-              return (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  <div className="text-center p-4 bg-white rounded-lg">
-                    <p className="text-sm text-gray-600">Tổng tiền hàng</p>
-                    <p className="text-xl font-bold text-gray-900">{totals.total_price.toLocaleString('vi-VN')} VNĐ</p>
-                  </div>
-                  <div className="text-center p-4 bg-white rounded-lg">
-                    <p className="text-sm text-gray-600">Tổng thuế VAT</p>
-                    <p className="text-xl font-bold text-blue-600">{totals.total_tax_price.toLocaleString('vi-VN')} VNĐ</p>
-                  </div>
-                  <div className="text-center p-4 bg-white rounded-lg">
-                    <p className="text-sm text-gray-600">Tổng khuyến mãi</p>
-                    <p className="text-xl font-bold text-green-600">-{totals.total_promotion_amount.toLocaleString('vi-VN')} VNĐ</p>
-                  </div>
-                  <div className="text-center p-4 bg-emerald-100 rounded-lg border-2 border-emerald-300">
-                    <p className="text-sm text-emerald-700">Tổng thanh toán</p>
-                    <p className="text-2xl font-bold text-emerald-800">{totals.total_payment.toLocaleString('vi-VN')} VNĐ</p>
-                  </div>
-                </div>
-              );
-            })()}
-          </div>
 
           {/* Notes */}
           <div>
@@ -489,20 +670,36 @@ function CreateQuote({ onBack }) {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex justify-end space-x-4 pt-6 border-t border-gray-200">
-            <button
-              type="button"
-              onClick={onBack}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-            >
-              Tạo báo giá
-            </button>
+          <div className="flex justify-between pt-6 border-t border-gray-200">
+            <div className="flex space-x-4">
+              {orderData.status === 'draft' && (
+                <button
+                  type="button"
+                  onClick={handleConvertToOrder}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                >
+                  <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                  </svg>
+                  Chuyển thành đơn hàng
+                </button>
+              )}
+            </div>
+            <div className="flex space-x-4">
+              <button
+                type="button"
+                onClick={onBack}
+                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+              >
+                Tạo báo giá
+              </button>
+            </div>
           </div>
         </form>
       </div>
