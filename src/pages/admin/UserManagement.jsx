@@ -1,6 +1,19 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { getAllUsersThunk } from '@store/slices/userSlice';
 
 function UserManagement() {
+  const dispatch = useDispatch();
+  const users = useSelector((s) => s.users.items);
+  const usersStatus = useSelector((s) => s.users.status);
+  const usersError = useSelector((s) => s.users.error);
+  const isUsersFetching = usersStatus === 'loading';
+
+  useEffect(() => {
+    if (usersStatus === 'idle') {
+      dispatch(getAllUsersThunk());
+    }
+  }, [dispatch, usersStatus]);
   const [activeTab, setActiveTab] = useState('evm-staff');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
@@ -281,69 +294,61 @@ function UserManagement() {
 
   const renderEVMStaffTable = () => (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Nhân viên
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Phòng ban
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Vai trò
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Trạng thái
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Đăng nhập cuối
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Thao tác
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {evmStaff.map((staff) => (
-            <tr key={staff.id}>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex items-center">
-                  <div className="h-10 w-10 bg-red-100 rounded-full flex items-center justify-center mr-4">
-                    <span className="text-red-600 font-semibold text-sm">
-                      {staff.name.split(' ').pop().charAt(0)}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">{staff.name}</div>
-                    <div className="text-sm text-gray-500">{staff.email}</div>
-                    <div className="text-xs text-gray-400">ID: {staff.id}</div>
-                  </div>
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {staff.department}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {staff.role}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(staff.status)}`}>
-                  {getStatusText(staff.status)}
-                </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                {staff.lastLogin}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                <button className="text-red-600 hover:text-red-900">Chỉnh sửa</button>
-                <button className="text-blue-600 hover:text-blue-900">Reset mật khẩu</button>
-                <button className="text-gray-600 hover:text-gray-900">Tạm khóa</button>
-              </td>
+      {isUsersFetching && (
+        <div className="p-4 text-sm text-gray-600">Đang tải danh sách người dùng...</div>
+      )}
+      {!isUsersFetching && usersError && (
+        <div className="p-4 text-sm text-red-600">Lỗi tải danh sách: {String(usersError?.error || usersError?.data || 'Unknown error')}</div>
+      )}
+      {!isUsersFetching && !usersError && (
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Họ tên</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số điện thoại</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store ID</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role ID</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {users.map((u) => (
+              <tr key={u.userId}>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <div className="h-10 w-10 bg-red-100 rounded-full flex items-center justify-center mr-4">
+                      <span className="text-red-600 font-semibold text-sm">
+                        {(u.fullName || '').split(' ').pop()?.charAt(0) || 'U'}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{u.fullName}</div>
+                      <div className="text-sm text-gray-500">{u.email}</div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{u.email}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{u.phone}</td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(String(u.status || '').toLowerCase())}`}>
+                    {getStatusText(String(u.status || '').toLowerCase())}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{u.storeId}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{u.roleId}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.userId}</td>
+              </tr>
+            ))}
+            {users.length === 0 && (
+              <tr>
+                <td colSpan="7" className="px-6 py-8 text-center text-sm text-gray-500">Không có người dùng</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 
