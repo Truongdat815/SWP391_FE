@@ -28,10 +28,8 @@ import CommonHelp from './pages/CommonHelp'
 
 // Dealer Manager Sub Pages
 import TaoBaoCao from './pages/dealerManager/TaoBaoCao'
-import BaoCaoDoanhSo from './pages/dealerManager/BaoCaoDoanhSo'
 import QuanLyNhanVien from './pages/dealerManager/QuanLyNhanVien'
 import QuanLyCongNo from './pages/dealerManager/QuanLyCongNo'
-import XuatBaoCao from './pages/dealerManager/XuatBaoCao'
 import TestPage from './pages/dealerManager/TestPage'
 
 // Dealer Staff Sub Pages
@@ -113,10 +111,8 @@ function App() {
           <Route path="settings" element={<CommonSettings />} />
           <Route path="help" element={<CommonHelp />} />
           <Route path="tao-bao-cao" element={<TaoBaoCao />} />
-          <Route path="bao-cao-doanh-so" element={<BaoCaoDoanhSo />} />
           <Route path="quan-ly-nhan-vien" element={<QuanLyNhanVien />} />
           <Route path="quan-ly-cong-no" element={<QuanLyCongNo />} />
-          <Route path="xuat-bao-cao" element={<XuatBaoCao />} />
           <Route path="test" element={<TestPage />} />
         </Route>
 
