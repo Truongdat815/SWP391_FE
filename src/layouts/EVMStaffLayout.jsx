@@ -4,6 +4,9 @@ import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 const EVMStaffLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   const menuItems = [
     { name: 'Tổng quan', path: '/evm-staff', icon: (
@@ -42,10 +45,6 @@ const EVMStaffLayout = () => {
       </svg>
     ) }
   ];
-
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
-  const dropdownRef = useRef(null);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -90,13 +89,13 @@ const EVMStaffLayout = () => {
                 </>
               )}
               {sidebarCollapsed && (
-                <div className="w-8 h-8 bg-emerald-700 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
                   <img 
                     src="/src/assets/images/logo.png" 
                     alt="Electra Logo" 
                     className="h-6 w-6 object-contain"
                     onError={(e) => {
-                      e.target.src = 'https://via.placeholder.com/24x24/059669/FFFFFF?text=EV';
+                      e.target.src = 'https://via.placeholder.com/24x24/059669/FFFFFF?text=E';
                     }}
                   />
                 </div>
@@ -165,7 +164,7 @@ const EVMStaffLayout = () => {
                 onClick={() => setIsDropdownOpen(!isDropdownOpen)}
                 className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors active:scale-[0.98]"
               >
-                <div className="h-8 w-8 bg-emerald-700 rounded-full flex items-center justify-center">
+                <div className="h-8 w-8 bg-emerald-600 rounded-full flex items-center justify-center">
                   <span className="text-white font-medium text-sm">ES</span>
                 </div>
                 <div className="text-left hidden sm:block">
