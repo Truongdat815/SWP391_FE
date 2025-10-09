@@ -28,6 +28,8 @@ import CommonHelp from './pages/CommonHelp'
 
 // Dealer Manager Sub Pages
 import TaoBaoCao from './pages/dealerManager/TaoBaoCao'
+import BaoCaoDoanhSo from './pages/dealerManager/BaoCaoDoanhSo'
+import XuatBaoCao from './pages/dealerManager/XuatBaoCao'
 import QuanLyNhanVien from './pages/dealerManager/QuanLyNhanVien'
 import QuanLyCongNo from './pages/dealerManager/QuanLyCongNo'
 import TestPage from './pages/dealerManager/TestPage'
@@ -35,12 +37,29 @@ import TestPage from './pages/dealerManager/TestPage'
 // Dealer Staff Sub Pages
 import QuoteOrderManagement from './pages/dealerStaff/QuoteOrderManagement'
 import CreateContract from './pages/dealerStaff/CreateContract'
+import CreateQuote from './pages/dealerStaff/CreateQuote'
 import AddCustomer from './pages/dealerStaff/dealer-staff/AddCustomer'
 import OrderFromManufacturer from './pages/dealerStaff/dealer-staff/OrderFromManufacturer'
 import TestDriveSchedule from './pages/dealerStaff/dealer-staff/TestDriveSchedule'
 import SalesQuoteManagement from './pages/dealerStaff/dealer-staff/SalesQuoteManagement'
 import OrderManagement from './pages/dealerStaff/dealer-staff/OrderManagement'
 import PaymentManagement from './pages/dealerStaff/dealer-staff/PaymentManagement'
+import CarComparison from './pages/dealerStaff/CarComparison'
+import FeedbackManagement from './pages/dealerStaff/FeedbackManagement'
+
+// EVM Staff Sub Pages
+import ProductManagement from './pages/EvmStaff/ProductManagement'
+import InventoryManagement from './pages/EvmStaff/InventoryManagement'
+import DealerManagement from './pages/EvmStaff/DealerManagement'
+import ContractManagement from './pages/EvmStaff/ContractManagement'
+import PricingManagement from './pages/EvmStaff/PricingManagement'
+import SalesReport from './pages/EvmStaff/SalesReport'
+
+// Admin Sub Pages
+import Monitoring from './pages/admin/Monitoring'
+import StoreManagement from './pages/admin/StoreManagement'
+import UserManagement from './pages/admin/UserManagement'
+import SystemConfig from './pages/admin/SystemConfig'
 
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
@@ -85,6 +104,10 @@ function App() {
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
+          <Route path="monitoring" element={<Monitoring />} />
+          <Route path="store-management" element={<StoreManagement />} />
+          <Route path="user-management" element={<UserManagement />} />
+          <Route path="system-config" element={<SystemConfig />} />
           <Route path="profile" element={<CommonProfile />} />
           <Route path="settings" element={<CommonSettings />} />
           <Route path="help" element={<CommonHelp />} />
@@ -93,34 +116,42 @@ function App() {
         {/* Dealer Staff Routes */}
         <Route path="/dealer-staff" element={<DealerStaffLayout />}>
           <Route index element={<DealerStaffDashboard />} />
+          <Route path="create-quote" element={<CreateQuote />} />
+          <Route path="quote-order-management" element={<QuoteOrderManagement />} />
+          <Route path="add-customer" element={<AddCustomer />} />
+          <Route path="test-drive-schedule" element={<TestDriveSchedule />} />
+          <Route path="order-from-manufacturer" element={<OrderFromManufacturer />} />
+          <Route path="payment-management" element={<PaymentManagement />} />
+          <Route path="feedback-management" element={<FeedbackManagement />} />
+          <Route path="car-comparison" element={<CarComparison />} />
           <Route path="profile" element={<CommonProfile />} />
           <Route path="settings" element={<CommonSettings />} />
           <Route path="help" element={<CommonHelp />} />
-          <Route path="quote-order-management" element={<QuoteOrderManagement />} />
-          <Route path="create-contract" element={<CreateContract />} />
-          <Route path="add-customer" element={<AddCustomer />} />
-          <Route path="order-from-manufacturer" element={<OrderFromManufacturer />} />
-          <Route path="test-drive-schedule" element={<TestDriveSchedule />} />
-          <Route path="sales-quote" element={<SalesQuoteManagement />} />
-          <Route path="order-management" element={<OrderManagement />} />
-          <Route path="payment-management" element={<PaymentManagement />} />
         </Route>
 
         {/* Dealer Manager Routes */}
         <Route path="/dealer-manager" element={<DealerManagerLayout />}>
           <Route index element={<DealerManagerDashboard />} />
+          <Route path="tao-bao-cao" element={<TaoBaoCao />} />
+          <Route path="bao-cao-doanh-so" element={<BaoCaoDoanhSo />} />
+          <Route path="quan-ly-nhan-vien" element={<QuanLyNhanVien />} />
+          <Route path="quan-ly-cong-no" element={<QuanLyCongNo />} />
+          <Route path="xuat-bao-cao" element={<XuatBaoCao />} />
           <Route path="profile" element={<CommonProfile />} />
           <Route path="settings" element={<CommonSettings />} />
           <Route path="help" element={<CommonHelp />} />
-          <Route path="tao-bao-cao" element={<TaoBaoCao />} />
-          <Route path="quan-ly-nhan-vien" element={<QuanLyNhanVien />} />
-          <Route path="quan-ly-cong-no" element={<QuanLyCongNo />} />
           <Route path="test" element={<TestPage />} />
         </Route>
 
         {/* EVM Staff Routes */}
         <Route path="/evm-staff" element={<EVMStaffLayout />}>
           <Route index element={<EVMDashboard />} />
+          <Route path="product-management" element={<ProductManagement />} />
+          <Route path="inventory-management" element={<InventoryManagement />} />
+          <Route path="dealer-management" element={<DealerManagement />} />
+          <Route path="contract-management" element={<ContractManagement />} />
+          <Route path="pricing-management" element={<PricingManagement />} />
+          <Route path="sales-report" element={<SalesReport />} />
           <Route path="profile" element={<CommonProfile />} />
           <Route path="settings" element={<CommonSettings />} />
           <Route path="help" element={<CommonHelp />} />
