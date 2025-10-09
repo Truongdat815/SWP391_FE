@@ -17,8 +17,6 @@ function UserManagement() {
   const [activeTab, setActiveTab] = useState('evm-staff');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showAddStoreModal, setShowAddStoreModal] = useState(false);
-  const [storeCounter, setStoreCounter] = useState(1); // Auto-increment counter for Store ID
   
   // Form state for add user modal
   const [formData, setFormData] = useState({
@@ -32,28 +30,14 @@ function UserManagement() {
     is_active: true
   });
 
-  // Form state for add store modal
-  const [storeFormData, setStoreFormData] = useState({
-    store_id: '', // Will be auto-generated
-    province_name: '',
-    store_name: '',
-    owner_name: '',
-    address: '',
-    phone: '',
-    status: 'active',
-    contract_start_date: '',
-    contract_end_date: '',
-    created_by: ''
-  });
-
   // Mock stores data for user form dropdown (this would typically come from API)
-  const [mockStores, setMockStores] = useState([
-    { store_id: 'STORE001', store_name: 'Electra Hà Nội', province_name: 'Hà Nội' },
-    { store_id: 'STORE002', store_name: 'Electra TP.HCM', province_name: 'TP.HCM' },
-    { store_id: 'STORE003', store_name: 'Electra Đà Nẵng', province_name: 'Đà Nẵng' },
-    { store_id: 'STORE004', store_name: 'Electra Hải Phòng', province_name: 'Hải Phòng' },
-    { store_id: 'STORE005', store_name: 'Electra Cần Thơ', province_name: 'Cần Thơ' }
-  ]);
+  const mockStores = [
+    { store_id: 1, store_name: 'Electra Hà Nội', province_name: 'Hà Nội' },
+    { store_id: 2, store_name: 'Electra TP.HCM', province_name: 'TP.HCM' },
+    { store_id: 3, store_name: 'Electra Đà Nẵng', province_name: 'Đà Nẵng' },
+    { store_id: 4, store_name: 'Electra Hải Phòng', province_name: 'Hải Phòng' },
+    { store_id: 5, store_name: 'Electra Cần Thơ', province_name: 'Cần Thơ' }
+  ];
 
   // Mock data
   const evmStaff = [
@@ -219,72 +203,6 @@ function UserManagement() {
     setShowAddModal(false);
   };
 
-  // Store form handling functions
-  const handleStoreInputChange = (e) => {
-    const { name, value } = e.target;
-    // Don't allow manual editing of store_id as it's auto-generated
-    if (name === 'store_id') return;
-    
-    setStoreFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-  };
-
-  const handleStoreSubmit = (e) => {
-    e.preventDefault();
-    // Auto-generate Store ID
-    const autoStoreId = `STORE${String(storeCounter).padStart(3, '0')}`;
-    const storeDataWithId = {
-      ...storeFormData,
-      store_id: autoStoreId
-    };
-    
-    // Here you would typically send the data to your API
-    console.log('Store form data:', storeDataWithId);
-    
-    // Add new store to mockStores for dropdown
-    const newStore = {
-      store_id: autoStoreId,
-      store_name: storeFormData.store_name,
-      province_name: storeFormData.province_name
-    };
-    setMockStores(prev => [...prev, newStore]);
-    
-    // Increment store counter for next store
-    setStoreCounter(prev => prev + 1);
-    
-    // Reset form and close modal
-    setStoreFormData({
-      store_id: '',
-      province_name: '',
-      store_name: '',
-      owner_name: '',
-      address: '',
-      phone: '',
-      status: 'active',
-      contract_start_date: '',
-      contract_end_date: '',
-      created_by: ''
-    });
-    setShowAddStoreModal(false);
-  };
-
-  const handleCloseStoreModal = () => {
-    setStoreFormData({
-      store_id: '',
-      province_name: '',
-      store_name: '',
-      owner_name: '',
-      address: '',
-      phone: '',
-      status: 'active',
-      contract_start_date: '',
-      contract_end_date: '',
-      created_by: ''
-    });
-    setShowAddStoreModal(false);
-  };
 
   const tabs = [
     { id: 'evm-staff', name: 'EVM Staff', count: evmStaff.length },
@@ -508,15 +426,6 @@ function UserManagement() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
               Thêm người dùng
-            </button>
-            <button
-              onClick={() => setShowAddStoreModal(true)}
-              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition flex items-center"
-            >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-              Thêm cửa hàng
             </button>
             <button className="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition flex items-center">
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -773,212 +682,6 @@ function UserManagement() {
         </div>
       )}
 
-      {/* Add Store Modal */}
-      {showAddStoreModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto p-5 border w-full max-w-3xl shadow-lg rounded-md bg-white">
-            <div className="mt-3">
-              <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-semibold text-gray-900">Thêm cửa hàng mới</h3>
-                <button
-                  onClick={handleCloseStoreModal}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-              
-              <form onSubmit={handleStoreSubmit} className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Auto-generated Store ID Display */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Store ID (Tự động tạo)
-                    </label>
-                    <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-600">
-                      STORE{String(storeCounter).padStart(3, '0')}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">Store ID sẽ được tự động tạo khi lưu</p>
-                  </div>
-
-                  {/* Province Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tỉnh/Thành phố <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="province_name"
-                      value={storeFormData.province_name}
-                      onChange={handleStoreInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    >
-                      <option value="">Chọn tỉnh/thành phố</option>
-                      <option value="Hà Nội">Hà Nội</option>
-                      <option value="TP.HCM">TP.HCM</option>
-                      <option value="Đà Nẵng">Đà Nẵng</option>
-                      <option value="Hải Phòng">Hải Phòng</option>
-                      <option value="Cần Thơ">Cần Thơ</option>
-                      <option value="An Giang">An Giang</option>
-                      <option value="Bà Rịa - Vũng Tàu">Bà Rịa - Vũng Tàu</option>
-                      <option value="Bắc Giang">Bắc Giang</option>
-                      <option value="Bắc Kạn">Bắc Kạn</option>
-                      <option value="Bạc Liêu">Bạc Liêu</option>
-                    </select>
-                  </div>
-
-                  {/* Store Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tên cửa hàng <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="store_name"
-                      value={storeFormData.store_name}
-                      onChange={handleStoreInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Nhập tên cửa hàng"
-                      required
-                    />
-                  </div>
-
-                  {/* Owner Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Tên chủ cửa hàng <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="owner_name"
-                      value={storeFormData.owner_name}
-                      onChange={handleStoreInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Nhập tên chủ cửa hàng"
-                      required
-                    />
-                  </div>
-
-                  {/* Address */}
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Địa chỉ <span className="text-red-500">*</span>
-                    </label>
-                    <textarea
-                      name="address"
-                      value={storeFormData.address}
-                      onChange={handleStoreInputChange}
-                      rows={3}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Nhập địa chỉ chi tiết"
-                      required
-                    />
-                  </div>
-
-                  {/* Phone */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Số điện thoại <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={storeFormData.phone}
-                      onChange={handleStoreInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Nhập số điện thoại"
-                      required
-                    />
-                  </div>
-
-                  {/* Status */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Trạng thái <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="status"
-                      value={storeFormData.status}
-                      onChange={handleStoreInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    >
-                      <option value="active">Hoạt động</option>
-                      <option value="inactive">Không hoạt động</option>
-                      <option value="pending">Chờ duyệt</option>
-                      <option value="suspended">Tạm ngưng</option>
-                    </select>
-                  </div>
-
-                  {/* Contract Start Date */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Ngày bắt đầu hợp đồng <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      name="contract_start_date"
-                      value={storeFormData.contract_start_date}
-                      onChange={handleStoreInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                  </div>
-
-                  {/* Contract End Date */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Ngày kết thúc hợp đồng <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="date"
-                      name="contract_end_date"
-                      value={storeFormData.contract_end_date}
-                      onChange={handleStoreInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      required
-                    />
-                  </div>
-
-                  {/* Created By */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Người tạo <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="created_by"
-                      value={storeFormData.created_by}
-                      onChange={handleStoreInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
-                      placeholder="Nhập tên người tạo"
-                      required
-                    />
-                  </div>
-                </div>
-                
-                <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
-                  <button
-                    type="button"
-                    onClick={handleCloseStoreModal}
-                    className="px-6 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
-                  >
-                    Hủy
-                  </button>
-                  <button
-                    type="submit"
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                  >
-                    Tạo cửa hàng
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
