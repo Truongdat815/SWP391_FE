@@ -34,6 +34,7 @@ import TestPage from './pages/dealerManager/TestPage'
 
 // Dealer Staff Sub Pages
 import QuoteOrderManagement from './pages/dealerStaff/QuoteOrderManagement'
+import CreateContract from './pages/dealerStaff/CreateContract'
 import AddCustomer from './pages/dealerStaff/dealer-staff/AddCustomer'
 import OrderFromManufacturer from './pages/dealerStaff/dealer-staff/OrderFromManufacturer'
 import TestDriveSchedule from './pages/dealerStaff/dealer-staff/TestDriveSchedule'
@@ -96,6 +97,7 @@ function App() {
           <Route path="settings" element={<CommonSettings />} />
           <Route path="help" element={<CommonHelp />} />
           <Route path="quote-order-management" element={<QuoteOrderManagement />} />
+          <Route path="create-contract" element={<CreateContract />} />
           <Route path="add-customer" element={<AddCustomer />} />
           <Route path="order-from-manufacturer" element={<OrderFromManufacturer />} />
           <Route path="test-drive-schedule" element={<TestDriveSchedule />} />

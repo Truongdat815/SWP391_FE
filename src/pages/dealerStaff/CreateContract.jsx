@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 function CreateContract({ onBack }) {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     customerName: '',
     customerPhone: '',
@@ -69,6 +71,24 @@ function CreateContract({ onBack }) {
       status: 'active'
     };
     setContracts([newContract, ...contracts]);
+    
+    // Chuẩn bị dữ liệu để chuyển sang trang thanh toán
+    const contractData = {
+      customerName: formData.customerName,
+      customerPhone: formData.customerPhone,
+      customerEmail: formData.customerEmail,
+      customerAddress: formData.customerAddress,
+      vehicleModel: selectedModel.name,
+      vehiclePrice: selectedModel.price,
+      depositAmount: formData.depositAmount || 0,
+      contractDate: formData.contractDate,
+      deliveryDate: formData.deliveryDate,
+      paymentMethod: formData.paymentMethod,
+      terms: formData.terms,
+      notes: formData.notes
+    };
+    
+    // Reset form
     setFormData({
       customerName: '',
       customerPhone: '',
@@ -83,7 +103,11 @@ function CreateContract({ onBack }) {
       terms: '',
       notes: ''
     });
-    alert('Hợp đồng đã được tạo thành công!');
+    
+    // Chuyển sang trang thanh toán với dữ liệu hợp đồng
+    navigate('/dealer-staff/payment-management', { 
+      state: { contractData: contractData } 
+    });
   };
 
   const getStatusColor = (status) => {
@@ -286,7 +310,7 @@ function CreateContract({ onBack }) {
                 type="submit"
                 className="w-full px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
               >
-                Tạo hợp đồng
+                Tạo hợp đồng & Chuyển sang thanh toán
               </button>
             </form>
           </div>

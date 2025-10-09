@@ -214,7 +214,7 @@ function DealerStaffDashboard() {
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
               <h2 className="text-xl font-semibold text-gray-900 mb-6">Thao tác nhanh</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                {menuItems.slice(1, 5).map((item) => (
+                {menuItems.slice(1, 9).map((item) => (
                   <button
                     key={item.id}
                     onClick={() => setActivePage(item.id)}

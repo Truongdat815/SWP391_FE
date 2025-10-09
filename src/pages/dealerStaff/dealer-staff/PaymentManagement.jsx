@@ -1,9 +1,13 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 function PaymentManagement() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState('pending');
+  
+  // Nhận thông tin hợp đồng từ CreateContract nếu có
+  const contractData = location.state?.contractData;
 
   const [payments, setPayments] = useState([
     {
@@ -74,7 +78,16 @@ function PaymentManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPayment, setSelectedPayment] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showCreatePaymentModal, setShowCreatePaymentModal] = useState(false);
   const [paymentAmount, setPaymentAmount] = useState('');
+  const [newPaymentData, setNewPaymentData] = useState({
+    customerName: '',
+    customerPhone: '',
+    vehicle: '',
+    totalAmount: '',
+    paymentMethod: '',
+    depositAmount: ''
+  });
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -148,6 +161,21 @@ function PaymentManagement() {
     setSelectedPayment(null);
   };
 
+  // Xử lý dữ liệu hợp đồng từ CreateContract
+  useEffect(() => {
+    if (contractData) {
+      setShowCreatePaymentModal(true);
+      setNewPaymentData({
+        customerName: contractData.customerName || '',
+        customerPhone: contractData.customerPhone || '',
+        vehicle: contractData.vehicleModel || '',
+        totalAmount: contractData.vehiclePrice || '',
+        paymentMethod: contractData.paymentMethod || '',
+        depositAmount: contractData.depositAmount || ''
+      });
+    }
+  }, [contractData]);
+
   const generatePaymentSchedule = (payment) => {
     if (payment.paymentMethod !== 'installment') return [];
     
@@ -170,6 +198,49 @@ function PaymentManagement() {
     return schedule;
   };
 
+  const createNewPayment = () => {
+    if (!newPaymentData.customerName || !newPaymentData.vehicle || !newPaymentData.totalAmount) {
+      alert('Vui lòng điền đầy đủ thông tin bắt buộc');
+      return;
+    }
+
+    const totalAmount = parseInt(newPaymentData.totalAmount);
+    const depositAmount = parseInt(newPaymentData.depositAmount) || 0;
+    const remainingAmount = totalAmount - depositAmount;
+    
+    const newPayment = {
+      id: `TT${String(payments.length + 1).padStart(3, '0')}`,
+      orderId: `DH${String(payments.length + 1).padStart(3, '0')}`,
+      customerName: newPaymentData.customerName,
+      customerPhone: newPaymentData.customerPhone,
+      vehicle: newPaymentData.vehicle,
+      totalAmount: totalAmount,
+      paidAmount: depositAmount,
+      remainingAmount: remainingAmount,
+      paymentMethod: newPaymentData.paymentMethod,
+      ...(newPaymentData.paymentMethod === 'installment' && {
+        installmentPlan: '36 tháng',
+        monthlyPayment: Math.round(remainingAmount / 36),
+        nextPaymentDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+      }),
+      status: depositAmount >= totalAmount ? 'completed' : (depositAmount > 0 ? 'partial' : 'pending'),
+      lastPaymentDate: depositAmount > 0 ? new Date().toISOString().split('T')[0] : '',
+      ...(depositAmount >= totalAmount && { completedDate: new Date().toISOString().split('T')[0] })
+    };
+
+    setPayments([newPayment, ...payments]);
+    setShowCreatePaymentModal(false);
+    setNewPaymentData({
+      customerName: '',
+      customerPhone: '',
+      vehicle: '',
+      totalAmount: '',
+      paymentMethod: '',
+      depositAmount: ''
+    });
+    alert('Tạo thanh toán thành công!');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -178,7 +249,7 @@ function PaymentManagement() {
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center">
               <button 
-                onClick={() => navigate('/dashboard/dealer-staff')}
+                onClick={() => navigate('/dealer-staff')}
                 className="mr-4 p-2 hover:bg-gray-100 rounded-lg"
               >
                 <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -189,6 +260,17 @@ function PaymentManagement() {
                 <h1 className="text-xl font-semibold text-gray-900">Quản Lý Thanh Toán</h1>
                 <p className="text-sm text-gray-500">Theo dõi thanh toán và công nợ khách hàng</p>
               </div>
+            </div>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={() => setShowCreatePaymentModal(true)}
+                className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition-colors flex items-center"
+              >
+                <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Tạo thanh toán mới
+              </button>
             </div>
           </div>
         </div>
@@ -548,6 +630,131 @@ function PaymentManagement() {
                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
                 Xác nhận
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Payment Modal */}
+      {showCreatePaymentModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Tạo thanh toán mới</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tên khách hàng *
+                </label>
+                <input
+                  type="text"
+                  value={newPaymentData.customerName}
+                  onChange={(e) => setNewPaymentData(prev => ({ ...prev, customerName: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder="Nhập tên khách hàng"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Số điện thoại
+                </label>
+                <input
+                  type="tel"
+                  value={newPaymentData.customerPhone}
+                  onChange={(e) => setNewPaymentData(prev => ({ ...prev, customerPhone: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder="Nhập số điện thoại"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Mẫu xe *
+                </label>
+                <select
+                  value={newPaymentData.vehicle}
+                  onChange={(e) => setNewPaymentData(prev => ({ ...prev, vehicle: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                >
+                  <option value="">Chọn mẫu xe</option>
+                  <option value="Electra Ascent">Electra Ascent</option>
+                  <option value="Electra CityLink">Electra CityLink</option>
+                  <option value="Electra GrandTour">Electra GrandTour</option>
+                  <option value="Electra Micro">Electra Micro</option>
+                  <option value="Electra Summit">Electra Summit</option>
+                  <option value="Electra Velocity">Electra Velocity</option>
+                  <option value="Electra UrbanPulse">Electra UrbanPulse</option>
+                  <option value="Electra Voyager">Electra Voyager</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tổng giá trị (VNĐ) *
+                </label>
+                <input
+                  type="number"
+                  value={newPaymentData.totalAmount}
+                  onChange={(e) => setNewPaymentData(prev => ({ ...prev, totalAmount: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder="Nhập tổng giá trị"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phương thức thanh toán *
+                </label>
+                <select
+                  value={newPaymentData.paymentMethod}
+                  onChange={(e) => setNewPaymentData(prev => ({ ...prev, paymentMethod: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                >
+                  <option value="">Chọn phương thức</option>
+                  <option value="cash">Tiền mặt</option>
+                  <option value="bank_transfer">Chuyển khoản</option>
+                  <option value="installment">Trả góp</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Số tiền cọc (VNĐ)
+                </label>
+                <input
+                  type="number"
+                  value={newPaymentData.depositAmount}
+                  onChange={(e) => setNewPaymentData(prev => ({ ...prev, depositAmount: e.target.value }))}
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  placeholder="Nhập số tiền cọc"
+                />
+              </div>
+            </div>
+
+            <div className="flex space-x-3 mt-6">
+              <button 
+                onClick={() => {
+                  setShowCreatePaymentModal(false);
+                  setNewPaymentData({
+                    customerName: '',
+                    customerPhone: '',
+                    vehicle: '',
+                    totalAmount: '',
+                    paymentMethod: '',
+                    depositAmount: ''
+                  });
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Hủy
+              </button>
+              <button 
+                onClick={createNewPayment}
+                className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700"
+              >
+                Tạo thanh toán
               </button>
             </div>
           </div>
