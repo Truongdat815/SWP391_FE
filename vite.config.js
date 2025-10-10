@@ -17,11 +17,11 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: process.env.VITE_API_URL || 'http://103.188.243.122:8080',
+        target: 'http://localhost:8080',  // địa chỉ backend Spring Boot
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path,
       },
     },
   },
+  
 });
