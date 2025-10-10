@@ -181,7 +181,7 @@ function CreateQuote({ onBack }) {
         total_tax_price: orderData.total_tax_price,
         total_promotion_amount: orderData.total_promotion_amount,
         total_payment: orderData.total_payment,
-        status: orderData.status,
+        status: 'draft', // Luôn đặt trạng thái là draft khi tạo báo giá
         order_date: orderData.order_date,
         updated_at: orderData.updated_at,
         notes: orderData.notes
@@ -193,7 +193,7 @@ function CreateQuote({ onBack }) {
     };
     
     console.log('Quote created with full order data:', orderPayload);
-    alert('Báo giá đã được tạo thành công!');
+    alert('Báo giá đã được tạo thành công với trạng thái "Bản nháp"!');
     
     // TODO: Gửi dữ liệu lên API
     // fetch('/api/orders', { 
@@ -201,6 +201,11 @@ function CreateQuote({ onBack }) {
     //   headers: { 'Content-Type': 'application/json' },
     //   body: JSON.stringify(orderPayload) 
     // })
+    
+    // Sau khi tạo thành công, có thể điều hướng về dashboard
+    if (onBack) {
+      onBack();
+    }
   };
 
   // Hàm chuyển đổi báo giá thành đơn hàng

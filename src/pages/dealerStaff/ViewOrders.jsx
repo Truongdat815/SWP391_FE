@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 
-function ViewOrders({ onBack }) {
+function ViewOrders() {
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,26 +17,30 @@ function ViewOrders({ onBack }) {
       customerPhone: '0123456789',
       customerEmail: 'nguyenvana@email.com',
       orderDate: '2024-01-15',
-      status: 'draft',
+      status: 'pending',
       totalAmount: 320000000,
+      contractId: 'CONTRACT-001',
       items: [
         { name: 'Electra Ascent', quantity: 1, unitPrice: 320000000, total: 320000000 }
       ],
-      notes: 'Khách hàng quan tâm đến mẫu xe này'
+      notes: 'Đơn hàng từ báo giá BQ-001',
+      originalQuoteId: 'BQ-001'
     },
     {
       id: 2,
-      orderNumber: 'ORD-002',
+      orderNumber: 'ORD-002', 
       customerName: 'Trần Thị B',
       customerPhone: '0987654321',
       customerEmail: 'tranthib@email.com',
       orderDate: '2024-01-16',
-      status: 'pending',
+      status: 'confirmed',
       totalAmount: 450000000,
+      contractId: 'CONTRACT-002',
       items: [
         { name: 'Electra GrandTour', quantity: 1, unitPrice: 450000000, total: 450000000 }
       ],
-      notes: 'Đã chuyển thành đơn hàng chờ duyệt'
+      notes: 'Đơn hàng từ báo giá BQ-002',
+      originalQuoteId: 'BQ-002'
     },
     {
       id: 3,
@@ -45,12 +49,30 @@ function ViewOrders({ onBack }) {
       customerPhone: '0111222333',
       customerEmail: 'levanc@email.com',
       orderDate: '2024-01-17',
-      status: 'approved',
+      status: 'processing',
       totalAmount: 280000000,
+      contractId: 'CONTRACT-003',
       items: [
         { name: 'Electra CityLink', quantity: 1, unitPrice: 280000000, total: 280000000 }
       ],
-      notes: 'Đơn hàng đã được duyệt'
+      notes: 'Đơn hàng từ báo giá BQ-003',
+      originalQuoteId: 'BQ-003'
+    },
+    {
+      id: 4,
+      orderNumber: 'ORD-004',
+      customerName: 'Phạm Thị D',
+      customerPhone: '0333444555',
+      customerEmail: 'phamthid@email.com',
+      orderDate: '2024-01-18',
+      status: 'completed',
+      totalAmount: 680000000,
+      contractId: 'CONTRACT-004',
+      items: [
+        { name: 'Electra Summit', quantity: 1, unitPrice: 680000000, total: 680000000 }
+      ],
+      notes: 'Đơn hàng từ báo giá BQ-004',
+      originalQuoteId: 'BQ-004'
     }
   ];
 
@@ -60,6 +82,7 @@ function ViewOrders({ onBack }) {
     setFilteredOrders(mockOrders);
   }, []);
 
+  // Filter orders based on search term and status
   useEffect(() => {
     let filtered = orders;
 
@@ -68,7 +91,8 @@ function ViewOrders({ onBack }) {
       filtered = filtered.filter(order => 
         order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
         order.orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customerPhone.includes(searchTerm)
+        order.customerPhone.includes(searchTerm) ||
+        order.contractId.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
@@ -82,20 +106,22 @@ function ViewOrders({ onBack }) {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'draft': return 'bg-gray-100 text-gray-800';
       case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'approved': return 'bg-green-100 text-green-800';
-      case 'rejected': return 'bg-red-100 text-red-800';
+      case 'confirmed': return 'bg-blue-100 text-blue-800';
+      case 'processing': return 'bg-purple-100 text-purple-800';
+      case 'completed': return 'bg-green-100 text-green-800';
+      case 'cancelled': return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getStatusText = (status) => {
     switch (status) {
-      case 'draft': return 'Bản nháp';
       case 'pending': return 'Chờ duyệt';
-      case 'approved': return 'Đã duyệt';
-      case 'rejected': return 'Từ chối';
+      case 'confirmed': return 'Đã xác nhận';
+      case 'processing': return 'Đang xử lý';
+      case 'completed': return 'Hoàn thành';
+      case 'cancelled': return 'Đã hủy';
       default: return status;
     }
   };
@@ -110,20 +136,23 @@ function ViewOrders({ onBack }) {
     setSelectedOrder(null);
   };
 
+  const handleUpdateStatus = (orderId, newStatus) => {
+    setOrders(prev => prev.map(order => 
+      order.id === orderId 
+        ? { ...order, status: newStatus }
+        : order
+    ));
+    alert(`Đã cập nhật trạng thái đơn hàng thành "${getStatusText(newStatus)}"!`);
+  };
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900">Quản lý đơn hàng & báo giá</h2>
-          <button
-            onClick={onBack}
-            className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-          >
-            <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Quay lại
-          </button>
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Quản lý đơn hàng</h2>
+            <p className="text-gray-600 mt-1">Danh sách các đơn hàng đã được chuyển đổi từ báo giá</p>
+          </div>
         </div>
 
         {/* Filters */}
@@ -149,10 +178,11 @@ function ViewOrders({ onBack }) {
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
             >
               <option value="all">Tất cả trạng thái</option>
-              <option value="draft">Bản nháp</option>
               <option value="pending">Chờ duyệt</option>
-              <option value="approved">Đã duyệt</option>
-              <option value="rejected">Từ chối</option>
+              <option value="confirmed">Đã xác nhận</option>
+              <option value="processing">Đang xử lý</option>
+              <option value="completed">Hoàn thành</option>
+              <option value="cancelled">Đã hủy</option>
             </select>
           </div>
         </div>
@@ -176,6 +206,9 @@ function ViewOrders({ onBack }) {
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Tổng tiền
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Mã hợp đồng
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Thao tác
@@ -203,13 +236,42 @@ function ViewOrders({ onBack }) {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                     {order.totalAmount.toLocaleString('vi-VN')} VNĐ
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    {order.contractId}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                    <button
-                      onClick={() => handleViewDetails(order)}
-                      className="text-emerald-600 hover:text-emerald-900 transition-colors"
-                    >
-                      Xem chi tiết
-                    </button>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleViewDetails(order)}
+                        className="text-emerald-600 hover:text-emerald-900 transition-colors"
+                      >
+                        Xem chi tiết
+                      </button>
+                      {order.status === 'pending' && (
+                        <button
+                          onClick={() => handleUpdateStatus(order.id, 'confirmed')}
+                          className="text-blue-600 hover:text-blue-900 transition-colors"
+                        >
+                          Xác nhận
+                        </button>
+                      )}
+                      {order.status === 'confirmed' && (
+                        <button
+                          onClick={() => handleUpdateStatus(order.id, 'processing')}
+                          className="text-purple-600 hover:text-purple-900 transition-colors"
+                        >
+                          Bắt đầu xử lý
+                        </button>
+                      )}
+                      {order.status === 'processing' && (
+                        <button
+                          onClick={() => handleUpdateStatus(order.id, 'completed')}
+                          className="text-green-600 hover:text-green-900 transition-colors"
+                        >
+                          Hoàn thành
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -226,7 +288,7 @@ function ViewOrders({ onBack }) {
             <p className="mt-1 text-sm text-gray-500">
               {searchTerm || statusFilter !== 'all' 
                 ? 'Không tìm thấy đơn hàng phù hợp với bộ lọc.' 
-                : 'Bắt đầu bằng cách tạo báo giá mới.'}
+                : 'Chưa có đơn hàng nào được chuyển đổi từ báo giá.'}
             </p>
           </div>
         )}
@@ -268,7 +330,7 @@ function ViewOrders({ onBack }) {
                     <p className="text-sm text-gray-900">{selectedOrder.customerEmail}</p>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700">Ngày tạo</label>
+                    <label className="block text-sm font-medium text-gray-700">Ngày tạo đơn hàng</label>
                     <p className="text-sm text-gray-900">{new Date(selectedOrder.orderDate).toLocaleDateString('vi-VN')}</p>
                   </div>
                 </div>
@@ -314,6 +376,10 @@ function ViewOrders({ onBack }) {
                     {getStatusText(selectedOrder.status)}
                   </span>
                 </div>
+                <div className="mt-2 text-sm text-gray-600">
+                  <p><strong>Mã hợp đồng:</strong> {selectedOrder.contractId}</p>
+                  <p><strong>Báo giá gốc:</strong> {selectedOrder.originalQuoteId}</p>
+                </div>
               </div>
 
               {/* Notes */}
@@ -332,17 +398,10 @@ function ViewOrders({ onBack }) {
                 >
                   Đóng
                 </button>
-                {selectedOrder.status === 'draft' && (
-                  <button
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    Chuyển thành đơn hàng
-                  </button>
-                )}
                 <button
                   className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                 >
-                  In báo giá
+                  In đơn hàng
                 </button>
               </div>
             </div>
