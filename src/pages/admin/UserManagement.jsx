@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { getAllUsersThunk } from '@store/slices/userSlice';
+import { getAllUsersThunk, createUserThunk, deleteUserThunk } from '@store/slices/userSlice';
 
 function UserManagement() {
   const dispatch = useDispatch();
@@ -8,6 +8,7 @@ function UserManagement() {
   const usersStatus = useSelector((s) => s.users.status);
   const usersError = useSelector((s) => s.users.error);
   const isUsersFetching = usersStatus === 'loading';
+  const isCreatingUser = usersStatus === 'loading';
 
   useEffect(() => {
     if (usersStatus === 'idle') {
@@ -17,17 +18,17 @@ function UserManagement() {
   const [activeTab, setActiveTab] = useState('evm-staff');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
   
   // Form state for add user modal
   const [formData, setFormData] = useState({
-    user_id: '',
-    store_id: '',
-    role_id: '',
-    full_name: '',
+    fullName: '',
     email: '',
     password: '',
     phone: '',
-    is_active: true
+    storeName: '',
+    roleName: ''
   });
 
   // Mock stores data for user form dropdown (this would typically come from API)
@@ -171,36 +172,64 @@ function UserManagement() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    // Here you would typically send the data to your API
-    console.log('Form data:', formData);
-    // Reset form and close modal
-    setFormData({
-      user_id: '',
-      store_id: '',
-      role_id: '',
-      full_name: '',
-      email: '',
-      password: '',
-      phone: '',
-      is_active: true
-    });
-    setShowAddModal(false);
+    try {
+      await dispatch(createUserThunk(formData)).unwrap();
+      // Reset form and close modal on success
+      setFormData({
+        fullName: '',
+        email: '',
+        password: '',
+        phone: '',
+        storeName: '',
+        roleName: ''
+      });
+      setShowAddModal(false);
+      // Refresh the users list
+      dispatch(getAllUsersThunk());
+    } catch (error) {
+      console.error('Failed to create user:', error);
+      // You can add error handling UI here if needed
+    }
   };
 
   const handleCloseModal = () => {
     setFormData({
-      user_id: '',
-      store_id: '',
-      role_id: '',
-      full_name: '',
+      fullName: '',
       email: '',
       password: '',
       phone: '',
-      is_active: true
+      storeName: '',
+      roleName: ''
     });
     setShowAddModal(false);
+  };
+
+  // Delete user functions
+  const handleDeleteClick = (user) => {
+    setUserToDelete(user);
+    setShowDeleteModal(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!userToDelete) return;
+    
+    try {
+      await dispatch(deleteUserThunk(userToDelete.userId)).unwrap();
+      setShowDeleteModal(false);
+      setUserToDelete(null);
+      // Refresh the users list
+      dispatch(getAllUsersThunk());
+    } catch (error) {
+      console.error('Failed to delete user:', error);
+      // You can add error handling UI here if needed
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setShowDeleteModal(false);
+    setUserToDelete(null);
   };
 
 
@@ -229,6 +258,7 @@ function UserManagement() {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store ID</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Role ID</th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -257,11 +287,22 @@ function UserManagement() {
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{u.storeId}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{u.roleId}</td>
                 <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.userId}</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                  <button
+                    onClick={() => handleDeleteClick(u)}
+                    className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50 transition-colors"
+                    title="Xóa người dùng"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </td>
               </tr>
             ))}
             {users.length === 0 && (
               <tr>
-                <td colSpan="7" className="px-6 py-8 text-center text-sm text-gray-500">Không có người dùng</td>
+                <td colSpan="8" className="px-6 py-8 text-center text-sm text-gray-500">Không có người dùng</td>
               </tr>
             )}
           </tbody>
@@ -524,18 +565,18 @@ function UserManagement() {
               
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* User ID */}
+                  {/* Full Name */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      User ID <span className="text-red-500">*</span>
+                      Họ và tên <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
-                      name="user_id"
-                      value={formData.user_id}
+                      name="fullName"
+                      value={formData.fullName}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
-                      placeholder="Nhập User ID"
+                      placeholder="Nhập họ và tên đầy đủ"
                       required
                     />
                   </div>
@@ -546,56 +587,40 @@ function UserManagement() {
                       Cửa hàng <span className="text-red-500">*</span>
                     </label>
                     <select
-                      name="store_id"
-                      value={formData.store_id}
+                      name="storeName"
+                      value={formData.storeName}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
                       required
                     >
                       <option value="">Chọn cửa hàng</option>
                       {mockStores.map((store) => (
-                        <option key={store.store_id} value={store.store_id}>
-                          {store.store_id} - {store.store_name} ({store.province_name})
+                        <option key={store.store_id} value={store.store_name}>
+                          {store.store_name} ({store.province_name})
                         </option>
                       ))}
                     </select>
                   </div>
 
-                  {/* Role ID */}
+                  {/* Role Selection */}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Role ID <span className="text-red-500">*</span>
+                      Vai trò <span className="text-red-500">*</span>
                     </label>
                     <select
-                      name="role_id"
-                      value={formData.role_id}
+                      name="roleName"
+                      value={formData.roleName}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
                       required
                     >
                       <option value="">Chọn vai trò</option>
-                      <option value="ADMIN">Administrator</option>
-                      <option value="EVM_MANAGER">EVM Manager</option>
-                      <option value="EVM_STAFF">EVM Staff</option>
-                      <option value="DEALER_MANAGER">Dealer Manager</option>
-                      <option value="DEALER_STAFF">Dealer Staff</option>
+                      <option value="Administrator">Administrator</option>
+                      <option value="EVM Manager">EVM Manager</option>
+                      <option value="EVM Staff">EVM Staff</option>
+                      <option value="Dealer Manager">Dealer Manager</option>
+                      <option value="Dealer Staff">Dealer Staff</option>
                     </select>
-                  </div>
-
-                  {/* Full Name */}
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Họ và tên <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="full_name"
-                      value={formData.full_name}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
-                      placeholder="Nhập họ và tên đầy đủ"
-                      required
-                    />
                   </div>
 
                   {/* Email */}
@@ -646,19 +671,6 @@ function UserManagement() {
                     />
                   </div>
 
-                  {/* Is Active */}
-                  <div className="flex items-center">
-                    <input
-                      type="checkbox"
-                      name="is_active"
-                      checked={formData.is_active}
-                      onChange={handleInputChange}
-                      className="h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
-                    />
-                    <label className="ml-2 block text-sm text-gray-700">
-                      Tài khoản hoạt động
-                    </label>
-                  </div>
                 </div>
                 
                 <div className="flex justify-end space-x-3 mt-6 pt-4 border-t border-gray-200">
@@ -671,12 +683,67 @@ function UserManagement() {
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+                    disabled={isCreatingUser}
+                    className="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                   >
-                    Tạo tài khoản
+                    {isCreatingUser && (
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    )}
+                    {isCreatingUser ? 'Đang tạo...' : 'Tạo tài khoản'}
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && userToDelete && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+            <div className="mt-3 text-center">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
+                <svg className="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Xác nhận xóa người dùng</h3>
+              <div className="mt-2 px-7 py-3">
+                <p className="text-sm text-gray-500 mb-4">
+                  Bạn có chắc chắn muốn xóa người dùng <strong>{userToDelete.fullName}</strong> không?
+                </p>
+                <p className="text-xs text-gray-400">
+                  Email: {userToDelete.email}
+                </p>
+                <p className="text-xs text-red-500 mt-2">
+                  Hành động này không thể hoàn tác!
+                </p>
+              </div>
+              <div className="flex justify-center space-x-3 mt-4">
+                <button
+                  onClick={handleDeleteCancel}
+                  className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  disabled={isCreatingUser}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                >
+                  {isCreatingUser && (
+                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  )}
+                  {isCreatingUser ? 'Đang xóa...' : 'Xóa'}
+                </button>
+              </div>
             </div>
           </div>
         </div>
