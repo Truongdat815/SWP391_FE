@@ -368,50 +368,7 @@ function TestDriveSchedule() {
                   </div>
                 </div>
 
-                {/* Pickup Location */}
-                <div className="bg-white rounded-lg shadow p-6">
-                  <h3 className="text-lg font-medium text-gray-900 mb-4">Địa điểm lái thử</h3>
-                  <div className="space-y-3">
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="pickupLocation"
-                        value="showroom"
-                        checked={formData.pickupLocation === 'showroom'}
-                        onChange={handleInputChange}
-                        className="mr-3 text-red-600"
-                      />
-                      <span className="text-sm text-gray-700">Tại showroom Electra</span>
-                    </label>
-                    <label className="flex items-center">
-                      <input
-                        type="radio"
-                        name="pickupLocation"
-                        value="customer"
-                        checked={formData.pickupLocation === 'customer'}
-                        onChange={handleInputChange}
-                        className="mr-3 text-red-600"
-                      />
-                      <span className="text-sm text-gray-700">Tại nhà khách hàng</span>
-                    </label>
-                    
-                    {formData.pickupLocation === 'customer' && (
-                      <div className="ml-6">
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Địa chỉ cụ thể
-                        </label>
-                        <input
-                          type="text"
-                          name="customLocation"
-                          value={formData.customLocation}
-                          onChange={handleInputChange}
-                          className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-red-500 focus:border-red-500"
-                          placeholder="Nhập địa chỉ cụ thể"
-                        />
-                      </div>
-                    )}
-                  </div>
-                </div>
+                
 
                 {/* Special Requests */}
                 <div className="bg-white rounded-lg shadow p-6">
@@ -475,13 +432,7 @@ function TestDriveSchedule() {
                   </div>
                 </div>
 
-                <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-2">Giờ làm việc</h4>
-                  <div className="text-sm text-blue-800">
-                    <p>Thứ 2 - Thứ 6: 8:00 - 18:00</p>
-                    <p>Thứ 7 - Chủ nhật: 8:00 - 17:00</p>
-                  </div>
-                </div>
+               
               </div>
             </div>
           </div>

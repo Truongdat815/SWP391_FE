@@ -36,10 +36,11 @@ import TestPage from './pages/dealerManager/TestPage'
 
 // Dealer Staff Sub Pages
 import QuoteOrderManagement from './pages/dealerStaff/QuoteOrderManagement'
+import ViewOrders from './pages/dealerStaff/ViewOrders'
 import CreateContract from './pages/dealerStaff/CreateContract'
 import CreateQuote from './pages/dealerStaff/CreateQuote'
 import AddCustomer from './pages/dealerStaff/dealer-staff/AddCustomer'
-import OrderFromManufacturer from './pages/dealerStaff/dealer-staff/OrderFromManufacturer'
+import Inventory from './pages/dealerStaff/Inventory'
 import TestDriveSchedule from './pages/dealerStaff/dealer-staff/TestDriveSchedule'
 import SalesQuoteManagement from './pages/dealerStaff/dealer-staff/SalesQuoteManagement'
 import OrderManagement from './pages/dealerStaff/dealer-staff/OrderManagement'
@@ -118,9 +119,10 @@ function App() {
           <Route index element={<DealerStaffDashboard />} />
           <Route path="create-quote" element={<CreateQuote />} />
           <Route path="quote-order-management" element={<QuoteOrderManagement />} />
+          <Route path="view-orders" element={<ViewOrders />} />
           <Route path="add-customer" element={<AddCustomer />} />
           <Route path="test-drive-schedule" element={<TestDriveSchedule />} />
-          <Route path="order-from-manufacturer" element={<OrderFromManufacturer />} />
+          <Route path="inventory" element={<Inventory />} />
           <Route path="payment-management" element={<PaymentManagement />} />
           <Route path="feedback-management" element={<FeedbackManagement />} />
           <Route path="car-comparison" element={<CarComparison />} />
