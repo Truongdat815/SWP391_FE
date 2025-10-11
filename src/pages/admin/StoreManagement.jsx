@@ -1,110 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { getAllStoresThunk, createStoreThunk, updateStoreThunk, deleteStoreThunk } from '@store/slices/storeSlice';
 
 function StoreManagement() {
+  const dispatch = useDispatch();
+  const stores = useSelector((s) => s.stores.items);
+  const storesStatus = useSelector((s) => s.stores.status);
+  const storesError = useSelector((s) => s.stores.error);
+  const isStoresFetching = storesStatus === 'loading';
+  const isCreatingStore = storesStatus === 'loading';
+  
   const [activeTab, setActiveTab] = useState('stores');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingStore, setEditingStore] = useState(null);
-  const [storeCounter, setStoreCounter] = useState(6); // Starting from 6 since we have 5 existing stores (1-5)
+
+  useEffect(() => {
+    if (storesStatus === 'idle') {
+      dispatch(getAllStoresThunk());
+    }
+  }, [dispatch, storesStatus]);
   
   // Form state for add/edit store modal
   const [formData, setFormData] = useState({
-    store_id: null,
-    province_name: '',
-    store_name: '',
-    owner_name: '',
+    storeName: '',
+    provinceName: '',
+    ownerName: '',
     address: '',
     phone: '',
     status: 'active',
-    contract_start_date: '',
-    contract_end_date: '',
-    created_by: ''
+    contractStartDate: '',
+    contractEndDate: '',
+    createdBy: ''
   });
 
-  // Mock stores data
-  const [stores, setStores] = useState([
-    {
-      id: 1,
-      store_id: 1,
-      store_name: 'Electra Hà Nội',
-      province_name: 'Hà Nội',
-      owner_name: 'Nguyễn Văn A',
-      address: '123 Đường ABC, Quận XYZ, Hà Nội',
-      phone: '0123456789',
-      status: 'active',
-      contract_start_date: '2023-01-01',
-      contract_end_date: '2025-12-31',
-      created_by: 'Admin',
-      created_at: '2023-01-01',
-      total_orders: 150,
-      total_revenue: 2500000000
-    },
-    {
-      id: 2,
-      store_id: 2,
-      store_name: 'Electra TP.HCM',
-      province_name: 'TP.HCM',
-      owner_name: 'Trần Thị B',
-      address: '456 Đường DEF, Quận GHI, TP.HCM',
-      phone: '0987654321',
-      status: 'active',
-      contract_start_date: '2023-02-01',
-      contract_end_date: '2025-12-31',
-      created_by: 'Admin',
-      created_at: '2023-02-01',
-      total_orders: 200,
-      total_revenue: 3500000000
-    },
-    {
-      id: 3,
-      store_id: 3,
-      store_name: 'Electra Đà Nẵng',
-      province_name: 'Đà Nẵng',
-      owner_name: 'Lê Văn C',
-      address: '789 Đường JKL, Quận MNO, Đà Nẵng',
-      phone: '0555123456',
-      status: 'active',
-      contract_start_date: '2023-03-01',
-      contract_end_date: '2025-12-31',
-      created_by: 'Admin',
-      created_at: '2023-03-01',
-      total_orders: 80,
-      total_revenue: 1200000000
-    },
-    {
-      id: 4,
-      store_id: 4,
-      store_name: 'Electra Hải Phòng',
-      province_name: 'Hải Phòng',
-      owner_name: 'Phạm Văn D',
-      address: '321 Đường PQR, Quận STU, Hải Phòng',
-      phone: '0333123456',
-      status: 'pending',
-      contract_start_date: '2024-01-01',
-      contract_end_date: '2026-12-31',
-      created_by: 'Admin',
-      created_at: '2024-01-01',
-      total_orders: 25,
-      total_revenue: 400000000
-    },
-    {
-      id: 5,
-      store_id: 5,
-      store_name: 'Electra Cần Thơ',
-      province_name: 'Cần Thơ',
-      owner_name: 'Hoàng Thị E',
-      address: '654 Đường VWX, Quận YZA, Cần Thơ',
-      phone: '0777123456',
-      status: 'inactive',
-      contract_start_date: '2023-06-01',
-      contract_end_date: '2024-05-31',
-      created_by: 'Admin',
-      created_at: '2023-06-01',
-      total_orders: 45,
-      total_revenue: 800000000
-    }
-  ]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -135,83 +65,86 @@ function StoreManagement() {
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (editingStore) {
-      // Update existing store
-      setStores(prev => prev.map(store => 
-        store.id === editingStore.id 
-          ? { ...store, ...formData }
-          : store
-      ));
-    } else {
-      // Add new store
-      const newStore = {
-        ...formData,
-        id: storeCounter,
-        store_id: storeCounter,
-        created_at: new Date().toISOString().split('T')[0],
-        total_orders: 0,
-        total_revenue: 0
-      };
-      setStores(prev => [...prev, newStore]);
-      setStoreCounter(prev => prev + 1);
+    try {
+      if (editingStore) {
+        // Update existing store
+        const updateData = {
+          storeId: editingStore.storeId,
+          ...formData
+        };
+        await dispatch(updateStoreThunk(updateData)).unwrap();
+      } else {
+        // Add new store
+        await dispatch(createStoreThunk(formData)).unwrap();
+      }
+      
+      // Reset form and close modal on success
+      setFormData({
+        storeName: '',
+        provinceName: '',
+        ownerName: '',
+        address: '',
+        phone: '',
+        status: 'active',
+        contractStartDate: '',
+        contractEndDate: '',
+        createdBy: ''
+      });
+      setShowAddModal(false);
+      setShowEditModal(false);
+      setEditingStore(null);
+      
+      // Refresh the stores list
+      dispatch(getAllStoresThunk());
+    } catch (error) {
+      console.error('Failed to save store:', error);
+      // You can add error handling UI here if needed
     }
-    
-    // Reset form and close modal
-    setFormData({
-      store_id: null,
-      province_name: '',
-      store_name: '',
-      owner_name: '',
-      address: '',
-      phone: '',
-      status: 'active',
-      contract_start_date: '',
-      contract_end_date: '',
-      created_by: ''
-    });
-    setShowAddModal(false);
-    setShowEditModal(false);
-    setEditingStore(null);
   };
 
   const handleEdit = (store) => {
     setEditingStore(store);
     setFormData({
-      store_id: store.store_id,
-      province_name: store.province_name,
-      store_name: store.store_name,
-      owner_name: store.owner_name,
-      address: store.address,
-      phone: store.phone,
-      status: store.status,
-      contract_start_date: store.contract_start_date,
-      contract_end_date: store.contract_end_date,
-      created_by: store.created_by
+      storeName: store.storeName || '',
+      provinceName: store.provinceName || '',
+      ownerName: store.ownerName || '',
+      address: store.address || '',
+      phone: store.phone || '',
+      status: store.status || 'active',
+      contractStartDate: store.contractStartDate || '',
+      contractEndDate: store.contractEndDate || '',
+      createdBy: store.createdBy || ''
     });
     setShowEditModal(true);
   };
 
-  const handleDelete = (storeId) => {
+  const handleDelete = async (storeId) => {
     if (window.confirm('Bạn có chắc chắn muốn xóa cửa hàng này?')) {
-      setStores(prev => prev.filter(store => store.id !== storeId));
+      try {
+        await dispatch(deleteStoreThunk(storeId)).unwrap();
+        // Refresh the stores list
+        dispatch(getAllStoresThunk());
+      } catch (error) {
+        console.error('Failed to delete store:', error);
+        // You can add error handling UI here if needed
+      }
     }
   };
 
   const handleCloseModal = () => {
     setFormData({
-      store_id: null,
-      province_name: '',
-      store_name: '',
-      owner_name: '',
+      storeName: '',
+      provinceName: '',
+      ownerName: '',
       address: '',
       phone: '',
       status: 'active',
-      contract_start_date: '',
-      contract_end_date: '',
-      created_by: ''
+      contractStartDate: '',
+      contractEndDate: '',
+      createdBy: ''
     });
     setShowAddModal(false);
     setShowEditModal(false);
@@ -219,9 +152,9 @@ function StoreManagement() {
   };
 
   const filteredStores = stores.filter(store =>
-    store.store_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    store.province_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    store.owner_name.toLowerCase().includes(searchTerm.toLowerCase())
+    (store.storeName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (store.provinceName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (store.ownerName || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const tabs = [
@@ -231,85 +164,98 @@ function StoreManagement() {
 
   const renderStoresTable = () => (
     <div className="overflow-x-auto">
-      <table className="min-w-full divide-y divide-gray-200">
-        <thead className="bg-gray-50">
-          <tr>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Cửa hàng
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Chủ cửa hàng
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Địa điểm
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Trạng thái
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Doanh thu
-            </th>
-            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-              Thao tác
-            </th>
-          </tr>
-        </thead>
-        <tbody className="bg-white divide-y divide-gray-200">
-          {filteredStores.map((store) => (
-            <tr key={store.id}>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="flex items-center">
-                  <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center mr-4">
-                    <span className="text-blue-600 font-semibold text-sm">
-                      {store.store_name.split(' ')[1]?.charAt(0) || 'S'}
-                    </span>
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">{store.store_name}</div>
-                    <div className="text-sm text-gray-500">{store.phone}</div>
-                    <div className="text-xs text-gray-400">ID: {store.store_id}</div>
-                  </div>
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                {store.owner_name}
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <div className="text-sm text-gray-900">{store.province_name}</div>
-                <div className="text-sm text-gray-500">{store.address}</div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap">
-                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(store.status)}`}>
-                  {getStatusText(store.status)}
-                </span>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                <div>{store.total_orders} đơn hàng</div>
-                <div className="text-green-600 font-medium">
-                  {store.total_revenue.toLocaleString('vi-VN')} VNĐ
-                </div>
-              </td>
-              <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                <button 
-                  onClick={() => handleEdit(store)}
-                  className="text-blue-600 hover:text-blue-900"
-                >
-                  Chỉnh sửa
-                </button>
-                <button 
-                  onClick={() => handleDelete(store.id)}
-                  className="text-red-600 hover:text-red-900"
-                >
-                  Xóa
-                </button>
-                <button className="text-green-600 hover:text-green-900">
-                  Chi tiết
-                </button>
-              </td>
+      {isStoresFetching && (
+        <div className="p-4 text-sm text-gray-600">Đang tải danh sách cửa hàng...</div>
+      )}
+      {!isStoresFetching && storesError && (
+        <div className="p-4 text-sm text-red-600">Lỗi tải danh sách: {String(storesError?.error || storesError?.data || 'Unknown error')}</div>
+      )}
+      {!isStoresFetching && !storesError && (
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Cửa hàng
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Chủ cửa hàng
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Địa điểm
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Trạng thái
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Doanh thu
+              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                Thao tác
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {filteredStores.map((store) => (
+              <tr key={store.storeId}>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="flex items-center">
+                    <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center mr-4">
+                      <span className="text-blue-600 font-semibold text-sm">
+                        {(store.storeName || '').split(' ')[1]?.charAt(0) || 'S'}
+                      </span>
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium text-gray-900">{store.storeName}</div>
+                      <div className="text-sm text-gray-500">{store.phone}</div>
+                      <div className="text-xs text-gray-400">ID: {store.storeId}</div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  {store.ownerName}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <div className="text-sm text-gray-900">{store.provinceName}</div>
+                  <div className="text-sm text-gray-500">{store.address}</div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(store.status)}`}>
+                    {getStatusText(store.status)}
+                  </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                  <div>{store.totalOrders || 0} đơn hàng</div>
+                  <div className="text-green-600 font-medium">
+                    {(store.totalRevenue || 0).toLocaleString('vi-VN')} VNĐ
+                  </div>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                  <button 
+                    onClick={() => handleEdit(store)}
+                    className="text-blue-600 hover:text-blue-900"
+                  >
+                    Chỉnh sửa
+                  </button>
+                  <button 
+                    onClick={() => handleDelete(store.storeId)}
+                    className="text-red-600 hover:text-red-900"
+                  >
+                    Xóa
+                  </button>
+                  <button className="text-green-600 hover:text-green-900">
+                    Chi tiết
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {filteredStores.length === 0 && !isStoresFetching && (
+              <tr>
+                <td colSpan="6" className="px-6 py-8 text-center text-sm text-gray-500">Không có cửa hàng</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      )}
     </div>
   );
 
@@ -373,7 +319,7 @@ function StoreManagement() {
             <div className="ml-4">
               <p className="text-sm font-medium text-gray-600">Tổng doanh thu</p>
               <p className="text-2xl font-bold text-gray-900">
-                {stores.reduce((sum, store) => sum + store.total_revenue, 0).toLocaleString('vi-VN')} VNĐ
+                {stores.reduce((sum, store) => sum + (store.totalRevenue || 0), 0).toLocaleString('vi-VN')} VNĐ
               </p>
             </div>
           </div>
@@ -513,18 +459,6 @@ function StoreManagement() {
               
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {/* Auto-generated Store ID Display */}
-                  {!editingStore && (
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Store ID (Tự động tạo)
-                      </label>
-                      <div className="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-600">
-                        {storeCounter}
-                      </div>
-                      <p className="text-xs text-gray-500 mt-1">Store ID sẽ được tự động tạo khi lưu</p>
-                    </div>
-                  )}
 
                   {/* Province Name */}
                   <div>
@@ -532,8 +466,8 @@ function StoreManagement() {
                       Tỉnh/Thành phố <span className="text-red-500">*</span>
                     </label>
                     <select
-                      name="province_name"
-                      value={formData.province_name}
+                      name="provinceName"
+                      value={formData.provinceName}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                       required
@@ -559,8 +493,8 @@ function StoreManagement() {
                     </label>
                     <input
                       type="text"
-                      name="store_name"
-                      value={formData.store_name}
+                      name="storeName"
+                      value={formData.storeName}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Nhập tên cửa hàng"
@@ -575,8 +509,8 @@ function StoreManagement() {
                     </label>
                     <input
                       type="text"
-                      name="owner_name"
-                      value={formData.owner_name}
+                      name="ownerName"
+                      value={formData.ownerName}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Nhập tên chủ cửa hàng"
@@ -642,8 +576,8 @@ function StoreManagement() {
                     </label>
                     <input
                       type="date"
-                      name="contract_start_date"
-                      value={formData.contract_start_date}
+                      name="contractStartDate"
+                      value={formData.contractStartDate}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                       required
@@ -657,8 +591,8 @@ function StoreManagement() {
                     </label>
                     <input
                       type="date"
-                      name="contract_end_date"
-                      value={formData.contract_end_date}
+                      name="contractEndDate"
+                      value={formData.contractEndDate}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                       required
@@ -672,8 +606,8 @@ function StoreManagement() {
                     </label>
                     <input
                       type="text"
-                      name="created_by"
-                      value={formData.created_by}
+                      name="createdBy"
+                      value={formData.createdBy}
                       onChange={handleInputChange}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500"
                       placeholder="Nhập tên người tạo"
@@ -692,9 +626,16 @@ function StoreManagement() {
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                    disabled={isCreatingStore}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                   >
-                    {editingStore ? 'Cập nhật' : 'Tạo cửa hàng'}
+                    {isCreatingStore && (
+                      <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                    )}
+                    {isCreatingStore ? (editingStore ? 'Đang cập nhật...' : 'Đang tạo...') : (editingStore ? 'Cập nhật' : 'Tạo cửa hàng')}
                   </button>
                 </div>
               </form>
