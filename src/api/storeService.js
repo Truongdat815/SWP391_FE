@@ -35,10 +35,33 @@ export async function createStore(store) {
     return request('/api/stores/create', { method: 'POST', body: store });
 }
 
-export async function updateStore({ storeId, ...store }) {
-    return request(`/api/stores/update/${encodeURIComponent(storeId)}`, { method: 'PUT', body: store });
+export async function updateStore(storeData) {
+    const { storeId, ...store } = storeData;
+    return request(`/api/stores/update/${encodeURIComponent(storeId)}`, { method: 'PUT', body: storeData });
 }
 
 export async function deleteStore(storeId) {
     return request(`/api/stores/delete/${encodeURIComponent(storeId)}`, { method: 'DELETE' });
+}
+// tìm và filter cửa hàng
+export async function getStoresByStoreName(storeName) {
+    return request(`/api/stores/${encodeURIComponent(storeName)}`, { method: 'GET' });
+}
+
+export async function getStoresByStatus(status) {
+    return request(`/api/stores/status/${encodeURIComponent(status)}`, { method: 'GET' });
+}
+
+export async function getStoresByProvince(provinceName) {
+    return request(`/api/stores/province/${encodeURIComponent(provinceName)}`, { method: 'GET' });
+}
+
+export async function searchStores({ storeName, provinceName, ownerName }) {
+    const params = new URLSearchParams();
+    if (storeName) params.append('storeName', storeName);
+    if (provinceName) params.append('provinceName', provinceName);
+    if (ownerName) params.append('ownerName', ownerName);
+
+    const queryString = params.toString();
+    return request(`/api/stores/search${queryString ? `?${queryString}` : ''}`, { method: 'GET' });
 }
