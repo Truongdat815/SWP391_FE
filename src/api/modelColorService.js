@@ -23,23 +23,20 @@ async function request(path, { method = 'GET', body } = {}) {
     return data;
 }
 
-// Colors CRUD
-export async function getAllColors() {
-    // Backend swagger shows /api/colors/all
-    return request('/api/colors/all', { method: 'GET' });
+export async function getAllModelColors() {
+    try {
+        return await request('/api/model-colors', { method: 'GET' });
+    } catch (e) {
+        // If not available, return an empty structure to avoid 404 crash on FE
+        return { data: [] };
+    }
 }
 
-export async function createColor(color) {
-    return request('/api/colors/create', { method: 'POST', body: color });
+export async function createModelColor(payload) {
+    // payload: { modelColorId?, modelName, colorName, quantity? }
+    return request('/api/model-colors/create', { method: 'POST', body: payload });
 }
 
-export async function updateColor(colorData) {
-    const { colorId } = colorData;
-    return request(`/api/colors/update/${encodeURIComponent(colorId)}`, { method: 'PUT', body: colorData });
-}
-
-export async function deleteColor(colorId) {
-    return request(`/api/colors/delete/${encodeURIComponent(colorId)}`, { method: 'DELETE' });
-}
+// No update/delete endpoints in swagger → not implemented (can be added when backend exposes routes)
 
 

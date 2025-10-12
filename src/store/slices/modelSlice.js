@@ -80,6 +80,29 @@ export const getModelsByColorNameThunk = createAsyncThunk(
     }
 );
 
+export const addColorToModelThunk = createAsyncThunk(
+    'models/addColorToModel',
+    async (payload, { rejectWithValue }) => {
+        try {
+            return await modelService.addColorToModel(payload);
+        } catch (err) {
+            return rejectWithValue(err.message || 'Failed to add color to model');
+        }
+    }
+);
+
+export const removeColorFromModelThunk = createAsyncThunk(
+    'models/removeColorFromModel',
+    async (payload, { rejectWithValue }) => {
+        try {
+            await modelService.removeColorFromModel(payload);
+            return payload;
+        } catch (err) {
+            return rejectWithValue(err.message || 'Failed to remove color from model');
+        }
+    }
+);
+
 const initialState = {
     items: [],
     selected: null,
@@ -214,6 +237,15 @@ const modelSlice = createSlice({
             .addCase(getModelsByColorNameThunk.rejected, (state, action) => {
                 state.status = 'failed';
                 state.error = action.payload;
+            })
+            // add/remove color
+            .addCase(addColorToModelThunk.fulfilled, (state) => {
+                // Optimistic refresh is handled by re-querying getColorsByModelName from UI
+            })
+            .addCase(removeColorFromModelThunk.fulfilled, (state, action) => {
+                const { colorId } = action.payload || {};
+                if (!colorId) return;
+                state.colorsOfSelectedModel = state.colorsOfSelectedModel.filter((c) => (c.colorId ?? c.id) !== colorId);
             });
     },
 });
