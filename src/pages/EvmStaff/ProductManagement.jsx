@@ -6,6 +6,8 @@ import {
   updateModelThunk,
   deleteModelThunk,
   getColorsByModelNameThunk,
+  addColorToModelThunk,
+  removeColorFromModelThunk,
 } from '@store/slices/modelSlice';
 import {
   getAllColorsThunk,
@@ -13,7 +15,7 @@ import {
   updateColorThunk,
   deleteColorThunk,
 } from '@store/slices/colorSlice';
-import seedText from '../../../abc.txt?raw';
+import { getAllModelColorsThunk } from '@store/slices/modelColorSlice';
 
 function ProductManagement({ onBack }) {
   const dispatch = useDispatch();
@@ -22,6 +24,8 @@ function ProductManagement({ onBack }) {
 
   const [activeTab, setActiveTab] = useState('models');
   const [successMsg, setSuccessMsg] = useState('');
+  const [selectedModel, setSelectedModel] = useState(null);
+  const [selectedColorId, setSelectedColorId] = useState('');
 
   const [modelModalOpen, setModelModalOpen] = useState(false);
   const [editingModel, setEditingModel] = useState(null);
@@ -49,22 +53,32 @@ function ProductManagement({ onBack }) {
   useEffect(() => {
     dispatch(getAllModelsThunk());
     dispatch(getAllColorsThunk());
+    dispatch(getAllModelColorsThunk());
   }, [dispatch]);
 
-  const seedModels = useMemo(() => {
+  const [seedModels, setSeedModels] = useState([]);
+  const loadSeedIfNeeded = async () => {
+    if (seedModels.length) return seedModels;
     try {
-      const parsed = JSON.parse(seedText);
-      return Array.isArray(parsed) ? parsed : [];
+      const url = new URL('../../../abc.txt', import.meta.url).href;
+      const res = await fetch(url);
+      const text = await res.text();
+      const data = JSON.parse(text);
+      const arr = Array.isArray(data) ? data : [];
+      setSeedModels(arr);
+      return arr;
     } catch {
+      setSeedModels([]);
       return [];
     }
-  }, [seedText]);
+  };
 
   const seedDataToApi = async () => {
-    if (!seedModels.length) return alert('Không tìm thấy dữ liệu mẫu');
-    if (!confirm(`Nạp ${seedModels.length} mẫu xe vào hệ thống?`)) return;
+    const data = await loadSeedIfNeeded();
+    if (!data.length) return alert('Không tìm thấy dữ liệu mẫu');
+    if (!confirm(`Nạp ${data.length} mẫu xe vào hệ thống?`)) return;
     try {
-      for (const m of seedModels) {
+      for (const m of data) {
         // backend expects the same property names as swagger
         await dispatch(createModelThunk(m)).unwrap();
       }
@@ -168,8 +182,10 @@ function ProductManagement({ onBack }) {
     }
   };
 
-  const fetchColorsForModel = (modelName) => {
-    dispatch(getColorsByModelNameThunk(modelName));
+  const fetchColorsForModel = (model) => {
+    if (!model) return;
+    setSelectedModel(model);
+    dispatch(getColorsByModelNameThunk(model.modelName));
   };
 
   return (
@@ -191,7 +207,7 @@ function ProductManagement({ onBack }) {
         <div className="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 p-3 text-sm">{successMsg}</div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8 px-6">
             {[
@@ -209,7 +225,22 @@ function ProductManagement({ onBack }) {
           </nav>
         </div>
 
-        <div className="p-6">
+        <div className="p-6 space-y-6">
+          {/* Filters */}
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-4 grid grid-cols-1 md:grid-cols-4 gap-3">
+            <input placeholder="Tìm theo tên mẫu" className="border rounded-xl px-3 py-2" onChange={() => {}} />
+            <input placeholder="Lọc theo năm" type="number" className="border rounded-xl px-3 py-2" onChange={() => {}} />
+            <select className="border rounded-xl px-3 py-2" onChange={() => {}}>
+              <option value="">Lọc theo màu</option>
+              {colors.map(c => (<option key={c.colorId} value={c.colorName}>{c.colorName}</option>))}
+            </select>
+            <select className="border rounded-xl px-3 py-2" onChange={() => {}}>
+              <option value="">Lọc theo body type</option>
+              {Array.from(new Set(models.map(m => m.bodyType).filter(Boolean))).map(bt => (
+                <option key={bt} value={bt}>{bt}</option>
+              ))}
+            </select>
+          </div>
           {activeTab === 'models' && (
             <div className="space-y-6">
               <div className="flex justify-between items-center">
@@ -219,60 +250,98 @@ function ProductManagement({ onBack }) {
                   <button onClick={openCreateModel} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition">Thêm mẫu xe</button>
                 </div>
               </div>
-              <div className="bg-white border border-gray-200 rounded-xl overflow-x-auto">
-                <table className="min-w-[1200px] w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tên mẫu</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Năm</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pin (kWh)</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tầm hoạt động (km)</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Công suất (hp)</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mô-men (Nm)</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">0-100 (s)</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Chỗ ngồi</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Giá</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kiểu dáng</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Mô tả</th>
-                      <th className="px-4 py-3"/>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {modelStatus === 'loading' && (
-                      <tr><td className="px-4 py-4 text-sm text-gray-500" colSpan={12}>Đang tải...</td></tr>
-                    )}
-                    {models.map((m) => (
-                      <tr key={m.modelId || m.id}>
-                        <td className="px-4 py-3 text-sm text-gray-900">{m.modelName}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{m.modelYear || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{m.batteryCapacity ?? m.battery_capacity ?? '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{m.range ?? m.range_km ?? '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{m.powerHp ?? m.power_hp ?? '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{m.torqueNm ?? m.torque_nm ?? '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{m.acceleration ?? '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{m.seatingCapacity ?? '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{m.price?.toLocaleString?.('vi-VN') || m.price || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-900">{m.bodyType || '—'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 max-w-xs truncate" title={m.description}>{m.description || '—'}</td>
-                        <td className="px-4 py-3 whitespace-nowrap text-right text-sm">
-                          <button onClick={() => fetchColorsForModel(m.modelName)} className="text-blue-600 hover:text-blue-800 mr-3">Màu</button>
-                          <button onClick={() => openEditModel(m)} className="text-emerald-600 hover:text-emerald-800 mr-3">Sửa</button>
-                          <button onClick={() => removeModel(m.modelId)} className="text-red-600 hover:text-red-800">Xóa</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              {/* Cards grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+                {models.map((m) => (
+                  <div key={m.modelId} className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition">
+                    <div className="h-32 bg-gradient-to-r from-emerald-50 to-gray-50"/>
+                    <div className="p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <div className="text-base font-semibold text-gray-900">{m.modelName}</div>
+                          <div className="text-xs text-gray-500">{m.bodyType || '—'} • {m.modelYear || '—'}</div>
+                        </div>
+                        <div className="text-emerald-600 font-semibold">{m.price ? `${Number(m.price).toLocaleString('vi-VN')}₫` : '—'}</div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
+                        <div>Pin: <span className="font-medium text-gray-800">{m.batteryCapacity ?? '—'} kWh</span></div>
+                        <div>Tầm: <span className="font-medium text-gray-800">{m.range ?? '—'} km</span></div>
+                        <div>HP: <span className="font-medium text-gray-800">{m.powerHp ?? '—'}</span></div>
+                        <div>0-100: <span className="font-medium text-gray-800">{m.acceleration ?? '—'} s</span></div>
+                      </div>
+                      <div className="flex justify-end gap-2 pt-2">
+                        <button onClick={() => fetchColorsForModel(m)} className="px-2 py-1 text-xs rounded-lg border border-gray-300 hover:bg-gray-50">Màu</button>
+                        <button onClick={() => openEditModel(m)} className="px-2 py-1 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700">Sửa</button>
+                        <button onClick={() => removeModel(m.modelId)} className="px-2 py-1 text-xs rounded-lg border border-red-300 text-red-700 hover:bg-red-50">Xóa</button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {/* Colors of selected model */}
-              {colorsOfSelectedModel?.length > 0 && (
+              {(
                 <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                  <div className="text-sm text-gray-700 mb-2">Màu của mẫu đã chọn:</div>
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="text-sm text-gray-700">
+                      {selectedModel ? (
+                        <span>Màu của mẫu: <span className="font-semibold">{selectedModel.modelName}</span></span>
+                      ) : (
+                        <span>Chọn mẫu và bấm "Màu" để xem/đổi màu</span>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <select
+                        value={selectedColorId}
+                        onChange={(e) => setSelectedColorId(e.target.value)}
+                        className="border rounded-lg px-2 py-1 text-sm"
+                        disabled={!selectedModel}
+                      >
+                        <option value="" disabled>Chọn màu…</option>
+                        {colors.map((c) => (
+                          <option key={c.colorId || c.id} value={c.colorId || c.id}>{c.colorName}</option>
+                        ))}
+                      </select>
+                      <button
+                        onClick={async () => {
+                          const colorIdNum = Number(selectedColorId);
+                          if (!selectedModel?.modelId || !colorIdNum) return;
+                          try {
+                            await dispatch(addColorToModelThunk({ modelId: selectedModel.modelId, colorId: colorIdNum })).unwrap();
+                            await dispatch(getColorsByModelNameThunk(selectedModel.modelName));
+                            setSuccessMsg('Đã thêm màu cho mẫu');
+                            setTimeout(() => setSuccessMsg(''), 1500);
+                          } catch (err) {
+                            alert(err?.message || 'Không thể thêm màu');
+                          }
+                        }}
+                        className="px-3 py-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 text-sm disabled:opacity-50"
+                        disabled={!selectedModel || !selectedColorId}
+                      >Thêm màu</button>
+                    </div>
+                  </div>
                   <div className="flex flex-wrap gap-2">
-                    {colorsOfSelectedModel.map((c, idx) => (
-                      <span key={idx} className="px-2 py-1 text-xs bg-gray-100 text-gray-700 rounded">{c.colorName || c}</span>
+                    {colorsOfSelectedModel?.map((c, idx) => (
+                      <span key={idx} className="inline-flex items-center gap-2 px-2 py-1 text-xs bg-white border border-gray-200 text-gray-700 rounded-full shadow-sm">
+                        {c.colorName || c}
+                        <button
+                          onClick={async () => {
+                            if (!selectedModel?.modelId) return;
+                            try {
+                              await dispatch(removeColorFromModelThunk({ modelId: selectedModel.modelId, colorId: c.colorId || c.id })).unwrap();
+                              await dispatch(getColorsByModelNameThunk(selectedModel.modelName));
+                            } catch (err) {
+                              alert(err?.message || 'Không thể xóa màu');
+                            }
+                          }}
+                          title="Xóa"
+                          className="hover:text-red-600"
+                        >×</button>
+                      </span>
                     ))}
+                    {(!colorsOfSelectedModel || colorsOfSelectedModel.length === 0) && (
+                      <span className="text-xs text-gray-500">Chưa có màu nào</span>
+                    )}
                   </div>
                 </div>
               )}

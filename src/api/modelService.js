@@ -54,4 +54,13 @@ export async function getModelsByColorName(colorName) {
     return request(`/api/models/${encodeURIComponent(colorName)}/models`, { method: 'GET' });
 }
 
+// Model-Color relation (adjust endpoints if backend differs)
+export async function addColorToModel({ modelId, colorId }) {
+    return request(`/api/models/${encodeURIComponent(modelId)}/colors/${encodeURIComponent(colorId)}`, { method: 'POST' });
+}
+
+export async function removeColorFromModel({ modelId, colorId }) {
+    return request(`/api/models/${encodeURIComponent(modelId)}/colors/${encodeURIComponent(colorId)}`, { method: 'DELETE' });
+}
+
 
