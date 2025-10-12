@@ -25,6 +25,7 @@ async function request(path, { method = 'GET', body } = {}) {
 
 // Colors CRUD
 export async function getAllColors() {
+    // Backend swagger shows /api/colors/all
     return request('/api/colors/all', { method: 'GET' });
 }
 

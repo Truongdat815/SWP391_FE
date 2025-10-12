@@ -1,4 +1,5 @@
 // Simple API client using Vite env-based base URL
+// For development with Vite proxy, leave empty to use relative paths
 export const API_URL = (import.meta?.env?.VITE_API_URL || '').replace(/\/+$/, '');
 
 export async function apiFetch(path, options = {}) {

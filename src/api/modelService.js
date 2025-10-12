@@ -38,11 +38,11 @@ export async function createModel(model) {
 
 export async function updateModel(modelData) {
     const { modelId } = modelData;
-    return request(`/api/models/update/${encodeURIComponent(modelId)}`, { method: 'PUT', body: modelData });
+    return request(`/api/models/${encodeURIComponent(modelId)}`, { method: 'PUT', body: modelData });
 }
 
 export async function deleteModel(modelId) {
-    return request(`/api/models/delete/${encodeURIComponent(modelId)}`, { method: 'DELETE' });
+    return request(`/api/models/${encodeURIComponent(modelId)}`, { method: 'DELETE' });
 }
 
 // Relations & queries
@@ -51,16 +51,19 @@ export async function getColorsByModelName(modelName) {
 }
 
 export async function getModelsByColorName(colorName) {
-    return request(`/api/models/${encodeURIComponent(colorName)}/models`, { method: 'GET' });
+    return request(`/api/models/color/${encodeURIComponent(colorName)}/models`, { method: 'GET' });
 }
 
-// Model-Color relation (adjust endpoints if backend differs)
-export async function addColorToModel({ modelId, colorId }) {
-    return request(`/api/models/${encodeURIComponent(modelId)}/colors/${encodeURIComponent(colorId)}`, { method: 'POST' });
+// Model-Color relation
+export async function addColorToModel(payload) {
+    // payload: { modelName, colorName }
+    return request('/api/model-colors/create', { method: 'POST', body: payload });
 }
 
-export async function removeColorFromModel({ modelId, colorId }) {
-    return request(`/api/models/${encodeURIComponent(modelId)}/colors/${encodeURIComponent(colorId)}`, { method: 'DELETE' });
+export async function removeColorFromModel(payload) {
+    // payload: { modelName, colorName }
+    const { modelName, colorName } = payload;
+    return request(`/api/model-colors/delete?modelName=${encodeURIComponent(modelName)}&colorName=${encodeURIComponent(colorName)}`, { method: 'DELETE' });
 }
 
 

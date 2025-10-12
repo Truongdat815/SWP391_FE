@@ -23,28 +23,7 @@ export const createModelColorThunk = createAsyncThunk(
     }
 );
 
-export const updateModelColorThunk = createAsyncThunk(
-    'modelColors/update',
-    async (payload, { rejectWithValue }) => {
-        try {
-            return await modelColorService.updateModelColor(payload);
-        } catch (err) {
-            return rejectWithValue(err.message || 'Failed to update model color');
-        }
-    }
-);
-
-export const deleteModelColorThunk = createAsyncThunk(
-    'modelColors/delete',
-    async (modelColorId, { rejectWithValue }) => {
-        try {
-            await modelColorService.deleteModelColor(modelColorId);
-            return modelColorId;
-        } catch (err) {
-            return rejectWithValue(err.message || 'Failed to delete model color');
-        }
-    }
-);
+// update/delete not exposed by backend swagger; keep only create/list for now
 
 const initialState = {
     items: [],
@@ -79,14 +58,7 @@ const modelColorSlice = createSlice({
             .addCase(createModelColorThunk.fulfilled, (state, action) => {
                 state.items.push(action.payload);
             })
-            .addCase(updateModelColorThunk.fulfilled, (state, action) => {
-                const updated = action.payload;
-                state.items = state.items.map((x) => (x.modelColorId === updated.modelColorId ? updated : x));
-            })
-            .addCase(deleteModelColorThunk.fulfilled, (state, action) => {
-                const id = action.payload;
-                state.items = state.items.filter((x) => x.modelColorId !== id);
-            });
+            ;
     },
 });
 
