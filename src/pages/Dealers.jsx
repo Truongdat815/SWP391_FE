@@ -1,96 +1,105 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useDispatch, useSelector } from 'react-redux';
+import { getAllStoresThunk, getStoresByStatusThunk, getStoresByProvinceThunk, searchStoresThunk } from '../store/slices/storeSlice';
 import DealerCard from '../components/DealerCard';
 
 const Dealers = () => {
-  const [dealers, setDealers] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const dispatch = useDispatch();
+  const stores = useSelector((s) => s.stores.items);
+  const storesStatus = useSelector((s) => s.stores.status);
+  const storesError = useSelector((s) => s.stores.error);
+  
+  const loading = storesStatus === 'loading';
+  const error = storesError;
+  
+  // Search and filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedProvince, setSelectedProvince] = useState('');
+  const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    const fetchDealers = async () => {
-      try {
-        setLoading(true);
-        const response = await fetch('http://localhost:3000/dealers');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch dealers');
-        }
-        
-        const data = await response.json();
-        setDealers(data);
-      } catch (err) {
-        setError(err.message);
-        // Fallback data if API is not available
-        setDealers([
-          {
-            id: 1,
-            name: "Electra Hà Nội",
-            address: "123 Đường Láng, Đống Đa, Hà Nội",
-            phone: "024 1234 5678",
-            image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop",
-            description: "Đại lý chính thức Electra tại Hà Nội với showroom hiện đại và đội ngũ tư vấn chuyên nghiệp.",
-            latitude: 21.0285,
-            longitude: 105.8542
-          },
-          {
-            id: 2,
-            name: "Electra TP.HCM",
-            address: "456 Nguyễn Huệ, Quận 1, TP.HCM",
-            phone: "028 9876 5432",
-            image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop",
-            description: "Showroom Electra lớn nhất tại TP.HCM với đầy đủ các dòng xe và dịch vụ bảo hành.",
-            latitude: 10.7769,
-            longitude: 106.7009
-          },
-          {
-            id: 3,
-            name: "Electra Đà Nẵng",
-            address: "789 Lê Duẩn, Hải Châu, Đà Nẵng",
-            phone: "0236 5555 7777",
-            image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop",
-            description: "Đại lý Electra tại miền Trung với không gian trưng bày rộng rãi và dịch vụ khách hàng tận tâm.",
-            latitude: 16.0544,
-            longitude: 108.2022
-          },
-          {
-            id: 4,
-            name: "Electra Cần Thơ",
-            address: "321 Nguyễn Văn Cừ, Ninh Kiều, Cần Thơ",
-            phone: "0292 3333 9999",
-            image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop",
-            description: "Đại lý Electra tại Đồng bằng sông Cửu Long với đội ngũ kỹ thuật giàu kinh nghiệm.",
-            latitude: 10.0452,
-            longitude: 105.7469
-          },
-          {
-            id: 5,
-            name: "Electra Hải Phòng",
-            address: "654 Lê Lợi, Ngô Quyền, Hải Phòng",
-            phone: "0225 7777 8888",
-            image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop",
-            description: "Showroom Electra tại thành phố cảng với dịch vụ bảo dưỡng và sửa chữa chuyên nghiệp.",
-            latitude: 20.8449,
-            longitude: 106.6881
-          },
-          {
-            id: 6,
-            name: "Electra Nha Trang",
-            address: "987 Trần Phú, Lộc Thọ, Nha Trang",
-            phone: "0258 2222 4444",
-            image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop",
-            description: "Đại lý Electra tại thành phố biển với không gian showroom thoáng mát và view đẹp.",
-            latitude: 12.2388,
-            longitude: 109.1967
-          }
-        ]);
-      } finally {
-        setLoading(false);
-      }
-    };
+    // Only fetch active stores for the public dealers page
+    if (storesStatus === 'idle') {
+      dispatch(getStoresByStatusThunk('ACTIVE'));
+    }
+  }, [dispatch, storesStatus]);
 
-    fetchDealers();
-  }, []);
+  // Handle search functionality
+  const handleSearch = () => {
+    if (searchTerm.trim() || selectedProvince) {
+      const searchParams = {
+        storeName: searchTerm.trim() || undefined,
+        provinceName: selectedProvince || undefined
+      };
+      // Remove undefined values
+      Object.keys(searchParams).forEach(key => 
+        searchParams[key] === undefined && delete searchParams[key]
+      );
+      dispatch(searchStoresThunk(searchParams));
+    } else {
+      dispatch(getStoresByStatusThunk('ACTIVE'));
+    }
+  };
+
+  const handleProvinceFilter = (province) => {
+    setSelectedProvince(province);
+    if (province) {
+      dispatch(getStoresByProvinceThunk(province));
+    } else {
+      dispatch(getStoresByStatusThunk('ACTIVE'));
+    }
+  };
+
+  const clearFilters = () => {
+    setSearchTerm('');
+    setSelectedProvince('');
+    dispatch(getStoresByStatusThunk('ACTIVE'));
+  };
+
+  // Get unique provinces for filter dropdown
+  const uniqueProvinces = [...new Set(stores.map(store => store.provinceName).filter(Boolean))];
+
+  // Transform store data to match DealerCard component expectations
+  const dealers = stores.map(store => ({
+    id: store.storeId,
+    name: store.storeName,
+    address: store.address,
+    phone: store.phone,
+    image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop", // Default image
+    description: `Đại lý chính thức Electra tại ${store.provinceName} với showroom hiện đại và đội ngũ tư vấn chuyên nghiệp.`,
+    latitude: getLatitudeForProvince(store.provinceName),
+    longitude: getLongitudeForProvince(store.provinceName),
+    ownerName: store.ownerName,
+    status: store.status
+  }));
+
+  // Helper function to get coordinates for provinces
+  function getLatitudeForProvince(provinceName) {
+    const coordinates = {
+      'Hà Nội': 21.0285,
+      'TP.HCM': 10.7769,
+      'Đà Nẵng': 16.0544,
+      'Cần Thơ': 10.0452,
+      'Hải Phòng': 20.8449,
+      'Nha Trang': 12.2388,
+      'Hồ Chí Minh': 10.7769
+    };
+    return coordinates[provinceName] || 21.0285; // Default to Hanoi
+  }
+
+  function getLongitudeForProvince(provinceName) {
+    const coordinates = {
+      'Hà Nội': 105.8542,
+      'TP.HCM': 106.7009,
+      'Đà Nẵng': 108.2022,
+      'Cần Thơ': 105.7469,
+      'Hải Phòng': 106.6881,
+      'Nha Trang': 109.1967,
+      'Hồ Chí Minh': 106.7009
+    };
+    return coordinates[provinceName] || 105.8542; // Default to Hanoi
+  }
 
   if (loading) {
     return (
@@ -104,7 +113,7 @@ const Dealers = () => {
   }
 
   if (error) {
-    console.log('Using fallback data due to API error:', error);
+    console.log('Error loading stores:', error);
   }
 
   return (
@@ -122,16 +131,110 @@ const Dealers = () => {
               Mạng lưới đại lý{' '}
               <span className="text-green-200">Electra</span>
             </h1>
-            <p className="text-xl text-green-100 max-w-3xl mx-auto">
+            <p className="text-xl text-green-100 max-w-3xl mx-auto mb-8">
               Khám phá các đại lý chính thức của Electra trên toàn quốc. 
               Tìm đại lý gần nhất để trải nghiệm và sở hữu xe điện Electra.
             </p>
+            
+            {/* Search Section */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="max-w-4xl mx-auto"
+            >
+              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                <div className="flex flex-col md:flex-row gap-4">
+                  <div className="flex-1">
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg className="h-5 w-5 text-green-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Tìm kiếm theo tên đại lý..."
+                        className="block w-full pl-10 pr-3 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-green-200 focus:ring-2 focus:ring-green-300 focus:border-transparent"
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex gap-3">
+                    <select 
+                      className="px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:ring-2 focus:ring-green-300 focus:border-transparent"
+                      value={selectedProvince}
+                      onChange={(e) => handleProvinceFilter(e.target.value)}
+                    >
+                      <option value="" className="text-gray-800">Tất cả khu vực</option>
+                      {uniqueProvinces.map(province => (
+                        <option key={province} value={province} className="text-gray-800">{province}</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleSearch}
+                      className="px-6 py-3 bg-green-500 hover:bg-green-400 text-white rounded-lg transition flex items-center font-medium"
+                    >
+                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                      </svg>
+                      Tìm kiếm
+                    </button>
+                    <button
+                      onClick={clearFilters}
+                      className="px-4 py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg transition flex items-center"
+                    >
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Search Results Info */}
+                {(searchTerm || selectedProvince) && (
+                  <div className="mt-4 text-center">
+                    <p className="text-green-100 text-sm">
+                      {searchTerm && selectedProvince 
+                        ? `Tìm kiếm "${searchTerm}" tại ${selectedProvince}`
+                        : searchTerm 
+                        ? `Tìm kiếm "${searchTerm}"`
+                        : `Lọc theo khu vực: ${selectedProvince}`
+                      }
+                      <span className="ml-2 text-green-200">({dealers.length} kết quả)</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
           </motion.div>
         </div>
       </div>
 
       {/* Dealers Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+        {/* Results Header */}
+        {(searchTerm || selectedProvince) && dealers.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-8"
+          >
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+              <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                Kết quả tìm kiếm
+              </h2>
+              <p className="text-gray-600">
+                Tìm thấy <span className="font-semibold text-green-600">{dealers.length}</span> đại lý
+                {searchTerm && ` cho "${searchTerm}"`}
+                {selectedProvince && ` tại ${selectedProvince}`}
+              </p>
+            </div>
+          </motion.div>
+        )}
+
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -150,7 +253,7 @@ const Dealers = () => {
           ))}
         </motion.div>
 
-        {dealers.length === 0 && (
+        {dealers.length === 0 && !loading && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -158,15 +261,26 @@ const Dealers = () => {
           >
             <div className="text-gray-400 mb-4">
               <svg className="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
               </svg>
             </div>
             <h3 className="text-xl font-semibold text-gray-600 mb-2">
-              Chưa có đại lý nào
+              {searchTerm || selectedProvince ? 'Không tìm thấy đại lý nào' : 'Chưa có đại lý nào'}
             </h3>
-            <p className="text-gray-500">
-              Hiện tại chưa có đại lý nào được liệt kê. Vui lòng quay lại sau.
+            <p className="text-gray-500 mb-4">
+              {searchTerm || selectedProvince 
+                ? 'Không có đại lý nào phù hợp với tiêu chí tìm kiếm của bạn. Vui lòng thử lại với từ khóa khác.'
+                : 'Hiện tại chưa có đại lý nào được liệt kê. Vui lòng quay lại sau.'
+              }
             </p>
+            {(searchTerm || selectedProvince) && (
+              <button
+                onClick={clearFilters}
+                className="px-6 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg transition font-medium"
+              >
+                Xem tất cả đại lý
+              </button>
+            )}
           </motion.div>
         )}
       </div>
