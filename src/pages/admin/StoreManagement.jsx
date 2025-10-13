@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import axiosClient from '@/services/axiosClient';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   getAllStoresThunk, 
@@ -34,6 +35,7 @@ function StoreManagement() {
   const storesError = useSelector((s) => s.stores.error);
   const isStoresFetching = storesStatus === 'loading';
   const isCreatingStore = storesStatus === 'loading';
+  const [storesApi, setStoresApi] = useState([]);
   
   const [activeTab, setActiveTab] = useState('stores');
   const [searchTerm, setSearchTerm] = useState('');
@@ -51,6 +53,15 @@ function StoreManagement() {
       dispatch(getAllStoresThunk());
     }
   }, [dispatch, storesStatus]);
+
+  // Fallback fetch via axiosClient for direct API usage
+  useEffect(() => {
+    axiosClient.get('/api/stores/all')
+      .then((res) => setStoresApi(Array.isArray(res?.data?.data) ? res.data.data : []))
+      .catch((err) => console.error('Lỗi lấy danh sách store:', err));
+  }, []);
+
+  const storesList = (stores && stores.length) ? stores : storesApi;
   
   const [formData, setFormData] = useState({
     storeName: '',
@@ -99,7 +110,7 @@ function StoreManagement() {
     try {
       if (editingStore) {
         if (formData.storeName !== editingStore.storeName) {
-          const nameExists = stores.some(store => 
+          const nameExists = storesList.some(store => 
             store.storeName === formData.storeName && store.storeId !== editingStore.storeId
           );
           if (nameExists) {
@@ -109,7 +120,7 @@ function StoreManagement() {
         }
         
         if (formData.phone !== editingStore.phone) {
-          const phoneExists = stores.some(store => 
+          const phoneExists = storesList.some(store => 
             store.phone === formData.phone && store.storeId !== editingStore.storeId
           );
           if (phoneExists) {
@@ -131,13 +142,15 @@ function StoreManagement() {
         };
         await dispatch(updateStoreThunk(updateData)).unwrap();
       } else {
-        const nameExists = stores.some(store => store.storeName === formData.storeName);
+        // Check if store name already exists for new store
+        const nameExists = storesList.some(store => store.storeName === formData.storeName);
         if (nameExists) {
           setErrorMessage('Tên cửa hàng đã tồn tại. Vui lòng chọn tên khác.');
           return;
         }
         
-        const phoneExists = stores.some(store => store.phone === formData.phone);
+        // Check if phone number already exists for new store
+        const phoneExists = storesList.some(store => store.phone === formData.phone);
         if (phoneExists) {
           setErrorMessage('Số điện thoại đã tồn tại. Vui lòng chọn số khác.');
           return;
@@ -290,10 +303,11 @@ function StoreManagement() {
     dispatch(getAllStoresThunk());
   };
 
-  const uniqueProvinces = [...new Set(stores.map(store => store.provinceName).filter(Boolean))];
+  // Get unique provinces for filter dropdown
+  const uniqueProvinces = [...new Set(storesList.map(store => store.provinceName).filter(Boolean))];
 
   const tabs = [
-    { id: 'stores', name: 'Danh sách cửa hàng', count: stores.length },
+    { id: 'stores', name: 'Danh sách cửa hàng', count: storesList.length },
     { id: 'analytics', name: 'Thống kê & Báo cáo', count: 0 }
   ];
 
@@ -330,7 +344,7 @@ function StoreManagement() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {stores.map((store, index) => (
+            {storesList.map((store, index) => (
               <tr 
                 key={store.storeId}
                 className={`transition-all duration-200 hover:bg-blue-50 hover:shadow-sm cursor-pointer
@@ -412,7 +426,7 @@ function StoreManagement() {
                 </td>
               </tr>
             ))}
-            {stores.length === 0 && !isStoresFetching && (
+            {storesList.length === 0 && !isStoresFetching && (
               <tr>
                 <td colSpan="6" className="px-6 py-16">
                   <div className="text-center">

@@ -3,6 +3,9 @@ import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 
 const DealerCard = ({ dealer }) => {
+  const displayName = dealer.storeName || dealer.name || 'Đại lý Electra';
+  const displayImage = dealer.image || 'https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop';
+  const dealerId = dealer.id ?? dealer.storeId;
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -13,8 +16,8 @@ const DealerCard = ({ dealer }) => {
     >
       <div className="relative h-48 overflow-hidden">
         <img
-          src={dealer.image}
-          alt={dealer.name}
+          src={displayImage}
+          alt={displayName}
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
@@ -22,7 +25,7 @@ const DealerCard = ({ dealer }) => {
       
       <div className="p-6">
         <h3 className="text-xl font-bold text-gray-900 mb-2">
-          {dealer.name}
+          {displayName}
         </h3>
         
         <div className="space-y-2 mb-4">
@@ -47,7 +50,7 @@ const DealerCard = ({ dealer }) => {
         </div>
         
         <Link
-          to={`/dealers/${dealer.id}`}
+          to={`/dealers/${dealerId}`}
           className="inline-flex items-center justify-center w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors duration-200"
         >
           Xem chi tiết
