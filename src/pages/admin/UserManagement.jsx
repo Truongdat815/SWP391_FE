@@ -348,8 +348,12 @@ function UserManagement() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {users.filter(user => user.roleName === 'EVM Staff').map((u) => (
-              <tr key={u.userId}>
+            {usersList.filter(user => user.roleName === roleName).map((u, index) => (
+              <tr 
+                key={u.userId}
+                className={`transition-all duration-200 hover:bg-red-50 hover:shadow-sm cursor-pointer
+                  ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
+              >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
                     <div className={`h-12 w-12 bg-gradient-to-br ${roleColor} rounded-full flex items-center justify-center mr-4 shadow-lg ring-2 ring-opacity-20 ring-gray-300`}>
@@ -358,91 +362,14 @@ function UserManagement() {
                       </span>
                     </div>
                     <div>
-                      <div className="text-sm font-medium text-gray-900">{u.fullName}</div>
-                      <div className="text-sm text-gray-500">{u.email}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{u.phone}</td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(String(u.status || '').toLowerCase())}`}>
-                    {getStatusText(String(u.status || '').toLowerCase())}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{u.storeName || 'N/A'}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.userId}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                  <button 
-                    onClick={() => handleEditClick(u)}
-                    className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50 transition-colors" 
-                    title="Chỉnh sửa"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </button>
-                  <button className="text-green-600 hover:text-green-900 p-1 rounded-full hover:bg-green-50 transition-colors" title="Xem chi tiết">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClick(u)}
-                    className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50 transition-colors"
-                    title="Xóa người dùng"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {users.filter(user => user.roleName === 'EVM Staff').length === 0 && (
-              <tr>
-                <td colSpan="6" className="px-6 py-8 text-center text-sm text-gray-500">Không có EVM Staff</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-
-  const renderDealerStaffTable = () => (
-    <div className="overflow-x-auto">
-      {isUsersFetching && (
-        <div className="p-4 text-sm text-gray-600">Đang tải danh sách người dùng...</div>
-      )}
-      {!isUsersFetching && usersError && (
-        <div className="p-4 text-sm text-red-600">Lỗi tải danh sách: {String(usersError?.error || usersError?.data || 'Unknown error')}</div>
-      )}
-      {!isUsersFetching && !usersError && (
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Họ tên</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số điện thoại</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {users.filter(user => user.roleName === 'Dealer Staff').map((u) => (
-              <tr key={u.userId}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="h-10 w-10 bg-blue-100 rounded-full flex items-center justify-center mr-4">
-                      <span className="text-blue-600 font-semibold text-sm">
-                        {(u.fullName || '').split(' ').pop()?.charAt(0) || 'U'}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{u.fullName}</div>
-                      <div className="text-sm text-gray-500">{u.email}</div>
+                      <div className="text-sm font-semibold text-gray-900">{u.fullName}</div>
+                      <div className="text-sm text-gray-500 flex items-center">
+                        <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                        </svg>
+                        {u.email}
+                      </div>
                     </div>
                   </div>
                 </td>
@@ -451,70 +378,7 @@ function UserManagement() {
                     <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
                     </svg>
-                  </button>
-                  <button className="text-green-600 hover:text-green-900 p-1 rounded-full hover:bg-green-50 transition-colors" title="Xem chi tiết">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClick(u)}
-                    className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50 transition-colors"
-                    title="Xóa người dùng"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {users.filter(user => user.roleName === 'Dealer Staff').length === 0 && (
-              <tr>
-                <td colSpan="6" className="px-6 py-8 text-center text-sm text-gray-500">Không có Dealer Staff</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-
-  const renderDealerManagerTable = () => (
-    <div className="overflow-x-auto">
-      {isUsersFetching && (
-        <div className="p-4 text-sm text-gray-600">Đang tải danh sách người dùng...</div>
-      )}
-      {!isUsersFetching && usersError && (
-        <div className="p-4 text-sm text-red-600">Lỗi tải danh sách: {String(usersError?.error || usersError?.data || 'Unknown error')}</div>
-      )}
-      {!isUsersFetching && !usersError && (
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Họ tên</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số điện thoại</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {users.filter(user => user.roleName === 'Dealer Manager').map((u) => (
-              <tr key={u.userId}>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="h-10 w-10 bg-green-100 rounded-full flex items-center justify-center mr-4">
-                      <span className="text-green-600 font-semibold text-sm">
-                        {(u.fullName || '').split(' ').pop()?.charAt(0) || 'U'}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{u.fullName}</div>
-                      <div className="text-sm text-gray-500">{u.email}</div>
-                    </div>
+                    {u.phone}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -522,70 +386,6 @@ function UserManagement() {
                     {getStatusText(String(u.status || '').toLowerCase())}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{u.storeName || 'N/A'}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{u.userId}</td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
-                  <button 
-                    onClick={() => handleEditClick(u)}
-                    className="text-blue-600 hover:text-blue-900 p-1 rounded-full hover:bg-blue-50 transition-colors" 
-                    title="Chỉnh sửa"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                  </button>
-                  <button className="text-green-600 hover:text-green-900 p-1 rounded-full hover:bg-green-50 transition-colors" title="Xem chi tiết">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  </button>
-                  <button
-                    onClick={() => handleDeleteClick(u)}
-                    className="text-red-600 hover:text-red-900 p-1 rounded-full hover:bg-red-50 transition-colors"
-                    title="Xóa người dùng"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {users.filter(user => user.roleName === 'Dealer Manager').length === 0 && (
-              <tr>
-                <td colSpan="6" className="px-6 py-8 text-center text-sm text-gray-500">Không có Dealer Manager</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
-
-  const renderAdminTable = () => (
-    <div className="overflow-x-auto">
-      {isUsersFetching && (
-        <div className="p-4 text-sm text-gray-600">Đang tải danh sách người dùng...</div>
-      )}
-      {!isUsersFetching && usersError && (
-        <div className="p-4 text-sm text-red-600">Lỗi tải danh sách: {String(usersError?.error || usersError?.data || 'Unknown error')}</div>
-      )}
-      {!isUsersFetching && !usersError && (
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Họ tên</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Số điện thoại</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Trạng thái</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User ID</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {users.filter(user => user.roleName === 'Admin').map((u) => (
-              <tr key={u.userId}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm text-gray-900">{u.storeName || 'N/A'}</div>
                 </td>
@@ -631,7 +431,7 @@ function UserManagement() {
                 </td>
               </tr>
             ))}
-            {users.filter(user => user.roleName === 'Admin').length === 0 && (
+            {usersList.filter(user => user.roleName === roleName).length === 0 && (
               <tr>
                 <td colSpan="6" className="px-6 py-16">
                   <div className="text-center">
@@ -669,6 +469,7 @@ function UserManagement() {
   const renderDealerStaffTable = () => renderUserTable('Dealer Staff', getRoleColor('Dealer Staff'));
   const renderDealerManagerTable = () => renderUserTable('Dealer Manager', getRoleColor('Dealer Manager'));
   const renderAdminTable = () => renderUserTable('Admin', getRoleColor('Admin'));
+
 
   return (
     <div className="px-6 space-y-6">
