@@ -1,4 +1,9 @@
+import { useEffect, useState } from 'react';
+import axiosClient from '@/services/axiosClient';
+
 function AdminDashboard() {
+  const [orderCount, setOrderCount] = useState(0);
+  const [roles, setRoles] = useState([]);
 
   // Stats data with trends
   const stats = [
@@ -97,6 +102,16 @@ function AdminDashboard() {
     }
   };
 
+  useEffect(() => {
+    axiosClient.get('/api/orders/count/status/COMPLETED')
+      .then((res) => setOrderCount(Number(res?.data?.data) || 0))
+      .catch(() => setOrderCount(0));
+
+    axiosClient.get('/api/roles/all')
+      .then((res) => setRoles(Array.isArray(res?.data?.data) ? res.data.data : []))
+      .catch(() => setRoles([]));
+  }, []);
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -116,7 +131,9 @@ function AdminDashboard() {
                 </div>
                 <div className="ml-4">
                   <p className="text-sm font-medium text-gray-600">{stat.title}</p>
-                  <p className="text-2xl font-bold text-gray-900">{stat.value}</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {stat.title === 'Logs hệ thống' ? orderCount : stat.value}
+                  </p>
                 </div>
               </div>
               <div className={`text-sm font-medium ${getChangeColor(stat.changeType)}`}>
@@ -145,7 +162,7 @@ function AdminDashboard() {
         </div>
       </div>
 
-      {/* Chart Placeholder */}
+      {/* Roles and Chart Placeholder */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-6">Thống kê toàn hệ thống</h2>
         <div className="h-64 flex items-center justify-center border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
@@ -154,6 +171,12 @@ function AdminDashboard() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
             <p className="text-gray-500 font-medium">Chart Placeholder</p>
+            <div className="mt-4 text-sm text-gray-600">
+              Số đơn hoàn tất: <span className="font-semibold text-gray-900">{orderCount}</span>
+            </div>
+            <div className="mt-2 text-sm text-gray-600">
+              Vai trò hiện có: <span className="font-semibold text-gray-900">{roles.length}</span>
+            </div>
           </div>
         </div>
       </div>

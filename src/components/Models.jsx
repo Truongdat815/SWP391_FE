@@ -1,91 +1,16 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-
-import electraAscent from '../assets/images/electra ascent.png';
-import electraCitylink from '../assets/images/electra citylink poster.png';
-import electraGrandtour from '../assets/images/electra grandtour.png';
-import electraMicro from '../assets/images/electra micro.png';
-import electraSummit from '../assets/images/electra summit.png';
-import electraVelocity from '../assets/images/electra velocity.png';
-import electraUrbanpluse from '../assets/images/electra urbanpluse.png';
-import electraVoyager from '../assets/images/electra voyager.png';
+import axiosClient from '@/services/axiosClient';
 
 const Models = () => {
-  const vehicles = [
-    {
-      id: 'electra-ascent',
-      name: 'Electra Ascent',
-      image: electraAscent,
-      price: '320.000.000',
-      category: 'SUV Cao cấp',
-      description: 'Luxury SUV với công nghệ tiên tiến và thiết kế sang trọng',
-      features: ['Pin 70kWh', 'Quãng đường 380km', 'Sạc nhanh 25 phút']
-    },
-    {
-      id: 'electra-citylink',
-      name: 'Electra CityLink',
-      image: electraCitylink,
-      price: '280.000.000',
-      category: 'Xe đô thị',
-      description: 'Xe điện thông minh cho thành phố với thiết kế nhỏ gọn',
-      features: ['Pin 55kWh', 'Quãng đường 320km', 'Sạc nhanh 20 phút']
-    },
-    {
-      id: 'electra-grandtour',
-      name: 'Electra GrandTour',
-      image: electraGrandtour,
-      price: '450.000.000',
-      category: 'Xe gia đình',
-      description: 'Xe điện cao cấp cho gia đình với không gian rộng rãi',
-      features: ['Pin 80kWh', 'Quãng đường 420km', 'Sạc nhanh 22 phút']
-    },
-    {
-      id: 'electra-micro',
-      name: 'Electra Micro',
-      image: electraMicro,
-      price: '180.000.000',
-      category: 'Xe nhỏ gọn',
-      description: 'Xe điện nhỏ gọn, tiện lợi cho di chuyển trong thành phố',
-      features: ['Pin 35kWh', 'Quãng đường 200km', 'Sạc nhanh 15 phút']
-    },
-    {
-      id: 'electra-summit',
-      name: 'Electra Summit',
-      image: electraSummit,
-      price: '680.000.000',
-      category: 'SUV Thể thao',
-      description: 'Xe điện thể thao mạnh mẽ với hiệu suất vượt trội',
-      features: ['Pin 90kWh', 'Quãng đường 450km', 'Sạc nhanh 18 phút']
-    },
-    {
-      id: 'electra-velocity',
-      name: 'Electra Velocity',
-      image: electraVelocity,
-      price: '850.000.000',
-      category: 'Xe tốc độ',
-      description: 'Xe điện tốc độ cao với công nghệ đua xe',
-      features: ['Pin 100kWh', 'Quãng đường 500km', 'Sạc nhanh 15 phút']
-    },
-    {
-      id: 'electra-urbanpluse',
-      name: 'Electra UrbanPulse',
-      image: electraUrbanpluse,
-      price: '220.000.000',
-      category: 'Xe năng động',
-      description: 'Xe điện năng động cho giới trẻ với thiết kế hiện đại',
-      features: ['Pin 45kWh', 'Quãng đường 280km', 'Sạc nhanh 18 phút']
-    },
-    {
-      id: 'electra-voyager',
-      name: 'Electra Voyager',
-      image: electraVoyager,
-      price: '750.000.000',
-      category: 'Xe phiêu lưu',
-      description: 'Xe điện phiêu lưu, khám phá với khả năng off-road',
-      features: ['Pin 85kWh', 'Quãng đường 400km', 'Sạc nhanh 20 phút']
-    }
-  ];
+  const [models, setModels] = useState([]);
+
+  useEffect(() => {
+    axiosClient.get('/api/models/all')
+      .then((res) => setModels(res.data.data))
+      .catch((err) => console.error('Lỗi lấy danh sách model:', err));
+  }, []);
 
   return (
     <section id="models" className="py-20 bg-white">
@@ -112,9 +37,9 @@ const Models = () => {
 
         {/* Vehicle Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-          {vehicles.map((vehicle, index) => (
+          {models.map((model, index) => (
             <motion.div
-              key={vehicle.id}
+              key={model.modelId}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: index * 0.1 }}
@@ -123,18 +48,12 @@ const Models = () => {
             >
               {/* Image Container */}
               <div className="relative h-48 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
-                <motion.img
-                  whileHover={{ scale: 1.1 }}
-                  transition={{ duration: 0.5 }}
-                  src={vehicle.image}
-                  alt={vehicle.name}
-                  className="w-full h-full object-contain object-center"
-                />
+                {/* No image from API schema; keep placeholder gradient */}
                 
                 {/* Category Badge */}
                 <div className="absolute top-4 left-4">
                   <span className="bg-gradient-to-r from-green-600 to-green-800 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                    {vehicle.category}
+                    {model.bodyType || 'EV'}
                   </span>
                 </div>
 
@@ -147,11 +66,15 @@ const Models = () => {
                       className="text-white"
                     >
                       <div className="flex space-x-2">
-                        {vehicle.features.map((feature, idx) => (
-                          <span key={idx} className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded text-xs">
-                            {feature}
-                          </span>
-                        ))}
+                        <span className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded text-xs">
+                          {model.batteryCapacity ? `Pin ${model.batteryCapacity}kWh` : 'Pin N/A'}
+                        </span>
+                        <span className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded text-xs">
+                          {model.range ? `Quãng đường ${model.range}km` : 'Quãng đường N/A'}
+                        </span>
+                        <span className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded text-xs">
+                          {model.powerHp ? `${model.powerHp} HP` : 'Công suất N/A'}
+                        </span>
                       </div>
                     </motion.div>
                   </div>
@@ -161,19 +84,19 @@ const Models = () => {
               {/* Content */}
               <div className="p-6">
                 <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-green-600 transition-colors duration-300">
-                  {vehicle.name}
+                  {model.modelName}
                 </h3>
                 <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                  {vehicle.description}
+                  {model.modelYear ? `Model ${model.modelYear}` : 'Mẫu xe điện thông minh'}
                 </p>
                 
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-2xl font-bold text-gray-900">
-                    {vehicle.price} VNĐ
+                    {model.price ? `${model.price.toLocaleString('vi-VN')} VNĐ` : 'Liên hệ'}
                   </span>
                 </div>
 
-                <Link to={`/car/${vehicle.id}`}>
+                <Link to={`/car/${model.modelId}`}>
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}

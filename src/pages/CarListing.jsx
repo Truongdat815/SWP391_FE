@@ -1,63 +1,15 @@
 import { Link } from 'react-router-dom'
-import electraAscent from "../assets/images/electra ascent.png"
-import electraCitylink from "../assets/images/electracitylink.png"
-import electraGrandtour from "../assets/images/electra grandtour.png"
-import electraMicro from "../assets/images/electra micro.png"
-import electraSummit from "../assets/images/electra summit.png"
-import electraVelocity from "../assets/images/electra velocity.png"
+import { useEffect, useState } from 'react'
+import axiosClient from '@/services/axiosClient'
 
 function CarListing() {
-  const cars = [
-    {
-      id: 'electra-ascent',
-      
-      name: 'Electra Ascent',
-      image: electraAscent,
-      price: '299.000.000',
-      description: 'Xe điện đô thị thông minh, thiết kế nhỏ gọn và hiệu quả',
-      specs: ['Pin 45kWh', 'Quãng đường 250km', 'Sạc nhanh 20 phút']
-    },
-    {
-      id: 'electra-citylink',
-      name: 'Electra CityLink',
-      image: electraCitylink,
-      price: '529.000.000',
-      description: 'Crossover điện cao cấp với công nghệ AI thông minh',
-      specs: ['Pin 60kWh', 'Quãng đường 350km', 'Sạc nhanh 18 phút']
-    },
-    {
-      id: 'electra-grandtour',
-      name: 'Electra GrandTour',
-      image: electraGrandtour,
-      price: '765.000.000',
-      description: 'SUV điện cao cấp cho gia đình hiện đại',
-      specs: ['Pin 70kWh', 'Quãng đường 400km', 'Sạc nhanh 16 phút']
-    },
-    {
-      id: 'electra-micro',
-      name: 'Electra Micro',
-      image: electraMicro,
-      price: '999.000.000',
-      description: 'SUV điện cao cấp với thiết kế tương lai',
-      specs: ['Pin 80kWh', 'Quãng đường 500km', 'Sạc nhanh 15 phút']
-    },
-    {
-      id: 'electra-summit',
-      name: 'Electra Summit',
-      image: electraSummit,
-      price: '1.199.000.000',
-      description: 'SUV điện tầm trung, hiệu suất cao cho mọi hành trình',
-      specs: ['Pin 85kWh', 'Quãng đường 550km', 'Sạc nhanh 14 phút']
-    },
-    {
-      id: 'electra-velocity',
-      name: 'Electra Velocity',
-      image: electraVelocity,
-      price: '1.599.000.000',
-      description: 'SUV flagship điện sang trọng, 3 hàng ghế cao cấp',
-      specs: ['Pin 100kWh', 'Quãng đường 600km', 'Sạc nhanh 12 phút']
-    }
-  ]
+  const [models, setModels] = useState([])
+
+  useEffect(() => {
+    axiosClient.get('/api/models/all')
+      .then(res => setModels(res.data.data))
+      .catch(err => console.error('Lỗi lấy danh sách model:', err))
+  }, [])
 
   return (
     <div className="min-h-screen bg-white">
@@ -76,26 +28,23 @@ function CarListing() {
       {/* Cars Grid */}
       <div className="max-w-7xl mx-auto px-4 lg:px-6 py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {cars.map((car) => (
-            <div key={car.id} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group">
+          {models.map((model) => (
+            <div key={model.modelId} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group">
               {/* Car Image */}
               <div className="relative overflow-hidden">
-                <img 
-                  src={car.image} 
-                  alt={car.name}
-                  className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500"
-                />
+                {/* API chưa trả ảnh, giữ placeholder gradient */}
+                <div className="w-full h-64 bg-gradient-to-br from-gray-50 to-gray-100" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
               </div>
 
               {/* Car Info */}
               <div className="p-6">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">{car.name}</h3>
-                <p className="text-gray-600 mb-4 leading-relaxed">{car.description}</p>
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">{model.modelName}</h3>
+                <p className="text-gray-600 mb-4 leading-relaxed">{model.modelYear ? `Model ${model.modelYear}` : 'Mẫu xe điện'}</p>
                 
                 {/* Specs */}
                 <div className="space-y-2 mb-6">
-                  {car.specs.map((spec, index) => (
+                  {[`Pin ${model.batteryCapacity || 'N/A'}kWh`, `Quãng đường ${model.range || 'N/A'}km`, `${model.powerHp || 'N/A'} HP`].map((spec, index) => (
                     <div key={index} className="flex items-center text-sm text-gray-700">
                       <svg className="w-4 h-4 text-emerald-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
                         <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
@@ -109,20 +58,20 @@ function CarListing() {
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <p className="text-sm text-gray-500">Giá từ</p>
-                    <p className="text-2xl font-bold text-emerald-600">{car.price} VNĐ</p>
+                    <p className="text-2xl font-bold text-emerald-600">{model.price ? `${model.price.toLocaleString('vi-VN')} VNĐ` : 'Liên hệ'}</p>
                   </div>
                 </div>
 
                 {/* Action Buttons */}
                 <div className="flex gap-3">
                   <Link 
-                    to={`/car/${car.id}`}
+                    to={`/car/${model.modelId}`}
                     className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white text-center py-3 px-4 rounded-lg font-semibold transition-colors duration-200"
                   >
                     Xem chi tiết
                   </Link>
                   <Link 
-                    to={`/car/${car.id}`}
+                    to={`/car/${model.modelId}`}
                     className="px-4 py-3 border-2 border-emerald-600 text-emerald-600 hover:bg-emerald-600 hover:text-white rounded-lg font-semibold transition-colors duration-200 text-center"
                   >
                     Liên hệ tư vấn
