@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import axiosClient from '@/services/axiosClient';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   getAllStoresThunk, 
@@ -17,6 +18,7 @@ function StoreManagement() {
   const storesError = useSelector((s) => s.stores.error);
   const isStoresFetching = storesStatus === 'loading';
   const isCreatingStore = storesStatus === 'loading';
+  const [storesApi, setStoresApi] = useState([]);
   
   const [activeTab, setActiveTab] = useState('stores');
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,6 +36,15 @@ function StoreManagement() {
       dispatch(getAllStoresThunk());
     }
   }, [dispatch, storesStatus]);
+
+  // Fallback fetch via axiosClient for direct API usage
+  useEffect(() => {
+    axiosClient.get('/api/stores/all')
+      .then((res) => setStoresApi(Array.isArray(res?.data?.data) ? res.data.data : []))
+      .catch((err) => console.error('Lỗi lấy danh sách store:', err));
+  }, []);
+
+  const storesList = (stores && stores.length) ? stores : storesApi;
   
   // Form state for add/edit store modal
   const [formData, setFormData] = useState({
@@ -86,7 +97,7 @@ function StoreManagement() {
       if (editingStore) {
         // Check if store name is being changed and if the new name already exists
         if (formData.storeName !== editingStore.storeName) {
-          const nameExists = stores.some(store => 
+          const nameExists = storesList.some(store => 
             store.storeName === formData.storeName && store.storeId !== editingStore.storeId
           );
           if (nameExists) {
@@ -97,7 +108,7 @@ function StoreManagement() {
         
         // Check if phone number is being changed and if the new phone already exists
         if (formData.phone !== editingStore.phone) {
-          const phoneExists = stores.some(store => 
+          const phoneExists = storesList.some(store => 
             store.phone === formData.phone && store.storeId !== editingStore.storeId
           );
           if (phoneExists) {
@@ -121,14 +132,14 @@ function StoreManagement() {
         await dispatch(updateStoreThunk(updateData)).unwrap();
       } else {
         // Check if store name already exists for new store
-        const nameExists = stores.some(store => store.storeName === formData.storeName);
+        const nameExists = storesList.some(store => store.storeName === formData.storeName);
         if (nameExists) {
           setErrorMessage('Tên cửa hàng đã tồn tại. Vui lòng chọn tên khác.');
           return;
         }
         
         // Check if phone number already exists for new store
-        const phoneExists = stores.some(store => store.phone === formData.phone);
+        const phoneExists = storesList.some(store => store.phone === formData.phone);
         if (phoneExists) {
           setErrorMessage('Số điện thoại đã tồn tại. Vui lòng chọn số khác.');
           return;
@@ -291,10 +302,10 @@ function StoreManagement() {
   };
 
   // Get unique provinces for filter dropdown
-  const uniqueProvinces = [...new Set(stores.map(store => store.provinceName).filter(Boolean))];
+  const uniqueProvinces = [...new Set(storesList.map(store => store.provinceName).filter(Boolean))];
 
   const tabs = [
-    { id: 'stores', name: 'Danh sách cửa hàng', count: stores.length },
+    { id: 'stores', name: 'Danh sách cửa hàng', count: storesList.length },
     { id: 'analytics', name: 'Thống kê & Báo cáo', count: 0 }
   ];
 
@@ -331,7 +342,7 @@ function StoreManagement() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {stores.map((store) => (
+            {storesList.map((store) => (
               <tr key={store.storeId}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
@@ -384,7 +395,7 @@ function StoreManagement() {
                 </td>
               </tr>
             ))}
-            {stores.length === 0 && !isStoresFetching && (
+            {storesList.length === 0 && !isStoresFetching && (
               <tr>
                 <td colSpan="6" className="px-6 py-8 text-center text-sm text-gray-500">Không có cửa hàng</td>
               </tr>

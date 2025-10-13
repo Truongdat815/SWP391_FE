@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import axiosClient from '@/services/axiosClient';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAllUsersThunk, createUserThunk, deleteUserThunk, updateUserThunk } from '@store/slices/userSlice';
 import { getAllStoresThunk } from '@store/slices/storeSlice';
@@ -22,12 +23,22 @@ function UserManagement() {
   const rolesStatus = useSelector((s) => s.roles.status);
   const rolesError = useSelector((s) => s.roles.error);
   const isRolesFetching = rolesStatus === 'loading';
+  const [usersApi, setUsersApi] = useState([]);
 
   useEffect(() => {
     if (usersStatus === 'idle') {
       dispatch(getAllUsersThunk());
     }
   }, [dispatch, usersStatus]);
+
+  // Fallback fetch via axiosClient for direct API usage
+  useEffect(() => {
+    axiosClient.get('/api/users/all')
+      .then((res) => setUsersApi(Array.isArray(res?.data?.data) ? res.data.data : []))
+      .catch((err) => console.error('Lỗi lấy danh sách người dùng:', err));
+  }, []);
+
+  const usersList = (users && users.length) ? users : usersApi;
 
   useEffect(() => {
     if (storesStatus === 'idle') {
@@ -302,10 +313,10 @@ function UserManagement() {
 
 
   const tabs = [
-    { id: 'dealer-staff', name: 'Dealer Staff', count: users.filter(user => user.roleName === 'Dealer Staff').length },
-    { id: 'dealer-manager', name: 'Dealer Manager', count: users.filter(user => user.roleName === 'Dealer Manager').length },
-    { id: 'evm-staff', name: 'EVM Staff', count: users.filter(user => user.roleName === 'EVM Staff').length },
-    { id: 'admin', name: 'Admin', count: users.filter(user => user.roleName === 'Admin').length }
+    { id: 'dealer-staff', name: 'Dealer Staff', count: usersList.filter(user => user.roleName === 'Dealer Staff').length },
+    { id: 'dealer-manager', name: 'Dealer Manager', count: usersList.filter(user => user.roleName === 'Dealer Manager').length },
+    { id: 'evm-staff', name: 'EVM Staff', count: usersList.filter(user => user.roleName === 'EVM Staff').length },
+    { id: 'admin', name: 'Admin', count: usersList.filter(user => user.roleName === 'Admin').length }
   ];
 
   const renderEVMStaffTable = () => (
@@ -329,7 +340,7 @@ function UserManagement() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {users.filter(user => user.roleName === 'EVM Staff').map((u) => (
+            {usersList.filter(user => user.roleName === 'EVM Staff').map((u) => (
               <tr key={u.userId}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
@@ -380,7 +391,7 @@ function UserManagement() {
                 </td>
               </tr>
             ))}
-            {users.filter(user => user.roleName === 'EVM Staff').length === 0 && (
+            {usersList.filter(user => user.roleName === 'EVM Staff').length === 0 && (
               <tr>
                 <td colSpan="6" className="px-6 py-8 text-center text-sm text-gray-500">Không có EVM Staff</td>
               </tr>
@@ -412,7 +423,7 @@ function UserManagement() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {users.filter(user => user.roleName === 'Dealer Staff').map((u) => (
+            {usersList.filter(user => user.roleName === 'Dealer Staff').map((u) => (
               <tr key={u.userId}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
@@ -463,7 +474,7 @@ function UserManagement() {
                 </td>
               </tr>
             ))}
-            {users.filter(user => user.roleName === 'Dealer Staff').length === 0 && (
+            {usersList.filter(user => user.roleName === 'Dealer Staff').length === 0 && (
               <tr>
                 <td colSpan="6" className="px-6 py-8 text-center text-sm text-gray-500">Không có Dealer Staff</td>
               </tr>
@@ -495,7 +506,7 @@ function UserManagement() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {users.filter(user => user.roleName === 'Dealer Manager').map((u) => (
+            {usersList.filter(user => user.roleName === 'Dealer Manager').map((u) => (
               <tr key={u.userId}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
@@ -546,7 +557,7 @@ function UserManagement() {
                 </td>
               </tr>
             ))}
-            {users.filter(user => user.roleName === 'Dealer Manager').length === 0 && (
+            {usersList.filter(user => user.roleName === 'Dealer Manager').length === 0 && (
               <tr>
                 <td colSpan="6" className="px-6 py-8 text-center text-sm text-gray-500">Không có Dealer Manager</td>
               </tr>
@@ -578,7 +589,7 @@ function UserManagement() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {users.filter(user => user.roleName === 'Admin').map((u) => (
+            {usersList.filter(user => user.roleName === 'Admin').map((u) => (
               <tr key={u.userId}>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
@@ -629,7 +640,7 @@ function UserManagement() {
                 </td>
               </tr>
             ))}
-            {users.filter(user => user.roleName === 'Admin').length === 0 && (
+            {usersList.filter(user => user.roleName === 'Admin').length === 0 && (
               <tr>
                 <td colSpan="6" className="px-6 py-8 text-center text-sm text-gray-500">Không có Admin</td>
               </tr>

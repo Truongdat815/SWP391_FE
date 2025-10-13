@@ -1,7 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import axiosClient from '@/services/axiosClient';
 
 function SystemConfig() {
   const [activeTab, setActiveTab] = useState('security');
+  const [orderCount, setOrderCount] = useState(0);
+  const [roles, setRoles] = useState([]);
   const [settings, setSettings] = useState({
     // Security settings
     passwordMinLength: 8,
@@ -39,6 +42,16 @@ function SystemConfig() {
 
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [newApiKey, setNewApiKey] = useState({ name: '', description: '', permissions: [] });
+
+  useEffect(() => {
+    axiosClient.get('/api/orders/count/status/COMPLETED')
+      .then((res) => setOrderCount(Number(res?.data?.data) || 0))
+      .catch(() => setOrderCount(0));
+
+    axiosClient.get('/api/roles/all')
+      .then((res) => setRoles(Array.isArray(res?.data?.data) ? res.data.data : []))
+      .catch(() => setRoles([]));
+  }, []);
 
   const tabs = [
     { id: 'security', name: 'Cấu hình bảo mật', icon: '🔒' },
@@ -502,6 +515,9 @@ function SystemConfig() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Cấu hình hệ thống</h1>
             <p className="text-gray-600 mt-1">Quản lý cài đặt bảo mật, API và phân quyền nâng cao</p>
+            <div className="mt-2 text-sm text-gray-600">
+              Đơn hoàn tất: <span className="font-semibold text-gray-900">{orderCount}</span> · Số role: <span className="font-semibold text-gray-900">{roles.length}</span>
+            </div>
           </div>
           <div className="flex space-x-3">
             <button

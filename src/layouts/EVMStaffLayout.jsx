@@ -65,11 +65,11 @@ const EVMStaffLayout = () => {
   const currentMenu = menuItems.find(m => m.path === location.pathname);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex w-full">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100 flex w-full">
       {/* Sidebar */}
-      <div className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-white shadow-lg border-r border-gray-200 transition-all duration-300 flex flex-col relative flex-shrink-0`}>
+      <div className={`${sidebarCollapsed ? 'w-16' : 'w-64'} bg-white dark:bg-gray-800 shadow-lg border-r border-gray-200 dark:border-gray-700 transition-all duration-300 flex flex-col relative flex-shrink-0`}>
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               {!sidebarCollapsed && (
@@ -77,7 +77,7 @@ const EVMStaffLayout = () => {
                   <img 
                     src="/src/assets/images/logo.png" 
                     alt="Electra Logo" 
-                    className="h-8 w-auto mr-3"
+                    className="h-8 w-auto mr-3 dark:p-1.5 dark:bg-white dark:rounded-2xl dark:shadow-lg dark:ring-1 dark:ring-white/20"
                     onError={(e) => {
                       e.target.src = 'https://via.placeholder.com/120x40/059669/FFFFFF?text=ELECTRA';
                     }}
@@ -89,7 +89,7 @@ const EVMStaffLayout = () => {
                 </>
               )}
               {sidebarCollapsed && (
-                <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center">
+                <div className="w-8 h-8 bg-emerald-600 rounded-lg flex items-center justify-center ring-0 dark:bg-white dark:shadow-lg dark:ring-1 dark:ring-white/20">
                   <img 
                     src="/src/assets/images/logo.png" 
                     alt="Electra Logo" 
@@ -128,8 +128,8 @@ const EVMStaffLayout = () => {
                   to={item.path}
                   className={`w-full flex items-center p-3 rounded-lg transition-colors ${
                     location.pathname === item.path
-                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                      : 'text-gray-700 hover:bg-gray-100'
+                      ? 'bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800'
+                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-700/50'
                   }`}
                 >
                   <div className={`${sidebarCollapsed ? 'mx-auto' : 'mr-3'}`}>
@@ -148,7 +148,7 @@ const EVMStaffLayout = () => {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 w-full">
+        <div className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700 px-6 py-4 w-full">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
