@@ -188,7 +188,7 @@ function QuanLyNhanVien() {
           </div>
           <button
             onClick={() => setShowAddModal(true)}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition flex items-center bg-white text-gray-900"
           >
             <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -244,7 +244,7 @@ function QuanLyNhanVien() {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Tìm theo tên hoặc email..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
             />
           </div>
           <div>
@@ -252,7 +252,7 @@ function QuanLyNhanVien() {
             <select
               value={selectedDepartment}
               onChange={(e) => setSelectedDepartment(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
             >
               {departments.map(dept => (
                 <option key={dept.id} value={dept.id}>{dept.name}</option>
@@ -260,7 +260,7 @@ function QuanLyNhanVien() {
             </select>
           </div>
           <div className="flex items-end">
-            <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition">
+            <button className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition bg-white text-gray-900">
               Xuất danh sách
             </button>
           </div>
@@ -274,22 +274,22 @@ function QuanLyNhanVien() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-white text-gray-900">
                     Nhân viên
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-white text-gray-900">
                     Chức vụ
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-white text-gray-900">
                     Phòng ban
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-white text-gray-900">
                     Lương
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-white text-gray-900">
                     Trạng thái
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-white text-gray-900">
                     Thao tác
                   </th>
                 </tr>
@@ -297,7 +297,7 @@ function QuanLyNhanVien() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredEmployees.map((employee) => (
                   <tr key={employee.id}>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap bg-white text-gray-900">
                       <div className="flex items-center">
                         <div className="h-10 w-10 bg-gray-300 rounded-full mr-4"></div>
                         <div>
@@ -306,21 +306,21 @@ function QuanLyNhanVien() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap bg-white text-gray-900">
                       <div className="text-sm text-gray-900">{employee.position}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap bg-white text-gray-900">
                       <div className="text-sm text-gray-900">{getDepartmentName(employee.department)}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap bg-white text-gray-900">
                       <div className="text-sm font-medium text-gray-900">{employee.salary} VNĐ</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap bg-white text-gray-900">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(employee.status)}`}>
                         {getStatusText(employee.status)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium bg-white text-gray-900">
                       <button
                         onClick={() => handleEditEmployee(employee)}
                         className="text-blue-600 hover:text-blue-900 mr-3"
@@ -350,7 +350,7 @@ function QuanLyNhanVien() {
             <p className="text-sm text-gray-600 mb-6">{selectedEmployee.name}</p>
             <div className="flex justify-end space-x-3">
               <button
-                className="px-4 py-2 border rounded-lg"
+                className="px-4 py-2 border rounded-lg bg-white text-gray-900"
                 onClick={() => setShowEditModal(false)}
               >
                 Đóng
@@ -472,7 +472,7 @@ function QuanLyNhanVien() {
                     type="text"
                     value={newEmployee.name}
                     onChange={(e) => setNewEmployee({...newEmployee, name: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                     required
                   />
                 </div>
@@ -482,7 +482,7 @@ function QuanLyNhanVien() {
                     type="email"
                     value={newEmployee.email}
                     onChange={(e) => setNewEmployee({...newEmployee, email: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                     required
                   />
                 </div>
@@ -492,7 +492,7 @@ function QuanLyNhanVien() {
                     type="tel"
                     value={newEmployee.phone}
                     onChange={(e) => setNewEmployee({...newEmployee, phone: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                     required
                   />
                 </div>
@@ -501,7 +501,7 @@ function QuanLyNhanVien() {
                   <select
                     value={newEmployee.position}
                     onChange={(e) => setNewEmployee({...newEmployee, position: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                     required
                   >
                     <option value="">Chọn chức vụ</option>
@@ -515,7 +515,7 @@ function QuanLyNhanVien() {
                   <select
                     value={newEmployee.department}
                     onChange={(e) => setNewEmployee({...newEmployee, department: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-gray-900"
                     required
                   >
                     <option value="">Chọn phòng ban</option>
@@ -528,13 +528,13 @@ function QuanLyNhanVien() {
                   <button
                     type="button"
                     onClick={() => setShowAddModal(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition bg-white text-gray-900"
                   >
                     Hủy
                   </button>
                   <button
                     type="submit"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition bg-white text-gray-900"
                   >
                     Thêm
                   </button>

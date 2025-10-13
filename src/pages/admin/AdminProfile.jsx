@@ -57,7 +57,7 @@ const AdminProfile = ({ onBack }) => {
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition" 
+              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition bg-white text-gray-900" 
             />
           </div>
           <div>
@@ -67,7 +67,7 @@ const AdminProfile = ({ onBack }) => {
               type="email"
               value={formData.email}
               onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition" 
+              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition bg-white text-gray-900" 
             />
           </div>
           <div>
@@ -77,7 +77,7 @@ const AdminProfile = ({ onBack }) => {
               type="tel"
               value={formData.phone}
               onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition" 
+              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition bg-white text-gray-900" 
             />
           </div>
           <div>
@@ -86,7 +86,7 @@ const AdminProfile = ({ onBack }) => {
               name="employeeId"
               value={formData.employeeId}
               onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition" 
+              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition bg-white text-gray-900" 
             />
           </div>
           <div>
@@ -95,7 +95,7 @@ const AdminProfile = ({ onBack }) => {
               name="role"
               value={formData.role}
               onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 bg-gray-50 text-gray-500" 
+              className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" 
               disabled 
             />
           </div>
@@ -105,7 +105,7 @@ const AdminProfile = ({ onBack }) => {
               name="department"
               value={formData.department}
               onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 bg-gray-50 text-gray-500" 
+              className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" 
               disabled 
             />
           </div>
@@ -116,7 +116,7 @@ const AdminProfile = ({ onBack }) => {
               type="date"
               value={formData.startDate}
               onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition" 
+              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition bg-white text-gray-900" 
             />
           </div>
         </div>

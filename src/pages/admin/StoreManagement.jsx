@@ -592,7 +592,7 @@ function StoreManagement() {
               <input
                 type="text"
                 placeholder="Tìm kiếm theo tên cửa hàng hoặc chủ cửa hàng..."
-                className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm hover:shadow-md"
+                className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm hover:shadow-md bg-white text-gray-900"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
@@ -601,7 +601,7 @@ function StoreManagement() {
           </div>
           <div className="flex space-x-3">
             <select 
-              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-all"
+              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-all bg-white text-gray-900"
               value={statusFilter}
               onChange={(e) => handleStatusFilter(e.target.value)}
             >
@@ -612,7 +612,7 @@ function StoreManagement() {
               <option value="SUSPENDED">Tạm ngưng</option>
             </select>
             <select 
-              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-all"
+              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-all bg-white text-gray-900"
               value={provinceFilter}
               onChange={(e) => handleProvinceFilter(e.target.value)}
             >

@@ -35,7 +35,7 @@ function AddCustomer({ onBack }) {
           <h2 className="text-2xl font-bold text-gray-900">Thêm khách hàng mới</h2>
           <button
             onClick={onBack}
-            className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors bg-white text-gray-900"
           >
             <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -58,7 +58,7 @@ function AddCustomer({ onBack }) {
                   name="fullName"
                   value={formData.fullName}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                   required
                 />
               </div>
@@ -71,7 +71,7 @@ function AddCustomer({ onBack }) {
                   name="phone"
                   value={formData.phone}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                   required
                 />
               </div>
@@ -84,7 +84,7 @@ function AddCustomer({ onBack }) {
                   name="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                 />
               </div>
               <div>
@@ -96,7 +96,7 @@ function AddCustomer({ onBack }) {
                   name="dateOfBirth"
                   value={formData.dateOfBirth}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                 />
               </div>
               <div>
@@ -107,7 +107,7 @@ function AddCustomer({ onBack }) {
                   name="gender"
                   value={formData.gender}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                 >
                   <option value="">Chọn giới tính</option>
                   <option value="male">Nam</option>
@@ -124,7 +124,7 @@ function AddCustomer({ onBack }) {
                   name="occupation"
                   value={formData.occupation}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                 />
               </div>
             </div>
@@ -143,7 +143,7 @@ function AddCustomer({ onBack }) {
                   value={formData.address}
                   onChange={handleInputChange}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                   placeholder="Nhập địa chỉ chi tiết..."
                   required
                 />
@@ -164,7 +164,7 @@ function AddCustomer({ onBack }) {
                   name="idNumber"
                   value={formData.idNumber}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                   placeholder="Nhập số CMND/CCCD"
                 />
               </div>
@@ -181,7 +181,7 @@ function AddCustomer({ onBack }) {
               value={formData.notes}
               onChange={handleInputChange}
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
               placeholder="Nhập ghi chú thêm về khách hàng (nếu có)..."
             />
           </div>
@@ -191,13 +191,13 @@ function AddCustomer({ onBack }) {
             <button
               type="button"
               onClick={onBack}
-              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+              className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors bg-white text-gray-900"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+              className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors bg-white text-gray-900"
             >
               Thêm khách hàng
             </button>

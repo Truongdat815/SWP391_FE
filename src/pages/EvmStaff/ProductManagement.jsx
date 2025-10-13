@@ -262,7 +262,7 @@ function ProductManagement({ onBack }) {
           <p className="text-sm text-gray-500 mt-1">Quản lý mẫu xe và màu sắc</p>
         </div>
         {onBack && (
-          <button onClick={onBack} className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors">
+          <button onClick={onBack} className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors bg-white text-gray-900">
             <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             Quay lại
           </button>
@@ -278,10 +278,10 @@ function ProductManagement({ onBack }) {
           <div className="flex justify-between items-center">
             <h3 className="text-lg font-semibold text-gray-900">Danh sách mẫu xe</h3>
             <div className="flex gap-2">
-              <button onClick={openCreateColor} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+              <button onClick={openCreateColor} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition bg-white text-gray-900">
                 Quản lý màu sắc
               </button>
-              <button onClick={openCreateModel} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition">
+              <button onClick={openCreateModel} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition bg-white text-gray-900">
                 Thêm mẫu xe
               </button>
             </div>
@@ -329,7 +329,7 @@ function ProductManagement({ onBack }) {
                         {modelColors.map((color) => (
                           <span 
                             key={color.colorId} 
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-medium group hover:bg-emerald-100 transition"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-medium group hover:bg-emerald-100 transition bg-white text-gray-900"
                           >
                             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
                             {color.colorName}
@@ -348,7 +348,7 @@ function ProductManagement({ onBack }) {
                         {!isAddingColor && availableColors.length > 0 && (
                           <button
                             onClick={() => toggleAddColor(m.modelId)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-gray-300 text-gray-600 text-xs font-medium hover:border-emerald-500 hover:text-emerald-600 transition"
+                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-gray-300 text-gray-600 text-xs font-medium hover:border-emerald-500 hover:text-emerald-600 transition bg-white text-gray-900"
                           >
                             <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -364,7 +364,7 @@ function ProductManagement({ onBack }) {
                           <select
                             value={selectedColorId}
                             onChange={(e) => setSelectedColorId(e.target.value)}
-                            className="flex-1 text-xs border border-gray-300 rounded-lg px-2 py-1.5"
+                            className="flex-1 text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white text-gray-900"
                             autoFocus
                           >
                             <option value="">-- Chọn màu --</option>
@@ -375,13 +375,13 @@ function ProductManagement({ onBack }) {
                           <button
                             onClick={() => handleAddColor(m)}
                             disabled={!selectedColorId}
-                            className="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                            className="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition bg-white text-gray-900"
                           >
                             OK
                           </button>
                           <button
                             onClick={() => toggleAddColor(m.modelId)}
-                            className="px-2 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition"
+                            className="px-2 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition bg-white text-gray-900"
                           >
                             ✕
                           </button>
@@ -393,14 +393,14 @@ function ProductManagement({ onBack }) {
                     <div className="flex gap-2 pt-2">
                       <button 
                         onClick={() => openModelDetail(m)} 
-                        className="flex-1 px-3 py-2 text-sm rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition"
+                        className="flex-1 px-3 py-2 text-sm rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition bg-white text-gray-900"
                       >
                         Chi tiết
                       </button>
-                      <button onClick={() => openEditModel(m)} className="flex-1 px-3 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition">
+                      <button onClick={() => openEditModel(m)} className="flex-1 px-3 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition bg-white text-gray-900">
                         Sửa
                       </button>
-                      <button onClick={() => removeModel(m.modelId)} className="flex-1 px-3 py-2 text-sm rounded-lg border border-red-300 text-red-700 hover:bg-red-50 transition">
+                      <button onClick={() => removeModel(m.modelId)} className="flex-1 px-3 py-2 text-sm rounded-lg border border-red-300 text-red-700 hover:bg-red-50 transition bg-white text-gray-900">
                         Xóa
                       </button>
                     </div>
@@ -424,51 +424,51 @@ function ProductManagement({ onBack }) {
             <form onSubmit={submitModel} className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tên mẫu</label>
-                <input value={modelForm.modelName} onChange={(e) => setModelForm(v => ({ ...v, modelName: e.target.value }))} className="w-full border rounded-xl px-3 py-2" required />
+                <input value={modelForm.modelName} onChange={(e) => setModelForm(v => ({ ...v, modelName: e.target.value }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" required />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Năm</label>
-                <input type="number" value={modelForm.modelYear} onChange={(e) => setModelForm(v => ({ ...v, modelYear: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2" />
+                <input type="number" value={modelForm.modelYear} onChange={(e) => setModelForm(v => ({ ...v, modelYear: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Dung lượng pin (kWh)</label>
-                <input type="number" value={modelForm.batteryCapacity} onChange={(e) => setModelForm(v => ({ ...v, batteryCapacity: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2" />
+                <input type="number" value={modelForm.batteryCapacity} onChange={(e) => setModelForm(v => ({ ...v, batteryCapacity: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tầm hoạt động (km)</label>
-                <input type="number" value={modelForm.range} onChange={(e) => setModelForm(v => ({ ...v, range: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2" />
+                <input type="number" value={modelForm.range} onChange={(e) => setModelForm(v => ({ ...v, range: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Công suất (hp)</label>
-                <input type="number" value={modelForm.powerHp} onChange={(e) => setModelForm(v => ({ ...v, powerHp: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2" />
+                <input type="number" value={modelForm.powerHp} onChange={(e) => setModelForm(v => ({ ...v, powerHp: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Mô-men xoắn (Nm)</label>
-                <input type="number" value={modelForm.torqueNm} onChange={(e) => setModelForm(v => ({ ...v, torqueNm: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2" />
+                <input type="number" value={modelForm.torqueNm} onChange={(e) => setModelForm(v => ({ ...v, torqueNm: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Tăng tốc 0-100 (s)</label>
-                <input type="number" step="0.1" value={modelForm.acceleration} onChange={(e) => setModelForm(v => ({ ...v, acceleration: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2" />
+                <input type="number" step="0.1" value={modelForm.acceleration} onChange={(e) => setModelForm(v => ({ ...v, acceleration: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Số chỗ ngồi</label>
-                <input type="number" value={modelForm.seatingCapacity} onChange={(e) => setModelForm(v => ({ ...v, seatingCapacity: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2" />
+                <input type="number" value={modelForm.seatingCapacity} onChange={(e) => setModelForm(v => ({ ...v, seatingCapacity: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Giá</label>
-                <input type="number" value={modelForm.price} onChange={(e) => setModelForm(v => ({ ...v, price: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2" />
+                <input type="number" value={modelForm.price} onChange={(e) => setModelForm(v => ({ ...v, price: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Kiểu dáng</label>
-                <input value={modelForm.bodyType} onChange={(e) => setModelForm(v => ({ ...v, bodyType: e.target.value }))} className="w-full border rounded-xl px-3 py-2" />
+                <input value={modelForm.bodyType} onChange={(e) => setModelForm(v => ({ ...v, bodyType: e.target.value }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
-                <textarea value={modelForm.description} onChange={(e) => setModelForm(v => ({ ...v, description: e.target.value }))} className="w-full border rounded-xl px-3 py-2" rows={3} />
+                <textarea value={modelForm.description} onChange={(e) => setModelForm(v => ({ ...v, description: e.target.value }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" rows={3} />
               </div>
               <div className="md:col-span-2 flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setModelModalOpen(false)} className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50">Hủy</button>
-                <button type="submit" className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">{editingModel ? 'Lưu' : 'Tạo'}</button>
+                <button type="button" onClick={() => setModelModalOpen(false)} className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 bg-white text-gray-900">Hủy</button>
+                <button type="submit" className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 bg-white text-gray-900">{editingModel ? 'Lưu' : 'Tạo'}</button>
               </div>
             </form>
           </div>
@@ -497,11 +497,11 @@ function ProductManagement({ onBack }) {
                   <input
                     value={colorForm.colorName}
                     onChange={(e) => setColorForm(v => ({ ...v, colorName: e.target.value }))}
-                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2"
+                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-900"
                     placeholder="Tên màu (VD: Đỏ, Xanh Dương, Trắng Ngọc Trai)"
                     required
                   />
-                  <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition">
+                  <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition bg-white text-gray-900">
                     Thêm
                   </button>
                 </div>
@@ -549,7 +549,7 @@ function ProductManagement({ onBack }) {
           <div className="absolute inset-0 bg-black/40" onClick={() => setDetailModalOpen(false)}></div>
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl border border-gray-200 max-h-[90vh] overflow-y-auto m-4">
             {/* Header with gradient */}
-            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-6 rounded-t-2xl">
+            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-6 rounded-t-2xl bg-white text-gray-900">
               <div className="flex items-start justify-between">
                 <div className="text-white">
                   <h2 className="text-2xl font-bold">{viewingModel.modelName}</h2>
@@ -643,13 +643,13 @@ function ProductManagement({ onBack }) {
                     setDetailModalOpen(false);
                     openEditModel(viewingModel);
                   }}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition font-medium"
+                  className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition font-medium bg-white text-gray-900"
                 >
                   Chỉnh sửa thông tin
                 </button>
                 <button 
                   onClick={() => setDetailModalOpen(false)}
-                  className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition font-medium"
+                  className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition font-medium bg-white text-gray-900"
                 >
                   Đóng
                 </button>

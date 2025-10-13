@@ -121,7 +121,7 @@ function SystemConfig() {
               max="20"
               value={settings.passwordMinLength}
               onChange={(e) => handleSettingChange('passwordMinLength', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 bg-white text-gray-900"
             />
           </div>
           
@@ -135,7 +135,7 @@ function SystemConfig() {
               max="480"
               value={settings.sessionTimeout}
               onChange={(e) => handleSettingChange('sessionTimeout', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 bg-white text-gray-900"
             />
           </div>
         </div>
@@ -187,7 +187,7 @@ function SystemConfig() {
               max="10"
               value={settings.maxLoginAttempts}
               onChange={(e) => handleSettingChange('maxLoginAttempts', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 bg-white text-gray-900"
             />
           </div>
         </div>
@@ -262,7 +262,7 @@ function SystemConfig() {
               max="10000"
               value={settings.apiRateLimit}
               onChange={(e) => handleSettingChange('apiRateLimit', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 bg-white text-gray-900"
             />
           </div>
           
@@ -276,7 +276,7 @@ function SystemConfig() {
               max="300"
               value={settings.apiTimeout}
               onChange={(e) => handleSettingChange('apiTimeout', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 bg-white text-gray-900"
             />
           </div>
         </div>
@@ -435,7 +435,7 @@ function SystemConfig() {
               max="365"
               value={settings.logRetention}
               onChange={(e) => handleSettingChange('logRetention', parseInt(e.target.value))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 bg-white text-gray-900"
             />
           </div>
           
@@ -446,7 +446,7 @@ function SystemConfig() {
             <select
               value={settings.backupFrequency}
               onChange={(e) => handleSettingChange('backupFrequency', e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 bg-white text-gray-900"
             >
               <option value="hourly">Hàng giờ</option>
               <option value="daily">Hàng ngày</option>
@@ -586,7 +586,7 @@ function SystemConfig() {
                   <label className="block text-sm font-medium text-gray-700 mb-1">Tên</label>
                   <input
                     type="text"
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 bg-white text-gray-900"
                     placeholder="Nhập tên API key"
                     value={newApiKey.name}
                     onChange={(e) => setNewApiKey({...newApiKey, name: e.target.value})}
@@ -596,7 +596,7 @@ function SystemConfig() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
                   <textarea
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-red-500 focus:border-red-500 bg-white text-gray-900"
                     placeholder="Nhập mô tả"
                     rows="3"
                     value={newApiKey.description}

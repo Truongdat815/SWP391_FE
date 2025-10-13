@@ -154,7 +154,7 @@ const EVMStaffHelp = ({ onBack }) => {
                     placeholder="Tìm kiếm câu hỏi..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-gray-900"
                   />
                 </div>
                 <div className="space-y-4">
@@ -310,7 +310,7 @@ const EVMStaffHelp = ({ onBack }) => {
             </div>
           </div>
           
-          <button className="w-full px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition">
+          <button className="w-full px-4 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition bg-white text-gray-900">
             Gửi yêu cầu hỗ trợ
           </button>
 
