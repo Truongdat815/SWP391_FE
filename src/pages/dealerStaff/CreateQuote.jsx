@@ -229,7 +229,7 @@ function CreateQuote({ onBack }) {
           <h2 className="text-2xl font-bold text-gray-900">Tạo báo giá mới</h2>
           <button
             onClick={onBack}
-            className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors bg-white text-gray-900"
           >
             <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -256,7 +256,7 @@ function CreateQuote({ onBack }) {
                     name="name"
                     value={customerInfo.name}
                     onChange={handleCustomerChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                     required
                   />
                 </div>
@@ -269,7 +269,7 @@ function CreateQuote({ onBack }) {
                     name="phone"
                     value={customerInfo.phone}
                     onChange={handleCustomerChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                     required
                   />
                 </div>
@@ -282,7 +282,7 @@ function CreateQuote({ onBack }) {
                     name="email"
                     value={customerInfo.email}
                     onChange={handleCustomerChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                   />
                 </div>
                 <div>
@@ -294,7 +294,7 @@ function CreateQuote({ onBack }) {
                     name="dateOfBirth"
                     value={customerInfo.dateOfBirth}
                     onChange={handleCustomerChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                   />
                 </div>
                 <div>
@@ -305,7 +305,7 @@ function CreateQuote({ onBack }) {
                     name="gender"
                     value={customerInfo.gender}
                     onChange={handleCustomerChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                   >
                     <option value="">Chọn giới tính</option>
                     <option value="male">Nam</option>
@@ -322,7 +322,7 @@ function CreateQuote({ onBack }) {
                     name="occupation"
                     value={customerInfo.occupation}
                     onChange={handleCustomerChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                   />
                 </div>
               </div>
@@ -341,7 +341,7 @@ function CreateQuote({ onBack }) {
                     value={customerInfo.address}
                     onChange={handleCustomerChange}
                     rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                     placeholder="Nhập địa chỉ chi tiết..."
                     required
                   />
@@ -362,7 +362,7 @@ function CreateQuote({ onBack }) {
                     name="idNumber"
                     value={customerInfo.idNumber}
                     onChange={handleCustomerChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                     placeholder="Nhập số CMND/CCCD"
                   />
                 </div>
@@ -381,7 +381,7 @@ function CreateQuote({ onBack }) {
                   value={customerInfo.notes}
                   onChange={handleCustomerChange}
                   rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                   placeholder="Nhập ghi chú thêm về khách hàng (nếu có)..."
                 />
               </div>
@@ -403,7 +403,7 @@ function CreateQuote({ onBack }) {
                   name="order_date"
                   value={orderData.order_date}
                   onChange={handleOrderChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                   required
                 />
               </div>
@@ -415,7 +415,7 @@ function CreateQuote({ onBack }) {
                   name="status"
                   value={orderData.status}
                   onChange={handleOrderChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                   required
                 >
                   <option value="draft">Bản nháp</option>
@@ -433,7 +433,7 @@ function CreateQuote({ onBack }) {
                   name="contract_id"
                   value={orderData.contract_id || ''}
                   onChange={handleOrderChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
                   placeholder="Tự động tạo sau khi duyệt"
                 />
               </div>
@@ -481,7 +481,7 @@ function CreateQuote({ onBack }) {
                   name="staff_id"
                   value={orderData.staff_id}
                   onChange={handleOrderChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 bg-white text-gray-900 bg-white text-gray-900"
                   disabled
                 />
               </div>
@@ -492,7 +492,7 @@ function CreateQuote({ onBack }) {
                 <input
                   type="text"
                   value={new Date(orderData.updated_at).toLocaleString('vi-VN')}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 bg-white text-gray-900 bg-white text-gray-900"
                   disabled
                 />
               </div>
@@ -506,7 +506,7 @@ function CreateQuote({ onBack }) {
               <button
                 type="button"
                 onClick={addOrderDetail}
-                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center"
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center bg-white text-gray-900"
               >
                 <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -541,7 +541,7 @@ function CreateQuote({ onBack }) {
                     <select
                       value={detail.store_stock_id}
                       onChange={(e) => handleOrderDetailChange(index, 'store_stock_id', parseInt(e.target.value))}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900"
                       required
                     >
                       <option value="">Chọn mẫu xe</option>
@@ -563,7 +563,7 @@ function CreateQuote({ onBack }) {
                       value={detail.quantity}
                       onChange={(e) => handleOrderDetailChange(index, 'quantity', parseInt(e.target.value) || 1)}
                       min="1"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900"
                       required
                     />
                   </div>
@@ -576,7 +576,7 @@ function CreateQuote({ onBack }) {
                     <select
                       value={detail.promotion_id || ''}
                       onChange={(e) => handleOrderDetailChange(index, 'promotion_id', e.target.value ? parseInt(e.target.value) : null)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900"
                     >
                       <option value="">Không có khuyến mãi</option>
                       {promotions.map(promo => (
@@ -596,7 +596,7 @@ function CreateQuote({ onBack }) {
                       type="text"
                       value={detail.unit_price.toLocaleString('vi-VN') + ' VNĐ'}
                       disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 bg-white text-gray-900 bg-white text-gray-900"
                     />
                   </div>
 
@@ -610,7 +610,7 @@ function CreateQuote({ onBack }) {
                       value={detail.licensePlate_fee}
                       onChange={(e) => handleOrderDetailChange(index, 'licensePlate_fee', parseInt(e.target.value) || 0)}
                       min="0"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900"
                     />
                   </div>
 
@@ -624,7 +624,7 @@ function CreateQuote({ onBack }) {
                       value={detail.registration_fee}
                       onChange={(e) => handleOrderDetailChange(index, 'registration_fee', parseInt(e.target.value) || 0)}
                       min="0"
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900"
                     />
                   </div>
 
@@ -637,7 +637,7 @@ function CreateQuote({ onBack }) {
                       type="text"
                       value={detail.vat_amount.toLocaleString('vi-VN') + ' VNĐ'}
                       disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-100 text-gray-600 bg-white text-gray-900 bg-white text-gray-900"
                     />
                   </div>
 
@@ -650,7 +650,7 @@ function CreateQuote({ onBack }) {
                       type="text"
                       value={detail.total_price.toLocaleString('vi-VN') + ' VNĐ'}
                       disabled
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-emerald-100 text-emerald-700 font-semibold"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-emerald-100 text-emerald-700 font-semibold bg-white text-gray-900 bg-white text-gray-900"
                     />
                   </div>
                 </div>
@@ -669,7 +669,7 @@ function CreateQuote({ onBack }) {
               value={orderData.notes}
               onChange={handleOrderChange}
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-gray-900 bg-white text-gray-900"
               placeholder="Nhập ghi chú thêm (nếu có)..."
             />
           </div>
@@ -681,7 +681,7 @@ function CreateQuote({ onBack }) {
                 <button
                   type="button"
                   onClick={handleConvertToOrder}
-                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                  className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center bg-white text-gray-900"
                 >
                   <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -694,13 +694,13 @@ function CreateQuote({ onBack }) {
               <button
                 type="button"
                 onClick={onBack}
-                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors bg-white text-gray-900"
               >
                 Hủy
               </button>
               <button
                 type="submit"
-                className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors bg-white text-gray-900"
               >
                 Tạo báo giá
               </button>

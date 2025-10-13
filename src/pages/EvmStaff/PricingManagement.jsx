@@ -112,7 +112,7 @@ function PricingManagement({ onBack }) {
         </div>
         <button
           onClick={onBack}
-          className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+          className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors bg-white text-gray-900"
         >
           <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -211,7 +211,7 @@ function PricingManagement({ onBack }) {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-gray-900">Bảng giá sỉ chung</h3>
-                <button className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition">
+                <button className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition bg-white text-gray-900">
                   Cập nhật giá
                 </button>
               </div>
@@ -220,22 +220,22 @@ function PricingManagement({ onBack }) {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-white text-gray-900">
                         Mẫu xe
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-white text-gray-900">
                         Giá bán lẻ
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-white text-gray-900">
                         Giá sỉ
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-white text-gray-900">
                         Biên lợi nhuận
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-white text-gray-900">
                         Khuyến mãi
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider bg-white text-gray-900">
                         Thao tác
                       </th>
                     </tr>
@@ -243,7 +243,7 @@ function PricingManagement({ onBack }) {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {pricingData.map((item, index) => (
                       <tr key={index}>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap bg-white text-gray-900">
                           <div className="flex items-center">
                             <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600 mr-4">
                               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -253,22 +253,22 @@ function PricingManagement({ onBack }) {
                             <div className="text-sm font-medium text-gray-900">{item.model}</div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 bg-white text-gray-900">
                           {formatPrice(item.basePrice)} VNĐ
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-emerald-600">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-emerald-600 bg-white text-gray-900">
                           {formatPrice(item.wholesalePrice)} VNĐ
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap bg-white text-gray-900">
                           <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                             {item.dealerMargin}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-6 py-4 whitespace-nowrap bg-white text-gray-900">
                           <div className="flex flex-wrap gap-1">
                             {item.promotions.length > 0 ? (
                               item.promotions.map((promo, idx) => (
-                                <span key={idx} className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded">
+                                <span key={idx} className="px-2 py-1 text-xs bg-purple-100 text-purple-800 rounded bg-white text-gray-900">
                                   {promo.discount}
                                 </span>
                               ))
@@ -277,7 +277,7 @@ function PricingManagement({ onBack }) {
                             )}
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium bg-white text-gray-900">
                           <button className="text-emerald-600 hover:text-emerald-900 mr-3">Sửa giá</button>
                           <button className="text-blue-600 hover:text-blue-900">Chi tiết</button>
                         </td>
@@ -294,7 +294,7 @@ function PricingManagement({ onBack }) {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-gray-900">Giá theo từng đại lý</h3>
-                <button className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition">
+                <button className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition bg-white text-gray-900">
                   Thiết lập giá đặc biệt
                 </button>
               </div>
@@ -359,7 +359,7 @@ function PricingManagement({ onBack }) {
             <div className="space-y-6">
               <div className="flex justify-between items-center">
                 <h3 className="text-lg font-semibold text-gray-900">Quản lý khuyến mãi</h3>
-                <button className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition">
+                <button className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition bg-white text-gray-900">
                   Tạo khuyến mãi mới
                 </button>
               </div>
@@ -417,7 +417,7 @@ function PricingManagement({ onBack }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Mẫu xe</label>
-                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <select className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900">
                       <option>Chọn mẫu xe</option>
                       <option>Electra Ascent</option>
                       <option>Electra CityLink</option>
@@ -427,19 +427,19 @@ function PricingManagement({ onBack }) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Tên khuyến mãi</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="Nhập tên khuyến mãi" />
+                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900" placeholder="Nhập tên khuyến mãi" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Tỷ lệ giảm giá</label>
-                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" placeholder="VD: 5%" />
+                    <input type="text" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900" placeholder="VD: 5%" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Hạn đến</label>
-                    <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500" />
+                    <input type="date" className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-gray-900" />
                   </div>
                 </div>
                 <div className="mt-4">
-                  <button className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition">
+                  <button className="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition bg-white text-gray-900">
                     Tạo khuyến mãi
                   </button>
                 </div>

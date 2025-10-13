@@ -71,7 +71,7 @@ function SignIn() {
                     name="email"
                     type="email"
                     required
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors bg-white text-gray-900"
                     placeholder="Nhập email của bạn"
                     value={formData.email}
                     onChange={handleChange}
@@ -94,7 +94,7 @@ function SignIn() {
                     name="password"
                     type="password"
                     required
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors bg-white text-gray-900"
                     placeholder="Nhập mật khẩu"
                     value={formData.password}
                     onChange={handleChange}
@@ -115,7 +115,7 @@ function SignIn() {
                   <select
                     id="role"
                     name="role"
-                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+                    className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-xl text-gray-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors bg-white text-gray-900"
                     value={formData.role}
                     onChange={handleChange}
                   >
@@ -134,7 +134,7 @@ function SignIn() {
                   id="remember-me"
                   name="remember-me"
                   type="checkbox"
-                  className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
+                  className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded bg-white text-gray-900"
                 />
                 <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
                   Ghi nhớ đăng nhập

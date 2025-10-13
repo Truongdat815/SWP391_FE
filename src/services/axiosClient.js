@@ -7,15 +7,13 @@ const axiosClient = axios.create({
   },
 });
 
-// Nếu có token, tự động gắn vào request
+// Nếu có token, tự động gắn vào request (hỗ trợ cả access_token và accessToken)
 axiosClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem("accessToken");
+  const token = localStorage.getItem("access_token") || localStorage.getItem("accessToken");
   if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
 export default axiosClient;
-
-
 
 

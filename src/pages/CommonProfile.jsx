@@ -19,24 +19,24 @@ const CommonProfile = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
-            <input className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition" placeholder="Nguyễn Văn A" />
+            <input className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition bg-white text-gray-900 bg-white text-gray-900" placeholder="Nguyễn Văn A" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-            <input className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition" placeholder="user@electra.com" />
+            <input className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition bg-white text-gray-900 bg-white text-gray-900" placeholder="user@electra.com" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
-            <input className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition" placeholder="0900 000 000" />
+            <input className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition bg-white text-gray-900 bg-white text-gray-900" placeholder="0900 000 000" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Vai trò</label>
-            <input className="w-full border rounded-xl px-3 py-2 bg-gray-50 text-gray-500" disabled value="—" />
+            <input className="w-full border rounded-xl px-3 py-2 bg-gray-50 text-gray-500 bg-white text-gray-900 bg-white text-gray-900" disabled value="—" />
           </div>
         </div>
         <div className="mt-6 flex items-center justify-between">
           <p className="text-sm text-gray-500">Lần cập nhật gần nhất: hôm nay</p>
-          <button className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 active:scale-[0.98] transition shadow-sm">Lưu thay đổi</button>
+          <button className="px-4 py-2 bg-red-600 text-white rounded-xl hover:bg-red-700 active:scale-[0.98] transition shadow-sm bg-white text-gray-900">Lưu thay đổi</button>
         </div>
       </div>
     </div>

@@ -87,7 +87,7 @@ const EVMStaffSettings = ({ onBack }) => {
                   <select 
                     value={settings.language}
                     onChange={(e) => handleSelectChange('language', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-gray-900"
                   >
                     <option value="vi">Tiếng Việt</option>
                     <option value="en">English</option>
@@ -98,7 +98,7 @@ const EVMStaffSettings = ({ onBack }) => {
                   <select 
                     value={settings.timezone}
                     onChange={(e) => handleSelectChange('timezone', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-gray-900"
                   >
                     <option value="Asia/Ho_Chi_Minh">UTC+7 (Hà Nội)</option>
                     <option value="UTC">UTC+0 (GMT)</option>
@@ -184,7 +184,7 @@ const EVMStaffSettings = ({ onBack }) => {
                   type="number"
                   value={settings.lowStockThreshold}
                   onChange={(e) => handleInputChange('lowStockThreshold', parseInt(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-gray-900"
                   placeholder="50"
                 />
                 <p className="text-sm text-gray-500 mt-1">Hiện tại: {settings.lowStockThreshold} xe</p>
@@ -235,7 +235,7 @@ const EVMStaffSettings = ({ onBack }) => {
                 <select 
                   value={settings.sessionTimeout}
                   onChange={(e) => handleSelectChange('sessionTimeout', parseInt(e.target.value))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-gray-900"
                   disabled={!settings.autoLogout}
                 >
                   <option value={15}>15 phút</option>
@@ -250,7 +250,7 @@ const EVMStaffSettings = ({ onBack }) => {
           <div className="flex justify-end">
             <button 
               onClick={handleSave}
-              className="px-6 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 active:scale-[0.98] transition shadow-sm"
+              className="px-6 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 active:scale-[0.98] transition shadow-sm bg-white text-gray-900"
             >
               Lưu cài đặt
             </button>
@@ -269,10 +269,10 @@ const EVMStaffSettings = ({ onBack }) => {
           <div className="pt-4 border-t">
             <h4 className="font-medium text-gray-900 mb-2">Phím tắt hữu ích</h4>
             <ul className="space-y-1 text-sm text-gray-600">
-              <li><kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs">Ctrl+I</kbd> Quản lý tồn kho</li>
-              <li><kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs">Ctrl+D</kbd> Quản lý đại lý</li>
-              <li><kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs">Ctrl+R</kbd> Báo cáo</li>
-              <li><kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs">F5</kbd> Làm mới trang</li>
+              <li><kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs bg-white text-gray-900">Ctrl+I</kbd> Quản lý tồn kho</li>
+              <li><kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs bg-white text-gray-900">Ctrl+D</kbd> Quản lý đại lý</li>
+              <li><kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs bg-white text-gray-900">Ctrl+R</kbd> Báo cáo</li>
+              <li><kbd className="px-1 py-0.5 bg-gray-100 rounded text-xs bg-white text-gray-900">F5</kbd> Làm mới trang</li>
             </ul>
           </div>
 

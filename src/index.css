@@ -2,55 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Global theme defaults and dark-mode contrast tuning */
+/* Base theme (dark mode removed) */
 @layer base {
-  html { color-scheme: light dark; }
-  body { @apply bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100; }
-
-  /* Form controls: improve contrast in dark mode */
-  .dark input,
-  .dark textarea,
-  .dark select {
-    @apply bg-gray-900 text-gray-100 border border-gray-700 rounded-lg;
-  }
-  .dark input:focus,
-  .dark textarea:focus,
-  .dark select:focus {
-    @apply outline-none ring-1 ring-white/20 border-gray-500;
-  }
-  .dark ::placeholder { color: rgb(156 163 175 / 0.85); }
-}
-
-/* Lift typical gray text tokens in dark mode for better contrast */
-@layer utilities {
-  .dark .text-gray-900 { @apply text-gray-100; }
-  .dark .text-gray-800 { @apply text-gray-100; }
-  .dark .text-gray-700 { @apply text-gray-200; }
-  .dark .text-gray-600 { @apply text-gray-300; }
-  .dark .text-gray-500 { @apply text-gray-400; }
-
-  /* Background and border normalization across the app in dark mode */
-  .dark .bg-white { @apply bg-gray-800; }
-  .dark .bg-gray-50 { @apply bg-gray-800/60; }
-  .dark .border-gray-200 { @apply border-gray-700; }
-  .dark .border-gray-100 { @apply border-gray-700; }
-  .dark .divide-gray-200 { @apply divide-gray-700; }
-
-  /* Common hover helpers for gray surfaces */
-  .dark .hover\:bg-gray-50:hover { @apply bg-gray-700/40; }
-  .dark .hover\:bg-gray-100:hover { @apply bg-gray-700/50; }
-  .dark .hover\:bg-gray-200:hover { @apply bg-gray-700/60; }
-
-  /* Pastel cards to deeper tints in dark mode (status widgets, alerts, etc.) */
-  .dark .bg-yellow-50 { @apply bg-yellow-900/20; }
-  .dark .bg-blue-50 { @apply bg-blue-900/20; }
-  .dark .bg-green-50 { @apply bg-green-900/20; }
-  .dark .bg-red-50 { @apply bg-red-900/20; }
-  .dark .bg-emerald-50 { @apply bg-emerald-900/20; }
-  .dark .bg-indigo-50 { @apply bg-indigo-900/20; }
-  .dark .bg-violet-50 { @apply bg-violet-900/20; }
-  .dark .bg-sky-50 { @apply bg-sky-900/20; }
-  .dark .bg-teal-50 { @apply bg-teal-900/20; }
+  html { color-scheme: light; }
+  body { @apply bg-white text-gray-900; }
 }
 
 /* Animation keyframes */
@@ -81,3 +36,93 @@
   .animate-slideDown {
     animation: slideDown 0.3s ease-out;
   }
+
+/* Form controls: improve contrast in dark mode - Maximum priority CSS */
+html.dark input,
+html.dark input[type="text"],
+html.dark input[type="email"], 
+html.dark input[type="password"],
+html.dark input[type="tel"],
+html.dark input[type="search"],
+html.dark input[type="date"],
+html.dark input[type="number"],
+html.dark input:not([type]),
+html.dark textarea,
+html.dark select,
+.dark input,
+.dark input[type="text"],
+.dark input[type="email"], 
+.dark input[type="password"],
+.dark input[type="tel"],
+.dark input[type="search"],
+.dark input[type="date"],
+.dark input[type="number"],
+.dark input:not([type]),
+.dark textarea,
+.dark select,
+body.dark input,
+body.dark textarea,
+body.dark select {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+  border: 1px solid #d1d5db !important;
+}
+
+.dark input[type="text"]:focus,
+.dark input[type="email"]:focus,
+.dark input[type="password"]:focus,
+.dark input[type="tel"]:focus,
+.dark input[type="search"]:focus,
+.dark input[type="date"]:focus,
+.dark input[type="number"]:focus,
+.dark input:not([type]):focus,
+.dark textarea:focus,
+.dark select:focus {
+  outline: none !important;
+  box-shadow: 0 0 0 2px #3b82f6 !important;
+  border-color: #3b82f6 !important;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder { 
+  color: rgb(107 114 128) !important; 
+}
+
+.dark select option {
+  background-color: #ffffff !important;
+  color: #111827 !important;
+}
+
+/* Additional selectors for better coverage with extreme specificity */
+.dark [type="text"],
+.dark [type="email"],
+.dark [type="tel"],
+.dark [type="search"],
+.dark [type="date"],
+.dark [class*="border"][class*="rounded"] input,
+.dark [class*="border"][class*="rounded"] select,
+.dark input[class*="border"],
+.dark select[class*="border"],
+.dark input[class*="block"],
+.dark select[class*="px-"],
+.dark input[class*="py-"],
+.dark select[class*="w-full"],
+.dark input[class*="w-full"],
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-color: #d1d5db !important;
+}
+
+/* Force all inputs and selects in dark mode - nuclear option */
+.dark * input,
+.dark * select,
+.dark * textarea {
+  background-color: #ffffff !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+}

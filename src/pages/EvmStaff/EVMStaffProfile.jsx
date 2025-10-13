@@ -58,7 +58,7 @@ const EVMStaffProfile = ({ onBack }) => {
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition" 
+              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition bg-white text-gray-900 bg-white text-gray-900" 
             />
           </div>
           <div>
@@ -68,7 +68,7 @@ const EVMStaffProfile = ({ onBack }) => {
               type="email"
               value={formData.email}
               onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition" 
+              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition bg-white text-gray-900 bg-white text-gray-900" 
             />
           </div>
           <div>
@@ -78,7 +78,7 @@ const EVMStaffProfile = ({ onBack }) => {
               type="tel"
               value={formData.phone}
               onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition" 
+              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition bg-white text-gray-900 bg-white text-gray-900" 
             />
           </div>
           <div>
@@ -87,7 +87,7 @@ const EVMStaffProfile = ({ onBack }) => {
               name="employeeId"
               value={formData.employeeId}
               onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition" 
+              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition bg-white text-gray-900 bg-white text-gray-900" 
             />
           </div>
           <div>
@@ -96,7 +96,7 @@ const EVMStaffProfile = ({ onBack }) => {
               name="role"
               value={formData.role}
               onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 bg-gray-50 text-gray-500" 
+              className="w-full border rounded-xl px-3 py-2 bg-gray-50 text-gray-500 bg-white text-gray-900 bg-white text-gray-900" 
               disabled 
             />
           </div>
@@ -106,7 +106,7 @@ const EVMStaffProfile = ({ onBack }) => {
               name="position"
               value={formData.position}
               onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 bg-gray-50 text-gray-500" 
+              className="w-full border rounded-xl px-3 py-2 bg-gray-50 text-gray-500 bg-white text-gray-900 bg-white text-gray-900" 
               disabled 
             />
           </div>
@@ -116,7 +116,7 @@ const EVMStaffProfile = ({ onBack }) => {
               name="department"
               value={formData.department}
               onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 bg-gray-50 text-gray-500" 
+              className="w-full border rounded-xl px-3 py-2 bg-gray-50 text-gray-500 bg-white text-gray-900 bg-white text-gray-900" 
               disabled 
             />
           </div>
@@ -127,7 +127,7 @@ const EVMStaffProfile = ({ onBack }) => {
               type="date"
               value={formData.startDate}
               onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition" 
+              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition bg-white text-gray-900 bg-white text-gray-900" 
             />
           </div>
         </div>
@@ -202,7 +202,7 @@ const EVMStaffProfile = ({ onBack }) => {
           <p className="text-sm text-gray-500">Lần cập nhật gần nhất: hôm nay</p>
           <button 
             onClick={handleSave}
-            className="px-6 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 active:scale-[0.98] transition shadow-sm"
+            className="px-6 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 active:scale-[0.98] transition shadow-sm bg-white text-gray-900"
           >
             Lưu thay đổi
           </button>
