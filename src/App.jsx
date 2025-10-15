@@ -9,6 +9,7 @@ import DealerDetail from './pages/DealerDetail'
 import SignIn from './pages/SignIn'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './contexts/AuthContext'
+import Snackbar from './components/Snackbar'
 
 // Layouts
 import AdminLayout from './layouts/Adminlayout'
@@ -188,6 +189,7 @@ function App() {
           } />
         </Routes>
       </BrowserRouter>
+      <Snackbar />
     </AuthProvider>
   );
 }
