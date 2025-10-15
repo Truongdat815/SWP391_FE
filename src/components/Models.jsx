@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
-import axiosClient from '@/services/axiosClient';
+import { get } from '@/api/client';
 
 const Models = () => {
   const [models, setModels] = useState([]);
 
   useEffect(() => {
-    axiosClient.get('/api/models/all')
+    get('/api/models/all')
       .then((res) => setModels(res.data.data))
       .catch((err) => console.error('Lỗi lấy danh sách model:', err));
   }, []);

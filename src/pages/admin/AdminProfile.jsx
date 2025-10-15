@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { get } from '@/api/client';
 
 const AdminProfile = ({ onBack }) => {
   const [formData, setFormData] = useState({
@@ -10,6 +11,38 @@ const AdminProfile = ({ onBack }) => {
     department: 'Quản lý hệ thống',
     startDate: '2023-01-01'
   });
+
+  const [adminUser, setAdminUser] = useState(null);
+
+  // Lấy thông tin admin từ API
+  useEffect(() => {
+    const fetchAdminInfo = async () => {
+      try {
+        const response = await get('/api/users/all');
+        const users = response?.data?.data || [];
+        
+        // Tìm user có role Admin
+        const adminUserData = users.find(user => user.roleName === 'Admin');
+        
+        if (adminUserData) {
+          setAdminUser(adminUserData);
+          setFormData({
+            name: adminUserData.fullName || 'Admin User',
+            email: adminUserData.email || 'admin@electra.com',
+            phone: adminUserData.phone || '0901234567',
+            role: 'Quản trị viên hệ thống',
+            employeeId: `AD${adminUserData.userId?.toString().padStart(3, '0') || '001'}`,
+            department: 'Quản lý hệ thống',
+            startDate: adminUserData.createdAt ? new Date(adminUserData.createdAt).toISOString().split('T')[0] : '2023-01-01'
+          });
+        }
+      } catch (error) {
+        console.error('Lỗi lấy thông tin admin:', error);
+      }
+    };
+
+    fetchAdminInfo();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -40,7 +73,12 @@ const AdminProfile = ({ onBack }) => {
       <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 rounded-2xl p-6 sm:p-8 shadow-sm mb-6">
         <div className="flex items-center gap-4">
           <div className="h-16 w-16 rounded-full bg-red-100 flex items-center justify-center ring-8 ring-white shadow">
-            <span className="text-red-600 font-bold text-xl">AD</span>
+            <span className="text-red-600 font-bold text-xl">
+              {adminUser ? 
+                (adminUser.fullName ? adminUser.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase() : 'AD') 
+                : 'AD'
+              }
+            </span>
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Thông tin cá nhân</h1>

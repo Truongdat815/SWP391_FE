@@ -21,4 +21,47 @@ export async function getJson(path, options = {}) {
     return res.json();
 }
 
+// Helper functions to replace axiosClient usage
+export async function get(path, options = {}) {
+    const data = await getJson(path, options);
+    return { data }; // Mimic axios response structure
+}
+
+export async function post(path, body, options = {}) {
+    const data = await request(path, { method: 'POST', body, ...options });
+    return { data }; // Mimic axios response structure
+}
+
+export async function put(path, body, options = {}) {
+    const data = await request(path, { method: 'PUT', body, ...options });
+    return { data }; // Mimic axios response structure
+}
+
+export async function del(path, options = {}) {
+    const data = await request(path, { method: 'DELETE', ...options });
+    return { data }; // Mimic axios response structure
+}
+
+// Enhanced request function with token handling
+async function request(path, { method = 'GET', body } = {}) {
+    const token = localStorage.getItem('access_token') || localStorage.getItem('accessToken');
+    const url = `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(url, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+    });
+
+    const isJson = res.headers.get('content-type')?.includes('application/json');
+    const data = isJson ? await res.json() : await res.text();
+    if (!res.ok) {
+        const message = (isJson && data?.message) || res.statusText || 'Request failed';
+        throw new Error(message);
+    }
+    return data;
+}
+
 

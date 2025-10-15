@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axiosClient from '@/services/axiosClient';
+import { get } from '@/api/client';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   getAllStoresThunk, 
@@ -54,9 +54,9 @@ function StoreManagement() {
     }
   }, [dispatch, storesStatus]);
 
-  // Fallback fetch via axiosClient for direct API usage
+  // Fallback fetch via api client for direct API usage
   useEffect(() => {
-    axiosClient.get('/api/stores/all')
+    get('/api/stores/all')
       .then((res) => setStoresApi(Array.isArray(res?.data?.data) ? res.data.data : []))
       .catch((err) => console.error('Lỗi lấy danh sách store:', err));
   }, []);

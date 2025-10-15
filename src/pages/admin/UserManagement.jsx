@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import axiosClient from '@/services/axiosClient';
+import { get } from '@/api/client';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAllUsersThunk, createUserThunk, deleteUserThunk, updateUserThunk } from '@store/slices/userSlice';
 import { getAllStoresThunk } from '@store/slices/storeSlice';
@@ -47,9 +47,9 @@ function UserManagement() {
     }
   }, [dispatch, usersStatus]);
 
-  // Fallback fetch via axiosClient for direct API usage
+  // Fallback fetch via api client for direct API usage
   useEffect(() => {
-    axiosClient.get('/api/users/all')
+    get('/api/users/all')
       .then((res) => setUsersApi(Array.isArray(res?.data?.data) ? res.data.data : []))
       .catch((err) => console.error('Lỗi lấy danh sách người dùng:', err));
   }, []);
@@ -75,6 +75,8 @@ function UserManagement() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [userToDelete, setUserToDelete] = useState(null);
   const [userToEdit, setUserToEdit] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [userToView, setUserToView] = useState(null);
   
   const [showAddRoleModal, setShowAddRoleModal] = useState(false);
   const [showEditRoleModal, setShowEditRoleModal] = useState(false);
@@ -90,8 +92,8 @@ function UserManagement() {
     email: '',
     password: '',
     phone: '',
-    storeName: '',
-    roleName: ''
+    storeId: '',
+    roleId: ''
   });
 
   const getStatusColor = (status) => {
@@ -124,6 +126,20 @@ function UserManagement() {
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
+    
+    // Nếu thay đổi role thành Admin hoặc EVM Staff, tự động clear storeId
+    if (name === 'roleId') {
+      const selectedRole = roles.find(r => r.roleId === value);
+      if (selectedRole && (selectedRole.roleName === 'Admin' || selectedRole.roleName === 'EVM Staff')) {
+        setFormData(prev => ({
+          ...prev,
+          [name]: value,
+          storeId: '' // Clear storeId cho Admin và EVM Staff
+        }));
+        return;
+      }
+    }
+    
     setFormData(prev => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value
@@ -133,14 +149,23 @@ function UserManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await dispatch(createUserThunk(formData)).unwrap();
+      // Chuẩn bị dữ liệu submit
+      const submitData = { ...formData };
+      
+      // Nếu là Admin hoặc EVM Staff, không gửi storeId
+      const selectedRole = roles.find(r => r.roleId === formData.roleId);
+      if (selectedRole && (selectedRole.roleName === 'Admin' || selectedRole.roleName === 'EVM Staff')) {
+        delete submitData.storeId;
+      }
+      
+      await dispatch(createUserThunk(submitData)).unwrap();
       setFormData({
         fullName: '',
         email: '',
         password: '',
         phone: '',
-        storeName: '',
-        roleName: ''
+        storeId: '',
+        roleId: ''
       });
       setShowAddModal(false);
       dispatch(getAllUsersThunk());
@@ -155,8 +180,8 @@ function UserManagement() {
       email: '',
       password: '',
       phone: '',
-      storeName: '',
-      roleName: ''
+      storeId: '',
+      roleId: ''
     });
     setShowAddModal(false);
   };
@@ -191,8 +216,8 @@ function UserManagement() {
       email: user.email || '',
       password: '',
       phone: user.phone || '',
-      storeName: user.storeName || '',
-      roleName: user.roleName || ''
+      storeId: user.storeId || '',
+      roleId: user.roleId || ''
     });
     setShowEditModal(true);
   };
@@ -211,6 +236,12 @@ function UserManagement() {
         delete updateData.password;
       }
       
+      // Nếu là Admin hoặc EVM Staff, không gửi storeId
+      const selectedRole = roles.find(r => r.roleId === formData.roleId);
+      if (selectedRole && (selectedRole.roleName === 'Admin' || selectedRole.roleName === 'EVM Staff')) {
+        delete updateData.storeId;
+      }
+      
       await dispatch(updateUserThunk(updateData)).unwrap();
       
       setFormData({
@@ -218,8 +249,8 @@ function UserManagement() {
         email: '',
         password: '',
         phone: '',
-        storeName: '',
-        roleName: ''
+        storeId: '',
+        roleId: ''
       });
       setShowEditModal(false);
       setUserToEdit(null);
@@ -236,8 +267,8 @@ function UserManagement() {
       email: '',
       password: '',
       phone: '',
-      storeName: '',
-      roleName: ''
+      storeId: '',
+      roleId: ''
     });
     setShowEditModal(false);
     setUserToEdit(null);
@@ -320,35 +351,62 @@ function UserManagement() {
     setRoleToEdit(null);
   };
 
+  const handleViewDetail = (user) => {
+    setUserToView(user);
+    setShowDetailModal(true);
+  };
+
+  const handleCloseDetailModal = () => {
+    setShowDetailModal(false);
+    setUserToView(null);
+  };
+
+  // Hàm lọc người dùng theo search term
+  const getFilteredUsersByRole = (roleName) => {
+    return usersList.filter(user => {
+      const matchesRole = user.roleName === roleName;
+      const matchesSearch = !searchTerm || 
+        (user.fullName && user.fullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (user.phone && user.phone.includes(searchTerm));
+      return matchesRole && matchesSearch;
+    });
+  };
+
   const tabs = [
-    { id: 'dealer-staff', name: 'Dealer Staff', count: usersList.filter(user => user.roleName === 'Dealer Staff').length },
-    { id: 'dealer-manager', name: 'Dealer Manager', count: usersList.filter(user => user.roleName === 'Dealer Manager').length },
-    { id: 'evm-staff', name: 'EVM Staff', count: usersList.filter(user => user.roleName === 'EVM Staff').length },
-    { id: 'admin', name: 'Admin', count: usersList.filter(user => user.roleName === 'Admin').length }
+    { id: 'dealer-staff', name: 'Dealer Staff', count: getFilteredUsersByRole('Dealer Staff').length },
+    { id: 'dealer-manager', name: 'Dealer Manager', count: getFilteredUsersByRole('Dealer Manager').length },
+    { id: 'evm-staff', name: 'EVM Staff', count: getFilteredUsersByRole('EVM Staff').length },
+    { id: 'admin', name: 'Admin', count: getFilteredUsersByRole('Admin').length }
   ];
 
-  const renderUserTable = (roleName, roleColor) => (
-    <div className="overflow-x-auto">
-      {isUsersFetching && <TableSkeleton />}
-      {!isUsersFetching && usersError && (
-        <div className="p-4 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
-          ❌ Lỗi tải danh sách: {String(usersError?.error || usersError?.data || 'Unknown error')}
-        </div>
-      )}
-      {!isUsersFetching && !usersError && (
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-            <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Họ tên</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Số điện thoại</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Trạng thái</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Cửa hàng</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">User ID</th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Thao tác</th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {usersList.filter(user => user.roleName === roleName).map((u, index) => (
+  const renderUserTable = (roleName, roleColor) => {
+    // Lọc người dùng theo role và search term
+    const filteredUsers = getFilteredUsersByRole(roleName);
+
+    return (
+      <div className="overflow-x-auto">
+        {isUsersFetching && <TableSkeleton />}
+        {!isUsersFetching && usersError && (
+          <div className="p-4 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
+            ❌ Lỗi tải danh sách: {String(usersError?.error || usersError?.data || 'Unknown error')}
+          </div>
+        )}
+        {!isUsersFetching && !usersError && (
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+              <tr>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Họ tên</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Số điện thoại</th>
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Trạng thái</th>
+                {(roleName !== 'Admin' && roleName !== 'EVM Staff') && (
+                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Cửa hàng</th>
+                )}
+                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {filteredUsers.map((u, index) => (
               <tr 
                 key={u.userId}
                 className={`transition-all duration-200 hover:bg-red-50 hover:shadow-sm cursor-pointer
@@ -386,12 +444,11 @@ function UserManagement() {
                     {getStatusText(String(u.status || '').toLowerCase())}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{u.storeName || 'N/A'}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-500 font-mono">#{u.userId}</div>
-                </td>
+                {(roleName !== 'Admin' && roleName !== 'EVM Staff') && (
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-sm text-gray-900">{u.storeName || 'N/A'}</div>
+                  </td>
+                )}
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center space-x-2">
                     <button 
@@ -406,7 +463,10 @@ function UserManagement() {
                       </span>
                     </button>
                     
-                    <button className="group relative p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-md transition-all duration-200 transform hover:scale-105">
+                    <button 
+                      onClick={() => handleViewDetail(u)}
+                      className="group relative p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                    >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
@@ -431,9 +491,9 @@ function UserManagement() {
                 </td>
               </tr>
             ))}
-            {usersList.filter(user => user.roleName === roleName).length === 0 && (
-              <tr>
-                <td colSpan="6" className="px-6 py-16">
+              {filteredUsers.length === 0 && (
+                <tr>
+                  <td colSpan={roleName === 'Admin' || roleName === 'EVM Staff' ? "4" : "5"} className="px-6 py-16">
                   <div className="text-center">
                     <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 mb-4 shadow-inner">
                       <svg className="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -441,10 +501,10 @@ function UserManagement() {
                       </svg>
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                      Chưa có {roleName}
+                      {searchTerm ? `Không tìm thấy ${roleName} phù hợp` : `Chưa có ${roleName}`}
                     </h3>
                     <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto">
-                      Bắt đầu bằng cách thêm người dùng với vai trò này
+                      {searchTerm ? 'Thử thay đổi từ khóa tìm kiếm' : 'Bắt đầu bằng cách thêm người dùng với vai trò này'}
                     </p>
                     <button
                       onClick={() => setShowAddModal(true)}
@@ -456,14 +516,15 @@ function UserManagement() {
                       Thêm người dùng mới
                     </button>
                   </div>
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      )}
-    </div>
-  );
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        )}
+      </div>
+    );
+  };
 
   const renderEVMStaffTable = () => renderUserTable('EVM Staff', getRoleColor('EVM Staff'));
   const renderDealerStaffTable = () => renderUserTable('Dealer Staff', getRoleColor('Dealer Staff'));
@@ -524,6 +585,18 @@ function UserManagement() {
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
+              {searchTerm && (
+                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex space-x-3">
@@ -532,13 +605,6 @@ function UserManagement() {
               <option>Hoạt động</option>
               <option>Không hoạt động</option>
               <option>Chờ duyệt</option>
-            </select>
-            <select className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm hover:shadow-md transition-all bg-white text-gray-900">
-              <option>Tất cả vai trò</option>
-              <option>Admin</option>
-              <option>EVM Staff</option>
-              <option>Dealer Manager</option>
-              <option>Dealer Staff</option>
             </select>
           </div>
         </div>
@@ -572,6 +638,28 @@ function UserManagement() {
         </div>
 
         <div className="p-6">
+          {/* Hiển thị thông tin tìm kiếm */}
+          {searchTerm && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center">
+                <svg className="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <span className="text-sm text-blue-700">
+                  Tìm kiếm: "<strong>{searchTerm}</strong>" - Tìm thấy {tabs.reduce((total, tab) => total + tab.count, 0)} kết quả
+                </span>
+                <button
+                  onClick={() => setSearchTerm('')}
+                  className="ml-auto text-blue-500 hover:text-blue-700 transition-colors"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          )}
+          
           {activeTab === 'dealer-staff' && renderDealerStaffTable()}
           {activeTab === 'dealer-manager' && renderDealerManagerTable()}
           {activeTab === 'evm-staff' && renderEVMStaffTable()}
@@ -617,25 +705,29 @@ function UserManagement() {
                   {/* Store Selection */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Cửa hàng <span className="text-red-500">*</span>
+                      Cửa hàng {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') ? '' : <span className="text-red-500">*</span>}
                     </label>
                     <select
-                      name="storeName"
-                      value={formData.storeName}
+                      name="storeId"
+                      value={formData.storeId}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      required
-                      disabled={isStoresFetching}
+                      required={formData.roleId && !(roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')}
+                      disabled={isStoresFetching || (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff'))}
                     >
                       <option value="">
-                        {isStoresFetching ? 'Đang tải cửa hàng...' : 'Chọn cửa hàng'}
+                        {isStoresFetching ? 'Đang tải cửa hàng...' : 
+                         (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
                       </option>
                       {stores.map((store) => (
-                        <option key={store.storeId} value={store.storeName}>
+                        <option key={store.storeId} value={store.storeId}>
                           {store.storeName} ({store.provinceName || 'N/A'})
                         </option>
                       ))}
                     </select>
+                    {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') && (
+                      <p className="text-xs text-gray-500 mt-1.5">💡 Admin và EVM Staff không thuộc về cửa hàng cụ thể</p>
+                    )}
                   </div>
 
                   {/* Role Selection */}
@@ -644,17 +736,21 @@ function UserManagement() {
                       Vai trò <span className="text-red-500">*</span>
                     </label>
                     <select
-                      name="roleName"
-                      value={formData.roleName}
+                      name="roleId"
+                      value={formData.roleId}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
                       required
+                      disabled={isRolesFetching}
                     >
-                      <option value="">Chọn vai trò</option>
-                      <option value="Admin">Admin</option>
-                      <option value="EVM Staff">EVM Staff</option>
-                      <option value="Dealer Manager">Dealer Manager</option>
-                      <option value="Dealer Staff">Dealer Staff</option>
+                      <option value="">
+                        {isRolesFetching ? 'Đang tải vai trò...' : 'Chọn vai trò'}
+                      </option>
+                      {roles.map((role) => (
+                        <option key={role.roleId} value={role.roleId}>
+                          {role.roleName}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -771,25 +867,29 @@ function UserManagement() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Cửa hàng <span className="text-red-500">*</span>
+                      Cửa hàng {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') ? '' : <span className="text-red-500">*</span>}
                     </label>
                     <select
-                      name="storeName"
-                      value={formData.storeName}
+                      name="storeId"
+                      value={formData.storeId}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      required
-                      disabled={isStoresFetching}
+                      required={formData.roleId && !(roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')}
+                      disabled={isStoresFetching || (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff'))}
                     >
                       <option value="">
-                        {isStoresFetching ? 'Đang tải cửa hàng...' : 'Chọn cửa hàng'}
+                        {isStoresFetching ? 'Đang tải cửa hàng...' : 
+                         (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
                       </option>
                       {stores.map((store) => (
-                        <option key={store.storeId} value={store.storeName}>
+                        <option key={store.storeId} value={store.storeId}>
                           {store.storeName} ({store.provinceName || 'N/A'})
                         </option>
                       ))}
                     </select>
+                    {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') && (
+                      <p className="text-xs text-gray-500 mt-1.5">💡 Admin và EVM Staff không thuộc về cửa hàng cụ thể</p>
+                    )}
                   </div>
 
                   <div>
@@ -797,17 +897,21 @@ function UserManagement() {
                       Vai trò <span className="text-red-500">*</span>
                     </label>
                     <select
-                      name="roleName"
-                      value={formData.roleName}
+                      name="roleId"
+                      value={formData.roleId}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
                       required
+                      disabled={isRolesFetching}
                     >
-                      <option value="">Chọn vai trò</option>
-                      <option value="Admin">Admin</option>
-                      <option value="EVM Staff">EVM Staff</option>
-                      <option value="Dealer Manager">Dealer Manager</option>
-                      <option value="Dealer Staff">Dealer Staff</option>
+                      <option value="">
+                        {isRolesFetching ? 'Đang tải vai trò...' : 'Chọn vai trò'}
+                      </option>
+                      {roles.map((role) => (
+                        <option key={role.roleId} value={role.roleId}>
+                          {role.roleName}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -946,6 +1050,148 @@ function UserManagement() {
                       </svg>
                     )}
                     {isCreatingUser ? 'Đang xóa...' : 'Xóa người dùng'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* User Detail Modal */}
+      {showDetailModal && userToView && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm animate-fadeIn">
+          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-2xl rounded-xl bg-white animate-slideDown">
+            <div className="mt-3">
+              <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                <h3 className="text-2xl font-bold text-gray-900">👤 Chi tiết người dùng</h3>
+                <button
+                  onClick={handleCloseDetailModal}
+                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
+                >
+                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {/* User Avatar and Basic Info */}
+                <div className="flex items-center space-x-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+                  <div className={`h-20 w-20 bg-gradient-to-br ${getRoleColor(userToView.roleName)} rounded-full flex items-center justify-center shadow-lg ring-4 ring-opacity-20 ring-gray-300`}>
+                    <span className="text-white font-bold text-2xl">
+                      {(userToView.fullName || '').split(' ').pop()?.charAt(0) || 'U'}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-2xl font-bold text-gray-900 mb-1">{userToView.fullName}</h4>
+                    <p className="text-lg text-gray-600 mb-2">{userToView.email}</p>
+                    <div className="flex items-center space-x-4">
+                      <span className={`px-3 py-1 inline-flex text-sm font-semibold rounded-full ${getStatusColor(String(userToView.status || '').toLowerCase())}`}>
+                        {getStatusText(String(userToView.status || '').toLowerCase())}
+                      </span>
+                      <span className={`px-3 py-1 inline-flex text-sm font-semibold rounded-full bg-gradient-to-r ${getRoleColor(userToView.roleName)} text-white shadow-md`}>
+                        {userToView.roleName}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Detailed Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Personal Information */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      Thông tin cá nhân
+                    </h5>
+                    <div className="space-y-3">
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                        </svg>
+                        <span className="text-sm text-gray-600">Email:</span>
+                        <span className="ml-2 text-sm font-medium text-gray-900">{userToView.email}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                        </svg>
+                        <span className="text-sm text-gray-600">Số điện thoại:</span>
+                        <span className="ml-2 text-sm font-medium text-gray-900">{userToView.phone}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm text-gray-600">Trạng thái:</span>
+                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(String(userToView.status || '').toLowerCase())}`}>
+                          {getStatusText(String(userToView.status || '').toLowerCase())}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Role and Store Information */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      Thông tin vai trò & cửa hàng
+                    </h5>
+                    <div className="space-y-3">
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <span className="text-sm text-gray-600">Vai trò:</span>
+                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full bg-gradient-to-r ${getRoleColor(userToView.roleName)} text-white shadow-md`}>
+                          {userToView.roleName}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        <span className="text-sm text-gray-600">Cửa hàng:</span>
+                        <span className="ml-2 text-sm font-medium text-gray-900">
+                          {userToView.roleName === 'Admin' || userToView.roleName === 'EVM Staff' ? 'Không thuộc cửa hàng' : (userToView.storeName || 'Chưa phân công')}
+                        </span>
+                      </div>
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        <span className="text-sm text-gray-600">User ID:</span>
+                        <span className="ml-2 text-sm font-mono text-gray-500">#{userToView.userId}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                  <button
+                    onClick={handleCloseDetailModal}
+                    className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
+                  >
+                    Đóng
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleCloseDetailModal();
+                      handleEditClick(userToView);
+                    }}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Chỉnh sửa
                   </button>
                 </div>
               </div>
