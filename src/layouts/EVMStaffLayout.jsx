@@ -1,7 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import BaseLayout from './BaseLayout';
+import { useAuth } from '../contexts/AuthContext';
 
 const EVMStaffLayout = () => {
+  const { user, isAuthenticated } = useAuth();
+  const [userInfo, setUserInfo] = useState({
+    initials: 'ES',
+    name: 'EVM Staff',
+    email: 'evm@electra.com',
+    role: 'Nhân viên EVM',
+  });
+
+  // Load user data from session
+  useEffect(() => {
+    if (isAuthenticated && user && user.roleName === 'EVM Staff') {
+      const initials = user.fullName
+        ? user.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase()
+        : 'ES';
+      
+      setUserInfo({
+        initials: initials,
+        name: user.fullName || 'EVM Staff',
+        email: user.email || 'evm@electra.com',
+        role: 'Nhân viên EVM',
+      });
+    }
+  }, [isAuthenticated, user]);
+
   const menuItems = [
     { 
       name: 'Tổng quan', 
@@ -73,12 +98,7 @@ const EVMStaffLayout = () => {
       menuItems={menuItems}
       brandColor="emerald"
       roleLabel="EVM Staff"
-      userInfo={{
-        initials: 'ES',
-        name: 'EVM Staff',
-        email: 'evm@electra.com',
-        role: 'Nhân viên EVM',
-      }}
+      userInfo={userInfo}
       basePath="/evm-staff"
       defaultTitle="EVM Staff Dashboard"
       defaultSubtitle="Tổng quan sản phẩm và phân phối"

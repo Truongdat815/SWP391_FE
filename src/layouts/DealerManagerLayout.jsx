@@ -1,7 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import BaseLayout from './BaseLayout';
+import { useAuth } from '../contexts/AuthContext';
 
 const DealerManagerLayout = () => {
+  const { user, isAuthenticated } = useAuth();
+  const [userInfo, setUserInfo] = useState({
+    initials: 'DM',
+    name: 'Dealer Manager',
+    email: 'manager@electra.com',
+    role: 'Quản lý đại lý',
+  });
+
+  // Load user data from session
+  useEffect(() => {
+    if (isAuthenticated && user && user.roleName === 'Dealer Manager') {
+      const initials = user.fullName
+        ? user.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase()
+        : 'DM';
+      
+      setUserInfo({
+        initials: initials,
+        name: user.fullName || 'Dealer Manager',
+        email: user.email || 'manager@electra.com',
+        role: 'Quản lý đại lý',
+      });
+    }
+  }, [isAuthenticated, user]);
+
   const menuItems = [
     { 
       name: 'Tổng quan', 
@@ -46,12 +71,7 @@ const DealerManagerLayout = () => {
       menuItems={menuItems}
       brandColor="red"
       roleLabel="Dealer Manager"
-      userInfo={{
-        initials: 'QL',
-        name: 'Nguyễn Văn A',
-        email: 'manager@electra.com',
-        role: 'Quản lý đại lý',
-      }}
+      userInfo={userInfo}
       basePath="/dealer-manager"
       defaultTitle="Dealer Manager Dashboard"
       defaultSubtitle="Tổng quan hệ thống"

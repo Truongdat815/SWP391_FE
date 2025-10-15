@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { get } from '@/api/client';
+import { getModelImage } from '../utils/modelHelpers';
 
 const Models = () => {
   const [models, setModels] = useState([]);
@@ -47,8 +48,16 @@ const Models = () => {
               className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100"
             >
               {/* Image Container */}
-              <div className="relative h-48 bg-gradient-to-br from-gray-50 to-gray-100 overflow-hidden">
-                {/* No image from API schema; keep placeholder gradient */}
+              <div className="relative h-48 overflow-hidden">
+                <img
+                  src={getModelImage(model.modelName)}
+                  alt={model.modelName}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  onError={(e) => {
+                    console.log('Image failed to load for model:', model.modelName);
+                    e.target.src = '/src/assets/images/logo.png';
+                  }}
+                />
                 
                 {/* Category Badge */}
                 <div className="absolute top-4 left-4">

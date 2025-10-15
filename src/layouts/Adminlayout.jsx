@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import BaseLayout from './BaseLayout';
 import { get } from '@/api/client';
+import { useAuth } from '../contexts/AuthContext';
 
 const AdminLayout = () => {
+  const { user, isAuthenticated } = useAuth();
   const [adminUser, setAdminUser] = useState({
     initials: 'AD',
     name: 'Admin User',
@@ -10,27 +12,42 @@ const AdminLayout = () => {
     role: 'Quản trị viên hệ thống',
   });
 
-  // Lấy thông tin admin từ API
+  // Lấy thông tin admin từ session
   useEffect(() => {
     const fetchAdminInfo = async () => {
       try {
-        const response = await get('/api/users/all');
-        const users = response?.data?.data || [];
-        
-        // Tìm user có role Admin
-        const adminUserData = users.find(user => user.roleName === 'Admin');
-        
-        if (adminUserData) {
-          const initials = adminUserData.fullName
-            ? adminUserData.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase()
+        // Use authenticated user data first
+        if (isAuthenticated && user && user.roleName === 'Admin') {
+          const initials = user.fullName
+            ? user.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase()
             : 'AD';
           
           setAdminUser({
             initials: initials,
-            name: adminUserData.fullName || 'Admin User',
-            email: adminUserData.email || 'admin@electra.com',
+            name: user.fullName || 'Admin User',
+            email: user.email || 'admin@electra.com',
             role: 'Quản trị viên hệ thống',
           });
+        } else {
+          // Fallback: try to get user from API if no session
+          const response = await get('/api/users/all');
+          const users = response?.data?.data || [];
+          
+          // Tìm user có role Admin
+          const adminUserData = users.find(user => user.roleName === 'Admin');
+          
+          if (adminUserData) {
+            const initials = adminUserData.fullName
+              ? adminUserData.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase()
+              : 'AD';
+            
+            setAdminUser({
+              initials: initials,
+              name: adminUserData.fullName || 'Admin User',
+              email: adminUserData.email || 'admin@electra.com',
+              role: 'Quản trị viên hệ thống',
+            });
+          }
         }
       } catch (error) {
         console.error('Lỗi lấy thông tin admin:', error);
@@ -39,7 +56,7 @@ const AdminLayout = () => {
     };
 
     fetchAdminInfo();
-  }, []);
+  }, [isAuthenticated, user]);
 
   const menuItems = [
     { 

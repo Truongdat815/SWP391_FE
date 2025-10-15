@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { get } from '@/api/client';
+import { useAuth } from '../contexts/AuthContext';
 
 const CommonProfile = () => {
   const location = useLocation();
+  const { user, isAuthenticated } = useAuth();
   const [formData, setFormData] = useState({
     name: 'User',
     email: 'user@electra.com',
@@ -26,32 +28,52 @@ const CommonProfile = () => {
     return 'User';
   };
 
-  // Lấy thông tin user từ API
+  // Lấy thông tin user từ session
   useEffect(() => {
     const fetchUserInfo = async () => {
       try {
         setLoading(true);
-        const response = await get('/api/users/all');
-        const users = response?.data?.data || [];
         
-        const currentRole = getRoleFromPath(location.pathname);
-        const userData = users.find(user => user.roleName === currentRole);
-        
-        if (userData) {
-          setUserData(userData);
-          const initials = userData.fullName
-            ? userData.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase()
+        // Use authenticated user data first
+        if (isAuthenticated && user) {
+          setUserData(user);
+          const initials = user.fullName
+            ? user.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase()
             : 'U';
           
           setFormData({
-            name: userData.fullName || 'User',
-            email: userData.email || 'user@electra.com',
-            phone: userData.phone || '0900000000',
-            role: getRoleDisplayName(currentRole),
-            employeeId: `${currentRole.charAt(0)}${userData.userId?.toString().padStart(3, '0') || '001'}`,
-            department: getDepartmentFromRole(currentRole),
-            startDate: userData.createdAt ? new Date(userData.createdAt).toISOString().split('T')[0] : '2023-01-01'
+            name: user.fullName || 'User',
+            email: user.email || 'user@electra.com',
+            phone: user.phone || '0900000000',
+            role: getRoleDisplayName(user.roleName),
+            employeeId: `${user.roleName?.charAt(0) || 'U'}${user.userId?.toString().padStart(3, '0') || '001'}`,
+            department: getDepartmentFromRole(user.roleName),
+            startDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : '2023-01-01'
           });
+        } else {
+          // Fallback: try to get user from API if no session
+          const response = await get('/api/users/all');
+          const users = response?.data?.data || [];
+          
+          const currentRole = getRoleFromPath(location.pathname);
+          const userData = users.find(user => user.roleName === currentRole);
+          
+          if (userData) {
+            setUserData(userData);
+            const initials = userData.fullName
+              ? userData.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase()
+              : 'U';
+            
+            setFormData({
+              name: userData.fullName || 'User',
+              email: userData.email || 'user@electra.com',
+              phone: userData.phone || '0900000000',
+              role: getRoleDisplayName(currentRole),
+              employeeId: `${currentRole.charAt(0)}${userData.userId?.toString().padStart(3, '0') || '001'}`,
+              department: getDepartmentFromRole(currentRole),
+              startDate: userData.createdAt ? new Date(userData.createdAt).toISOString().split('T')[0] : '2023-01-01'
+            });
+          }
         }
       } catch (error) {
         console.error('Lỗi lấy thông tin user:', error);
@@ -61,7 +83,7 @@ const CommonProfile = () => {
     };
 
     fetchUserInfo();
-  }, [location.pathname]);
+  }, [location.pathname, isAuthenticated, user]);
 
   const getRoleDisplayName = (role) => {
     switch (role) {

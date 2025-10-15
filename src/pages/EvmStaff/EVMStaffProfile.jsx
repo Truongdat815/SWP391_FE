@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const EVMStaffProfile = ({ onBack }) => {
+  const { user, isAuthenticated } = useAuth();
   const [formData, setFormData] = useState({
     name: 'EVM Staff',
     email: 'evm@electra.com',
@@ -11,6 +13,22 @@ const EVMStaffProfile = ({ onBack }) => {
     startDate: '2023-02-01',
     position: 'Nhân viên quản lý tồn kho'
   });
+
+  // Load user data from session
+  useEffect(() => {
+    if (isAuthenticated && user && user.roleName === 'EVM Staff') {
+      setFormData({
+        name: user.fullName || 'EVM Staff',
+        email: user.email || 'evm@electra.com',
+        phone: user.phone || '0901234567',
+        role: 'Nhân viên EVM',
+        employeeId: `ES${user.userId?.toString().padStart(3, '0') || '001'}`,
+        department: 'Phòng sản xuất & phân phối',
+        startDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : '2023-02-01',
+        position: user.position || 'Nhân viên quản lý tồn kho'
+      });
+    }
+  }, [isAuthenticated, user]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
