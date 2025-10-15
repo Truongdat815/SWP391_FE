@@ -66,4 +66,75 @@ export async function removeColorFromModel(payload) {
     return request(`/api/model-colors/delete?modelName=${encodeURIComponent(modelName)}&colorName=${encodeURIComponent(colorName)}`, { method: 'DELETE' });
 }
 
+// Seed demo data function
+export async function seedDemoData() {
+    try {
+        const { DEMO_MODELS_DATA } = await import('../utils/modelHelpers');
+        const results = [];
+        
+        for (const modelData of DEMO_MODELS_DATA) {
+            try {
+                const result = await createModel(modelData);
+                results.push({ success: true, model: modelData.modelName, data: result });
+            } catch (error) {
+                results.push({ 
+                    success: false, 
+                    model: modelData.modelName, 
+                    error: error.message 
+                });
+            }
+        }
+        
+        return {
+            success: true,
+            results,
+            total: DEMO_MODELS_DATA.length,
+            successful: results.filter(r => r.success).length,
+            failed: results.filter(r => !r.success).length
+        };
+    } catch (error) {
+        throw new Error(`Failed to seed demo data: ${error.message}`);
+    }
+}
+
+// Bulk operations
+export async function bulkDeleteModels(modelIds) {
+    try {
+        const results = [];
+        for (const modelId of modelIds) {
+            try {
+                await deleteModel(modelId);
+                results.push({ success: true, modelId });
+            } catch (error) {
+                results.push({ success: false, modelId, error: error.message });
+            }
+        }
+        return results;
+    } catch (error) {
+        throw new Error(`Bulk delete failed: ${error.message}`);
+    }
+}
+
+// Enhanced error handling wrapper
+export async function withRetry(operation, maxRetries = 3, delay = 1000) {
+    let lastError;
+    
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        try {
+            return await operation();
+        } catch (error) {
+            lastError = error;
+            
+            if (attempt === maxRetries) {
+                throw error;
+            }
+            
+            // Wait before retry
+            await new Promise(resolve => setTimeout(resolve, delay * attempt));
+        }
+    }
+    
+    throw lastError;
+}
+
 
