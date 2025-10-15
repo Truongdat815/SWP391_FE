@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 
 // Import images
 import electraAscent from '../assets/images/electra ascent.png';
-import electraCityLink from '../assets/images/electracitylink.png';
+import electraCityLink from '../assets/images/electra citylink.png';
 import electraGrandTour from '../assets/images/electra grandtour.png';
 import electraMicro from '../assets/images/electra micro.png';
 import electraSummit from '../assets/images/electra summit.png';

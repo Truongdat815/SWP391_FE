@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   getAllModelsThunk,
   createModelThunk,
@@ -15,44 +16,45 @@ import {
   updateColorThunk,
   deleteColorThunk,
 } from '@store/slices/colorSlice';
+import ProductCard from '../../components/ProductCard';
+import ModelFormWizard from '../../components/ModelFormWizard';
+import { 
+  getBodyTypeOptions, 
+  formatPrice, 
+  formatNumber,
+  getModelImage
+} from '../../utils/modelHelpers';
 
 function ProductManagement({ onBack }) {
   const dispatch = useDispatch();
   const { items: models, status: modelStatus } = useSelector((s) => s.models);
   const { items: colors } = useSelector((s) => s.colors);
 
-  const [successMsg, setSuccessMsg] = useState('');
+  // UI State
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filterBodyType, setFilterBodyType] = useState('');
+  const [filterYear, setFilterYear] = useState('');
+  const [filterPriceRange, setFilterPriceRange] = useState({ min: '', max: '' });
+  const [sortBy, setSortBy] = useState('modelName');
+  const [sortOrder, setSortOrder] = useState('asc');
+
+  // Modal States
   const [modelModalOpen, setModelModalOpen] = useState(false);
   const [editingModel, setEditingModel] = useState(null);
-
-  // Track colors for each model
-  const [modelColorsMap, setModelColorsMap] = useState({});
-  // Track which model is showing color dropdown
-  const [addingColorToModel, setAddingColorToModel] = useState(null);
-  const [selectedColorId, setSelectedColorId] = useState('');
-
   const [colorModalOpen, setColorModalOpen] = useState(false);
-  const [editingColor, setEditingColor] = useState(null);
-  const [colorForm, setColorForm] = useState({ colorName: '' });
-
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [viewingModel, setViewingModel] = useState(null);
 
-  const blankModel = useMemo(() => ({
-    modelName: '',
-    modelYear: '',
-    batteryCapacity: '',
-    range: '',
-    powerHp: '',
-    torqueNm: '',
-    acceleration: '',
-    seatingCapacity: '',
-    price: '',
-    bodyType: '',
-    description: '',
-  }), []);
+  // Color Management
+  const [modelColorsMap, setModelColorsMap] = useState({});
+  const [addingColorToModel, setAddingColorToModel] = useState(null);
+  const [selectedColorId, setSelectedColorId] = useState('');
+  const [editingColor, setEditingColor] = useState(null);
+  const [colorForm, setColorForm] = useState({ colorName: '' });
 
-  const [modelForm, setModelForm] = useState(blankModel);
+  // Notifications
+  const [successMsg, setSuccessMsg] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
     dispatch(getAllModelsThunk());
@@ -82,68 +84,94 @@ function ProductManagement({ onBack }) {
     }
   }, [models.length, dispatch]);
 
+  // Filtered and sorted models
+  const filteredModels = useMemo(() => {
+    let filtered = models.filter(model => {
+      const matchesSearch = !searchTerm || 
+        model.modelName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        model.description?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesBodyType = !filterBodyType || model.bodyType === filterBodyType;
+      
+      const matchesYear = !filterYear || model.modelYear?.toString() === filterYear;
+      
+      const matchesPrice = (!filterPriceRange.min || (model.price || 0) >= filterPriceRange.min) &&
+                          (!filterPriceRange.max || (model.price || 0) <= filterPriceRange.max);
+      
+      return matchesSearch && matchesBodyType && matchesYear && matchesPrice;
+    });
+
+    // Sort
+    filtered.sort((a, b) => {
+      let aVal = a[sortBy];
+      let bVal = b[sortBy];
+      
+      if (typeof aVal === 'string') {
+        aVal = aVal.toLowerCase();
+        bVal = bVal.toLowerCase();
+      }
+      
+      if (sortOrder === 'asc') {
+        return aVal > bVal ? 1 : -1;
+      } else {
+        return aVal < bVal ? 1 : -1;
+      }
+    });
+
+    return filtered;
+  }, [models, searchTerm, filterBodyType, filterYear, filterPriceRange, sortBy, sortOrder]);
+
+  // Model Management Functions
   const openCreateModel = () => {
     setEditingModel(null);
-    setModelForm(blankModel);
     setModelModalOpen(true);
   };
 
-  const openEditModel = (m) => {
-    setEditingModel(m);
-    setModelForm({
-      modelId: m.modelId,
-      modelName: m.modelName || '',
-      modelYear: m.modelYear || '',
-      batteryCapacity: m.batteryCapacity || '',
-      range: m.range || m.range_km || '',
-      powerHp: m.powerHp || m.power_hp || '',
-      torqueNm: m.torqueNm || m.torque_nm || '',
-      acceleration: m.acceleration || '',
-      seatingCapacity: m.seatingCapacity || '',
-      price: m.price || '',
-      bodyType: m.bodyType || m.body_type || '',
-      description: m.description || '',
-    });
+  const openEditModel = (model) => {
+    setEditingModel(model);
     setModelModalOpen(true);
   };
 
-  const submitModel = async (e) => {
-    e.preventDefault();
+  const submitModel = async (modelData) => {
     try {
       if (editingModel) {
-        await dispatch(updateModelThunk(modelForm)).unwrap();
-        setSuccessMsg('Đã cập nhật mẫu xe');
+        await dispatch(updateModelThunk({ ...modelData, modelId: editingModel.modelId })).unwrap();
+        setSuccessMsg('Đã cập nhật mẫu xe thành công');
       } else {
-        await dispatch(createModelThunk(modelForm)).unwrap();
-        setSuccessMsg('Đã tạo mẫu xe');
+        await dispatch(createModelThunk(modelData)).unwrap();
+        setSuccessMsg('Đã tạo mẫu xe mới thành công');
       }
       setModelModalOpen(false);
-      setTimeout(() => setSuccessMsg(''), 2000);
+      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
-      alert(err?.message || 'Lỗi thao tác mẫu xe');
+      setErrorMsg(err?.message || 'Lỗi khi thao tác mẫu xe');
+      setTimeout(() => setErrorMsg(''), 3000);
     }
   };
 
-  const removeModel = async (id) => {
-    if (!confirm('Xóa mẫu xe này?')) return;
+  const removeModel = async (modelId) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa mẫu xe này?')) return;
     try {
-      await dispatch(deleteModelThunk(id)).unwrap();
-      setSuccessMsg('Đã xóa mẫu xe');
-      setTimeout(() => setSuccessMsg(''), 2000);
+      await dispatch(deleteModelThunk(modelId)).unwrap();
+      setSuccessMsg('Đã xóa mẫu xe thành công');
+      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
-      alert(err?.message || 'Không thể xóa');
+      setErrorMsg(err?.message || 'Không thể xóa mẫu xe');
+      setTimeout(() => setErrorMsg(''), 3000);
     }
   };
 
+
+  // Color Management Functions
   const openCreateColor = () => {
     setEditingColor(null);
     setColorForm({ colorName: '' });
     setColorModalOpen(true);
   };
 
-  const openEditColor = (c) => {
-    setEditingColor(c);
-    setColorForm({ colorId: c.colorId, colorName: c.colorName || '' });
+  const openEditColor = (color) => {
+    setEditingColor(color);
+    setColorForm({ colorId: color.colorId, colorName: color.colorName || '' });
     setColorModalOpen(true);
   };
 
@@ -152,29 +180,32 @@ function ProductManagement({ onBack }) {
     try {
       if (editingColor) {
         await dispatch(updateColorThunk(colorForm)).unwrap();
-        setSuccessMsg('Đã cập nhật màu sắc');
+        setSuccessMsg('Đã cập nhật màu sắc thành công');
       } else {
         await dispatch(createColorThunk(colorForm)).unwrap();
-        setSuccessMsg('Đã tạo màu sắc');
+        setSuccessMsg('Đã tạo màu sắc mới thành công');
       }
       setColorModalOpen(false);
-      setTimeout(() => setSuccessMsg(''), 2000);
+      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
-      alert(err?.message || 'Lỗi thao tác màu');
+      setErrorMsg(err?.message || 'Lỗi khi thao tác màu sắc');
+      setTimeout(() => setErrorMsg(''), 3000);
     }
   };
 
-  const removeColor = async (id) => {
-    if (!confirm('Xóa màu này?')) return;
+  const removeColor = async (colorId) => {
+    if (!confirm('Bạn có chắc chắn muốn xóa màu này?')) return;
     try {
-      await dispatch(deleteColorThunk(id)).unwrap();
-      setSuccessMsg('Đã xóa màu');
-      setTimeout(() => setSuccessMsg(''), 2000);
+      await dispatch(deleteColorThunk(colorId)).unwrap();
+      setSuccessMsg('Đã xóa màu sắc thành công');
+      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
-      alert(err?.message || 'Không thể xóa');
+      setErrorMsg(err?.message || 'Không thể xóa màu sắc');
+      setTimeout(() => setErrorMsg(''), 3000);
     }
   };
 
+  // Color-Model relationship functions
   const toggleAddColor = (modelId) => {
     if (addingColorToModel === modelId) {
       setAddingColorToModel(null);
@@ -185,9 +216,14 @@ function ProductManagement({ onBack }) {
     }
   };
 
-  const handleAddColor = async (model) => {
+  const handleColorSelect = (colorId) => {
+    setSelectedColorId(colorId);
+  };
+
+  const handleConfirmAddColor = async (model) => {
     if (!selectedColorId) {
-      alert('Vui lòng chọn màu');
+      setErrorMsg('Vui lòng chọn màu sắc');
+      setTimeout(() => setErrorMsg(''), 3000);
       return;
     }
 
@@ -208,17 +244,23 @@ function ProductManagement({ onBack }) {
         [model.modelId]: updatedColors
       }));
 
-      setSuccessMsg(`Đã thêm màu ${colorToAdd.colorName}`);
+      setSuccessMsg(`Đã thêm màu ${colorToAdd.colorName} cho ${model.modelName}`);
       setAddingColorToModel(null);
       setSelectedColorId('');
-      setTimeout(() => setSuccessMsg(''), 2000);
+      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
-      alert(err?.message || 'Không thể thêm màu');
+      setErrorMsg(err?.message || 'Không thể thêm màu sắc');
+      setTimeout(() => setErrorMsg(''), 3000);
     }
   };
 
+  const handleCancelAddColor = (modelId) => {
+    setAddingColorToModel(null);
+    setSelectedColorId('');
+  };
+
   const handleRemoveColor = async (model, color) => {
-    if (!confirm(`Xóa màu ${color.colorName}?`)) return;
+    if (!confirm(`Bạn có chắc chắn muốn xóa màu ${color.colorName} khỏi ${model.modelName}?`)) return;
 
     try {
       await dispatch(removeColorFromModelThunk({
@@ -235,10 +277,11 @@ function ProductManagement({ onBack }) {
         [model.modelId]: updatedColors
       }));
 
-      setSuccessMsg(`Đã xóa màu ${color.colorName}`);
-      setTimeout(() => setSuccessMsg(''), 2000);
+      setSuccessMsg(`Đã xóa màu ${color.colorName} khỏi ${model.modelName}`);
+      setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
-      alert(err?.message || 'Không thể xóa màu');
+      setErrorMsg(err?.message || 'Không thể xóa màu sắc');
+      setTimeout(() => setErrorMsg(''), 3000);
     }
   };
 
@@ -254,313 +297,311 @@ function ProductManagement({ onBack }) {
     setDetailModalOpen(true);
   };
 
+  // Clear notifications
+  const clearNotifications = () => {
+    setSuccessMsg('');
+    setErrorMsg('');
+  };
+
   return (
-    <div className="px-6 space-y-6 w-full">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý sản phẩm</h1>
-          <p className="text-sm text-gray-500 mt-1">Quản lý mẫu xe và màu sắc</p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Top Bar - Admin Style */}
+      <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-2xl font-bold text-gray-900">Quản lý sản phẩm</h2>
+            <p className="text-sm text-gray-600 mt-1">Quản lý mẫu xe và màu sắc</p>
+          </div>
+          <div className="flex items-center gap-3">
+            {onBack && (
+              <motion.button 
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={onBack} 
+                className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Quay lại
+              </motion.button>
+            )}
+            
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={openCreateModel}
+              className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Thêm mẫu xe
+            </motion.button>
+
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={openCreateColor}
+              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+              Quản lý màu sắc
+            </motion.button>
+          </div>
         </div>
-        {onBack && (
-          <button onClick={onBack} className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors bg-white text-gray-900">
-            <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-            Quay lại
-          </button>
+      </div>
+
+      {/* Main Content */}
+      <div className="py-6 px-4 sm:px-6 lg:px-8">
+        {/* Notifications */}
+        <AnimatePresence>
+          {successMsg && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mb-6 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 p-4 flex items-center justify-between"
+            >
+              <div className="flex items-center">
+                <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {successMsg}
+              </div>
+              <button onClick={clearNotifications} className="text-emerald-600 hover:text-emerald-800">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </motion.div>
+          )}
+
+          {errorMsg && (
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="mb-6 rounded-xl bg-red-50 border border-red-200 text-red-700 p-4 flex items-center justify-between"
+            >
+              <div className="flex items-center">
+                <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {errorMsg}
+              </div>
+              <button onClick={clearNotifications} className="text-red-600 hover:text-red-800">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Filters and Controls */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 mb-6">
+          <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
+            {/* Search */}
+            <div className="flex-1 max-w-md">
+              <div className="relative">
+                <svg className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm mẫu xe..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+                />
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap gap-3">
+              <select
+                value={filterBodyType}
+                onChange={(e) => setFilterBodyType(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              >
+                <option value="">Tất cả kiểu dáng</option>
+                {getBodyTypeOptions().map(option => (
+                  <option key={option.value} value={option.value}>
+                    {option.icon} {option.label}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={filterYear}
+                onChange={(e) => setFilterYear(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              >
+                <option value="">Tất cả năm</option>
+                {Array.from({ length: 11 }, (_, i) => 2020 + i).map(year => (
+                  <option key={year} value={year}>{year}</option>
+                ))}
+              </select>
+
+              <select
+                value={`${sortBy}-${sortOrder}`}
+                onChange={(e) => {
+                  const [field, order] = e.target.value.split('-');
+                  setSortBy(field);
+                  setSortOrder(order);
+                }}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500"
+              >
+                <option value="modelName-asc">Tên A-Z</option>
+                <option value="modelName-desc">Tên Z-A</option>
+                <option value="price-asc">Giá thấp-cao</option>
+                <option value="price-desc">Giá cao-thấp</option>
+                <option value="modelYear-desc">Năm mới-cũ</option>
+                <option value="modelYear-asc">Năm cũ-mới</option>
+              </select>
+            </div>
+
+             {/* Clear Filters Button */}
+             <button
+               onClick={() => {
+                 setSearchTerm('');
+                 setFilterBodyType('');
+                 setFilterYear('');
+                 setFilterPriceRange({ min: '', max: '' });
+                 setSortBy('modelName');
+                 setSortOrder('asc');
+               }}
+               className="flex items-center px-3 py-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+               title="Xóa tất cả bộ lọc"
+             >
+               <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+               </svg>
+               Xóa bộ lọc
+             </button>
+
+          </div>
+        </div>
+
+        {/* Products Grid */}
+        <motion.div 
+          layout
+          className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6"
+        >
+            <AnimatePresence>
+              {filteredModels.map((model, index) => {
+                const modelColors = modelColorsMap[model.modelId] || [];
+                const availableColors = getAvailableColors(model.modelId);
+                const isAddingColor = addingColorToModel === model.modelId;
+
+                return (
+                  <motion.div
+                    key={model.modelId}
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ delay: index * 0.1 }}
+                  >
+                    <ProductCard
+                      model={model}
+                      modelColors={modelColors}
+                      availableColors={availableColors}
+                      isAddingColor={isAddingColor}
+                      selectedColorId={selectedColorId}
+                      onEdit={openEditModel}
+                      onDelete={removeModel}
+                      onView={openModelDetail}
+                      onAddColor={toggleAddColor}
+                      onRemoveColor={handleRemoveColor}
+                      onColorSelect={handleColorSelect}
+                      onToggleAddColor={toggleAddColor}
+                      onConfirmAddColor={handleConfirmAddColor}
+                      onCancelAddColor={handleCancelAddColor}
+                    />
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          </motion.div>
+
+        {/* Empty State */}
+        {filteredModels.length === 0 && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="text-center py-12"
+          >
+            <div className="w-24 h-24 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-12 h-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-900 mb-2">Không tìm thấy mẫu xe nào</h3>
+            <p className="text-gray-500 mb-4">
+              {searchTerm || filterBodyType || filterYear 
+                ? 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm'
+                : 'Bắt đầu bằng cách thêm mẫu xe đầu tiên'
+              }
+            </p>
+            {!searchTerm && !filterBodyType && !filterYear && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={openCreateModel}
+                className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Thêm mẫu xe đầu tiên
+              </motion.button>
+            )}
+          </motion.div>
         )}
       </div>
 
-      {successMsg && (
-        <div className="rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 p-3 text-sm">{successMsg}</div>
-      )}
-
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100">
-        <div className="p-6 space-y-6">
-          <div className="flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-gray-900">Danh sách mẫu xe</h3>
-            <div className="flex gap-2">
-              <button onClick={openCreateColor} className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition bg-white text-gray-900">
-                Quản lý màu sắc
-              </button>
-              <button onClick={openCreateModel} className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition bg-white text-gray-900">
-                Thêm mẫu xe
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {models.map((m) => {
-              const modelColors = modelColorsMap[m.modelId] || [];
-              const availableColors = getAvailableColors(m.modelId);
-              const isAddingColor = addingColorToModel === m.modelId;
-
-              return (
-                <div key={m.modelId} className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden hover:shadow-md transition">
-                  {/* Make the image area clickable */}
-                  <div 
-                    className="h-32 bg-gradient-to-r from-emerald-50 to-gray-50 cursor-pointer hover:from-emerald-100 hover:to-gray-100 transition"
-                    onClick={() => openModelDetail(m)}
-                  />
-                  <div className="p-4 space-y-3">
-                    {/* Model info */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="text-base font-semibold text-gray-900">{m.modelName}</div>
-                        <div className="text-xs text-gray-500">{m.bodyType || '—'} • {m.modelYear || '—'}</div>
-                      </div>
-                      <div className="text-emerald-600 font-semibold text-sm">{m.price ? `${Number(m.price).toLocaleString('vi-VN')}₫` : '—'}</div>
-                    </div>
-                    
-                    {/* Specs */}
-                    <div className="grid grid-cols-2 gap-2 text-xs text-gray-600">
-                      <div>Pin: <span className="font-medium text-gray-800">{m.batteryCapacity ?? '—'} kWh</span></div>
-                      <div>Tầm: <span className="font-medium text-gray-800">{m.range ?? '—'} km</span></div>
-                      <div>HP: <span className="font-medium text-gray-800">{m.powerHp ?? '—'}</span></div>
-                      <div>0-100: <span className="font-medium text-gray-800">{m.acceleration ?? '—'} s</span></div>
-                    </div>
-
-                    {/* Colors section */}
-                    <div className="border-t pt-3 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-gray-700">Màu sắc ({modelColors.length})</span>
-                      </div>
-                      
-                      {/* Color badges */}
-                      <div className="flex flex-wrap gap-1.5 min-h-[28px]">
-                        {modelColors.map((color) => (
-                          <span 
-                            key={color.colorId} 
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-50 text-emerald-700 text-xs font-medium group hover:bg-emerald-100 transition bg-white text-gray-900"
-                          >
-                            <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                            {color.colorName}
-                            <button
-                              onClick={() => handleRemoveColor(m, color)}
-                              className="ml-0.5 hover:bg-emerald-200 rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition"
-                            >
-                              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          </span>
-                        ))}
-                        
-                        {/* Add color button/dropdown */}
-                        {!isAddingColor && availableColors.length > 0 && (
-                          <button
-                            onClick={() => toggleAddColor(m.modelId)}
-                            className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-dashed border-gray-300 text-gray-600 text-xs font-medium hover:border-emerald-500 hover:text-emerald-600 transition bg-white text-gray-900"
-                          >
-                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                            Thêm
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Inline add color dropdown */}
-                      {isAddingColor && (
-                        <div className="flex gap-2 pt-1">
-                          <select
-                            value={selectedColorId}
-                            onChange={(e) => setSelectedColorId(e.target.value)}
-                            className="flex-1 text-xs border border-gray-300 rounded-lg px-2 py-1.5 bg-white text-gray-900"
-                            autoFocus
-                          >
-                            <option value="">-- Chọn màu --</option>
-                            {availableColors.map((c) => (
-                              <option key={c.colorId} value={c.colorId}>{c.colorName}</option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={() => handleAddColor(m)}
-                            disabled={!selectedColorId}
-                            className="px-3 py-1.5 text-xs rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed transition bg-white text-gray-900"
-                          >
-                            OK
-                          </button>
-                          <button
-                            onClick={() => toggleAddColor(m.modelId)}
-                            className="px-2 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 transition bg-white text-gray-900"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Actions - ADD VIEW DETAIL BUTTON */}
-                    <div className="flex gap-2 pt-2">
-                      <button 
-                        onClick={() => openModelDetail(m)} 
-                        className="flex-1 px-3 py-2 text-sm rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition bg-white text-gray-900"
-                      >
-                        Chi tiết
-                      </button>
-                      <button onClick={() => openEditModel(m)} className="flex-1 px-3 py-2 text-sm rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition bg-white text-gray-900">
-                        Sửa
-                      </button>
-                      <button onClick={() => removeModel(m.modelId)} className="flex-1 px-3 py-2 text-sm rounded-lg border border-red-300 text-red-700 hover:bg-red-50 transition bg-white text-gray-900">
-                        Xóa
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Model modal */}
-      {modelModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setModelModalOpen(false)}></div>
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-3xl border border-gray-200 p-6 max-h-[90vh] overflow-y-auto m-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">{editingModel ? 'Cập nhật' : 'Thêm'} mẫu xe</h3>
-              <button onClick={() => setModelModalOpen(false)} className="p-2 rounded-lg hover:bg-gray-100"><svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/></svg></button>
-            </div>
-            <form onSubmit={submitModel} className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tên mẫu</label>
-                <input value={modelForm.modelName} onChange={(e) => setModelForm(v => ({ ...v, modelName: e.target.value }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" required />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Năm</label>
-                <input type="number" value={modelForm.modelYear} onChange={(e) => setModelForm(v => ({ ...v, modelYear: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Dung lượng pin (kWh)</label>
-                <input type="number" value={modelForm.batteryCapacity} onChange={(e) => setModelForm(v => ({ ...v, batteryCapacity: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tầm hoạt động (km)</label>
-                <input type="number" value={modelForm.range} onChange={(e) => setModelForm(v => ({ ...v, range: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Công suất (hp)</label>
-                <input type="number" value={modelForm.powerHp} onChange={(e) => setModelForm(v => ({ ...v, powerHp: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mô-men xoắn (Nm)</label>
-                <input type="number" value={modelForm.torqueNm} onChange={(e) => setModelForm(v => ({ ...v, torqueNm: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tăng tốc 0-100 (s)</label>
-                <input type="number" step="0.1" value={modelForm.acceleration} onChange={(e) => setModelForm(v => ({ ...v, acceleration: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Số chỗ ngồi</label>
-                <input type="number" value={modelForm.seatingCapacity} onChange={(e) => setModelForm(v => ({ ...v, seatingCapacity: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Giá</label>
-                <input type="number" value={modelForm.price} onChange={(e) => setModelForm(v => ({ ...v, price: Number(e.target.value) }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Kiểu dáng</label>
-                <input value={modelForm.bodyType} onChange={(e) => setModelForm(v => ({ ...v, bodyType: e.target.value }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" />
-              </div>
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-1">Mô tả</label>
-                <textarea value={modelForm.description} onChange={(e) => setModelForm(v => ({ ...v, description: e.target.value }))} className="w-full border rounded-xl px-3 py-2 bg-white text-gray-900" rows={3} />
-              </div>
-              <div className="md:col-span-2 flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setModelModalOpen(false)} className="px-4 py-2 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 bg-white text-gray-900">Hủy</button>
-                <button type="submit" className="px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 bg-white text-gray-900">{editingModel ? 'Lưu' : 'Tạo'}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Model Form Wizard Modal */}
+      <ModelFormWizard
+        isOpen={modelModalOpen}
+        onClose={() => setModelModalOpen(false)}
+        onSubmit={submitModel}
+        editingModel={editingModel}
+        isLoading={modelStatus === 'loading'}
+      />
 
       {/* Color Management Modal */}
       {colorModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/30" onClick={() => setColorModalOpen(false)}></div>
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-2xl border border-gray-200 p-6 max-h-[90vh] overflow-y-auto m-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Quản lý màu sắc</h3>
-              <button onClick={() => setColorModalOpen(false)} className="p-2 rounded-lg hover:bg-gray-100">
-                <svg className="h-5 w-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
-                </svg>
-              </button>
-            </div>
-
-            {/* Add new color form */}
-            {!editingColor && (
-              <form onSubmit={submitColor} className="mb-6 p-4 bg-gray-50 rounded-xl border border-gray-200">
-                <h4 className="font-medium text-gray-900 mb-3">Thêm màu mới</h4>
-                <div className="flex gap-3">
-                  <input
-                    value={colorForm.colorName}
-                    onChange={(e) => setColorForm(v => ({ ...v, colorName: e.target.value }))}
-                    className="flex-1 border border-gray-300 rounded-lg px-3 py-2 bg-white text-gray-900"
-                    placeholder="Tên màu (VD: Đỏ, Xanh Dương, Trắng Ngọc Trai)"
-                    required
-                  />
-                  <button type="submit" className="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition bg-white text-gray-900">
-                    Thêm
-                  </button>
-                </div>
-              </form>
-            )}
-
-            {/* List of colors */}
-            <div>
-              <h4 className="font-medium text-gray-900 mb-3">
-                Danh sách màu ({colors.length})
-              </h4>
-              {colors.length === 0 ? (
-                <div className="text-center py-12 text-gray-500">
-                  <p>Chưa có màu nào. Thêm màu đầu tiên!</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 gap-3">
-                  {colors.map((c) => (
-                    <div key={c.colorId} className="border border-gray-200 rounded-lg p-3 flex items-center justify-between hover:shadow-md transition">
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 border-2 border-white shadow"></div>
-                        <span className="font-medium text-gray-900">{c.colorName}</span>
-                      </div>
-                      <button
-                        onClick={() => removeColor(c.colorId)}
-                        className="p-1.5 rounded hover:bg-red-50 text-red-600"
-                        title="Xóa màu"
-                      >
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Detail Modal */}
-      {detailModalOpen && viewingModel && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/40" onClick={() => setDetailModalOpen(false)}></div>
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-4xl border border-gray-200 max-h-[90vh] overflow-y-auto m-4">
-            {/* Header with gradient */}
-            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-6 rounded-t-2xl bg-white text-gray-900">
-              <div className="flex items-start justify-between">
-                <div className="text-white">
-                  <h2 className="text-2xl font-bold">{viewingModel.modelName}</h2>
-                  <p className="text-emerald-100 mt-1">{viewingModel.bodyType} • {viewingModel.modelYear}</p>
-                  <p className="text-3xl font-bold mt-3">
-                    {viewingModel.price ? `${Number(viewingModel.price).toLocaleString('vi-VN')}₫` : 'Liên hệ'}
-                  </p>
-                </div>
-                <button 
-                  onClick={() => setDetailModalOpen(false)} 
-                  className="p-2 rounded-lg hover:bg-white/20 transition text-white"
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center"
+        >
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setColorModalOpen(false)}
+          />
+          
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden m-4"
+          >
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-xl font-bold text-white">Quản lý màu sắc</h3>
+                <button
+                  onClick={() => setColorModalOpen(false)}
+                  className="p-2 rounded-lg hover:bg-white/20 transition-colors text-white"
                 >
                   <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
@@ -569,94 +610,291 @@ function ProductManagement({ onBack }) {
               </div>
             </div>
 
-            {/* Content */}
-            <div className="p-6 space-y-6">
-              {/* Specifications Grid */}
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">Thông số kỹ thuật</h3>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <div className="text-xs text-gray-500 mb-1">Dung lượng pin</div>
-                    <div className="text-lg font-semibold text-gray-900">{viewingModel.batteryCapacity || '—'} kWh</div>
+            <div className="p-6 max-h-[calc(90vh-80px)] overflow-y-auto">
+              {/* Add new color form */}
+              {!editingColor && (
+                <motion.form
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  onSubmit={submitColor}
+                  className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200"
+                >
+                  <h4 className="font-medium text-gray-900 mb-3 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                    Thêm màu mới
+                  </h4>
+                  <div className="flex gap-3">
+                    <input
+                      value={colorForm.colorName}
+                      onChange={(e) => setColorForm(v => ({ ...v, colorName: e.target.value }))}
+                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                      placeholder="Tên màu (VD: Đỏ, Xanh Dương, Trắng Ngọc Trai)"
+                      required
+                    />
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      type="submit"
+                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
+                    >
+                      Thêm
+                    </motion.button>
                   </div>
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <div className="text-xs text-gray-500 mb-1">Tầm hoạt động</div>
-                    <div className="text-lg font-semibold text-gray-900">{viewingModel.range || '—'} km</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <div className="text-xs text-gray-500 mb-1">Công suất</div>
-                    <div className="text-lg font-semibold text-gray-900">{viewingModel.powerHp || '—'} HP</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <div className="text-xs text-gray-500 mb-1">Mô-men xoắn</div>
-                    <div className="text-lg font-semibold text-gray-900">{viewingModel.torqueNm || '—'} Nm</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <div className="text-xs text-gray-500 mb-1">Tăng tốc 0-100</div>
-                    <div className="text-lg font-semibold text-gray-900">{viewingModel.acceleration || '—'} giây</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <div className="text-xs text-gray-500 mb-1">Số chỗ ngồi</div>
-                    <div className="text-lg font-semibold text-gray-900">{viewingModel.seatingCapacity || '—'} người</div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Description */}
-              {viewingModel.description && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Mô tả</h3>
-                  <div className="bg-gray-50 rounded-xl p-4">
-                    <p className="text-gray-700 leading-relaxed">{viewingModel.description}</p>
-                  </div>
-                </div>
+                </motion.form>
               )}
 
-              {/* Available Colors */}
+              {/* List of colors */}
               <div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-3">
-                  Màu sắc có sẵn ({modelColorsMap[viewingModel.modelId]?.length || 0})
-                </h3>
-                {(!modelColorsMap[viewingModel.modelId] || modelColorsMap[viewingModel.modelId].length === 0) ? (
-                  <div className="text-center py-8 bg-gray-50 rounded-xl">
-                    <svg className="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                    </svg>
-                    <p className="mt-2 text-sm text-gray-500">Chưa có màu nào cho mẫu xe này</p>
-                  </div>
+                <h4 className="font-medium text-gray-900 mb-4 flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                  </svg>
+                  Danh sách màu ({colors.length})
+                </h4>
+                
+                {colors.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center py-12 text-gray-500"
+                  >
+                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                      </svg>
+                    </div>
+                    <p>Chưa có màu nào. Thêm màu đầu tiên!</p>
+                  </motion.div>
                 ) : (
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                    {modelColorsMap[viewingModel.modelId].map((color) => (
-                      <div key={color.colorId} className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-4 text-center hover:shadow-md transition">
-                        <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 border-4 border-white shadow-lg mb-3"></div>
-                        <div className="font-medium text-gray-900">{color.colorName}</div>
-                      </div>
-                    ))}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <AnimatePresence>
+                      {colors.map((color, index) => (
+                        <motion.div
+                          key={color.colorId}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -20 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="border border-gray-200 rounded-xl p-4 flex items-center justify-between hover:shadow-md transition-all duration-200 bg-white"
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 border-2 border-white shadow-lg"></div>
+                            <span className="font-medium text-gray-900">{color.colorName}</span>
+                          </div>
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => removeColor(color.colorId)}
+                            className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
+                            title="Xóa màu"
+                          >
+                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </motion.button>
+                        </motion.div>
+                      ))}
+                    </AnimatePresence>
                   </div>
                 )}
               </div>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Detail Modal */}
+      {detailModalOpen && viewingModel && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-50 flex items-center justify-center"
+        >
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+            onClick={() => setDetailModalOpen(false)}
+          />
+          
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: 20 }}
+            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden m-4"
+          >
+            {/* Header with gradient */}
+            <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-6">
+              <div className="flex items-start justify-between">
+                <div className="text-white">
+                  <h2 className="text-3xl font-bold">{viewingModel.modelName}</h2>
+                  <p className="text-emerald-100 mt-2 text-lg">{viewingModel.bodyType} • {viewingModel.modelYear}</p>
+                  <p className="text-4xl font-bold mt-4">
+                    {formatPrice(viewingModel.price)}
+                  </p>
+                </div>
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setDetailModalOpen(false)}
+                  className="p-3 rounded-lg hover:bg-white/20 transition-colors text-white"
+                >
+                  <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
+                  </svg>
+                </motion.button>
+              </div>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 max-h-[calc(90vh-120px)] overflow-y-auto">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                {/* Left Column - Image and Basic Info */}
+                <div className="space-y-6">
+                  <div className="relative">
+                    <div className="aspect-video bg-gradient-to-br from-emerald-50 to-gray-50 rounded-xl overflow-hidden border-2 border-gray-200">
+                      <img
+                        src={getModelImage(viewingModel.modelName)}
+                        alt={viewingModel.modelName}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  {viewingModel.description && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Mô tả</h3>
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <p className="text-gray-700 leading-relaxed">{viewingModel.description}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Right Column - Specifications and Colors */}
+                <div className="space-y-6">
+                  {/* Specifications Grid */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Thông số kỹ thuật</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200"
+                      >
+                        <div className="text-xs text-emerald-600 mb-1">Dung lượng pin</div>
+                        <div className="text-xl font-bold text-emerald-700">{formatNumber(viewingModel.batteryCapacity)} kWh</div>
+                      </motion.div>
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200"
+                      >
+                        <div className="text-xs text-blue-600 mb-1">Tầm hoạt động</div>
+                        <div className="text-xl font-bold text-blue-700">{formatNumber(viewingModel.range)} km</div>
+                      </motion.div>
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200"
+                      >
+                        <div className="text-xs text-purple-600 mb-1">Công suất</div>
+                        <div className="text-xl font-bold text-purple-700">{formatNumber(viewingModel.powerHp)} HP</div>
+                      </motion.div>
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-xl p-4 border border-orange-200"
+                      >
+                        <div className="text-xs text-orange-600 mb-1">Mô-men xoắn</div>
+                        <div className="text-xl font-bold text-orange-700">{formatNumber(viewingModel.torqueNm)} Nm</div>
+                      </motion.div>
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="bg-gradient-to-br from-red-50 to-red-100 rounded-xl p-4 border border-red-200"
+                      >
+                        <div className="text-xs text-red-600 mb-1">Tăng tốc 0-100</div>
+                        <div className="text-xl font-bold text-red-700">{formatNumber(viewingModel.acceleration)} giây</div>
+                      </motion.div>
+                      <motion.div
+                        whileHover={{ scale: 1.02 }}
+                        className="bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-xl p-4 border border-indigo-200"
+                      >
+                        <div className="text-xs text-indigo-600 mb-1">Số chỗ ngồi</div>
+                        <div className="text-xl font-bold text-indigo-700">{formatNumber(viewingModel.seatingCapacity)} người</div>
+                      </motion.div>
+                    </div>
+                  </div>
+
+                  {/* Available Colors */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                      Màu sắc có sẵn ({modelColorsMap[viewingModel.modelId]?.length || 0})
+                    </h3>
+                    {(!modelColorsMap[viewingModel.modelId] || modelColorsMap[viewingModel.modelId].length === 0) ? (
+                      <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="text-center py-8 bg-gray-50 rounded-xl"
+                      >
+                        <svg className="mx-auto h-12 w-12 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                        </svg>
+                        <p className="mt-2 text-sm text-gray-500">Chưa có màu nào cho mẫu xe này</p>
+                      </motion.div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        <AnimatePresence>
+                          {modelColorsMap[viewingModel.modelId].map((color, index) => (
+                            <motion.div
+                              key={color.colorId}
+                              initial={{ opacity: 0, scale: 0.8 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.8 }}
+                              transition={{ delay: index * 0.1 }}
+                              whileHover={{ scale: 1.05 }}
+                              className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-xl p-4 text-center hover:shadow-md transition-all duration-200"
+                            >
+                              <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 border-4 border-white shadow-lg mb-3"></div>
+                              <div className="font-medium text-gray-900">{color.colorName}</div>
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
 
               {/* Action Buttons */}
-              <div className="flex gap-3 pt-4 border-t">
-                <button 
+              <div className="flex gap-3 pt-6 border-t mt-6">
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => {
                     setDetailModalOpen(false);
                     openEditModel(viewingModel);
                   }}
-                  className="flex-1 px-4 py-2.5 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition font-medium bg-white text-gray-900"
+                  className="flex-1 px-6 py-3 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 transition-colors font-medium flex items-center justify-center gap-2"
                 >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                  </svg>
                   Chỉnh sửa thông tin
-                </button>
-                <button 
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   onClick={() => setDetailModalOpen(false)}
-                  className="px-6 py-2.5 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition font-medium bg-white text-gray-900"
+                  className="px-6 py-3 rounded-xl border border-gray-300 text-gray-700 hover:bg-gray-50 transition-colors font-medium"
                 >
                   Đóng
-                </button>
+                </motion.button>
               </div>
             </div>
-          </div>
-        </div>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );
