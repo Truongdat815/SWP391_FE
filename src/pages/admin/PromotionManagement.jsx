@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import axiosClient from '@/services/axiosClient';
+import { get } from '@/api/client';
 
 function PromotionManagement() {
   const [promotions, setPromotions] = useState([]);
@@ -7,7 +7,7 @@ function PromotionManagement() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    axiosClient.get('/api/promotions/all')
+    get('/api/promotions/all')
       .then((res) => setPromotions(Array.isArray(res?.data?.data) ? res.data.data : []))
       .catch((err) => {
         console.error('Lỗi lấy danh sách khuyến mãi:', err);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import axiosClient from '@/services/axiosClient';
+import { get } from '@/api/client';
 
 function OrderManagement() {
   const [orders, setOrders] = useState([]);
@@ -8,7 +8,7 @@ function OrderManagement() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    axiosClient.get('/api/orders/all')
+    get('/api/orders/all')
       .then((res) => setOrders(Array.isArray(res?.data?.data) ? res.data.data : []))
       .catch((err) => {
         console.error('Lỗi lấy đơn hàng:', err);

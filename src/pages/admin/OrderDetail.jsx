@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import axiosClient from '@/services/axiosClient';
+import { get } from '@/api/client';
 
 function OrderDetail() {
   const { orderId } = useParams();
@@ -12,8 +12,8 @@ function OrderDetail() {
   useEffect(() => {
     let mounted = true;
     Promise.all([
-      axiosClient.get('/api/orders/all'), // In absence of single order endpoint, list and find
-      axiosClient.get(`/api/order-details/order/${orderId}`)
+      get('/api/orders/all'), // In absence of single order endpoint, list and find
+      get(`/api/order-details/order/${orderId}`)
     ])
       .then(([ordersRes, detailsRes]) => {
         if (!mounted) return;

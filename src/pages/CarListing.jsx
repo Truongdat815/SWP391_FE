@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useEffect, useState } from 'react'
-import axiosClient from '@/services/axiosClient'
+import { get } from '@/api/client'
 
 function CarListing() {
   const [models, setModels] = useState([])
 
   useEffect(() => {
-    axiosClient.get('/api/models/all')
+    get('/api/models/all')
       .then(res => setModels(res.data.data))
       .catch(err => console.error('Lỗi lấy danh sách model:', err))
   }, [])

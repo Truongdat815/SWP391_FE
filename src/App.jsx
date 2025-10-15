@@ -16,7 +16,6 @@ import DealerManagerLayout from './layouts/DealerManagerLayout'
 import EVMStaffLayout from './layouts/EVMStaffLayout'
 
 // Dashboard Pages
-import AdminDashboard from './pages/admin/AdminDashboard'
 import DealerStaffDashboard from './pages/dealerStaff/DealerStaffDashboard'
 import DealerManagerDashboard from './pages/dealerManager/DealerManagerDashboard'
 import EVMDashboard from './pages/EvmStaff/EVMDashboard'
@@ -55,10 +54,10 @@ import PricingManagement from './pages/EvmStaff/PricingManagement'
 import SalesReport from './pages/EvmStaff/SalesReport'
 
 // Admin Sub Pages
-import Monitoring from './pages/admin/Monitoring'
 import StoreManagement from './pages/admin/StoreManagement'
 import UserManagement from './pages/admin/UserManagement'
-import SystemConfig from './pages/admin/SystemConfig'
+import OrderManagement from './pages/admin/OrderManagement'
+import PromotionManagement from './pages/admin/PromotionManagement'
 
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
@@ -102,11 +101,10 @@ function App() {
         
         {/* Admin Routes */}
         <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<AdminDashboard />} />
-          <Route path="monitoring" element={<Monitoring />} />
-          <Route path="store-management" element={<StoreManagement />} />
+          <Route index element={<StoreManagement />} />
           <Route path="user-management" element={<UserManagement />} />
-          <Route path="system-config" element={<SystemConfig />} />
+          <Route path="order-management" element={<OrderManagement />} />
+          <Route path="promotion-management" element={<PromotionManagement />} />
           <Route path="profile" element={<CommonProfile />} />
           <Route path="settings" element={<CommonSettings />} />
           <Route path="help" element={<CommonHelp />} />
