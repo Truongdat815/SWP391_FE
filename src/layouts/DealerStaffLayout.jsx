@@ -1,7 +1,32 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import BaseLayout from './BaseLayout';
+import { useAuth } from '../contexts/AuthContext';
 
 const DealerStaffLayout = () => {
+  const { user, isAuthenticated } = useAuth();
+  const [userInfo, setUserInfo] = useState({
+    initials: 'DS',
+    name: 'Dealer Staff',
+    email: 'staff@electra.com',
+    role: 'Nhân viên bán hàng',
+  });
+
+  // Load user data from session
+  useEffect(() => {
+    if (isAuthenticated && user && user.roleName === 'Dealer Staff') {
+      const initials = user.fullName
+        ? user.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase()
+        : 'DS';
+      
+      setUserInfo({
+        initials: initials,
+        name: user.fullName || 'Dealer Staff',
+        email: user.email || 'staff@electra.com',
+        role: 'Nhân viên bán hàng',
+      });
+    }
+  }, [isAuthenticated, user]);
+
   const menuItems = [
     { 
       name: 'Tổng quan', 
@@ -91,12 +116,7 @@ const DealerStaffLayout = () => {
       menuItems={menuItems}
       brandColor="emerald"
       roleLabel="Dealer Staff"
-      userInfo={{
-        initials: 'NV',
-        name: 'Nguyễn Văn A',
-        email: 'staff@electra.com',
-        role: 'Nhân viên bán hàng',
-      }}
+      userInfo={userInfo}
       basePath="/dealer-staff"
       defaultTitle="Dealer Staff Dashboard"
       defaultSubtitle="Tổng quan bán hàng"

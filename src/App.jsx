@@ -1,4 +1,3 @@
-
 import './index.css'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
@@ -8,6 +7,8 @@ import CarDetail from './pages/CarDetail'
 import Dealers from './pages/Dealers'
 import DealerDetail from './pages/DealerDetail'
 import SignIn from './pages/SignIn'
+import ProtectedRoute from './components/ProtectedRoute'
+import { AuthProvider } from './contexts/AuthContext'
 
 // Layouts
 import AdminLayout from './layouts/Adminlayout'
@@ -63,113 +64,131 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
 function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        {/* Public Routes with Header and Footer */}
-        <Route path="/" element={<Home />} />
-        <Route path="/cars" element={
-          <div className="min-h-screen bg-white flex flex-col">
-            <Navbar />
-            <CarListing />
-            <Footer />
-          </div>
-        } />
-        <Route path="/car/:model" element={
-          <div className="bg-white">
-            <Navbar />
-            <CarDetail />
-            <Footer />
-          </div>
-        } />
-        <Route path="/dealers" element={
-          <div className="min-h-screen bg-white flex flex-col">
-            <Navbar />
-            <Dealers />
-            <Footer />
-          </div>
-        } />
-        <Route path="/dealers/:id" element={
-          <div className="min-h-screen bg-white flex flex-col">
-            <Navbar />
-            <DealerDetail />
-            <Footer />
-          </div>
-        } />
-        
-        {/* Login Route without Header/Footer */}
-        <Route path="/signin" element={<SignIn />} />
-        
-        {/* Admin Routes */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<StoreManagement />} />
-          <Route path="user-management" element={<UserManagement />} />
-          <Route path="order-management" element={<OrderManagement />} />
-          <Route path="promotion-management" element={<PromotionManagement />} />
-          <Route path="profile" element={<CommonProfile />} />
-          <Route path="settings" element={<CommonSettings />} />
-          <Route path="help" element={<CommonHelp />} />
-        </Route>
-
-        {/* Dealer Staff Routes */}
-        <Route path="/dealer-staff" element={<DealerStaffLayout />}>
-          <Route index element={<DealerStaffDashboard />} />
-          <Route path="create-quote" element={<CreateQuote />} />
-          <Route path="quote-order-management" element={<QuoteOrderManagement />} />
-          <Route path="view-orders" element={<ViewOrders />} />
-          <Route path="add-customer" element={<AddCustomer />} />
-          <Route path="test-drive-schedule" element={<TestDriveSchedule />} />
-          <Route path="inventory" element={<Inventory />} />
-          <Route path="payment-management" element={<PaymentManagement />} />
-          <Route path="feedback-management" element={<FeedbackManagement />} />
-          <Route path="car-comparison" element={<CarComparison />} />
-          <Route path="profile" element={<CommonProfile />} />
-          <Route path="settings" element={<CommonSettings />} />
-          <Route path="help" element={<CommonHelp />} />
-        </Route>
-
-        {/* Dealer Manager Routes */}
-        <Route path="/dealer-manager" element={<DealerManagerLayout />}>
-          <Route index element={<DealerManagerDashboard />} />
-          <Route path="tao-bao-cao" element={<TaoBaoCao />} />
-          <Route path="bao-cao-doanh-so" element={<BaoCaoDoanhSo />} />
-          <Route path="quan-ly-nhan-vien" element={<QuanLyNhanVien />} />
-          <Route path="quan-ly-cong-no" element={<QuanLyCongNo />} />
-          <Route path="xuat-bao-cao" element={<XuatBaoCao />} />
-          <Route path="profile" element={<CommonProfile />} />
-          <Route path="settings" element={<CommonSettings />} />
-          <Route path="help" element={<CommonHelp />} />
-          <Route path="test" element={<TestPage />} />
-        </Route>
-
-        {/* EVM Staff Routes */}
-        <Route path="/evm-staff" element={<EVMStaffLayout />}>
-          <Route index element={<EVMDashboard />} />
-          <Route path="product-management" element={<ProductManagement />} />
-          <Route path="inventory-management" element={<InventoryManagement />} />
-          <Route path="dealer-management" element={<DealerManagement />} />
-          <Route path="contract-management" element={<ContractManagement />} />
-          <Route path="pricing-management" element={<PricingManagement />} />
-          <Route path="sales-report" element={<SalesReport />} />
-          <Route path="profile" element={<CommonProfile />} />
-          <Route path="settings" element={<CommonSettings />} />
-          <Route path="help" element={<CommonHelp />} />
-        </Route>
-        
-        <Route path="*" element={
-          <div className="min-h-screen bg-white flex flex-col">
-            <Navbar />
-            <div className="flex-1 flex items-center justify-center">
-              <div className="text-center">
-                <h1 className="text-4xl font-bold text-red-600 mb-4">404 - Page Not Found</h1>
-                <p className="text-gray-600 mb-4">The page you're looking for doesn't exist.</p>
-                <p className="text-sm text-gray-400">Current URL: {window.location.pathname}</p>
-              </div>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public Routes with Header and Footer */}
+          <Route path="/" element={<Home />} />
+          <Route path="/cars" element={
+            <div className="min-h-screen bg-white flex flex-col">
+              <Navbar />
+              <CarListing />
+              <Footer />
             </div>
-            <Footer />
-          </div>
-        } />
-      </Routes>
-    </BrowserRouter>
+          } />
+          <Route path="/car/:modelId" element={
+            <div className="bg-white">
+              <Navbar />
+              <CarDetail />
+              <Footer />
+            </div>
+          } />
+          <Route path="/dealers" element={
+            <div className="min-h-screen bg-white flex flex-col">
+              <Navbar />
+              <Dealers />
+              <Footer />
+            </div>
+          } />
+          <Route path="/dealers/:id" element={
+            <div className="min-h-screen bg-white flex flex-col">
+              <Navbar />
+              <DealerDetail />
+              <Footer />
+            </div>
+          } />
+          
+          {/* Login Route without Header/Footer */}
+          <Route path="/signin" element={<SignIn />} />
+          
+          {/* Admin Routes - Protected */}
+          <Route path="/admin" element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminLayout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<StoreManagement />} />
+            <Route path="user-management" element={<UserManagement />} />
+            <Route path="order-management" element={<OrderManagement />} />
+            <Route path="promotion-management" element={<PromotionManagement />} />
+            <Route path="profile" element={<CommonProfile />} />
+            <Route path="settings" element={<CommonSettings />} />
+            <Route path="help" element={<CommonHelp />} />
+          </Route>
+
+          {/* Dealer Staff Routes - Protected */}
+          <Route path="/dealer-staff" element={
+            <ProtectedRoute requiredRole="dealer-staff">
+              <DealerStaffLayout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<DealerStaffDashboard />} />
+            <Route path="create-quote" element={<CreateQuote />} />
+            <Route path="quote-order-management" element={<QuoteOrderManagement />} />
+            <Route path="view-orders" element={<ViewOrders />} />
+            <Route path="add-customer" element={<AddCustomer />} />
+            <Route path="test-drive-schedule" element={<TestDriveSchedule />} />
+            <Route path="inventory" element={<Inventory />} />
+            <Route path="payment-management" element={<PaymentManagement />} />
+            <Route path="feedback-management" element={<FeedbackManagement />} />
+            <Route path="car-comparison" element={<CarComparison />} />
+            <Route path="profile" element={<CommonProfile />} />
+            <Route path="settings" element={<CommonSettings />} />
+            <Route path="help" element={<CommonHelp />} />
+          </Route>
+
+          {/* Dealer Manager Routes - Protected */}
+          <Route path="/dealer-manager" element={
+            <ProtectedRoute requiredRole="dealer-manager">
+              <DealerManagerLayout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<DealerManagerDashboard />} />
+            <Route path="tao-bao-cao" element={<TaoBaoCao />} />
+            <Route path="bao-cao-doanh-so" element={<BaoCaoDoanhSo />} />
+            <Route path="quan-ly-nhan-vien" element={<QuanLyNhanVien />} />
+            <Route path="quan-ly-cong-no" element={<QuanLyCongNo />} />
+            <Route path="xuat-bao-cao" element={<XuatBaoCao />} />
+            <Route path="profile" element={<CommonProfile />} />
+            <Route path="settings" element={<CommonSettings />} />
+            <Route path="help" element={<CommonHelp />} />
+            <Route path="test" element={<TestPage />} />
+          </Route>
+
+          {/* EVM Staff Routes - Protected */}
+          <Route path="/evm-staff" element={
+            <ProtectedRoute requiredRole="evm-staff">
+              <EVMStaffLayout />
+            </ProtectedRoute>
+          }>
+            <Route index element={<EVMDashboard />} />
+            <Route path="product-management" element={<ProductManagement />} />
+            <Route path="inventory-management" element={<InventoryManagement />} />
+            <Route path="dealer-management" element={<DealerManagement />} />
+            <Route path="contract-management" element={<ContractManagement />} />
+            <Route path="pricing-management" element={<PricingManagement />} />
+            <Route path="sales-report" element={<SalesReport />} />
+            <Route path="profile" element={<CommonProfile />} />
+            <Route path="settings" element={<CommonSettings />} />
+            <Route path="help" element={<CommonHelp />} />
+          </Route>
+          
+          <Route path="*" element={
+            <div className="min-h-screen bg-white flex flex-col">
+              <Navbar />
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <h1 className="text-4xl font-bold text-red-600 mb-4">404 - Page Not Found</h1>
+                  <p className="text-gray-600 mb-4">The page you're looking for doesn't exist.</p>
+                  <p className="text-sm text-gray-400">Current URL: {window.location.pathname}</p>
+                </div>
+              </div>
+              <Footer />
+            </div>
+          } />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 

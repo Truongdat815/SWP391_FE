@@ -1,14 +1,16 @@
 import { configureStore } from '@reduxjs/toolkit';
 
-import userReducer from '@store/slices/userSlice';
-import storeReducer from '@store/slices/storeSlice';
-import roleReducer from '@store/slices/roleSlice';
-import modelReducer from '@store/slices/modelSlice';
-import colorReducer from '@store/slices/colorSlice';
-import modelColorReducer from '@store/slices/modelColorSlice';
+import userReducer from './slices/userSlice';
+import storeReducer from './slices/storeSlice';
+import roleReducer from './slices/roleSlice';
+import modelReducer from './slices/modelSlice';
+import colorReducer from './slices/colorSlice';
+import modelColorReducer from './slices/modelColorSlice';
+import authReducer from './slices/authSlice';
 
 export const store = configureStore({
     reducer: {
+        auth: authReducer, // Add this line
         users: userReducer,
         stores: storeReducer,
         roles: roleReducer,
@@ -18,5 +20,3 @@ export const store = configureStore({
     },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware(),
 });
-
-

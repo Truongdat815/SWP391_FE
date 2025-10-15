@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../../contexts/AuthContext';
 
 const DealerStaffProfile = ({ onBack }) => {
+  const { user, isAuthenticated } = useAuth();
   const [formData, setFormData] = useState({
     name: 'Staff Name',
     email: 'staff@electra.com',
@@ -12,6 +14,23 @@ const DealerStaffProfile = ({ onBack }) => {
     dealer: 'Đại lý Hà Nội',
     manager: 'Nguyễn Văn Manager'
   });
+
+  // Load user data from session
+  useEffect(() => {
+    if (isAuthenticated && user && user.roleName === 'Dealer Staff') {
+      setFormData({
+        name: user.fullName || 'Staff Name',
+        email: user.email || 'staff@electra.com',
+        phone: user.phone || '0901234567',
+        role: 'Nhân viên bán hàng',
+        employeeId: `DS${user.userId?.toString().padStart(3, '0') || '001'}`,
+        department: 'Phòng bán hàng',
+        startDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : '2023-03-15',
+        dealer: user.storeName || 'Đại lý Hà Nội',
+        manager: user.managerName || 'Nguyễn Văn Manager'
+      });
+    }
+  }, [isAuthenticated, user]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;

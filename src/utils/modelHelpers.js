@@ -69,7 +69,8 @@ export const BODY_TYPE_ICONS = {
 
 // Image mapping cho models
 const MODEL_IMAGES = {
-  'Electra Nano': electraMicro,
+  'Electra Micro': electraMicro,
+  'Electra Nano': electraMicro, // Electra Nano sử dụng hình ảnh của Electra Micro
   'Electra UrbanPulse': electraUrbanPulse,
   'Electra CityLink': electraCityLink,
   'Electra Ascent': electraAscent,
@@ -80,7 +81,8 @@ const MODEL_IMAGES = {
 
 // Poster images mapping
 const MODEL_POSTERS = {
-  'Electra Nano': electraMicroPoster,
+  'Electra Micro': electraMicroPoster,
+  'Electra Nano': electraMicroPoster, // Electra Nano sử dụng poster của Electra Micro
   'Electra UrbanPulse': electraUrbanPulsePoster,
   'Electra CityLink': electraCityLinkPoster,
   'Electra Ascent': electraAscentPoster,

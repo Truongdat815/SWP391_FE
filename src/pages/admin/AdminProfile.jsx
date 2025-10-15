@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { get } from '@/api/client';
+import { useAuth } from '../../contexts/AuthContext';
 
 const AdminProfile = ({ onBack }) => {
+  const { user, isAuthenticated } = useAuth();
   const [formData, setFormData] = useState({
     name: 'Admin User',
     email: 'admin@electra.com',
@@ -14,26 +16,21 @@ const AdminProfile = ({ onBack }) => {
 
   const [adminUser, setAdminUser] = useState(null);
 
-  // Lấy thông tin admin từ API
+  // Lấy thông tin admin từ session
   useEffect(() => {
     const fetchAdminInfo = async () => {
       try {
-        const response = await get('/api/users/all');
-        const users = response?.data?.data || [];
-        
-        // Tìm user có role Admin
-        const adminUserData = users.find(user => user.roleName === 'Admin');
-        
-        if (adminUserData) {
-          setAdminUser(adminUserData);
+        // Use authenticated user data first
+        if (isAuthenticated && user && user.roleName === 'Admin') {
+          setAdminUser(user);
           setFormData({
-            name: adminUserData.fullName || 'Admin User',
-            email: adminUserData.email || 'admin@electra.com',
-            phone: adminUserData.phone || '0901234567',
+            name: user.fullName || 'Admin User',
+            email: user.email || 'admin@electra.com',
+            phone: user.phone || '0901234567',
             role: 'Quản trị viên hệ thống',
-            employeeId: `AD${adminUserData.userId?.toString().padStart(3, '0') || '001'}`,
+            employeeId: `AD${user.userId?.toString().padStart(3, '0') || '001'}`,
             department: 'Quản lý hệ thống',
-            startDate: adminUserData.createdAt ? new Date(adminUserData.createdAt).toISOString().split('T')[0] : '2023-01-01'
+            startDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : '2023-01-01'
           });
         }
       } catch (error) {
