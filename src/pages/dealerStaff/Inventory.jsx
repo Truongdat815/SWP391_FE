@@ -1,13 +1,31 @@
 import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useAuth } from '../../contexts/AuthContext';
+import { getAllStoreStocksThunk, createStoreStockThunk, updateStockQuantityThunk, updateStockPriceThunk, deleteStoreStockThunk } from '../../store/slices/store-stockSlice';
+import { showSuccess, showError, showWarning } from '../../store/slices/snackbarSlice';
 
 function Inventory() {
+  const dispatch = useDispatch();
+  const { user, getStoreId } = useAuth();
+  
+  // Redux state
+  const storeStocks = useSelector((state) => state.storeStocks.items);
+  const storeStocksStatus = useSelector((state) => state.storeStocks.status);
+  const storeStocksError = useSelector((state) => state.storeStocks.error);
+  
   const [inventory, setInventory] = useState([]);
   const [filteredInventory, setFilteredInventory] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [expandedModels, setExpandedModels] = useState(new Set());
   const [reportModal, setReportModal] = useState(false);
+  const [createModal, setCreateModal] = useState(false);
+  const [updateQuantityModal, setUpdateQuantityModal] = useState(false);
+  const [updatePriceModal, setUpdatePriceModal] = useState(false);
+  const [deleteModal, setDeleteModal] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
+  const [selectedStock, setSelectedStock] = useState(null);
+  const [debugMode, setDebugMode] = useState(false);
   const [reportData, setReportData] = useState({
     vehicleModel: '',
     color: '',
@@ -17,71 +35,66 @@ function Inventory() {
     priority: 'medium',
     expectedDelivery: ''
   });
+  const [createData, setCreateData] = useState({
+    storeId: '',
+    storeName: '',
+    modelId: '',
+    modelName: '',
+    colorId: '',
+    colorName: '',
+    priceOfStore: '',
+    quantity: ''
+  });
+  const [updateData, setUpdateData] = useState({
+    newQuantity: '',
+    newPrice: ''
+  });
 
-  // Mock data cho kho hàng - cấu trúc mới với nhiều màu cho mỗi model
-  const mockInventory = [
-    {
-      id: 1,
-      model: 'Electra Ascent',
-      totalStock: 25,
-      colors: [
-        { color: 'Trắng Ngọc Trai', stock: 8, price: 320000000 },
-        { color: 'Đen Bóng', stock: 6, price: 325000000 },
-        { color: 'Xanh Dương Đậm', stock: 7, price: 328000000 },
-        { color: 'Bạc Metallic', stock: 4, price: 330000000 }
-      ]
-    },
-    {
-      id: 2,
-      model: 'Electra CityLink',
-      totalStock: 18,
-      colors: [
-        { color: 'Xanh Dương Đậm', stock: 5, price: 280000000 },
-        { color: 'Trắng Ngọc Trai', stock: 6, price: 282000000 },
-        { color: 'Đỏ Ruby', stock: 4, price: 285000000 },
-        { color: 'Xám Titan', stock: 3, price: 288000000 }
-      ]
-    },
-    {
-      id: 3,
-      model: 'Electra GrandTour',
-      totalStock: 12,
-      colors: [
-        { color: 'Đen Bóng', stock: 4, price: 450000000 },
-        { color: 'Bạc Metallic', stock: 3, price: 455000000 },
-        { color: 'Trắng Ngọc Trai', stock: 3, price: 458000000 },
-        { color: 'Xanh Dương Đậm', stock: 2, price: 460000000 }
-      ]
-    },
-    {
-      id: 4,
-      model: 'Electra Micro',
-      totalStock: 20,
-      colors: [
-        { color: 'Đỏ Ruby', stock: 6, price: 180000000 },
-        { color: 'Trắng Ngọc Trai', stock: 7, price: 182000000 },
-        { color: 'Xanh Dương Đậm', stock: 4, price: 185000000 },
-        { color: 'Xám Titan', stock: 3, price: 188000000 }
-      ]
-    },
-    {
-      id: 5,
-      model: 'Electra Summit',
-      totalStock: 15,
-      colors: [
-        { color: 'Bạc Metallic', stock: 5, price: 680000000 },
-        { color: 'Đen Bóng', stock: 4, price: 685000000 },
-        { color: 'Trắng Ngọc Trai', stock: 3, price: 688000000 },
-        { color: 'Xanh Dương Đậm', stock: 3, price: 690000000 }
-      ]
-    }
-  ];
-
+  // Fetch all store stocks from API
   useEffect(() => {
-    // Simulate API call
-    setInventory(mockInventory);
-    setFilteredInventory(mockInventory);
-  }, []);
+    dispatch(getAllStoreStocksThunk());
+  }, [dispatch]);
+
+  // Transform API data to match UI format
+  useEffect(() => {
+    if (storeStocksStatus === 'succeeded') {
+      if (storeStocks.length > 0) {
+        // Group by model
+        const groupedByModel = storeStocks.reduce((acc, stock) => {
+          const modelName = stock.modelName;
+          
+          if (!acc[modelName]) {
+            acc[modelName] = {
+              id: stock.modelId,
+              model: modelName,
+              totalStock: 0,
+              colors: []
+            };
+          }
+          
+          acc[modelName].totalStock += stock.quantity;
+          acc[modelName].colors.push({
+            color: stock.colorName,
+            stock: stock.quantity,
+            price: stock.priceOfStore,
+            stockId: stock.stockId,
+            storeName: stock.storeName,
+            storeId: stock.storeId
+          });
+          
+          return acc;
+        }, {});
+        
+        const transformedInventory = Object.values(groupedByModel);
+        setInventory(transformedInventory);
+        setFilteredInventory(transformedInventory);
+      } else {
+        // No data available
+        setInventory([]);
+        setFilteredInventory([]);
+      }
+    }
+  }, [storeStocks, storeStocksStatus]);
 
   // Filter inventory based on search term
   useEffect(() => {
@@ -91,7 +104,8 @@ function Inventory() {
       const filtered = inventory.filter(vehicle =>
         vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
         vehicle.colors.some(colorItem => 
-          colorItem.color.toLowerCase().includes(searchTerm.toLowerCase())
+          colorItem.color.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          colorItem.storeName?.toLowerCase().includes(searchTerm.toLowerCase())
         )
       );
       setFilteredInventory(filtered);
@@ -143,32 +157,35 @@ function Inventory() {
     e.preventDefault();
     
     if (reportData.requestedQuantity <= 0) {
-      alert('Vui lòng nhập số lượng cần đặt hàng lớn hơn 0!');
+      dispatch(showWarning({ message: 'Vui lòng nhập số lượng cần đặt hàng lớn hơn 0!' }));
       return;
     }
 
     if (!reportData.reason.trim()) {
-      alert('Vui lòng nhập lý do đặt hàng!');
+      dispatch(showWarning({ message: 'Vui lòng nhập lý do đặt hàng!' }));
       return;
     }
 
     if (!reportData.expectedDelivery) {
-      alert('Vui lòng chọn ngày giao hàng dự kiến!');
+      dispatch(showWarning({ message: 'Vui lòng chọn ngày giao hàng dự kiến!' }));
       return;
     }
 
-    // Simulate API call to send report to manager
+    // Prepare report payload for API call
     const reportPayload = {
       ...reportData,
       vehicleId: selectedVehicle.id,
+      stockId: selectedColor.stockId, // Use stockId from API data
       reportDate: new Date().toISOString(),
-      reporterId: 'DS001', // Current staff ID
-      reporterName: 'Nguyễn Văn A',
+      reporterId: user?.userId || 'DS001', // Current staff ID from auth
+      reporterName: user?.fullName || 'Nguyễn Văn A',
       status: 'pending'
     };
 
     console.log('Report to Manager:', reportPayload);
-    alert(`Đã gửi báo cáo đặt hàng cho Manager!\n\nMẫu xe: ${reportData.vehicleModel}\nMàu sắc: ${reportData.color}\nSố lượng yêu cầu: ${reportData.requestedQuantity}\nMức độ ưu tiên: ${reportData.priority === 'high' ? 'Cao' : reportData.priority === 'medium' ? 'Trung bình' : 'Thấp'}`);
+    dispatch(showSuccess({ 
+      message: `Đã gửi báo cáo đặt hàng cho Manager! Mẫu xe: ${reportData.vehicleModel}, Màu: ${reportData.color}, Số lượng: ${reportData.requestedQuantity}` 
+    }));
     
     setReportModal(false);
     setSelectedVehicle(null);
@@ -199,16 +216,276 @@ function Inventory() {
     });
   };
 
+  // Create Store Stock handlers
+  const handleOpenCreateModal = () => {
+    setCreateData({
+      storeId: user?.storeId || '',
+      storeName: user?.storeName || '',
+      modelId: '',
+      modelName: '',
+      colorId: '',
+      colorName: '',
+      priceOfStore: '',
+      quantity: ''
+    });
+    setCreateModal(true);
+  };
+
+  const handleCloseCreateModal = () => {
+    setCreateModal(false);
+    setCreateData({
+      storeId: '',
+      storeName: '',
+      modelId: '',
+      modelName: '',
+      colorId: '',
+      colorName: '',
+      priceOfStore: '',
+      quantity: ''
+    });
+  };
+
+  const handleCreateDataChange = (field, value) => {
+    setCreateData(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  const handleSubmitCreate = async (e) => {
+    e.preventDefault();
+    
+    // Validation
+    if (!createData.storeId || !createData.modelId || !createData.colorId || 
+        !createData.priceOfStore || !createData.quantity) {
+      dispatch(showWarning({ message: 'Vui lòng điền đầy đủ thông tin!' }));
+      return;
+    }
+
+    if (parseFloat(createData.priceOfStore) <= 0) {
+      dispatch(showWarning({ message: 'Giá bán phải lớn hơn 0!' }));
+      return;
+    }
+
+    if (parseInt(createData.quantity) <= 0) {
+      dispatch(showWarning({ message: 'Số lượng phải lớn hơn 0!' }));
+      return;
+    }
+
+    try {
+      const payload = {
+        stockId: 0, // Will be auto-generated by backend
+        storeId: parseInt(createData.storeId),
+        storeName: createData.storeName,
+        modelId: parseInt(createData.modelId),
+        modelName: createData.modelName,
+        colorId: parseInt(createData.colorId),
+        colorName: createData.colorName,
+        priceOfStore: parseFloat(createData.priceOfStore),
+        quantity: parseInt(createData.quantity)
+      };
+
+      await dispatch(createStoreStockThunk(payload)).unwrap();
+      
+      dispatch(showSuccess({ message: 'Thêm xe vào kho thành công!' }));
+      handleCloseCreateModal();
+      
+      // Refresh data
+      dispatch(getAllStoreStocksThunk());
+      
+    } catch (error) {
+      console.error('Error creating store stock:', error);
+      dispatch(showError({ message: `Lỗi khi thêm xe vào kho: ${error.message || 'Có lỗi xảy ra'}` }));
+    }
+  };
+
+  // Update handlers
+  const handleOpenUpdateQuantity = (colorItem) => {
+    setSelectedStock(colorItem);
+    setUpdateData({ newQuantity: colorItem.stock.toString(), newPrice: '' });
+    setUpdateQuantityModal(true);
+  };
+
+  const handleOpenUpdatePrice = (colorItem) => {
+    setSelectedStock(colorItem);
+    setUpdateData({ newQuantity: '', newPrice: colorItem.price.toString() });
+    setUpdatePriceModal(true);
+  };
+
+  const handleOpenDelete = (colorItem) => {
+    setSelectedStock(colorItem);
+    setDeleteModal(true);
+  };
+
+  const handleCloseUpdateModals = () => {
+    setUpdateQuantityModal(false);
+    setUpdatePriceModal(false);
+    setDeleteModal(false);
+    setSelectedStock(null);
+    setUpdateData({ newQuantity: '', newPrice: '' });
+  };
+
+  const handleUpdateQuantity = async (e) => {
+    e.preventDefault();
+    
+    if (!updateData.newQuantity || parseInt(updateData.newQuantity) < 0) {
+      dispatch(showWarning({ message: 'Vui lòng nhập số lượng hợp lệ!' }));
+      return;
+    }
+
+    try {
+      await dispatch(updateStockQuantityThunk({
+        stockId: selectedStock.stockId,
+        quantity: parseInt(updateData.newQuantity)
+      })).unwrap();
+      
+      dispatch(showSuccess({ message: 'Cập nhật số lượng thành công!' }));
+      handleCloseUpdateModals();
+      dispatch(getAllStoreStocksThunk());
+      
+    } catch (error) {
+      console.error('Error updating quantity:', error);
+      const errorMessage = error.message || 'Có lỗi xảy ra';
+      dispatch(showError({ message: `Lỗi khi cập nhật số lượng: ${errorMessage}` }));
+    }
+  };
+
+  const handleUpdatePrice = async (e) => {
+    e.preventDefault();
+    
+    if (!updateData.newPrice || parseFloat(updateData.newPrice) <= 0) {
+      dispatch(showWarning({ message: 'Vui lòng nhập giá bán hợp lệ!' }));
+      return;
+    }
+
+    try {
+      await dispatch(updateStockPriceThunk({
+        stockId: selectedStock.stockId,
+        priceOfStore: parseFloat(updateData.newPrice)
+      })).unwrap();
+      
+      dispatch(showSuccess({ message: 'Cập nhật giá bán thành công!' }));
+      handleCloseUpdateModals();
+      dispatch(getAllStoreStocksThunk());
+      
+    } catch (error) {
+      console.error('Error updating price:', error);
+      dispatch(showError({ message: `Lỗi khi cập nhật giá bán: ${error.message || 'Có lỗi xảy ra'}` }));
+    }
+  };
+
+  const handleDeleteStock = async () => {
+    if (!selectedStock) return;
+
+    try {
+      await dispatch(deleteStoreStockThunk(selectedStock.stockId)).unwrap();
+      
+      dispatch(showSuccess({ message: 'Xóa xe khỏi kho thành công!' }));
+      handleCloseUpdateModals();
+      dispatch(getAllStoreStocksThunk());
+      
+    } catch (error) {
+      console.error('Error deleting stock:', error);
+      dispatch(showError({ message: `Lỗi khi xóa xe khỏi kho: ${error.message || 'Có lỗi xảy ra'}` }));
+    }
+  };
+
+  // Loading state
+  if (storeStocksStatus === 'loading') {
+    return (
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
+              <p className="mt-4 text-gray-600">Đang tải dữ liệu kho hàng...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Error state
+  if (storeStocksStatus === 'failed') {
+    return (
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+          <div className="flex items-center justify-center py-12">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+                <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Lỗi tải dữ liệu</h3>
+              <p className="text-gray-600 mb-4">{storeStocksError || 'Không thể tải dữ liệu kho hàng'}</p>
+              <button
+                onClick={() => dispatch(getAllStoreStocksThunk())}
+                className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+              >
+                Thử lại
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Inventory Management</h1>
-          <p className="text-gray-600">Theo dõi tồn kho và lập báo cáo đặt xe</p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 mb-2">Inventory Management</h1>
+              <p className="text-gray-600">Theo dõi tồn kho tất cả cửa hàng và lập báo cáo đặt xe</p>
+              {user && user.storeId && (
+                <p className="text-sm text-emerald-600 mt-1">
+                  Đang xem: Tất cả cửa hàng (Cửa hàng của bạn: {user.storeName || `Store #${user.storeId}`})
+                </p>
+              )}
+              <div className="mt-2">
+                <button
+                  onClick={() => setDebugMode(!debugMode)}
+                  className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
+                >
+                  {debugMode ? 'Ẩn Debug' : 'Hiện Debug'}
+                </button>
+              </div>
+            </div>
+            <button
+              onClick={handleOpenCreateModal}
+              className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center shadow-lg"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Thêm xe vào kho
+            </button>
+          </div>
         </div>
 
         {/* Search Bar */}
+        {/* Debug Panel */}
+        {debugMode && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <h3 className="text-sm font-semibold text-yellow-800 mb-2">🐛 Debug Information</h3>
+            <div className="text-xs text-yellow-700 space-y-1">
+              <p><strong>API URL:</strong> {process.env.REACT_APP_API_URL || 'http://localhost:8080'}</p>
+              <p><strong>Store Stocks Status:</strong> {storeStocksStatus}</p>
+              <p><strong>Store Stocks Count:</strong> {storeStocks?.length || 0}</p>
+              <p><strong>User Store ID:</strong> {user?.storeId || 'N/A'}</p>
+              <p><strong>Token Available:</strong> {localStorage.getItem('access_token') ? 'Yes' : 'No'}</p>
+              {storeStocksError && (
+                <p><strong>Last Error:</strong> {storeStocksError}</p>
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="mb-6">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -218,7 +495,7 @@ function Inventory() {
             </div>
             <input
               type="text"
-              placeholder="Tìm kiếm theo model, màu sắc..."
+              placeholder="Tìm kiếm theo model, màu sắc, cửa hàng..."
               value={searchTerm}
               onChange={handleSearchChange}
               className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
@@ -262,6 +539,7 @@ function Inventory() {
                         <thead>
                           <tr className="border-b border-gray-200">
                             <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Màu sắc</th>
+                            <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Cửa hàng</th>
                             <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Số lượng tồn</th>
                             <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Giá bán (VNĐ)</th>
                             <th className="text-left py-3 px-4 text-sm font-medium text-gray-700">Thao tác</th>
@@ -275,6 +553,9 @@ function Inventory() {
                                   <div className={`w-4 h-4 rounded-full mr-3 ${getColorPreview(colorItem.color)}`}></div>
                                   <span className="text-sm text-gray-900">{colorItem.color}</span>
                                 </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="text-sm text-gray-900">{colorItem.storeName || `Store #${colorItem.storeId}`}</span>
                               </td>
                               <td className="py-3 px-4">
                                 <span className={`text-sm font-medium ${
@@ -291,12 +572,44 @@ function Inventory() {
                                 <span className="text-sm text-gray-900">{colorItem.price.toLocaleString('vi-VN')} VNĐ</span>
                               </td>
                               <td className="py-3 px-4">
-                                <button
-                                  onClick={() => handleReportToManager(vehicle, colorItem)}
-                                  className="px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
-                                >
-                                  Báo cáo đặt hàng
-                                </button>
+                                <div className="flex flex-wrap gap-1">
+                                  <button
+                                    onClick={() => handleOpenUpdateQuantity(colorItem)}
+                                    className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
+                                    title="Cập nhật số lượng"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => handleOpenUpdatePrice(colorItem)}
+                                    className="px-2 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700 transition-colors"
+                                    title="Cập nhật giá"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => handleOpenDelete(colorItem)}
+                                    className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+                                    title="Xóa khỏi kho"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() => handleReportToManager(vehicle, colorItem)}
+                                    className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                                    title="Báo cáo đặt hàng"
+                                  >
+                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+                                    </svg>
+                                  </button>
+                                </div>
                               </td>
                             </tr>
                           ))}
@@ -310,18 +623,374 @@ function Inventory() {
           ))}
         </div>
 
-        {filteredInventory.length === 0 && (
+        {filteredInventory.length === 0 && storeStocksStatus === 'succeeded' && (
           <div className="text-center py-12">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Không tìm thấy xe nào</h3>
+            <h3 className="mt-2 text-sm font-medium text-gray-900">
+              {searchTerm ? 'Không tìm thấy xe nào' : 'Không có dữ liệu kho hàng'}
+            </h3>
             <p className="mt-1 text-sm text-gray-500">
-              {searchTerm ? 'Thử thay đổi từ khóa tìm kiếm.' : 'Không có dữ liệu kho hàng.'}
+              {searchTerm 
+                ? 'Thử thay đổi từ khóa tìm kiếm.' 
+                : 'Kho hàng hiện tại chưa có xe nào. Vui lòng liên hệ quản lý để thêm xe vào kho.'
+              }
             </p>
           </div>
         )}
       </div>
+
+      {/* Create Store Stock Modal */}
+      {createModal && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-10 mx-auto p-5 border w-11/12 md:w-2/3 lg:w-1/2 shadow-lg rounded-md bg-white">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-xl font-semibold text-gray-900">
+                Thêm xe vào kho
+              </h3>
+              <button
+                onClick={handleCloseCreateModal}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleSubmitCreate} className="space-y-6">
+              {/* Store Information */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-3">Thông tin cửa hàng</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ID Cửa hàng *
+                    </label>
+                    <input
+                      type="number"
+                      value={createData.storeId}
+                      onChange={(e) => handleCreateDataChange('storeId', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tên cửa hàng *
+                    </label>
+                    <input
+                      type="text"
+                      value={createData.storeName}
+                      onChange={(e) => handleCreateDataChange('storeName', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Vehicle Information */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-3">Thông tin xe</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ID Model *
+                    </label>
+                    <input
+                      type="number"
+                      value={createData.modelId}
+                      onChange={(e) => handleCreateDataChange('modelId', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tên model *
+                    </label>
+                    <input
+                      type="text"
+                      value={createData.modelName}
+                      onChange={(e) => handleCreateDataChange('modelName', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      ID Màu sắc *
+                    </label>
+                    <input
+                      type="number"
+                      value={createData.colorId}
+                      onChange={(e) => handleCreateDataChange('colorId', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tên màu sắc *
+                    </label>
+                    <input
+                      type="text"
+                      value={createData.colorName}
+                      onChange={(e) => handleCreateDataChange('colorName', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Price and Quantity */}
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-3">Giá bán và số lượng</h4>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Giá bán (VNĐ) *
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1000"
+                      value={createData.priceOfStore}
+                      onChange={(e) => handleCreateDataChange('priceOfStore', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      placeholder="Ví dụ: 320000000"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Số lượng *
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={createData.quantity}
+                      onChange={(e) => handleCreateDataChange('quantity', e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      placeholder="Ví dụ: 5"
+                      required
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={handleCloseCreateModal}
+                  className="px-6 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                >
+                  Thêm vào kho
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Update Quantity Modal */}
+      {updateQuantityModal && selectedStock && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-1/3 shadow-lg rounded-md bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Cập nhật số lượng
+              </h3>
+              <button
+                onClick={handleCloseUpdateModals}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateQuantity} className="space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-2">Thông tin xe</h4>
+                <p className="text-sm text-gray-600">
+                  <strong>Model:</strong> {selectedStock.modelName || 'N/A'}<br/>
+                  <strong>Màu:</strong> {selectedStock.color}<br/>
+                  <strong>Cửa hàng:</strong> {selectedStock.storeName || 'N/A'}<br/>
+                  <strong>Số lượng hiện tại:</strong> {selectedStock.stock} xe
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Số lượng mới *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  value={updateData.newQuantity}
+                  onChange={(e) => setUpdateData(prev => ({ ...prev, newQuantity: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={handleCloseUpdateModals}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  Cập nhật
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Update Price Modal */}
+      {updatePriceModal && selectedStock && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-1/3 shadow-lg rounded-md bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Cập nhật giá bán
+              </h3>
+              <button
+                onClick={handleCloseUpdateModals}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdatePrice} className="space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h4 className="font-semibold text-gray-900 mb-2">Thông tin xe</h4>
+                <p className="text-sm text-gray-600">
+                  <strong>Model:</strong> {selectedStock.modelName || 'N/A'}<br/>
+                  <strong>Màu:</strong> {selectedStock.color}<br/>
+                  <strong>Cửa hàng:</strong> {selectedStock.storeName || 'N/A'}<br/>
+                  <strong>Giá hiện tại:</strong> {selectedStock.price.toLocaleString('vi-VN')} VNĐ
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Giá bán mới (VNĐ) *
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1000"
+                  value={updateData.newPrice}
+                  onChange={(e) => setUpdateData(prev => ({ ...prev, newPrice: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  placeholder="Ví dụ: 320000000"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={handleCloseUpdateModals}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors"
+                >
+                  Cập nhật
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {deleteModal && selectedStock && (
+        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-1/3 shadow-lg rounded-md bg-white">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-red-600">
+                Xác nhận xóa
+              </h3>
+              <button
+                onClick={handleCloseUpdateModals}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-red-50 rounded-lg p-4">
+                <h4 className="font-semibold text-red-900 mb-2">Thông tin xe sẽ bị xóa</h4>
+                <p className="text-sm text-red-700">
+                  <strong>Model:</strong> {selectedStock.modelName || 'N/A'}<br/>
+                  <strong>Màu:</strong> {selectedStock.color}<br/>
+                  <strong>Cửa hàng:</strong> {selectedStock.storeName || 'N/A'}<br/>
+                  <strong>Số lượng:</strong> {selectedStock.stock} xe<br/>
+                  <strong>Giá bán:</strong> {selectedStock.price.toLocaleString('vi-VN')} VNĐ
+                </p>
+              </div>
+
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <div className="flex">
+                  <svg className="w-5 h-5 text-yellow-400 mr-2 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                  </svg>
+                  <p className="text-sm text-yellow-800">
+                    <strong>Cảnh báo:</strong> Hành động này không thể hoàn tác. Bạn có chắc chắn muốn xóa xe này khỏi kho?
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200">
+                <button
+                  type="button"
+                  onClick={handleCloseUpdateModals}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </button>
+                <button
+                  onClick={handleDeleteStock}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  Xóa khỏi kho
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Report Modal */}
       {reportModal && (
