@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { fetchCustomers, clearError, clearSuccess } from '../../store/slices/customerSlice';
+import { getAllCustomersThunk, getCustomerByIdThunk, clearSelected } from '../../store/slices/customerSlice';
 import { createNewOrder } from '../../store/slices/orderSlice';
 import { 
   Users, 
@@ -25,11 +25,12 @@ function CreateOrder({ onBack }) {
   const { loading: orderLoading, error: orderError, success: orderSuccess } = useSelector((state) => state.orders);
   
   const [searchTerm, setSearchTerm] = useState('');
+  const [searchByPhone, setSearchByPhone] = useState(false);
 
   // Load customers on component mount and when component becomes visible
   useEffect(() => {
     try {
-      dispatch(fetchCustomers());
+      dispatch(getAllCustomersThunk());
     } catch (error) {
       console.error('Error fetching customers:', error);
     }
@@ -39,7 +40,7 @@ function CreateOrder({ onBack }) {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (!document.hidden) {
-        dispatch(fetchCustomers());
+        dispatch(getAllCustomersThunk());
       }
     };
 
@@ -52,8 +53,8 @@ function CreateOrder({ onBack }) {
   // Clear messages when component mounts
   useEffect(() => {
     try {
-      dispatch(clearError());
-      dispatch(clearSuccess());
+      // Clear any previous errors/success messages
+      dispatch(clearSelected());
     } catch (error) {
       console.error('Error clearing messages:', error);
     }
@@ -63,7 +64,7 @@ function CreateOrder({ onBack }) {
   useEffect(() => {
     if (customersSuccess) {
       setTimeout(() => {
-        dispatch(clearSuccess());
+        dispatch(clearSelected());
       }, 2000);
     }
   }, [customersSuccess, dispatch]);
@@ -71,7 +72,7 @@ function CreateOrder({ onBack }) {
   useEffect(() => {
     if (orderSuccess) {
       setTimeout(() => {
-        dispatch(clearSuccess());
+        dispatch(clearSelected());
         if (onBack) {
           onBack();
         }
@@ -105,6 +106,43 @@ function CreateOrder({ onBack }) {
   // Handle navigate to add customer page
   const handleAddCustomer = () => {
     navigate('/dealer-staff/add-customer');
+  };
+
+  // Handle successful customer creation
+  const handleCustomerAdded = () => {
+    // Refresh customers list after adding new customer
+        dispatch(getAllCustomersThunk());
+  };
+
+  // Handle search by phone
+  const handleSearchByPhone = async () => {
+    if (searchTerm.trim() && /^0[0-9]{9,10}$/.test(searchTerm.replace(/\s/g, ''))) {
+      try {
+        // Note: We'll need to implement phone-based search differently
+        // For now, we'll search through the existing customers list
+        const phoneNumber = searchTerm.replace(/\s/g, '');
+        const foundCustomer = customers.find(customer => 
+          customer.phone && customer.phone.replace(/\s/g, '') === phoneNumber
+        );
+        if (foundCustomer) {
+          setSelectedCustomer(foundCustomer);
+        } else {
+          setError('Không tìm thấy khách hàng với số điện thoại này');
+        }
+      } catch (error) {
+        console.error('Error searching customer by phone:', error);
+      }
+    }
+  };
+
+  // Handle search input change
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
+    
+    // Auto-detect if it's a phone number
+    const phonePattern = /^0[0-9]{9,10}$/;
+    setSearchByPhone(phonePattern.test(value.replace(/\s/g, '')));
   };
 
   return (
@@ -158,15 +196,33 @@ function CreateOrder({ onBack }) {
 
           {/* Search Bar */}
           <div className="mb-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm khách hàng theo tên, số điện thoại hoặc email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              />
+            <div className="flex space-x-2">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm khách hàng theo tên, số điện thoại hoặc email..."
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                />
+                {searchByPhone && (
+                  <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                    <span className="text-xs text-emerald-600 bg-emerald-100 px-2 py-1 rounded">
+                      Số điện thoại
+                    </span>
+                  </div>
+                )}
+              </div>
+              {searchByPhone && (
+                <button
+                  onClick={handleSearchByPhone}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center"
+                >
+                  <Search className="h-4 w-4 mr-2" />
+                  Tìm theo SĐT
+                </button>
+              )}
             </div>
           </div>
 

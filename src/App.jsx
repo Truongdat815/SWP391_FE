@@ -41,6 +41,7 @@ import ViewOrders from './pages/dealerStaff/ViewOrders'
 import CreateContract from './pages/dealerStaff/CreateContract'
 import CreateOrder from './pages/dealerStaff/CreateOrder'
 import AddCustomer from './pages/dealerStaff/AddCustomer'
+import CustomerManagement from './pages/dealerStaff/CustomerManagement'
 import Inventory from './pages/dealerStaff/Inventory'
 import TestDriveSchedule from './pages/dealerStaff/TestDriveSchedule'
 import PaymentManagement from './pages/dealerStaff/PaymentManagement'
@@ -128,6 +129,7 @@ function App() {
             <Route path="quote-order-management" element={<QuoteOrderManagement />} />
             <Route path="view-orders" element={<ViewOrders />} />
             <Route path="add-customer" element={<AddCustomer />} />
+            <Route path="customer-management" element={<CustomerManagement />} />
             <Route path="test-drive-schedule" element={<TestDriveSchedule />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="payment-management" element={<PaymentManagement />} />
