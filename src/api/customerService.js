@@ -16,7 +16,6 @@ async function request(path, { method = 'GET', body } = {}) {
 
     const isJson = res.headers.get('content-type')?.includes('application/json');
     const data = isJson ? await res.json() : await res.text();
-    
     if (!res.ok) {
         const message = (isJson && data?.message) || res.statusText || 'Request failed';
         throw new Error(message);
@@ -24,39 +23,22 @@ async function request(path, { method = 'GET', body } = {}) {
     return data;
 }
 
-// Create customer
-export async function createCustomer(customerData) {
-    return request('/api/customers/create', {
-        method: 'POST',
-        body: {
-            customerId: 0,
-            fullName: customerData.fullName,
-            address: customerData.address,
-            email: customerData.email,
-            phone: customerData.phone
-        }
-    });
+export async function createCustomer(customer) {
+    return request('/api/customers/create', { method: 'POST', body: customer });
 }
 
-// Get all customers
+export async function updateCustomer({ customerId, ...customer }) {
+    return request(`/api/customers/update/${encodeURIComponent(customerId)}`, { method: 'PUT', body: customer });
+}
+
+export async function getCustomerById(id) {
+    return request(`/api/customers/id/${encodeURIComponent(id)}`, { method: 'GET' });
+}
+
 export async function getAllCustomers() {
     return request('/api/customers/all', { method: 'GET' });
 }
 
-// Get customer by ID
-export async function getCustomerById(customerId) {
-    return request(`/api/customers/${customerId}`, { method: 'GET' });
-}
-
-// Update customer
-export async function updateCustomer(customerId, customerData) {
-    return request(`/api/customers/${customerId}`, {
-        method: 'PUT',
-        body: customerData
-    });
-}
-
-// Delete customer
 export async function deleteCustomer(customerId) {
-    return request(`/api/customers/${customerId}`, { method: 'DELETE' });
+    return request(`/api/customers/delete/${encodeURIComponent(customerId)}`, { method: 'DELETE' });
 }
