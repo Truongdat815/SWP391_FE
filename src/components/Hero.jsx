@@ -2,6 +2,7 @@ import React from 'react';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Navigation, Pagination, Autoplay, EffectFade } from 'swiper/modules';
 import { motion } from 'framer-motion';
+import AnimatedImage from './Animated';
 
 import ascentPoster from '../assets/images/electra ascent poster.png';
 import citylinkPoster from '../assets/images/electra citylink poster.png';
@@ -113,11 +114,15 @@ const Hero = () => {
         {slides.map((slide, _index) => (
           <SwiperSlide key={slide.id}>
             <div className="relative h-screen w-full">
-              {/* Background Image */}
-              <div 
-                className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-                style={{ backgroundImage: `url(${slide.image})` }}
-              />
+              {/* Background Image (Animated) */}
+              <div className="absolute inset-0">
+                <AnimatedImage
+                  src={slide.image}
+                  alt={slide.title}
+                  className="w-full h-full object-cover"
+                  style={{ filter: 'brightness(.7) contrast(.95)' }}
+                />
+              </div>
               
               {/* Overlay */}
               <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />

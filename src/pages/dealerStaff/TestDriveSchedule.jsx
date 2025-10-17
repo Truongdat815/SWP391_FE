@@ -1,6 +1,9 @@
 import { useState } from 'react';
+import { useDispatch } from 'react-redux';
+import { createAppointmentThunk } from '@store/slices/appointmentSlice';
 
 function TestDriveSchedule({ onBack }) {
+  const dispatch = useDispatch();
   const [selectedDate, setSelectedDate] = useState('');
   const [appointments, setAppointments] = useState([
     {
@@ -68,14 +71,49 @@ function TestDriveSchedule({ onBack }) {
     }
   };
 
-  const handleAddAppointment = (e) => {
+  const handleAddAppointment = async (e) => {
     e.preventDefault();
-    const appointment = {
-      id: Date.now(),
-      ...newAppointment,
-      status: 'pending'
+    // Map UI form to API payload
+    const today = new Date();
+    const startIso = new Date(`${newAppointment.date}T${(newAppointment.time || '09:00')}:00`).toISOString();
+    const endIso = new Date(new Date(startIso).getTime() + 60 * 60 * 1000).toISOString();
+    const payload = {
+      appointmentId: 0,
+      startTime: startIso,
+      endTime: endIso,
+      status: 'CONFIRMED',
+      createdAt: today.toISOString(),
+      modelId: 0,
+      customerId: 0,
+      staffId: 0,
+      storeId: 0,
     };
-    setAppointments([...appointments, appointment]);
+
+    try {
+      const created = await dispatch(createAppointmentThunk(payload)).unwrap();
+      const localItem = {
+        id: created?.appointmentId || Date.now(),
+        customerName: newAppointment.customerName,
+        phone: newAppointment.phone,
+        vehicleModel: newAppointment.vehicleModel,
+        time: newAppointment.time,
+        status: 'confirmed',
+        notes: newAppointment.notes,
+      };
+      setAppointments([...appointments, localItem]);
+    } catch (err) {
+      // Fallback add locally if API fails
+      const fallback = {
+        id: Date.now(),
+        customerName: newAppointment.customerName,
+        phone: newAppointment.phone,
+        vehicleModel: newAppointment.vehicleModel,
+        time: newAppointment.time,
+        status: 'pending',
+        notes: newAppointment.notes,
+      };
+      setAppointments([...appointments, fallback]);
+    }
     setNewAppointment({
       customerName: '',
       phone: '',

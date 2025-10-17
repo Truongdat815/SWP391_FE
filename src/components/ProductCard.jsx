@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
+import AnimatedImage from './Animated';
 import { 
   getModelImage, 
   getBodyTypeColor, 
@@ -27,13 +28,11 @@ const ProductCard = ({
   const [isHovered, setIsHovered] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  const handleImageLoad = () => {
-    setImageLoaded(true);
-  };
+  const handleImageLoad = () => setImageLoaded(true);
 
   const handleImageError = (e) => {
     console.log('Image failed to load for model:', model.modelName);
-    e.target.src = '/src/assets/images/logo.png';
+    if (e?.target) e.target.src = '/src/assets/images/logo.png';
   };
 
   return (
@@ -51,21 +50,17 @@ const ProductCard = ({
       <div className="relative h-48 overflow-hidden">
         <motion.div
           className="absolute inset-0 bg-gradient-to-br from-emerald-50 to-gray-50"
-          animate={{
-            scale: isHovered ? 1.05 : 1,
-          }}
+          animate={{ scale: isHovered ? 1.05 : 1 }}
           transition={{ duration: 0.3 }}
         >
-          <img
+          <AnimatedImage
             src={getModelImage(model.modelName)}
             alt={model.modelName}
-            className={`w-full h-full object-cover transition-opacity duration-300 ${
-              imageLoaded ? 'opacity-100' : 'opacity-0'
-            }`}
+            className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
             onLoad={handleImageLoad}
             onError={handleImageError}
           />
-          
+
           {/* Loading skeleton */}
           {!imageLoaded && (
             <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 animate-pulse" />

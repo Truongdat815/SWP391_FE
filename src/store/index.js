@@ -9,8 +9,6 @@ import modelColorReducer from './slices/modelColorSlice';
 import authReducer from './slices/authSlice';
 import storeStockReducer from './slices/store-stockSlice';
 import snackbarReducer from './slices/snackbarSlice';
-import customerReducer from './slices/customerSlice';
-import orderReducer from './slices/orderSlice';
 
 export const store = configureStore({
     reducer: {
@@ -23,8 +21,6 @@ export const store = configureStore({
         modelColors: modelColorReducer,
         storeStocks: storeStockReducer,
         snackbar: snackbarReducer,
-        customers: customerReducer,
-        orders: orderReducer,
     },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware(),
 });
