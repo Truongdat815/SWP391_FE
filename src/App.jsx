@@ -39,7 +39,7 @@ import TestPage from './pages/dealerManager/TestPage'
 import QuoteOrderManagement from './pages/dealerStaff/QuoteOrderManagement'
 import ViewOrders from './pages/dealerStaff/ViewOrders'
 import CreateContract from './pages/dealerStaff/CreateContract'
-import CreateQuote from './pages/dealerStaff/CreateQuote'
+import CreateOrder from './pages/dealerStaff/CreateOrder'
 import AddCustomer from './pages/dealerStaff/AddCustomer'
 import Inventory from './pages/dealerStaff/Inventory'
 import TestDriveSchedule from './pages/dealerStaff/TestDriveSchedule'
@@ -124,7 +124,7 @@ function App() {
             </ProtectedRoute>
           }>
             <Route index element={<DealerStaffDashboard />} />
-            <Route path="create-quote" element={<CreateQuote />} />
+            <Route path="create-order" element={<CreateOrder />} />
             <Route path="quote-order-management" element={<QuoteOrderManagement />} />
             <Route path="view-orders" element={<ViewOrders />} />
             <Route path="add-customer" element={<AddCustomer />} />
