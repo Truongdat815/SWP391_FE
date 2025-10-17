@@ -1,5 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
+import AnimatedImage from './Animated';
 import { Link } from 'react-router-dom';
 
 const DealerCard = ({ dealer }) => {
@@ -15,11 +16,7 @@ const DealerCard = ({ dealer }) => {
       className="bg-white rounded-xl shadow-lg overflow-hidden hover:shadow-xl transition-all duration-300"
     >
       <div className="relative h-48 overflow-hidden">
-        <img
-          src={displayImage}
-          alt={displayName}
-          className="w-full h-full object-cover"
-        />
+        <AnimatedImage src={displayImage} alt={displayName} className="w-full h-full object-cover" />
         <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent" />
       </div>
       

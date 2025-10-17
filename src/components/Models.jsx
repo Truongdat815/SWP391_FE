@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
+import AnimatedImage from '../components/Animated';
 import { Link } from 'react-router-dom';
 import { get } from '@/api/client';
 import { getModelImage } from '../utils/modelHelpers';
@@ -49,13 +50,13 @@ const Models = () => {
             >
               {/* Image Container */}
               <div className="relative h-48 overflow-hidden">
-                <img
+                <AnimatedImage
                   src={getModelImage(model.modelName)}
                   alt={model.modelName}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                   onError={(e) => {
                     console.log('Image failed to load for model:', model.modelName);
-                    e.target.src = '/src/assets/images/logo.png';
+                    if (e?.target) e.target.src = '/src/assets/images/logo.png';
                   }}
                 />
                 

@@ -79,8 +79,6 @@ function StoreManagement() {
     switch (status) {
       case 'ACTIVE': return 'bg-gradient-to-r from-green-400 to-green-500 text-white shadow-md';
       case 'INACTIVE': return 'bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-md';
-      case 'PENDING': return 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-white shadow-md';
-      case 'SUSPENDED': return 'bg-gradient-to-r from-red-400 to-red-500 text-white shadow-md';
       default: return 'bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-md';
     }
   };
@@ -89,8 +87,6 @@ function StoreManagement() {
     switch (status) {
       case 'ACTIVE': return 'Hoạt động';
       case 'INACTIVE': return 'Không hoạt động';
-      case 'PENDING': return 'Chờ duyệt';
-      case 'SUSPENDED': return 'Tạm ngưng';
       default: return status;
     }
   };
@@ -494,21 +490,6 @@ function StoreManagement() {
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-yellow-500 to-yellow-600 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-          <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-white bg-opacity-20 backdrop-blur-sm">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-white text-opacity-90">Chờ duyệt</p>
-              <p className="text-3xl font-bold text-white">
-                {stores.filter(store => store.status === 'PENDING').length}
-              </p>
-            </div>
-          </div>
-        </div>
 
         <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
           <div className="flex items-center">
@@ -608,8 +589,6 @@ function StoreManagement() {
               <option value="">Tất cả trạng thái</option>
               <option value="ACTIVE">Hoạt động</option>
               <option value="INACTIVE">Không hoạt động</option>
-              <option value="PENDING">Chờ duyệt</option>
-              <option value="SUSPENDED">Tạm ngưng</option>
             </select>
             <select 
               className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm hover:shadow-md transition-all bg-white text-gray-900"
@@ -816,8 +795,6 @@ function StoreManagement() {
                     >
                       <option value="ACTIVE">Hoạt động</option>
                       <option value="INACTIVE">Không hoạt động</option>
-                      <option value="PENDING">Chờ duyệt</option>
-                      <option value="SUSPENDED">Tạm ngưng</option>
                     </select>
                   </div>
 

@@ -100,7 +100,6 @@ function UserManagement() {
     switch (status) {
       case 'active': return 'bg-gradient-to-r from-green-400 to-green-500 text-white shadow-md';
       case 'inactive': return 'bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-md';
-      case 'pending': return 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-white shadow-md';
       default: return 'bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-md';
     }
   };
@@ -109,7 +108,6 @@ function UserManagement() {
     switch (status) {
       case 'active': return 'Hoạt động';
       case 'inactive': return 'Không hoạt động';
-      case 'pending': return 'Chờ duyệt';
       default: return status;
     }
   };

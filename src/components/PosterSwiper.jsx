@@ -14,6 +14,8 @@ import voyagerPoster from '../assets/images/electra voyager poster.png';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
+import AnimatedImage from './Animated';
+import { motion } from 'framer-motion';
 
 const PosterSwiper = () => {
   const posters = [
@@ -118,13 +120,9 @@ const PosterSwiper = () => {
       >
         {posters.map((poster) => (
           <SwiperSlide key={poster.id}>
-            <div className="group relative overflow-hidden rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-500 transform hover:-translate-y-3">
+            <motion.div whileHover={{ scale: 1.02 }} transition={{ duration: 0.35 }} className="group relative overflow-hidden rounded-2xl shadow-2xl hover:shadow-3xl transition-all duration-500 transform hover:-translate-y-3">
               <div className="aspect-[4/3] overflow-hidden">
-                <img
-                  src={poster.image}
-                  alt={poster.name}
-                  className="w-full h-full object-cover"
-                />
+                <AnimatedImage src={poster.image} alt={poster.name} className="w-full h-full object-cover" />
               </div>
               
               {/* Overlay */}
@@ -138,7 +136,7 @@ const PosterSwiper = () => {
                 </div>
               </div>
 
-            </div>
+            </motion.div>
           </SwiperSlide>
         ))}
       </Swiper>
