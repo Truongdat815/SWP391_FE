@@ -21,11 +21,13 @@ import {
 function CreateOrder({ onBack }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { customers, loading: customersLoading, error: customersError, success: customersSuccess } = useSelector((state) => state.customers);
+  const { items: customers, loading: customersLoading, error: customersError, status: customersStatus } = useSelector((state) => state.customers);
   const { loading: orderLoading, error: orderError, success: orderSuccess } = useSelector((state) => state.orders);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [searchByPhone, setSearchByPhone] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [error, setError] = useState(null);
 
   // Load customers on component mount and when component becomes visible
   useEffect(() => {
@@ -62,12 +64,12 @@ function CreateOrder({ onBack }) {
 
   // Handle success messages
   useEffect(() => {
-    if (customersSuccess) {
+    if (customersStatus === 'succeeded') {
       setTimeout(() => {
         dispatch(clearSelected());
       }, 2000);
     }
-  }, [customersSuccess, dispatch]);
+  }, [customersStatus, dispatch]);
 
   useEffect(() => {
     if (orderSuccess) {
@@ -88,7 +90,7 @@ function CreateOrder({ onBack }) {
   ];
 
   // Filter customers based on search term
-  const filteredCustomers = (customers.length > 0 ? customers : mockCustomers).filter(customer =>
+  const filteredCustomers = (customers && customers.length > 0 ? customers : mockCustomers).filter(customer =>
     customer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     customer.phone?.includes(searchTerm) ||
     customer.email?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -148,17 +150,17 @@ function CreateOrder({ onBack }) {
   return (
     <div className="max-w-6xl mx-auto">
       {/* Toast Notifications */}
-      {(customersError || orderError) && (
+      {(customersError || orderError || error) && (
         <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
           <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
-          <span className="text-red-700">{customersError || orderError}</span>
+          <span className="text-red-700">{customersError || orderError || error}</span>
         </div>
       )}
       
-      {(customersSuccess || orderSuccess) && (
+      {orderSuccess && (
         <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
           <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
-          <span className="text-green-700">{customersSuccess || orderSuccess}</span>
+          <span className="text-green-700">{orderSuccess}</span>
         </div>
       )}
 
