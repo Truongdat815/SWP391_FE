@@ -55,6 +55,7 @@ import DealerManagement from './pages/EvmStaff/DealerManagement'
 import ContractManagement from './pages/EvmStaff/ContractManagement'
 import PricingManagement from './pages/EvmStaff/PricingManagement'
 import SalesReport from './pages/EvmStaff/SalesReport'
+import ColorManagementPage from './components/ColorManagement'
 
 // Admin Sub Pages
 import StoreManagement from './pages/admin/StoreManagement'
@@ -172,6 +173,7 @@ function AnimatedRoutes() {
             <Route path="dealer-management" element={<DealerManagement />} />
             <Route path="contract-management" element={<ContractManagement />} />
             <Route path="pricing-management" element={<PricingManagement />} />
+            <Route path="color-management" element={<ColorManagementPage />} />
             <Route path="sales-report" element={<SalesReport />} />
             <Route path="profile" element={<CommonProfile />} />
             <Route path="settings" element={<CommonSettings />} />
