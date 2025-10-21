@@ -33,10 +33,21 @@ export async function getAllModelColors() {
 }
 
 export async function createModelColor(payload) {
-    // payload: { modelColorId?, modelName, colorName, quantity? }
+    // payload: { modelId: number, colorId: number, imagePath: string }
     return request('/api/model-colors/create', { method: 'POST', body: payload });
 }
 
-// No update/delete endpoints in swagger → not implemented (can be added when backend exposes routes)
+export async function updateModelColor(payload) {
+    // payload: { modelId: number, colorId: number, imagePath: string }
+    return request('/api/model-colors/update', { method: 'PUT', body: payload });
+}
+
+export async function deleteModelColor(modelId, colorId) {
+    return request(`/api/model-colors/delete?modelId=${encodeURIComponent(modelId)}&colorId=${encodeURIComponent(colorId)}`, { method: 'DELETE' });
+}
+
+export async function getColorsByModelId(modelId) {
+    return request(`/api/models/${encodeURIComponent(modelId)}/colors`, { method: 'GET' });
+}
 
 

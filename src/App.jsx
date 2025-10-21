@@ -55,12 +55,14 @@ import DealerManagement from './pages/EvmStaff/DealerManagement'
 import ContractManagement from './pages/EvmStaff/ContractManagement'
 import PricingManagement from './pages/EvmStaff/PricingManagement'
 import SalesReport from './pages/EvmStaff/SalesReport'
+import ColorManagementPage from './components/ColorManagement'
 
 // Admin Sub Pages
 import StoreManagement from './pages/admin/StoreManagement'
 import UserManagement from './pages/admin/UserManagement'
 import OrderManagement from './pages/admin/OrderManagement'
 import PromotionManagement from './pages/admin/PromotionManagement'
+
 
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 
@@ -170,6 +172,7 @@ function App() {
             <Route path="dealer-management" element={<DealerManagement />} />
             <Route path="contract-management" element={<ContractManagement />} />
             <Route path="pricing-management" element={<PricingManagement />} />
+            <Route path="color-management" element={<ColorManagementPage />} />
             <Route path="sales-report" element={<SalesReport />} />
             <Route path="profile" element={<CommonProfile />} />
             <Route path="settings" element={<CommonSettings />} />
