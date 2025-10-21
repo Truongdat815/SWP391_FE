@@ -2,23 +2,9 @@ import { useState, useEffect } from 'react';
 import { get } from '@/api/client';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAllCustomersThunk, createCustomerThunk, deleteCustomerThunk, updateCustomerThunk } from '@store/slices/customerSlice';
+import { SkeletonTable } from '../../components/ui/Skeleton';
+import { motion } from 'framer-motion';
 
-// Skeleton Loading Component
-const TableSkeleton = () => (
-  <div className="animate-pulse space-y-4">
-    {[...Array(5)].map((_, i) => (
-      <div key={i} className="flex items-center space-x-4 px-6 py-4">
-        <div className="h-12 w-12 bg-gray-200 rounded-full"></div>
-        <div className="flex-1 space-y-2">
-          <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-          <div className="h-3 bg-gray-200 rounded w-1/2"></div>
-        </div>
-        <div className="h-8 bg-gray-200 rounded w-24"></div>
-        <div className="h-8 bg-gray-200 rounded w-32"></div>
-      </div>
-    ))}
-  </div>
-);
 
 function CustomerManagement() {
   const dispatch = useDispatch();
@@ -265,7 +251,7 @@ function CustomerManagement() {
       {/* Customers Table */}
       <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
         <div className="overflow-x-auto">
-          {isCustomersFetching && <TableSkeleton />}
+          {isCustomersFetching && <SkeletonTable />}
           {!isCustomersFetching && customersError && (
             <div className="p-4 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
               ❌ Lỗi tải danh sách: {String(customersError?.error || customersError?.data || 'Unknown error')}
@@ -283,8 +269,11 @@ function CustomerManagement() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredCustomers.map((customer, index) => (
-                <tr 
+                <motion.tr 
                   key={customer.customerId}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
                   className={`transition-all duration-200 hover:bg-blue-50 hover:shadow-sm cursor-pointer
                     ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
                 >
@@ -358,7 +347,7 @@ function CustomerManagement() {
                       </button>
                     </div>
                   </td>
-                </tr>
+                </motion.tr>
               ))}
                 {filteredCustomers.length === 0 && (
                   <tr>

@@ -62,46 +62,48 @@ import UserManagement from './pages/admin/UserManagement'
 import OrderManagement from './pages/admin/OrderManagement'
 import PromotionManagement from './pages/admin/PromotionManagement'
 
-import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { AnimatePresence } from 'framer-motion'
+import { PageTransition } from './components/Animated'
 
-function App() {
+function AnimatedRoutes() {
+  const location = useLocation();
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
+    <AnimatePresence mode="wait">
+      <Routes location={location} key={location.pathname}>
           {/* Public Routes with Header and Footer */}
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<PageTransition><Home /></PageTransition>} />
           <Route path="/cars" element={
-            <div className="min-h-screen bg-white flex flex-col">
+            <PageTransition className="min-h-screen bg-white flex flex-col">
               <Navbar />
               <CarListing />
               <Footer />
-            </div>
+            </PageTransition>
           } />
           <Route path="/car/:modelId" element={
-            <div className="bg-white">
+            <PageTransition className="bg-white">
               <Navbar />
               <CarDetail />
               <Footer />
-            </div>
+            </PageTransition>
           } />
           <Route path="/dealers" element={
-            <div className="min-h-screen bg-white flex flex-col">
+            <PageTransition className="min-h-screen bg-white flex flex-col">
               <Navbar />
               <Dealers />
               <Footer />
-            </div>
+            </PageTransition>
           } />
           <Route path="/dealers/:id" element={
-            <div className="min-h-screen bg-white flex flex-col">
+            <PageTransition className="min-h-screen bg-white flex flex-col">
               <Navbar />
               <DealerDetail />
               <Footer />
-            </div>
+            </PageTransition>
           } />
           
           {/* Login Route without Header/Footer */}
-          <Route path="/signin" element={<SignIn />} />
+          <Route path="/signin" element={<PageTransition><SignIn /></PageTransition>} />
           
           {/* Admin Routes - Protected */}
           <Route path="/admin" element={
@@ -177,7 +179,7 @@ function App() {
           </Route>
           
           <Route path="*" element={
-            <div className="min-h-screen bg-white flex flex-col">
+            <PageTransition className="min-h-screen bg-white flex flex-col">
               <Navbar />
               <div className="flex-1 flex items-center justify-center">
                 <div className="text-center">
@@ -187,9 +189,18 @@ function App() {
                 </div>
               </div>
               <Footer />
-            </div>
+            </PageTransition>
           } />
-        </Routes>
+      </Routes>
+    </AnimatePresence>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <AnimatedRoutes />
       </BrowserRouter>
       <Snackbar />
     </AuthProvider>
