@@ -23,31 +23,45 @@ async function request(path, { method = 'GET', body } = {}) {
     return data;
 }
 
+// Get all model-color combinations
 export async function getAllModelColors() {
-    try {
-        return await request('/api/model-colors', { method: 'GET' });
-    } catch (e) {
-        // If not available, return an empty structure to avoid 404 crash on FE
-        return { data: [] };
-    }
+    return request('/api/model-colors', { method: 'GET' });
 }
 
-export async function createModelColor(payload) {
-    // payload: { modelId: number, colorId: number, imagePath: string }
-    return request('/api/model-colors/create', { method: 'POST', body: payload });
+// Get by ID
+export async function getModelColorById(id) {
+    return request(`/api/model-colors/${encodeURIComponent(id)}`, { method: 'GET' });
 }
 
-export async function updateModelColor(payload) {
-    // payload: { modelId: number, colorId: number, imagePath: string }
-    return request('/api/model-colors/update', { method: 'PUT', body: payload });
+// Get by Model ID
+export async function getModelColorsByModelId(modelId) {
+    return request(`/api/model-colors/model/${encodeURIComponent(modelId)}`, { method: 'GET' });
 }
 
-export async function deleteModelColor(modelId, colorId) {
-    return request(`/api/model-colors/delete?modelId=${encodeURIComponent(modelId)}&colorId=${encodeURIComponent(colorId)}`, { method: 'DELETE' });
+// Get by Color ID
+export async function getModelColorsByColorId(colorId) {
+    return request(`/api/model-colors/color/${encodeURIComponent(colorId)}`, { method: 'GET' });
 }
 
-export async function getColorsByModelId(modelId) {
-    return request(`/api/models/${encodeURIComponent(modelId)}/colors`, { method: 'GET' });
+// Create new model-color combination
+export async function createModelColor(data) {
+    return request('/api/model-colors', { 
+        method: 'POST', 
+        body: data 
+    });
 }
 
+// Update model-color combination
+export async function updateModelColor(id, data) {
+    return request(`/api/model-colors/${encodeURIComponent(id)}`, { 
+        method: 'PUT', 
+        body: data 
+    });
+}
 
+// Delete model-color combination
+export async function deleteModelColor(id) {
+    return request(`/api/model-colors/${encodeURIComponent(id)}`, { 
+        method: 'DELETE' 
+    });
+}
