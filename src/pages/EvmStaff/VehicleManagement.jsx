@@ -8,6 +8,12 @@ import {
   deleteModelThunk,
 } from '@store/slices/modelSlice';
 
+// Prevent scroll wheel on number inputs
+const handleWheelOnNumberInput = (e) => {
+  e.target.blur();
+  e.preventDefault();
+};
+
 const BODY_TYPES = [
   { value: 'SEDAN', label: 'Sedan' },
   { value: 'SUV', label: 'SUV' },
@@ -98,6 +104,8 @@ function VehicleManagement() {
     try {
       const payload = {
         ...formData,
+        modelName: formData.modelName.trim(),
+        description: formData.description.trim(),
         batteryCapacity: parseFloat(formData.batteryCapacity),
         range: parseFloat(formData.range),
         powerHp: parseFloat(formData.powerHp),
@@ -116,6 +124,9 @@ function VehicleManagement() {
         showNotification('success', 'Tạo xe mới thành công!');
       }
       
+      // ✅ Reload data to get latest from backend
+      await dispatch(getAllModelsThunk()).unwrap();
+      
       setIsModalOpen(false);
       resetForm();
     } catch (err) {
@@ -129,6 +140,9 @@ function VehicleManagement() {
     try {
       await dispatch(deleteModelThunk(model.modelId)).unwrap();
       showNotification('success', 'Đã xóa xe!');
+      
+      // ✅ Reload data to ensure consistency
+      await dispatch(getAllModelsThunk()).unwrap();
     } catch (err) {
       showNotification('error', err?.message || 'Không thể xóa xe');
     }
@@ -140,6 +154,19 @@ function VehicleManagement() {
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
+      {/* CSS to hide number input arrows */}
+      <style>{`
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+        input[type="number"] {
+          -moz-appearance: textfield;
+          appearance: textfield;
+        }
+      `}</style>
+
       {/* Notification */}
       <AnimatePresence>
         {notification.show && (
@@ -335,6 +362,7 @@ function VehicleManagement() {
                       type="number"
                       value={formData.modelYear}
                       onChange={(e) => setFormData({ ...formData, modelYear: e.target.value })}
+                      onWheel={handleWheelOnNumberInput}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
                       min={2020}
@@ -371,6 +399,7 @@ function VehicleManagement() {
                       step="0.1"
                       value={formData.batteryCapacity}
                       onChange={(e) => setFormData({ ...formData, batteryCapacity: e.target.value })}
+                      onWheel={handleWheelOnNumberInput}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
                       min={0.1}
@@ -387,6 +416,7 @@ function VehicleManagement() {
                       step="0.1"
                       value={formData.range}
                       onChange={(e) => setFormData({ ...formData, range: e.target.value })}
+                      onWheel={handleWheelOnNumberInput}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
                       min={0.1}
@@ -403,6 +433,7 @@ function VehicleManagement() {
                       step="0.1"
                       value={formData.powerHp}
                       onChange={(e) => setFormData({ ...formData, powerHp: e.target.value })}
+                      onWheel={handleWheelOnNumberInput}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
                       min={0.1}
@@ -419,6 +450,7 @@ function VehicleManagement() {
                       step="0.1"
                       value={formData.torqueNm}
                       onChange={(e) => setFormData({ ...formData, torqueNm: e.target.value })}
+                      onWheel={handleWheelOnNumberInput}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
                       min={0.1}
@@ -435,6 +467,7 @@ function VehicleManagement() {
                       step="0.1"
                       value={formData.acceleration}
                       onChange={(e) => setFormData({ ...formData, acceleration: e.target.value })}
+                      onWheel={handleWheelOnNumberInput}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
                       min={0.1}
@@ -450,6 +483,7 @@ function VehicleManagement() {
                       type="number"
                       value={formData.seatingCapacity}
                       onChange={(e) => setFormData({ ...formData, seatingCapacity: e.target.value })}
+                      onWheel={handleWheelOnNumberInput}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
                       min={2}
@@ -467,6 +501,7 @@ function VehicleManagement() {
                       step="0.01"
                       value={formData.price}
                       onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      onWheel={handleWheelOnNumberInput}
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       required
                       min={0.01}

@@ -48,7 +48,7 @@ export async function updateModel(modelData) {
 }
 
 export async function deleteModel(modelId) {
-    return request(`/api/models/delete/${encodeURIComponent(modelId)}`, { method: 'DELETE' });
+    return request(`/api/models/${encodeURIComponent(modelId)}`, { method: 'DELETE' });
 }
 
 // Relations & queries
