@@ -229,7 +229,9 @@ const BaseLayout = ({
 
         {/* Routed Content */}
         <div className="flex-1 py-6 px-4 sm:px-6 lg:px-8 overflow-auto w-full">
-          <Outlet />
+          <div className="max-w-7xl mx-auto">
+            <Outlet />
+          </div>
         </div>
       </div>
     </div>

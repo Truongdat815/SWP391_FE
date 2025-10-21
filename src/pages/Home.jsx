@@ -8,6 +8,7 @@ import Specs from '../components/Specs';
 import NewsSection from '../components/NewsSection';
 import StatisticsSection from '../components/StatisticsSection';
 import Footer from '../components/Footer';
+import { AnimatedSection } from '../components/Animated';
 
 function Home() {
   return (
@@ -16,22 +17,34 @@ function Home() {
       <Navbar />
       
       {/* Hero Section */}
-      <Hero />
+      <AnimatedSection>
+        <Hero />
+      </AnimatedSection>
       
       {/* About Section */}
-      <About />
+      <AnimatedSection delay={0.05}>
+        <About />
+      </AnimatedSection>
       
       {/* Models Section */}
-      <Models />
+      <AnimatedSection delay={0.1}>
+        <Models />
+      </AnimatedSection>
       
       {/* Specifications Section */}
-      <Specs />
+      <AnimatedSection delay={0.15}>
+        <Specs />
+      </AnimatedSection>
       
       {/* News Section */}
-      <NewsSection />
+      <AnimatedSection delay={0.2}>
+        <NewsSection />
+      </AnimatedSection>
       
       {/* Statistics Section */}
-      <StatisticsSection />
+      <AnimatedSection delay={0.25}>
+        <StatisticsSection />
+      </AnimatedSection>
       
       {/* Footer */}
       <Footer />

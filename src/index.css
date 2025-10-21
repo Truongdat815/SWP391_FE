@@ -2,42 +2,138 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Base theme (dark mode removed) */
 @layer base {
-  html { color-scheme: light; }
-  body { @apply bg-white text-gray-900; }
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 142.1 76.2% 36.3%;
+    --primary-foreground: 355.7 100% 97.3%;
+    --secondary: 210 40% 98%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 98%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 98%;
+    --accent-foreground: 222.2 84% 4.9%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 142.1 76.2% 36.3%;
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 142.1 70.6% 45.3%;
+    --primary-foreground: 144.9 80.4% 10%;
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 142.1 70.6% 45.3%;
+  }
 }
 
-/* Animation keyframes */
-@keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+@layer base {
+  * {
+    @apply border-border;
   }
-  
-  @keyframes slideDown {
-    from {
-      opacity: 0;
-      transform: translateY(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
+  body {
+    @apply bg-background text-foreground;
   }
-  
-  .animate-fadeIn {
-    animation: fadeIn 0.2s ease-out;
-  }
-  
-  .animate-slideDown {
-    animation: slideDown 0.3s ease-out;
-  }
+}
 
-/* Form controls: improve contrast in dark mode - Maximum priority CSS */
+/* Custom animations */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideDown {
+  from { 
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from { 
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to { 
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slideDown {
+  animation: slideDown 0.3s ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out;
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+.dark ::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: #6b7280;
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Form controls: improve contrast in dark mode */
 html.dark input,
 html.dark input[type="text"],
 html.dark input[type="email"], 
@@ -59,70 +155,27 @@ html.dark select,
 .dark input[type="number"],
 .dark input:not([type]),
 .dark textarea,
-.dark select,
-body.dark input,
-body.dark textarea,
-body.dark select {
-  background-color: #ffffff !important;
-  background: #ffffff !important;
-  color: #111827 !important;
-  border: 1px solid #d1d5db !important;
+.dark select {
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  border-color: #4b5563 !important;
 }
 
-.dark input[type="text"]:focus,
-.dark input[type="email"]:focus,
-.dark input[type="password"]:focus,
-.dark input[type="tel"]:focus,
-.dark input[type="search"]:focus,
-.dark input[type="date"]:focus,
-.dark input[type="number"]:focus,
-.dark input:not([type]):focus,
+html.dark input::placeholder,
+html.dark textarea::placeholder,
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #9ca3af !important;
+}
+
+html.dark input:focus,
+html.dark textarea:focus,
+html.dark select:focus,
+.dark input:focus,
 .dark textarea:focus,
 .dark select:focus {
-  outline: none !important;
-  box-shadow: 0 0 0 2px #3b82f6 !important;
-  border-color: #3b82f6 !important;
-}
-
-.dark input::placeholder,
-.dark textarea::placeholder { 
-  color: rgb(107 114 128) !important; 
-}
-
-.dark select option {
-  background-color: #ffffff !important;
-  color: #111827 !important;
-}
-
-/* Additional selectors for better coverage with extreme specificity */
-.dark [type="text"],
-.dark [type="email"],
-.dark [type="tel"],
-.dark [type="search"],
-.dark [type="date"],
-.dark [class*="border"][class*="rounded"] input,
-.dark [class*="border"][class*="rounded"] select,
-.dark input[class*="border"],
-.dark select[class*="border"],
-.dark input[class*="block"],
-.dark select[class*="px-"],
-.dark input[class*="py-"],
-.dark select[class*="w-full"],
-.dark input[class*="w-full"],
-html.dark input,
-html.dark textarea,
-html.dark select {
-  background-color: #ffffff !important;
-  background: #ffffff !important;
-  color: #111827 !important;
-  border-color: #d1d5db !important;
-}
-
-/* Force all inputs and selects in dark mode - nuclear option */
-.dark * input,
-.dark * select,
-.dark * textarea {
-  background-color: #ffffff !important;
-  background: #ffffff !important;
-  color: #111827 !important;
+  background-color: #374151 !important;
+  color: #f9fafb !important;
+  border-color: #10b981 !important;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
 }

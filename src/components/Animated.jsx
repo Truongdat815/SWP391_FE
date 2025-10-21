@@ -33,4 +33,19 @@ export const AnimatedSection = ({ children, className = '', delay = 0, ...rest }
   </motion.section>
 );
 
+// Page transition wrapper for route-level animations
+export const PageTransition = ({ children, className = '' }) => {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      className={className}
+    >
+      {children}
+    </motion.div>
+  );
+};
+
 export default AnimatedImage;

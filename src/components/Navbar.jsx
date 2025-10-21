@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import logo from '../assets/images/logo.png';
+import DarkModeToggle from './ui/DarkModeToggle';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -83,25 +84,33 @@ const Navbar = () => {
             </div>
           </div>
 
-          {/* Login Button */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.4 }}
-            className="hidden lg:block"
-          >
+          {/* Dark Mode Toggle & Login Button */}
+          <div className="hidden lg:flex items-center space-x-4">
             <motion.div
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.3 }}
             >
-              <Link
-                to="/signin"
-                className="bg-gradient-to-r bg-[#6CA12B] text-white px-6 py-2 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 inline-block"
-              >
-                Đăng nhập
-              </Link>
+              <DarkModeToggle />
             </motion.div>
-          </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.4 }}
+            >
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Link
+                  to="/signin"
+                  className="bg-gradient-to-r bg-[#6CA12B] text-white px-6 py-2 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 inline-block"
+                >
+                  Đăng nhập
+                </Link>
+              </motion.div>
+            </motion.div>
+          </div>
 
           {/* Mobile menu button */}
           <div className="lg:hidden">

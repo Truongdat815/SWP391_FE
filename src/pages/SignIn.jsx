@@ -4,6 +4,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { loginThunk, clearError } from '../store/slices/authSlice';
 import { useAuth } from "../contexts/AuthContext";
 import logo from "../assets/images/logo.png";
+import Button from '../components/ui/Button';
+import { Card, CardContent } from '../components/ui/Card';
+import { PageTransition } from '../components/Animated';
 
 function SignIn() {
   const [formData, setFormData] = useState({
@@ -109,8 +112,9 @@ function SignIn() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full">
+    <PageTransition>
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-emerald-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-md w-full">
         {/* Back to Home */}
         <div className="mb-8">
           <Link to="/" className="inline-flex items-center text-emerald-600 hover:text-emerald-700 font-medium">
@@ -122,7 +126,8 @@ function SignIn() {
         </div>
 
         {/* Sign In Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+        <Card>
+          <CardContent className="p-8">
           <div className="text-center mb-8">
             <img src={logo} alt="Electra" className="h-10 w-auto mx-auto mb-6" />
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
@@ -209,11 +214,7 @@ function SignIn() {
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={status === 'loading'}
-              className="w-full flex justify-center items-center py-3 px-4 border border-transparent text-sm font-semibold rounded-xl text-white bg-gradient-to-r from-emerald-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-emerald-500 shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
+            <Button type="submit" disabled={status === 'loading'} className="w-full">
               {status === 'loading' ? (
                 <>
                   <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -230,33 +231,13 @@ function SignIn() {
                   Đăng nhập
                 </>
               )}
-            </button>
+            </Button>
           </form>
-
-          {/* Divider */}
-          <div className="mt-8">
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200"></div>
-              </div>
-              <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-white text-gray-500">Hoặc</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Register Link */}
-          <div className="text-center mt-6">
-            <p className="text-sm text-gray-600">
-              Chưa có tài khoản?{' '}
-              <a href="#" className="font-semibold text-emerald-600 hover:text-emerald-700 transition-colors">
-                Đăng ký ngay
-              </a>
-            </p>
-          </div>
+          </CardContent>
+        </Card>
         </div>
       </div>
-    </div>
+    </PageTransition>
   );
 }
 
