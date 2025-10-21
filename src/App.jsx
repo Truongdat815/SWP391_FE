@@ -50,6 +50,7 @@ import FeedbackManagement from './pages/dealerStaff/FeedbackManagement'
 
 // EVM Staff Sub Pages
 import ProductManagement from './pages/EvmStaff/ProductManagement'
+import VehicleManagement from './pages/EvmStaff/VehicleManagement'
 import InventoryManagement from './pages/EvmStaff/InventoryManagement'
 import DealerManagement from './pages/EvmStaff/DealerManagement'
 import ContractManagement from './pages/EvmStaff/ContractManagement'
@@ -169,6 +170,7 @@ function AnimatedRoutes() {
           }>
             <Route index element={<EVMDashboard />} />
             <Route path="product-management" element={<ProductManagement />} />
+            <Route path="vehicle-management" element={<VehicleManagement />} />
             <Route path="inventory-management" element={<InventoryManagement />} />
             <Route path="dealer-management" element={<DealerManagement />} />
             <Route path="contract-management" element={<ContractManagement />} />
