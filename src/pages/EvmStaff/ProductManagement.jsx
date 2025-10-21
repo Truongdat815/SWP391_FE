@@ -12,9 +12,6 @@ import {
 } from '@store/slices/modelSlice';
 import {
   getAllColorsThunk,
-  createColorThunk,
-  updateColorThunk,
-  deleteColorThunk,
 } from '@store/slices/colorSlice';
 import ProductCard from '../../components/ProductCard';
 import ModelFormWizard from '../../components/ModelFormWizard';
@@ -41,7 +38,6 @@ function ProductManagement({ onBack }) {
   // Modal States
   const [modelModalOpen, setModelModalOpen] = useState(false);
   const [editingModel, setEditingModel] = useState(null);
-  const [colorModalOpen, setColorModalOpen] = useState(false);
   const [detailModalOpen, setDetailModalOpen] = useState(false);
   const [viewingModel, setViewingModel] = useState(null);
 
@@ -49,8 +45,6 @@ function ProductManagement({ onBack }) {
   const [modelColorsMap, setModelColorsMap] = useState({});
   const [addingColorToModel, setAddingColorToModel] = useState(null);
   const [selectedColorId, setSelectedColorId] = useState('');
-  const [editingColor, setEditingColor] = useState(null);
-  const [colorForm, setColorForm] = useState({ colorName: '' });
 
   // Notifications
   const [successMsg, setSuccessMsg] = useState('');
@@ -157,50 +151,6 @@ function ProductManagement({ onBack }) {
       setTimeout(() => setSuccessMsg(''), 3000);
     } catch (err) {
       setErrorMsg(err?.message || 'Không thể xóa mẫu xe');
-      setTimeout(() => setErrorMsg(''), 3000);
-    }
-  };
-
-
-  // Color Management Functions
-  const openCreateColor = () => {
-    setEditingColor(null);
-    setColorForm({ colorName: '' });
-    setColorModalOpen(true);
-  };
-
-  const openEditColor = (color) => {
-    setEditingColor(color);
-    setColorForm({ colorId: color.colorId, colorName: color.colorName || '' });
-    setColorModalOpen(true);
-  };
-
-  const submitColor = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingColor) {
-        await dispatch(updateColorThunk(colorForm)).unwrap();
-        setSuccessMsg('Đã cập nhật màu sắc thành công');
-      } else {
-        await dispatch(createColorThunk(colorForm)).unwrap();
-        setSuccessMsg('Đã tạo màu sắc mới thành công');
-      }
-      setColorModalOpen(false);
-      setTimeout(() => setSuccessMsg(''), 3000);
-    } catch (err) {
-      setErrorMsg(err?.message || 'Lỗi khi thao tác màu sắc');
-      setTimeout(() => setErrorMsg(''), 3000);
-    }
-  };
-
-  const removeColor = async (colorId) => {
-    if (!confirm('Bạn có chắc chắn muốn xóa màu này?')) return;
-    try {
-      await dispatch(deleteColorThunk(colorId)).unwrap();
-      setSuccessMsg('Đã xóa màu sắc thành công');
-      setTimeout(() => setSuccessMsg(''), 3000);
-    } catch (err) {
-      setErrorMsg(err?.message || 'Không thể xóa màu sắc');
       setTimeout(() => setErrorMsg(''), 3000);
     }
   };
@@ -337,18 +287,6 @@ function ProductManagement({ onBack }) {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
               Thêm mẫu xe
-            </motion.button>
-
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={openCreateColor}
-              className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-              </svg>
-              Quản lý màu sắc
             </motion.button>
           </div>
         </div>
@@ -572,138 +510,6 @@ function ProductManagement({ onBack }) {
         editingModel={editingModel}
         isLoading={modelStatus === 'loading'}
       />
-
-      {/* Color Management Modal */}
-      {colorModalOpen && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="fixed inset-0 z-50 flex items-center justify-center"
-        >
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-            onClick={() => setColorModalOpen(false)}
-          />
-          
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: 20 }}
-            className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden m-4"
-          >
-            {/* Header */}
-            <div className="bg-gradient-to-r from-blue-600 to-blue-700 px-6 py-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-xl font-bold text-white">Quản lý màu sắc</h3>
-                <button
-                  onClick={() => setColorModalOpen(false)}
-                  className="p-2 rounded-lg hover:bg-white/20 transition-colors text-white"
-                >
-                  <svg className="h-6 w-6" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 max-h-[calc(90vh-80px)] overflow-y-auto">
-              {/* Add new color form */}
-              {!editingColor && (
-                <motion.form
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  onSubmit={submitColor}
-                  className="mb-6 p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200"
-                >
-                  <h4 className="font-medium text-gray-900 mb-3 flex items-center">
-                    <svg className="w-5 h-5 mr-2 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                    </svg>
-                    Thêm màu mới
-                  </h4>
-                  <div className="flex gap-3">
-                    <input
-                      value={colorForm.colorName}
-                      onChange={(e) => setColorForm(v => ({ ...v, colorName: e.target.value }))}
-                      className="flex-1 border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                      placeholder="Tên màu (VD: Đỏ, Xanh Dương, Trắng Ngọc Trai)"
-                      required
-                    />
-                    <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      type="submit"
-                      className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors font-medium"
-                    >
-                      Thêm
-                    </motion.button>
-                  </div>
-                </motion.form>
-              )}
-
-              {/* List of colors */}
-              <div>
-                <h4 className="font-medium text-gray-900 mb-4 flex items-center">
-                  <svg className="w-5 h-5 mr-2 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                  </svg>
-                  Danh sách màu ({colors.length})
-                </h4>
-                
-                {colors.length === 0 ? (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-center py-12 text-gray-500"
-                  >
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-                      </svg>
-                    </div>
-                    <p>Chưa có màu nào. Thêm màu đầu tiên!</p>
-                  </motion.div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                    <AnimatePresence>
-                      {colors.map((color, index) => (
-                        <motion.div
-                          key={color.colorId}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -20 }}
-                          transition={{ delay: index * 0.1 }}
-                          className="border border-gray-200 rounded-xl p-4 flex items-center justify-between hover:shadow-md transition-all duration-200 bg-white"
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-emerald-400 to-blue-500 border-2 border-white shadow-lg"></div>
-                            <span className="font-medium text-gray-900">{color.colorName}</span>
-                          </div>
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => removeColor(color.colorId)}
-                            className="p-2 rounded-lg hover:bg-red-50 text-red-600 transition-colors"
-                            title="Xóa màu"
-                          >
-                            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </motion.button>
-                        </motion.div>
-                      ))}
-                    </AnimatePresence>
-                  </div>
-                )}
-              </div>
-            </div>
-          </motion.div>
-        </motion.div>
-      )}
 
       {/* Detail Modal */}
       {detailModalOpen && viewingModel && (
