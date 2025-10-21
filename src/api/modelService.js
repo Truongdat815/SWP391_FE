@@ -29,7 +29,13 @@ export async function getAllModels() {
 }
 
 export async function getModelById(modelId) {
-    return request(`/api/models/${encodeURIComponent(modelId)}`, { method: 'GET' });
+    // Backend may not support /api/models/{id}, fetch all and filter
+    const allModels = await getAllModels();
+    const model = allModels.find(m => m.modelId === modelId);
+    if (!model) {
+        throw new Error(`Model with ID ${modelId} not found`);
+    }
+    return model;
 }
 
 export async function createModel(model) {
@@ -38,11 +44,11 @@ export async function createModel(model) {
 
 export async function updateModel(modelData) {
     const { modelId } = modelData;
-    return request(`/api/models/${encodeURIComponent(modelId)}`, { method: 'PUT', body: modelData });
+    return request(`/api/models/update/${encodeURIComponent(modelId)}`, { method: 'PUT', body: modelData });
 }
 
 export async function deleteModel(modelId) {
-    return request(`/api/models/${encodeURIComponent(modelId)}`, { method: 'DELETE' });
+    return request(`/api/models/delete/${encodeURIComponent(modelId)}`, { method: 'DELETE' });
 }
 
 // Relations & queries
