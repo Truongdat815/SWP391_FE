@@ -53,8 +53,6 @@ import ColorManagementPage from './components/ColorManagement'
 // Admin Sub Pages
 import StoreManagement from './pages/admin/StoreManagement'
 import UserManagement from './pages/admin/UserManagement'
-import OrderManagement from './pages/admin/OrderManagement'
-import PromotionManagement from './pages/admin/PromotionManagement'
 
 import { BrowserRouter, Route, Routes, useLocation, Navigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
@@ -108,8 +106,6 @@ function AnimatedRoutes() {
             <Route index element={<Navigate to="/admin/store-management" replace />} />
             <Route path="store-management" element={<StoreManagement />} />
             <Route path="user-management" element={<UserManagement />} />
-            <Route path="order-management" element={<OrderManagement />} />
-            <Route path="promotion-management" element={<PromotionManagement />} />
             <Route path="profile" element={<CommonProfile />} />
             <Route path="settings" element={<CommonSettings />} />
             <Route path="help" element={<CommonHelp />} />
