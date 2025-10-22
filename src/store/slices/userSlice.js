@@ -80,7 +80,8 @@ const userSlice = createSlice({
             })
             .addCase(createUserThunk.fulfilled, (state, action) => {
                 state.status = 'succeeded';
-                state.items.push(action.payload);
+                const newUser = action.payload?.data || action.payload;
+                state.items.push(newUser);
             })
             .addCase(createUserThunk.rejected, (state, action) => {
                 state.status = 'failed';
@@ -94,7 +95,7 @@ const userSlice = createSlice({
             .addCase(updateUserThunk.fulfilled, (state, action) => {
                 state.status = 'succeeded';
                 const updated = action.payload;
-                state.items = state.items.map((u) => (u.id === updated.id ? updated : u));
+                state.items = state.items.map((u) => (u.userId === updated.userId ? updated : u));
             })
             .addCase(updateUserThunk.rejected, (state, action) => {
                 state.status = 'failed';
@@ -121,11 +122,17 @@ const userSlice = createSlice({
             .addCase(getAllUsersThunk.fulfilled, (state, action) => {
                 state.status = 'succeeded';
                 const payload = action.payload;
-                const normalized = Array.isArray(payload?.data)
-                    ? payload.data
-                    : Array.isArray(payload)
-                        ? payload
-                        : [];
+                
+                // Handle different response structures
+                let normalized = [];
+                if (Array.isArray(payload?.data?.data)) {
+                    normalized = payload.data.data;
+                } else if (Array.isArray(payload?.data)) {
+                    normalized = payload.data;
+                } else if (Array.isArray(payload)) {
+                    normalized = payload;
+                }
+                
                 state.items = normalized;
             })
             .addCase(getAllUsersThunk.rejected, (state, action) => {
@@ -139,8 +146,8 @@ const userSlice = createSlice({
             })
             .addCase(deleteUserThunk.fulfilled, (state, action) => {
                 state.status = 'succeeded';
-                const id = action.payload;
-                state.items = state.items.filter((u) => u.id !== id);
+                const userId = action.payload;
+                state.items = state.items.filter((u) => u.userId !== userId);
             })
             .addCase(deleteUserThunk.rejected, (state, action) => {
                 state.status = 'failed';

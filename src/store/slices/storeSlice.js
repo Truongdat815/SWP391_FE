@@ -12,11 +12,11 @@ export const getAllStoresThunk = createAsyncThunk(
     }
 );
 
-export const getStoreByIdThunk = createAsyncThunk(
-    'stores/getById',
-    async (storeId, { rejectWithValue }) => {
+export const getStoreByNameThunk = createAsyncThunk(
+    'stores/getByName',
+    async (storeName, { rejectWithValue }) => {
         try {
-            return await storeService.getStoreById(storeId);
+            return await storeService.getStoreByName(storeName);
         } catch (err) {
             return rejectWithValue(err.message || 'Failed to fetch store');
         }
@@ -58,17 +58,6 @@ export const deleteStoreThunk = createAsyncThunk(
 );
 
 
-export const getStoresByStoreNameThunk = createAsyncThunk(
-    'stores/getByStoreName',
-    async (storeName, { rejectWithValue }) => {
-        try {
-            return await storeService.getStoresByStoreName(storeName);
-        } catch (err) {
-            return rejectWithValue(err.message || 'Failed to fetch stores by name');
-        }
-    }
-);
-
 export const getStoresByStatusThunk = createAsyncThunk(
     'stores/getByStatus',
     async (status, { rejectWithValue }) => {
@@ -76,28 +65,6 @@ export const getStoresByStatusThunk = createAsyncThunk(
             return await storeService.getStoresByStatus(status);
         } catch (err) {
             return rejectWithValue(err.message || 'Failed to fetch stores by status');
-        }
-    }
-);
-
-export const getStoresByProvinceThunk = createAsyncThunk(
-    'stores/getByProvince',
-    async (provinceName, { rejectWithValue }) => {
-        try {
-            return await storeService.getStoresByProvince(provinceName);
-        } catch (err) {
-            return rejectWithValue(err.message || 'Failed to fetch stores by province');
-        }
-    }
-);
-
-export const searchStoresThunk = createAsyncThunk(
-    'stores/search',
-    async (searchParams, { rejectWithValue }) => {
-        try {
-            return await storeService.searchStores(searchParams);
-        } catch (err) {
-            return rejectWithValue(err.message || 'Failed to search stores');
         }
     }
 );
@@ -138,15 +105,15 @@ const storeSlice = createSlice({
                 state.error = action.payload;
             })
 
-            .addCase(getStoreByIdThunk.pending, (state) => {
+            .addCase(getStoreByNameThunk.pending, (state) => {
                 state.status = 'loading';
                 state.error = null;
             })
-            .addCase(getStoreByIdThunk.fulfilled, (state, action) => {
+            .addCase(getStoreByNameThunk.fulfilled, (state, action) => {
                 state.status = 'succeeded';
                 state.selected = action.payload;
             })
-            .addCase(getStoreByIdThunk.rejected, (state, action) => {
+            .addCase(getStoreByNameThunk.rejected, (state, action) => {
                 state.status = 'failed';
                 state.error = action.payload;
             })
@@ -192,25 +159,6 @@ const storeSlice = createSlice({
                 state.error = action.payload;
             })
 
-        
-            .addCase(getStoresByStoreNameThunk.pending, (state) => {
-                state.status = 'loading';
-                state.error = null;
-            })
-            .addCase(getStoresByStoreNameThunk.fulfilled, (state, action) => {
-                state.status = 'succeeded';
-                const payload = action.payload;
-                const normalized = Array.isArray(payload?.data)
-                    ? payload.data
-                    : Array.isArray(payload)
-                        ? payload
-                        : [];
-                state.items = normalized;
-            })
-            .addCase(getStoresByStoreNameThunk.rejected, (state, action) => {
-                state.status = 'failed';
-                state.error = action.payload;
-            })
 
             .addCase(getStoresByStatusThunk.pending, (state) => {
                 state.status = 'loading';
@@ -227,44 +175,6 @@ const storeSlice = createSlice({
                 state.items = normalized;
             })
             .addCase(getStoresByStatusThunk.rejected, (state, action) => {
-                state.status = 'failed';
-                state.error = action.payload;
-            })
-
-            .addCase(getStoresByProvinceThunk.pending, (state) => {
-                state.status = 'loading';
-                state.error = null;
-            })
-            .addCase(getStoresByProvinceThunk.fulfilled, (state, action) => {
-                state.status = 'succeeded';
-                const payload = action.payload;
-                const normalized = Array.isArray(payload?.data)
-                    ? payload.data
-                    : Array.isArray(payload)
-                        ? payload
-                        : [];
-                state.items = normalized;
-            })
-            .addCase(getStoresByProvinceThunk.rejected, (state, action) => {
-                state.status = 'failed';
-                state.error = action.payload;
-            })
-
-            .addCase(searchStoresThunk.pending, (state) => {
-                state.status = 'loading';
-                state.error = null;
-            })
-            .addCase(searchStoresThunk.fulfilled, (state, action) => {
-                state.status = 'succeeded';
-                const payload = action.payload;
-                const normalized = Array.isArray(payload?.data)
-                    ? payload.data
-                    : Array.isArray(payload)
-                        ? payload
-                        : [];
-                state.items = normalized;
-            })
-            .addCase(searchStoresThunk.rejected, (state, action) => {
                 state.status = 'failed';
                 state.error = action.payload;
             });

@@ -20,7 +20,6 @@ import EVMStaffLayout from './layouts/EVMStaffLayout'
 // Dashboard Pages
 import DealerStaffDashboard from './pages/dealerStaff/DealerStaffDashboard'
 import DealerManagerDashboard from './pages/dealerManager/DealerManagerDashboard'
-import EVMDashboard from './pages/EvmStaff/EVMDashboard'
 
 // Common sub pages
 import CommonProfile from './pages/common/CommonProfile'
@@ -64,7 +63,7 @@ import UserManagement from './pages/admin/UserManagement'
 import OrderManagement from './pages/admin/OrderManagement'
 import PromotionManagement from './pages/admin/PromotionManagement'
 
-import { BrowserRouter, Route, Routes, useLocation } from 'react-router-dom'
+import { BrowserRouter, Route, Routes, useLocation, Navigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { PageTransition } from './components/Animated'
 
@@ -113,7 +112,8 @@ function AnimatedRoutes() {
               <AdminLayout />
             </ProtectedRoute>
           }>
-            <Route index element={<StoreManagement />} />
+            <Route index element={<Navigate to="/admin/store-management" replace />} />
+            <Route path="store-management" element={<StoreManagement />} />
             <Route path="user-management" element={<UserManagement />} />
             <Route path="order-management" element={<OrderManagement />} />
             <Route path="promotion-management" element={<PromotionManagement />} />
@@ -168,7 +168,7 @@ function AnimatedRoutes() {
               <EVMStaffLayout />
             </ProtectedRoute>
           }>
-            <Route index element={<EVMDashboard />} />
+            <Route index element={<Navigate to="/evm-staff/vehicle-management" replace />} />
             <Route path="product-management" element={<ProductManagement />} />
             <Route path="vehicle-management" element={<VehicleManagement />} />
             <Route path="inventory-management" element={<InventoryManagement />} />

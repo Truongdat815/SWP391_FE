@@ -50,7 +50,10 @@ function UserManagement() {
   // Fallback fetch via api client for direct API usage
   useEffect(() => {
     get('/api/users/all')
-      .then((res) => setUsersApi(Array.isArray(res?.data?.data) ? res.data.data : []))
+      .then((res) => {
+        const userData = res?.data?.data || res?.data || [];
+        setUsersApi(Array.isArray(userData) ? userData : []);
+      })
       .catch((err) => console.error('Lỗi lấy danh sách người dùng:', err));
   }, []);
 
@@ -93,30 +96,41 @@ function UserManagement() {
     password: '',
     phone: '',
     storeId: '',
-    roleId: ''
+    roleId: '',
+    status: 'ACTIVE'
   });
 
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'active': return 'bg-gradient-to-r from-green-400 to-green-500 text-white shadow-md';
-      case 'inactive': return 'bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-md';
+    const upperStatus = String(status || '').toUpperCase();
+    switch (upperStatus) {
+      case 'ACTIVE': return 'bg-gradient-to-r from-green-400 to-green-500 text-white shadow-md';
+      case 'INACTIVE': return 'bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-md';
+      case 'PENDING': return 'bg-gradient-to-r from-yellow-400 to-yellow-500 text-white shadow-md';
+      case 'DISABLED': return 'bg-gradient-to-r from-red-400 to-red-500 text-white shadow-md';
       default: return 'bg-gradient-to-r from-gray-400 to-gray-500 text-white shadow-md';
     }
   };
 
   const getStatusText = (status) => {
-    switch (status) {
-      case 'active': return 'Hoạt động';
-      case 'inactive': return 'Không hoạt động';
+    const upperStatus = String(status || '').toUpperCase();
+    switch (upperStatus) {
+      case 'ACTIVE': return 'Hoạt động';
+      case 'INACTIVE': return 'Không hoạt động';
+      case 'PENDING': return 'Chờ duyệt';
+      case 'DISABLED': return 'Vô hiệu hóa';
       default: return status;
     }
   };
 
   const getRoleColor = (roleName) => {
     switch (roleName) {
+      case 'Quản trị viên': return 'from-purple-400 to-purple-600';
       case 'Admin': return 'from-purple-400 to-purple-600';
+      case 'Nhân viên hãng xe': return 'from-red-400 to-red-600';
       case 'EVM Staff': return 'from-red-400 to-red-600';
+      case 'Quản lí cửa hàng': return 'from-green-400 to-green-600';
       case 'Dealer Manager': return 'from-green-400 to-green-600';
+      case 'Nhân viên cửa hàng': return 'from-blue-400 to-blue-600';
       case 'Dealer Staff': return 'from-blue-400 to-blue-600';
       default: return 'from-gray-400 to-gray-600';
     }
@@ -128,7 +142,7 @@ function UserManagement() {
     // Nếu thay đổi role thành Admin hoặc EVM Staff, tự động clear storeId
     if (name === 'roleId') {
       const selectedRole = roles.find(r => r.roleId === value);
-      if (selectedRole && (selectedRole.roleName === 'Admin' || selectedRole.roleName === 'EVM Staff')) {
+      if (selectedRole && (selectedRole.roleName === 'Quản trị viên' || selectedRole.roleName === 'Admin' || selectedRole.roleName === 'Nhân viên hãng xe' || selectedRole.roleName === 'EVM Staff')) {
         setFormData(prev => ({
           ...prev,
           [name]: value,
@@ -152,7 +166,7 @@ function UserManagement() {
       
       // Nếu là Admin hoặc EVM Staff, không gửi storeId
       const selectedRole = roles.find(r => r.roleId === formData.roleId);
-      if (selectedRole && (selectedRole.roleName === 'Admin' || selectedRole.roleName === 'EVM Staff')) {
+      if (selectedRole && (selectedRole.roleName === 'Quản trị viên' || selectedRole.roleName === 'Admin' || selectedRole.roleName === 'Nhân viên hãng xe' || selectedRole.roleName === 'EVM Staff')) {
         delete submitData.storeId;
       }
       
@@ -163,7 +177,8 @@ function UserManagement() {
         password: '',
         phone: '',
         storeId: '',
-        roleId: ''
+        roleId: '',
+        status: 'ACTIVE'
       });
       setShowAddModal(false);
       dispatch(getAllUsersThunk());
@@ -179,7 +194,8 @@ function UserManagement() {
       password: '',
       phone: '',
       storeId: '',
-      roleId: ''
+      roleId: '',
+      status: 'active'
     });
     setShowAddModal(false);
   };
@@ -215,7 +231,8 @@ function UserManagement() {
       password: '',
       phone: user.phone || '',
       storeId: user.storeId || '',
-      roleId: user.roleId || ''
+      roleId: user.roleId || '',
+      status: user.status || 'ACTIVE'
     });
     setShowEditModal(true);
   };
@@ -236,7 +253,7 @@ function UserManagement() {
       
       // Nếu là Admin hoặc EVM Staff, không gửi storeId
       const selectedRole = roles.find(r => r.roleId === formData.roleId);
-      if (selectedRole && (selectedRole.roleName === 'Admin' || selectedRole.roleName === 'EVM Staff')) {
+      if (selectedRole && (selectedRole.roleName === 'Quản trị viên' || selectedRole.roleName === 'Admin' || selectedRole.roleName === 'Nhân viên hãng xe' || selectedRole.roleName === 'EVM Staff')) {
         delete updateData.storeId;
       }
       
@@ -248,7 +265,8 @@ function UserManagement() {
         password: '',
         phone: '',
         storeId: '',
-        roleId: ''
+        roleId: '',
+        status: 'ACTIVE'
       });
       setShowEditModal(false);
       setUserToEdit(null);
@@ -266,7 +284,8 @@ function UserManagement() {
       password: '',
       phone: '',
       storeId: '',
-      roleId: ''
+      roleId: '',
+      status: 'active'
     });
     setShowEditModal(false);
     setUserToEdit(null);
@@ -372,10 +391,10 @@ function UserManagement() {
   };
 
   const tabs = [
-    { id: 'dealer-staff', name: 'Dealer Staff', count: getFilteredUsersByRole('Dealer Staff').length },
-    { id: 'dealer-manager', name: 'Dealer Manager', count: getFilteredUsersByRole('Dealer Manager').length },
-    { id: 'evm-staff', name: 'EVM Staff', count: getFilteredUsersByRole('EVM Staff').length },
-    { id: 'admin', name: 'Admin', count: getFilteredUsersByRole('Admin').length }
+    { id: 'dealer-staff', name: 'Nhân viên cửa hàng', count: getFilteredUsersByRole('Nhân viên cửa hàng').length },
+    { id: 'dealer-manager', name: 'Quản lí cửa hàng', count: getFilteredUsersByRole('Quản lí cửa hàng').length },
+    { id: 'evm-staff', name: 'Nhân viên hãng xe', count: getFilteredUsersByRole('Nhân viên hãng xe').length },
+    { id: 'admin', name: 'Quản trị viên', count: getFilteredUsersByRole('Quản trị viên').length }
   ];
 
   const renderUserTable = (roleName, roleColor) => {
@@ -387,7 +406,10 @@ function UserManagement() {
         {isUsersFetching && <TableSkeleton />}
         {!isUsersFetching && usersError && (
           <div className="p-4 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
-            ❌ Lỗi tải danh sách: {String(usersError?.error || usersError?.data || 'Unknown error')}
+            <div className="font-semibold mb-2">❌ Lỗi tải danh sách người dùng:</div>
+            <div className="text-xs font-mono bg-white p-2 rounded">
+              {JSON.stringify(usersError, null, 2)}
+            </div>
           </div>
         )}
         {!isUsersFetching && !usersError && (
@@ -397,7 +419,7 @@ function UserManagement() {
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Họ tên</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Số điện thoại</th>
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Trạng thái</th>
-                {(roleName !== 'Admin' && roleName !== 'EVM Staff') && (
+                {(roleName !== 'Quản trị viên' && roleName !== 'Admin' && roleName !== 'Nhân viên hãng xe' && roleName !== 'EVM Staff') && (
                   <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Cửa hàng</th>
                 )}
                 <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Thao tác</th>
@@ -414,7 +436,7 @@ function UserManagement() {
                   <div className="flex items-center">
                     <div className={`h-12 w-12 bg-gradient-to-br ${roleColor} rounded-full flex items-center justify-center mr-4 shadow-lg ring-2 ring-opacity-20 ring-gray-300`}>
                       <span className="text-white font-bold text-sm">
-                        {(u.fullName || '').split(' ').pop()?.charAt(0) || 'U'}
+                        {u.fullName ? u.fullName.trim().charAt(0).toUpperCase() : 'U'}
                       </span>
                     </div>
                     <div>
@@ -438,11 +460,11 @@ function UserManagement() {
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusColor(String(u.status || '').toLowerCase())}`}>
-                    {getStatusText(String(u.status || '').toLowerCase())}
+                  <span className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusColor(u.status)}`}>
+                    {getStatusText(u.status)}
                   </span>
                 </td>
-                {(roleName !== 'Admin' && roleName !== 'EVM Staff') && (
+                {(roleName !== 'Quản trị viên' && roleName !== 'Admin' && roleName !== 'Nhân viên hãng xe' && roleName !== 'EVM Staff') && (
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{u.storeName || 'N/A'}</div>
                   </td>
@@ -491,7 +513,7 @@ function UserManagement() {
             ))}
               {filteredUsers.length === 0 && (
                 <tr>
-                  <td colSpan={roleName === 'Admin' || roleName === 'EVM Staff' ? "4" : "5"} className="px-6 py-16">
+                  <td colSpan={roleName === 'Quản trị viên' || roleName === 'Admin' || roleName === 'Nhân viên hãng xe' || roleName === 'EVM Staff' ? "4" : "5"} className="px-6 py-16">
                   <div className="text-center">
                     <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 mb-4 shadow-inner">
                       <svg className="w-10 h-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -524,10 +546,10 @@ function UserManagement() {
     );
   };
 
-  const renderEVMStaffTable = () => renderUserTable('EVM Staff', getRoleColor('EVM Staff'));
-  const renderDealerStaffTable = () => renderUserTable('Dealer Staff', getRoleColor('Dealer Staff'));
-  const renderDealerManagerTable = () => renderUserTable('Dealer Manager', getRoleColor('Dealer Manager'));
-  const renderAdminTable = () => renderUserTable('Admin', getRoleColor('Admin'));
+  const renderEVMStaffTable = () => renderUserTable('Nhân viên hãng xe', getRoleColor('Nhân viên hãng xe'));
+  const renderDealerStaffTable = () => renderUserTable('Nhân viên cửa hàng', getRoleColor('Nhân viên cửa hàng'));
+  const renderDealerManagerTable = () => renderUserTable('Quản lí cửa hàng', getRoleColor('Quản lí cửa hàng'));
+  const renderAdminTable = () => renderUserTable('Quản trị viên', getRoleColor('Quản trị viên'));
 
 
   return (
@@ -703,19 +725,19 @@ function UserManagement() {
                   {/* Store Selection */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Cửa hàng {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') ? '' : <span className="text-red-500">*</span>}
+                      Cửa hàng {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') ? '' : <span className="text-red-500">*</span>}
                     </label>
                     <select
                       name="storeId"
                       value={formData.storeId}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      required={formData.roleId && !(roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')}
-                      disabled={isStoresFetching || (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff'))}
+                      required={formData.roleId && !(roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')}
+                      disabled={isStoresFetching || (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff'))}
                     >
                       <option value="">
                         {isStoresFetching ? 'Đang tải cửa hàng...' : 
-                         (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
+                         (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
                       </option>
                       {stores.map((store) => (
                         <option key={store.storeId} value={store.storeId}>
@@ -723,8 +745,8 @@ function UserManagement() {
                         </option>
                       ))}
                     </select>
-                    {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') && (
-                      <p className="text-xs text-gray-500 mt-1.5">💡 Admin và EVM Staff không thuộc về cửa hàng cụ thể</p>
+                    {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') && (
+                      <p className="text-xs text-gray-500 mt-1.5">💡 Quản trị viên và Nhân viên hãng xe không thuộc về cửa hàng cụ thể</p>
                     )}
                   </div>
 
@@ -799,6 +821,25 @@ function UserManagement() {
                       required
                     />
                   </div>
+
+                  {/* Status Selection */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Trạng thái <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
+                      required
+                    >
+                      <option value="ACTIVE">Hoạt động</option>
+                      <option value="INACTIVE">Không hoạt động</option>
+                      <option value="PENDING">Chờ duyệt</option>
+                      <option value="DISABLED">Vô hiệu hóa</option>
+                    </select>
+                  </div>
                 </div>
                 
                 <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
@@ -865,19 +906,19 @@ function UserManagement() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Cửa hàng {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') ? '' : <span className="text-red-500">*</span>}
+                      Cửa hàng {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') ? '' : <span className="text-red-500">*</span>}
                     </label>
                     <select
                       name="storeId"
                       value={formData.storeId}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      required={formData.roleId && !(roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')}
-                      disabled={isStoresFetching || (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff'))}
+                      required={formData.roleId && !(roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')}
+                      disabled={isStoresFetching || (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff'))}
                     >
                       <option value="">
                         {isStoresFetching ? 'Đang tải cửa hàng...' : 
-                         (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
+                         (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
                       </option>
                       {stores.map((store) => (
                         <option key={store.storeId} value={store.storeId}>
@@ -885,8 +926,8 @@ function UserManagement() {
                         </option>
                       ))}
                     </select>
-                    {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') && (
-                      <p className="text-xs text-gray-500 mt-1.5">💡 Admin và EVM Staff không thuộc về cửa hàng cụ thể</p>
+                    {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') && (
+                      <p className="text-xs text-gray-500 mt-1.5">💡 Quản trị viên và Nhân viên hãng xe không thuộc về cửa hàng cụ thể</p>
                     )}
                   </div>
 
@@ -956,6 +997,25 @@ function UserManagement() {
                       placeholder="Nhập số điện thoại"
                       required
                     />
+                  </div>
+
+                  {/* Status Selection */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Trạng thái <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="status"
+                      value={formData.status}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
+                      required
+                    >
+                      <option value="ACTIVE">Hoạt động</option>
+                      <option value="INACTIVE">Không hoạt động</option>
+                      <option value="PENDING">Chờ duyệt</option>
+                      <option value="DISABLED">Vô hiệu hóa</option>
+                    </select>
                   </div>
                 </div>
                 
@@ -1078,15 +1138,15 @@ function UserManagement() {
                 <div className="flex items-center space-x-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
                   <div className={`h-20 w-20 bg-gradient-to-br ${getRoleColor(userToView.roleName)} rounded-full flex items-center justify-center shadow-lg ring-4 ring-opacity-20 ring-gray-300`}>
                     <span className="text-white font-bold text-2xl">
-                      {(userToView.fullName || '').split(' ').pop()?.charAt(0) || 'U'}
+                      {userToView.fullName ? userToView.fullName.trim().charAt(0).toUpperCase() : 'U'}
                     </span>
                   </div>
                   <div className="flex-1">
                     <h4 className="text-2xl font-bold text-gray-900 mb-1">{userToView.fullName}</h4>
                     <p className="text-lg text-gray-600 mb-2">{userToView.email}</p>
                     <div className="flex items-center space-x-4">
-                      <span className={`px-3 py-1 inline-flex text-sm font-semibold rounded-full ${getStatusColor(String(userToView.status || '').toLowerCase())}`}>
-                        {getStatusText(String(userToView.status || '').toLowerCase())}
+                      <span className={`px-3 py-1 inline-flex text-sm font-semibold rounded-full ${getStatusColor(userToView.status)}`}>
+                        {getStatusText(userToView.status)}
                       </span>
                       <span className={`px-3 py-1 inline-flex text-sm font-semibold rounded-full bg-gradient-to-r ${getRoleColor(userToView.roleName)} text-white shadow-md`}>
                         {userToView.roleName}
@@ -1126,8 +1186,8 @@ function UserManagement() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         <span className="text-sm text-gray-600">Trạng thái:</span>
-                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(String(userToView.status || '').toLowerCase())}`}>
-                          {getStatusText(String(userToView.status || '').toLowerCase())}
+                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(userToView.status)}`}>
+                          {getStatusText(userToView.status)}
                         </span>
                       </div>
                     </div>
@@ -1157,7 +1217,7 @@ function UserManagement() {
                         </svg>
                         <span className="text-sm text-gray-600">Cửa hàng:</span>
                         <span className="ml-2 text-sm font-medium text-gray-900">
-                          {userToView.roleName === 'Admin' || userToView.roleName === 'EVM Staff' ? 'Không thuộc cửa hàng' : (userToView.storeName || 'Chưa phân công')}
+                          {userToView.roleName === 'Quản trị viên' || userToView.roleName === 'Admin' || userToView.roleName === 'Nhân viên hãng xe' || userToView.roleName === 'EVM Staff' ? 'Không thuộc cửa hàng' : (userToView.storeName || 'Chưa phân công')}
                         </span>
                       </div>
                       <div className="flex items-center">

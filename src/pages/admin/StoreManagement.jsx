@@ -6,9 +6,7 @@ import {
   createStoreThunk, 
   updateStoreThunk, 
   deleteStoreThunk,
-  getStoresByStatusThunk,
-  getStoresByProvinceThunk,
-  searchStoresThunk
+  getStoresByStatusThunk
 } from '@store/slices/storeSlice';
 
 // Skeleton Loading Component
@@ -61,7 +59,23 @@ function StoreManagement() {
       .catch((err) => console.error('Lỗi lấy danh sách store:', err));
   }, []);
 
-  const storesList = (stores && stores.length) ? stores : storesApi;
+  const allStoresList = (stores && stores.length) ? stores : storesApi;
+  
+  // Frontend filtering to replace removed thunks
+  const storesList = allStoresList.filter(store => {
+    // Search term filter (storeName or ownerName)
+    const matchesSearch = !searchTerm.trim() || 
+      store.storeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      store.ownerName?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Status filter  
+    const matchesStatus = !statusFilter || store.status === statusFilter;
+    
+    // Province filter
+    const matchesProvince = !provinceFilter || store.provinceName === provinceFilter;
+    
+    return matchesSearch && matchesStatus && matchesProvince;
+  });
   
   const [formData, setFormData] = useState({
     storeName: '',
@@ -70,6 +84,7 @@ function StoreManagement() {
     address: '',
     phone: '',
     status: 'ACTIVE',
+    imagePath: '',
     contractStartDate: '',
     contractEndDate: '',
     createdBy: ''
@@ -133,6 +148,7 @@ function StoreManagement() {
           provinceName: formData.provinceName,
           ownerName: formData.ownerName,
           status: formData.status,
+          imagePath: formData.imagePath?.trim() || null,
           contractStartDate: formData.contractStartDate ? new Date(formData.contractStartDate).toISOString() : null,
           contractEndDate: formData.contractEndDate ? new Date(formData.contractEndDate).toISOString() : null
         };
@@ -160,6 +176,7 @@ function StoreManagement() {
           provinceName: formData.provinceName,
           ownerName: formData.ownerName,
           status: formData.status,
+          imagePath: formData.imagePath?.trim() || null,
           contractStartDate: formData.contractStartDate ? new Date(formData.contractStartDate).toISOString() : null,
           contractEndDate: formData.contractEndDate ? new Date(formData.contractEndDate).toISOString() : null
         };
@@ -173,6 +190,7 @@ function StoreManagement() {
         address: '',
         phone: '',
         status: 'ACTIVE',
+        imagePath: '',
         contractStartDate: '',
         contractEndDate: '',
         createdBy: ''
@@ -206,6 +224,7 @@ function StoreManagement() {
       address: store.address || '',
       phone: store.phone || '',
       status: store.status || 'ACTIVE',
+      imagePath: store.imagePath || '',
       contractStartDate: formatDateForInput(store.contractStartDate),
       contractEndDate: formatDateForInput(store.contractEndDate),
       createdBy: store.createdBy || ''
@@ -245,6 +264,7 @@ function StoreManagement() {
       address: '',
       phone: '',
       status: 'ACTIVE',
+      imagePath: '',
       contractStartDate: '',
       contractEndDate: '',
       createdBy: ''
@@ -256,22 +276,8 @@ function StoreManagement() {
   };
 
   const handleSearch = () => {
-    if (searchTerm.trim() || statusFilter || provinceFilter) {
-      const searchParams = {};
-      if (searchTerm.trim()) {
-        if (searchTerm.length > 3) {
-          searchParams.storeName = searchTerm.trim();
-        } else {
-          searchParams.ownerName = searchTerm.trim();
-        }
-      }
-      if (statusFilter) searchParams.status = statusFilter;
-      if (provinceFilter) searchParams.provinceName = provinceFilter;
-      
-      dispatch(searchStoresThunk(searchParams));
-    } else {
-      dispatch(getAllStoresThunk());
-    }
+    // Since searchStoresThunk is removed, we'll fetch all stores and filter frontend
+    dispatch(getAllStoresThunk());
   };
 
   const handleStatusFilter = (status) => {
@@ -285,11 +291,8 @@ function StoreManagement() {
 
   const handleProvinceFilter = (province) => {
     setProvinceFilter(province);
-    if (province) {
-      dispatch(getStoresByProvinceThunk(province));
-    } else {
-      dispatch(getAllStoresThunk());
-    }
+    // Since getStoresByProvinceThunk is removed, we'll fetch all stores and filter frontend
+    dispatch(getAllStoresThunk());
   };
 
   const clearFilters = () => {
@@ -299,8 +302,8 @@ function StoreManagement() {
     dispatch(getAllStoresThunk());
   };
 
-  // Get unique provinces for filter dropdown
-  const uniqueProvinces = [...new Set(storesList.map(store => store.provinceName).filter(Boolean))];
+  // Get unique provinces for filter dropdown (use all stores, not filtered)
+  const uniqueProvinces = [...new Set(allStoresList.map(store => store.provinceName).filter(Boolean))];
 
   const tabs = [
     { id: 'stores', name: 'Danh sách cửa hàng', count: storesList.length },
@@ -348,7 +351,22 @@ function StoreManagement() {
               >
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="flex items-center">
-                    <div className="h-12 w-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mr-4 shadow-lg ring-2 ring-blue-100">
+                    {store.imagePath ? (
+                      <img 
+                        src={store.imagePath} 
+                        alt={store.storeName}
+                        className="h-12 w-12 rounded-lg object-cover mr-4 shadow-md ring-2 ring-blue-100"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.style.display = 'none';
+                          e.target.nextElementSibling.style.display = 'flex';
+                        }}
+                      />
+                    ) : null}
+                    <div 
+                      className="h-12 w-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mr-4 shadow-lg ring-2 ring-blue-100"
+                      style={{ display: store.imagePath ? 'none' : 'flex' }}
+                    >
                       <span className="text-white font-bold text-sm">
                         {(store.storeName || '').charAt(0)}
                       </span>
@@ -361,7 +379,6 @@ function StoreManagement() {
                         </svg>
                         {store.phone}
                       </div>
-                      <div className="text-xs text-gray-400 mt-0.5">ID: {store.storeId}</div>
                     </div>
                   </div>
                 </td>
@@ -781,6 +798,41 @@ function StoreManagement() {
                     />
                   </div>
 
+                  {/* Image Path */}
+                  <div className="md:col-span-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Đường dẫn hình ảnh cửa hàng
+                    </label>
+                    <div className="flex gap-4">
+                      <div className="flex-1">
+                        <input
+                          type="url"
+                          name="imagePath"
+                          value={formData.imagePath}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all"
+                          placeholder="https://example.com/store-image.jpg"
+                        />
+                        <p className="text-xs text-gray-500 mt-1.5">💡 Nhập URL hình ảnh cửa hàng (tùy chọn)</p>
+                      </div>
+                      {formData.imagePath && (
+                        <div className="flex-shrink-0">
+                          <div className="w-24 h-24 border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                            <img 
+                              src={formData.imagePath} 
+                              alt="Preview" 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="14"%3EError%3C/text%3E%3C/svg%3E';
+                              }}
+                            />
+                          </div>
+                          <p className="text-xs text-center text-gray-500 mt-1">Preview</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
                   {/* Status */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -881,14 +933,27 @@ function StoreManagement() {
                   {/* Store Details */}
                   <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-4 text-left shadow-inner">
                     <div className="flex items-center mb-3">
-                      <div className="h-12 w-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mr-3 shadow-md">
-                        <span className="text-white font-bold text-sm">
+                      {storeToDelete.imagePath ? (
+                        <img 
+                          src={storeToDelete.imagePath} 
+                          alt={storeToDelete.storeName}
+                          className="h-16 w-16 rounded-lg object-cover mr-3 shadow-md ring-2 ring-blue-100"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            e.target.nextElementSibling.style.display = 'flex';
+                          }}
+                        />
+                      ) : null}
+                      <div 
+                        className="h-16 w-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mr-3 shadow-md"
+                        style={{ display: storeToDelete.imagePath ? 'none' : 'flex' }}
+                      >
+                        <span className="text-white font-bold text-lg">
                           {(storeToDelete.storeName || '').charAt(0)}
                         </span>
                       </div>
                       <div>
                         <div className="text-sm font-bold text-gray-900">{storeToDelete.storeName}</div>
-                        <div className="text-xs text-gray-500">ID: {storeToDelete.storeId}</div>
                       </div>
                     </div>
                     <div className="space-y-1.5 text-xs text-gray-700">

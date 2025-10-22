@@ -121,8 +121,10 @@ const orderSlice = createSlice({
       })
       .addCase(createNewOrder.fulfilled, (state, action) => {
         state.loading = false;
-        state.orders.push(action.payload);
-        state.success = 'Tạo báo giá cho khách hàng thành công';
+        // Extract data from response if API returns { code, message, data }
+        const orderData = action.payload.data || action.payload;
+        state.orders.push(orderData);
+        state.success = 'Tạo đơn hàng thành công!';
       })
       .addCase(createNewOrder.rejected, (state, action) => {
         state.loading = false;

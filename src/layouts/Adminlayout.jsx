@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext';
 const AdminLayout = () => {
   const { user, isAuthenticated } = useAuth();
   const [adminUser, setAdminUser] = useState({
-    initials: 'AD',
+    initials: 'A',
     name: 'Admin User',
     email: 'admin@electra.com',
     role: 'Quản trị viên hệ thống',
@@ -17,10 +17,10 @@ const AdminLayout = () => {
     const fetchAdminInfo = async () => {
       try {
         // Use authenticated user data first
-        if (isAuthenticated && user && user.roleName === 'Admin') {
+        if (isAuthenticated && user && (user.roleName === 'Admin' || user.roleName === 'Quản trị viên')) {
           const initials = user.fullName
-            ? user.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase()
-            : 'AD';
+            ? user.fullName.trim().charAt(0).toUpperCase()
+            : 'A';
           
           setAdminUser({
             initials: initials,
@@ -34,12 +34,12 @@ const AdminLayout = () => {
           const users = response?.data?.data || [];
           
           // Tìm user có role Admin
-          const adminUserData = users.find(user => user.roleName === 'Admin');
+          const adminUserData = users.find(user => user.roleName === 'Admin' || user.roleName === 'Quản trị viên');
           
           if (adminUserData) {
             const initials = adminUserData.fullName
-              ? adminUserData.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase()
-              : 'AD';
+              ? adminUserData.fullName.trim().charAt(0).toUpperCase()
+              : 'A';
             
             setAdminUser({
               initials: initials,
@@ -61,7 +61,7 @@ const AdminLayout = () => {
   const menuItems = [
     { 
       name: 'Quản lý cửa hàng', 
-      path: '/admin', 
+      path: '/admin/store-management', 
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
