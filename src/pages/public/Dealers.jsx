@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
-import { getAllStoresThunk, getStoresByStatusThunk, getStoresByProvinceThunk, searchStoresThunk } from '../../store/slices/storeSlice';
+import { getAllStoresThunk, getStoresByStatusThunk } from '../../store/slices/storeSlice';
 import DealerCard from '../../components/DealerCard';
 
 const Dealers = () => {
@@ -19,49 +19,54 @@ const Dealers = () => {
   const [showFilters, setShowFilters] = useState(false);
 
   useEffect(() => {
-    // Only fetch active stores for the public dealers page
+    // Fetch all stores and filter frontend to show only active ones
     if (storesStatus === 'idle') {
-      dispatch(getStoresByStatusThunk('ACTIVE'));
+      dispatch(getAllStoresThunk());
     }
   }, [dispatch, storesStatus]);
 
   // Handle search functionality
   const handleSearch = () => {
-    if (searchTerm.trim() || selectedProvince) {
-      const searchParams = {
-        storeName: searchTerm.trim() || undefined,
-        provinceName: selectedProvince || undefined
-      };
-      // Remove undefined values
-      Object.keys(searchParams).forEach(key => 
-        searchParams[key] === undefined && delete searchParams[key]
-      );
-      dispatch(searchStoresThunk(searchParams));
-    } else {
-      dispatch(getStoresByStatusThunk('ACTIVE'));
-    }
+    // Since we're using frontend filtering, just fetch all stores
+    dispatch(getAllStoresThunk());
   };
 
   const handleProvinceFilter = (province) => {
     setSelectedProvince(province);
-    if (province) {
-      dispatch(getStoresByProvinceThunk(province));
-    } else {
-      dispatch(getStoresByStatusThunk('ACTIVE'));
-    }
+    // Since we're using frontend filtering, just fetch all stores
+    dispatch(getAllStoresThunk());
   };
 
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedProvince('');
-    dispatch(getStoresByStatusThunk('ACTIVE'));
+    dispatch(getAllStoresThunk());
   };
 
-  // Get unique provinces for filter dropdown
-  const uniqueProvinces = [...new Set(stores.map(store => store.provinceName).filter(Boolean))];
+  // Frontend filtering to replace removed thunks
+  const filteredStores = stores.filter(store => {
+    // Only show ACTIVE stores (public page)
+    const isActive = store.status === 'ACTIVE';
+    
+    // Search term filter (storeName)
+    const matchesSearch = !searchTerm.trim() || 
+      store.storeName?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Province filter
+    const matchesProvince = !selectedProvince || store.provinceName === selectedProvince;
+    
+    return isActive && matchesSearch && matchesProvince;
+  });
 
-  // Transform store data to match DealerCard component expectations
-  const dealers = stores.map(store => ({
+  // Get unique provinces for filter dropdown (use all active stores)
+  const uniqueProvinces = [...new Set(stores
+    .filter(store => store.status === 'ACTIVE')
+    .map(store => store.provinceName)
+    .filter(Boolean)
+  )];
+
+  // Transform filtered store data to match DealerCard component expectations
+  const dealers = filteredStores.map(store => ({
     id: store.storeId,
     name: store.storeName,
     address: store.address,

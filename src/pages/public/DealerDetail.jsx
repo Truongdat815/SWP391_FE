@@ -12,14 +12,41 @@ const DealerDetail = () => {
     const fetchDealer = async () => {
       try {
         setLoading(true);
-        const response = await fetch(`http://localhost:3000/dealers/${id}`);
+        const token = localStorage.getItem('access_token');
+        const headers = {
+          'Content-Type': 'application/json',
+        };
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
+        
+        const response = await fetch(`http://localhost:8080/api/stores/all`, { headers });
         
         if (!response.ok) {
           throw new Error('Failed to fetch dealer details');
         }
         
         const data = await response.json();
-        setDealer(data);
+        const stores = data.data || data;
+        const store = stores.find(s => s.storeId === parseInt(id));
+        
+        if (store) {
+          // Transform store to dealer format
+          setDealer({
+            id: store.storeId,
+            storeId: store.storeId,
+            name: store.storeName,
+            address: store.address,
+            phone: store.phone,
+            image: store.imagePath || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=800&h=400&fit=crop",
+            description: `Đại lý chính thức Electra tại ${store.provinceName} với showroom hiện đại và đội ngũ tư vấn chuyên nghiệp.`,
+            ownerName: store.ownerName,
+            provinceName: store.provinceName,
+            status: store.status
+          });
+        } else {
+          throw new Error('Store not found');
+        }
       } catch (err) {
         setError(err.message);
         // Fallback data if API is not available
@@ -205,6 +232,20 @@ const DealerDetail = () => {
               </h2>
               
               <div className="space-y-4">
+                {dealer.storeId && (
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                      <svg className="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-gray-900">Mã cửa hàng</h3>
+                      <p className="text-gray-600 font-mono">#{dealer.storeId}</p>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="flex items-start space-x-3">
                   <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
                     <svg className="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

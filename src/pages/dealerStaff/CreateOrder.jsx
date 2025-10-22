@@ -99,9 +99,20 @@ function CreateOrder({ onBack }) {
   // Handle customer selection and create order
   const handleCreateOrder = async (customer) => {
     try {
-      await dispatch(createNewOrder({ customerId: customer.customerId })).unwrap();
+      const result = await dispatch(createNewOrder({ customerId: customer.customerId })).unwrap();
+      
+      // Extract order data from response
+      const orderData = result.data || result;
+      console.log('Order created successfully:', orderData);
+      
+      // Navigate to view orders after 2 seconds
+      setTimeout(() => {
+        navigate('/dealer-staff/view-orders');
+      }, 2000);
+      
     } catch (error) {
       console.error('Error creating order:', error);
+      setError(error.message || 'Không thể tạo đơn hàng. Vui lòng thử lại.');
     }
   };
 
@@ -168,7 +179,7 @@ function CreateOrder({ onBack }) {
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center">
             <FileText className="h-8 w-8 text-emerald-600 mr-3" />
-            <h2 className="text-2xl font-bold text-gray-900">Tạo báo giá mới</h2>
+            <h2 className="text-2xl font-bold text-gray-900">Tạo đơn hàng mới</h2>
           </div>
           <button
             onClick={onBack}
@@ -307,7 +318,7 @@ function CreateOrder({ onBack }) {
                           ) : (
                             <>
                               <FileText className="h-4 w-4 mr-2" />
-                              Tạo báo giá
+                              Tạo đơn hàng
                             </>
                           )}
                         </button>

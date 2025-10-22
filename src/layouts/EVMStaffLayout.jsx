@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 const EVMStaffLayout = () => {
   const { user, isAuthenticated } = useAuth();
   const [userInfo, setUserInfo] = useState({
-    initials: 'ES',
+    initials: 'N',
     name: 'EVM Staff',
     email: 'evm@electra.com',
     role: 'Nhân viên EVM',
@@ -13,10 +13,10 @@ const EVMStaffLayout = () => {
 
   // Load user data from session
   useEffect(() => {
-    if (isAuthenticated && user && user.roleName === 'EVM Staff') {
+    if (isAuthenticated && user && (user.roleName === 'EVM Staff' || user.roleName === 'Nhân viên hãng xe')) {
       const initials = user.fullName
-        ? user.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase()
-        : 'ES';
+        ? user.fullName.trim().charAt(0).toUpperCase()
+        : 'N';
       
       setUserInfo({
         initials: initials,
@@ -28,15 +28,6 @@ const EVMStaffLayout = () => {
   }, [isAuthenticated, user]);
 
   const menuItems = [
-    { 
-      name: 'Tổng quan', 
-      path: '/evm-staff', 
-      icon: (
-        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z" />
-        </svg>
-      ) 
-    },
     { 
       name: 'Quản lý sản phẩm', 
       path: '/evm-staff/product-management', 
@@ -118,8 +109,8 @@ const EVMStaffLayout = () => {
       roleLabel="EVM Staff"
       userInfo={userInfo}
       basePath="/evm-staff"
-      defaultTitle="EVM Staff Dashboard"
-      defaultSubtitle="Tổng quan sản phẩm và phân phối"
+      defaultTitle="Quản lý EVM"
+      defaultSubtitle="Quản lý sản phẩm và phân phối"
     />
   );
 };

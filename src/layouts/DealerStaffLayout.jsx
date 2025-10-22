@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 const DealerStaffLayout = () => {
   const { user, isAuthenticated } = useAuth();
   const [userInfo, setUserInfo] = useState({
-    initials: 'DS',
+    initials: 'N',
     name: 'Dealer Staff',
     email: 'staff@electra.com',
     role: 'Nhân viên bán hàng',
@@ -13,10 +13,10 @@ const DealerStaffLayout = () => {
 
   // Load user data from session
   useEffect(() => {
-    if (isAuthenticated && user && user.roleName === 'Dealer Staff') {
+    if (isAuthenticated && user && (user.roleName === 'Dealer Staff' || user.roleName === 'Nhân viên cửa hàng')) {
       const initials = user.fullName
-        ? user.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase()
-        : 'DS';
+        ? user.fullName.trim().charAt(0).toUpperCase()
+        : 'N';
       
       setUserInfo({
         initials: initials,
@@ -38,7 +38,7 @@ const DealerStaffLayout = () => {
       ) 
     },
     { 
-      name: 'Tạo báo giá', 
+      name: 'Tạo đơn hàng', 
       path: '/dealer-staff/create-order', 
       icon: (
         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

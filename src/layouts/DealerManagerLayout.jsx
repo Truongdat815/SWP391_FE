@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 const DealerManagerLayout = () => {
   const { user, isAuthenticated } = useAuth();
   const [userInfo, setUserInfo] = useState({
-    initials: 'DM',
+    initials: 'Q',
     name: 'Dealer Manager',
     email: 'manager@electra.com',
     role: 'Quản lý đại lý',
@@ -13,10 +13,10 @@ const DealerManagerLayout = () => {
 
   // Load user data from session
   useEffect(() => {
-    if (isAuthenticated && user && user.roleName === 'Dealer Manager') {
+    if (isAuthenticated && user && (user.roleName === 'Dealer Manager' || user.roleName === 'Quản lí cửa hàng')) {
       const initials = user.fullName
-        ? user.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase()
-        : 'DM';
+        ? user.fullName.trim().charAt(0).toUpperCase()
+        : 'Q';
       
       setUserInfo({
         initials: initials,
