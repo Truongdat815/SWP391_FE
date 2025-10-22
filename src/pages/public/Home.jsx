@@ -1,14 +1,14 @@
 
 import React from 'react';
-import Navbar from '../components/Navbar';
-import Hero from '../components/Hero';
-import About from '../components/About';
-import Models from '../components/Models';
-import Specs from '../components/Specs';
-import NewsSection from '../components/NewsSection';
-import StatisticsSection from '../components/StatisticsSection';
-import Footer from '../components/Footer';
-import { AnimatedSection } from '../components/Animated';
+import Navbar from '../../components/Navbar';
+import Hero from '../../components/Hero';
+import About from '../../components/About';
+import Models from '../../components/Models';
+import Specs from '../../components/Specs';
+import NewsSection from '../../components/NewsSection';
+import StatisticsSection from '../../components/StatisticsSection';
+import Footer from '../../components/Footer';
+import { AnimatedSection } from '../../components/Animated';
 
 function Home() {
   return (

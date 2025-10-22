@@ -1,12 +1,12 @@
 import './index.css'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
-import Home from './pages/Home'
-import CarListing from './pages/CarListing'
-import CarDetail from './pages/CarDetail'
-import Dealers from './pages/Dealers'
-import DealerDetail from './pages/DealerDetail'
-import SignIn from './pages/SignIn'
+import Home from './pages/public/Home'
+import CarListing from './pages/public/CarListing'
+import CarDetail from './pages/public/CarDetail'
+import Dealers from './pages/public/Dealers'
+import DealerDetail from './pages/public/DealerDetail'
+import SignIn from './pages/auth/SignIn'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './contexts/AuthContext'
 import Snackbar from './components/Snackbar'
@@ -23,9 +23,9 @@ import DealerManagerDashboard from './pages/dealerManager/DealerManagerDashboard
 import EVMDashboard from './pages/EvmStaff/EVMDashboard'
 
 // Common sub pages
-import CommonProfile from './pages/CommonProfile'
-import CommonSettings from './pages/CommonSettings'
-import CommonHelp from './pages/CommonHelp'
+import CommonProfile from './pages/common/CommonProfile'
+import CommonSettings from './pages/common/CommonSettings'
+import CommonHelp from './pages/common/CommonHelp'
 
 // Dealer Manager Sub Pages
 import TaoBaoCao from './pages/dealerManager/TaoBaoCao'

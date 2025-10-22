@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { getModelImage, getModelPoster, formatPrice, formatNumber } from '../utils/modelHelpers';
-import logo from '../assets/images/logo.png';
+import { getModelImage, getModelPoster, formatPrice, formatNumber } from '../../utils/modelHelpers';
+import logo from '../../assets/images/logo.png';
 
 function CarDetail() {
   const { modelId } = useParams();
