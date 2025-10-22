@@ -17,9 +17,6 @@ import DealerStaffLayout from './layouts/DealerStaffLayout'
 import DealerManagerLayout from './layouts/DealerManagerLayout'
 import EVMStaffLayout from './layouts/EVMStaffLayout'
 
-// Dashboard Pages
-import DealerManagerDashboard from './pages/dealerManager/DealerManagerDashboard'
-
 // Common sub pages
 import CommonProfile from './pages/common/CommonProfile'
 import CommonSettings from './pages/common/CommonSettings'
@@ -31,7 +28,7 @@ import BaoCaoDoanhSo from './pages/dealerManager/BaoCaoDoanhSo'
 import XuatBaoCao from './pages/dealerManager/XuatBaoCao'
 import QuanLyNhanVien from './pages/dealerManager/QuanLyNhanVien'
 import QuanLyCongNo from './pages/dealerManager/QuanLyCongNo'
-import TestPage from './pages/dealerManager/TestPage'
+import DealerManagerInventory from './pages/dealerManager/InventoryManagement'
 
 // Dealer Staff Sub Pages
 import QuoteOrderManagement from './pages/dealerStaff/QuoteOrderManagement'
@@ -49,18 +46,13 @@ import FeedbackManagement from './pages/dealerStaff/FeedbackManagement'
 // EVM Staff Sub Pages
 import ProductManagement from './pages/EvmStaff/ProductManagement'
 import VehicleManagement from './pages/EvmStaff/VehicleManagement'
-import InventoryManagement from './pages/EvmStaff/InventoryManagement'
-import DealerManagement from './pages/EvmStaff/DealerManagement'
-import ContractManagement from './pages/EvmStaff/ContractManagement'
-import PricingManagement from './pages/EvmStaff/PricingManagement'
+import DealerOrderManagement from './pages/EvmStaff/DealerOrderManagement'
 import SalesReport from './pages/EvmStaff/SalesReport'
 import ColorManagementPage from './components/ColorManagement'
 
 // Admin Sub Pages
 import StoreManagement from './pages/admin/StoreManagement'
 import UserManagement from './pages/admin/UserManagement'
-import OrderManagement from './pages/admin/OrderManagement'
-import PromotionManagement from './pages/admin/PromotionManagement'
 
 import { BrowserRouter, Route, Routes, useLocation, Navigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
@@ -114,8 +106,6 @@ function AnimatedRoutes() {
             <Route index element={<Navigate to="/admin/store-management" replace />} />
             <Route path="store-management" element={<StoreManagement />} />
             <Route path="user-management" element={<UserManagement />} />
-            <Route path="order-management" element={<OrderManagement />} />
-            <Route path="promotion-management" element={<PromotionManagement />} />
             <Route path="profile" element={<CommonProfile />} />
             <Route path="settings" element={<CommonSettings />} />
             <Route path="help" element={<CommonHelp />} />
@@ -149,7 +139,8 @@ function AnimatedRoutes() {
               <DealerManagerLayout />
             </ProtectedRoute>
           }>
-            <Route index element={<DealerManagerDashboard />} />
+            <Route index element={<Navigate to="/dealer-manager/inventory" replace />} />
+            <Route path="inventory" element={<DealerManagerInventory />} />
             <Route path="tao-bao-cao" element={<TaoBaoCao />} />
             <Route path="bao-cao-doanh-so" element={<BaoCaoDoanhSo />} />
             <Route path="quan-ly-nhan-vien" element={<QuanLyNhanVien />} />
@@ -158,7 +149,6 @@ function AnimatedRoutes() {
             <Route path="profile" element={<CommonProfile />} />
             <Route path="settings" element={<CommonSettings />} />
             <Route path="help" element={<CommonHelp />} />
-            <Route path="test" element={<TestPage />} />
           </Route>
 
           {/* EVM Staff Routes - Protected */}
@@ -170,10 +160,7 @@ function AnimatedRoutes() {
             <Route index element={<Navigate to="/evm-staff/vehicle-management" replace />} />
             <Route path="product-management" element={<ProductManagement />} />
             <Route path="vehicle-management" element={<VehicleManagement />} />
-            <Route path="inventory-management" element={<InventoryManagement />} />
-            <Route path="dealer-management" element={<DealerManagement />} />
-            <Route path="contract-management" element={<ContractManagement />} />
-            <Route path="pricing-management" element={<PricingManagement />} />
+            <Route path="dealer-orders" element={<DealerOrderManagement />} />
             <Route path="color-management" element={<ColorManagementPage />} />
             <Route path="sales-report" element={<SalesReport />} />
             <Route path="profile" element={<CommonProfile />} />

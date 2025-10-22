@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAllStoreStocksThunk, createStoreStockThunk, updateStockQuantityThunk, updateStockPriceThunk, deleteStoreStockThunk } from '../../store/slices/store-stockSlice';
+import { createTransactionThunk } from '../../store/slices/inventoryTransactionSlice';
 import { showSuccess, showError, showWarning } from '../../store/slices/snackbarSlice';
 
 function Inventory() {
@@ -153,7 +154,7 @@ function Inventory() {
     setReportModal(true);
   };
 
-  const handleSubmitReport = (e) => {
+  const handleSubmitReport = async (e) => {
     e.preventDefault();
     
     if (reportData.requestedQuantity <= 0) {
@@ -171,21 +172,31 @@ function Inventory() {
       return;
     }
 
-    // Prepare report payload for API call
-    const reportPayload = {
-      ...reportData,
-      vehicleId: selectedVehicle.id,
-      stockId: selectedColor.stockId, // Use stockId from API data
-      reportDate: new Date().toISOString(),
-      reporterId: user?.userId || 'DS001', // Current staff ID from auth
-      reporterName: user?.fullName || 'Nguyễn Văn A',
-      status: 'pending'
-    };
+    try {
+      // Map to inventory_transaction payload
+      const payload = {
+        inventoryId: 0,
+        unitBasePrice: 0,
+        importQuantity: parseInt(reportData.requestedQuantity),
+        discountPercentage: 0,
+        totalPrice: 0,
+        deposit: 0,
+        dept: 0,
+        transactionDate: new Date().toISOString(),
+        deliveryDate: new Date(reportData.expectedDelivery).toISOString(),
+        storeStockId: selectedColor.stockId,
+        status: 'REQUESTED'
+      };
 
-    console.log('Report to Manager:', reportPayload);
-    dispatch(showSuccess({ 
-      message: `Đã gửi báo cáo đặt hàng cho Manager! Mẫu xe: ${reportData.vehicleModel}, Màu: ${reportData.color}, Số lượng: ${reportData.requestedQuantity}` 
-    }));
+      await dispatch(createTransactionThunk(payload)).unwrap();
+
+      dispatch(showSuccess({ 
+        message: `Đã gửi yêu cầu đặt hàng! Mẫu xe: ${reportData.vehicleModel}, Màu: ${reportData.color}, Số lượng: ${reportData.requestedQuantity}` 
+      }));
+    } catch (error) {
+      dispatch(showError({ message: error?.message || 'Không thể gửi yêu cầu đặt hàng' }));
+      return;
+    }
     
     setReportModal(false);
     setSelectedVehicle(null);
@@ -456,15 +467,7 @@ function Inventory() {
                 </button>
               </div>
             </div>
-            <button
-              onClick={handleOpenCreateModal}
-              className="px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center shadow-lg"
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Thêm xe vào kho
-            </button>
+            {/* Dealer Staff cannot create stock */}
           </div>
         </div>
 
@@ -573,33 +576,7 @@ function Inventory() {
                               </td>
                               <td className="py-3 px-4">
                                 <div className="flex flex-wrap gap-1">
-                                  <button
-                                    onClick={() => handleOpenUpdateQuantity(colorItem)}
-                                    className="px-2 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700 transition-colors"
-                                    title="Cập nhật số lượng"
-                                  >
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                    </svg>
-                                  </button>
-                                  <button
-                                    onClick={() => handleOpenUpdatePrice(colorItem)}
-                                    className="px-2 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700 transition-colors"
-                                    title="Cập nhật giá"
-                                  >
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1"/>
-                                    </svg>
-                                  </button>
-                                  <button
-                                    onClick={() => handleOpenDelete(colorItem)}
-                                    className="px-2 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
-                                    title="Xóa khỏi kho"
-                                  >
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
-                                    </svg>
-                                  </button>
+                                  {/* Dealer Staff: only request button */}
                                   <button
                                     onClick={() => handleReportToManager(vehicle, colorItem)}
                                     className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"

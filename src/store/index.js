@@ -11,6 +11,7 @@ import storeStockReducer from './slices/store-stockSlice';
 import snackbarReducer from './slices/snackbarSlice';
 import customerReducer from './slices/customerSlice';
 import orderReducer from './slices/orderSlice';
+import inventoryTransactionReducer from './slices/inventoryTransactionSlice';
 
 export const store = configureStore({
     reducer: {
@@ -22,6 +23,7 @@ export const store = configureStore({
         colors: colorReducer,
         modelColors: modelColorReducer,
         storeStocks: storeStockReducer,
+        inventoryTransactions: inventoryTransactionReducer,
         snackbar: snackbarReducer,
         customers: customerReducer,
         orders: orderReducer,

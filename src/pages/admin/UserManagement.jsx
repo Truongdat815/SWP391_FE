@@ -61,7 +61,7 @@ function UserManagement() {
 
   useEffect(() => {
     if (storesStatus === 'idle') {
-      dispatch(getAllStoresThunk());
+      (getAllStoresThunk());
     }
   }, [dispatch, storesStatus]);
 
