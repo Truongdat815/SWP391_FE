@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 
 const DealerStaffSettings = ({ onBack }) => {
   const [settings, setSettings] = useState({
-    darkMode: false,
     emailNotifications: true,
     systemNotifications: true,
     autoLogout: true,
@@ -63,23 +62,6 @@ const DealerStaffSettings = ({ onBack }) => {
           <section className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm hover:shadow-md transition">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Giao diện & Hiển thị</h2>
             <div className="space-y-4">
-              <div className="flex items-center justify-between bg-gray-50 border rounded-xl p-4">
-                <div>
-                  <p className="font-medium text-gray-800">Chế độ tối</p>
-                  <p className="text-sm text-gray-500">Giảm chói mắt và tiết kiệm pin</p>
-                </div>
-                <button 
-                  onClick={() => handleToggle('darkMode')}
-                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                    settings.darkMode ? 'bg-emerald-600' : 'bg-gray-300'
-                  }`}
-                >
-                  <span className={`inline-block h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                    settings.darkMode ? 'translate-x-6' : 'translate-x-1'
-                  }`}></span>
-                </button>
-              </div>
-
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Ngôn ngữ</label>
