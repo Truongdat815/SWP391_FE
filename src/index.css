@@ -25,28 +25,6 @@
     --ring: 142.1 76.2% 36.3%;
     --radius: 0.75rem;
   }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-    --primary: 142.1 70.6% 45.3%;
-    --primary-foreground: 144.9 80.4% 10%;
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 142.1 70.6% 45.3%;
-  }
 }
 
 @layer base {
@@ -119,63 +97,4 @@ html {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
-}
-
-.dark ::-webkit-scrollbar-track {
-  background: #374151;
-}
-
-.dark ::-webkit-scrollbar-thumb {
-  background: #6b7280;
-}
-
-.dark ::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
-}
-
-/* Form controls: improve contrast in dark mode */
-html.dark input,
-html.dark input[type="text"],
-html.dark input[type="email"], 
-html.dark input[type="password"],
-html.dark input[type="tel"],
-html.dark input[type="search"],
-html.dark input[type="date"],
-html.dark input[type="number"],
-html.dark input:not([type]),
-html.dark textarea,
-html.dark select,
-.dark input,
-.dark input[type="text"],
-.dark input[type="email"], 
-.dark input[type="password"],
-.dark input[type="tel"],
-.dark input[type="search"],
-.dark input[type="date"],
-.dark input[type="number"],
-.dark input:not([type]),
-.dark textarea,
-.dark select {
-  background-color: #374151 !important;
-  color: #f9fafb !important;
-  border-color: #4b5563 !important;
-}
-
-html.dark input::placeholder,
-html.dark textarea::placeholder,
-.dark input::placeholder,
-.dark textarea::placeholder {
-  color: #9ca3af !important;
-}
-
-html.dark input:focus,
-html.dark textarea:focus,
-html.dark select:focus,
-.dark input:focus,
-.dark textarea:focus,
-.dark select:focus {
-  background-color: #374151 !important;
-  color: #f9fafb !important;
-  border-color: #10b981 !important;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1) !important;
 }
