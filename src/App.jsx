@@ -18,7 +18,6 @@ import DealerManagerLayout from './layouts/DealerManagerLayout'
 import EVMStaffLayout from './layouts/EVMStaffLayout'
 
 // Dashboard Pages
-import DealerStaffDashboard from './pages/dealerStaff/DealerStaffDashboard'
 import DealerManagerDashboard from './pages/dealerManager/DealerManagerDashboard'
 
 // Common sub pages
@@ -128,7 +127,7 @@ function AnimatedRoutes() {
               <DealerStaffLayout />
             </ProtectedRoute>
           }>
-            <Route index element={<DealerStaffDashboard />} />
+            <Route index element={<Navigate to="/dealer-staff/create-order" replace />} />
             <Route path="create-order" element={<CreateOrder />} />
             <Route path="quote-order-management" element={<QuoteOrderManagement />} />
             <Route path="view-orders" element={<ViewOrders />} />

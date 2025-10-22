@@ -3,7 +3,19 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { getAllModelsThunk } from '../../store/slices/modelSlice';
 import { showError, showSuccess } from '../../store/slices/snackbarSlice';
-import { getModelImage, mapBodyTypeToDisplay, formatPrice, formatNumber } from '../../utils/modelHelpers';
+import { getModelImage, formatPrice, formatNumber } from '../../utils/modelHelpers';
+
+// Body types mapping - same as EVM Staff
+const BODY_TYPES = [
+  { value: 'SEDAN', label: 'Sedan' },
+  { value: 'SUV', label: 'SUV' },
+  { value: 'HATCHBACK', label: 'Hatchback' },
+  { value: 'COUPE', label: 'Coupe' },
+  { value: 'CONVERTIBLE', label: 'Convertible' },
+  { value: 'WAGON', label: 'Wagon' },
+  { value: 'PICKUP', label: 'Pickup' },
+  { value: 'VAN', label: 'Van' },
+];
 
 function CarComparison() {
   const dispatch = useDispatch();
@@ -22,135 +34,32 @@ function CarComparison() {
     dispatch(getAllModelsThunk());
   }, [dispatch]);
 
-  // Fallback hardcoded data for development
-  const fallbackVehicles = [
-    {
-      id: 1,
-      name: 'Electra Ascent',
-      category: 'SUV',
-      price: 320000000,
-      range: 380,
-      power: 150,
-      torque: 300,
-      acceleration: 8.5,
-      topSpeed: 180,
-      seating: 7,
-      battery: 75,
-      charging: '45 phút',
-      warranty: '8 năm',
-      image: '/src/assets/images/electra ascent.png',
-      features: ['Lái tự động', 'Sạc nhanh', 'Hệ thống giải trí', 'Cảm biến an toàn', 'Ghế massage']
-    },
-    {
-      id: 2,
-      name: 'Electra CityLink',
-      category: 'Sedan',
-      price: 280000000,
-      range: 320,
-      power: 120,
-      torque: 250,
-      acceleration: 9.2,
-      topSpeed: 160,
-      seating: 5,
-      battery: 60,
-      charging: '40 phút',
-      warranty: '7 năm',
-      image: '/src/assets/images/electra citylink poster.png',
-      features: ['Kết nối thông minh', 'Tiết kiệm năng lượng', 'Thiết kế sang trọng', 'An toàn cao', 'Hệ thống âm thanh']
-    },
-    {
-      id: 3,
-      name: 'Electra GrandTour',
-      category: 'Luxury',
-      price: 450000000,
-      range: 420,
-      power: 200,
-      torque: 400,
-      acceleration: 7.8,
-      topSpeed: 200,
-      seating: 5,
-      battery: 85,
-      charging: '50 phút',
-      warranty: '10 năm',
-      image: '/src/assets/images/electra grandtour.png',
-      features: ['Nội thất da cao cấp', 'Hệ thống âm thanh', 'Lái tự động', 'Massage ghế', 'Công nghệ AI']
-    },
-    {
-      id: 4,
-      name: 'Electra Micro',
-      category: 'Compact',
-      price: 180000000,
-      range: 200,
-      power: 80,
-      torque: 150,
-      acceleration: 12.5,
-      topSpeed: 120,
-      seating: 4,
-      battery: 40,
-      charging: '30 phút',
-      warranty: '5 năm',
-      image: '/src/assets/images/electra micro.png',
-      features: ['Thiết kế nhỏ gọn', 'Tiết kiệm năng lượng', 'Dễ đỗ xe', 'Giá cả hợp lý', 'Kết nối cơ bản']
-    },
-    {
-      id: 5,
-      name: 'Electra Summit',
-      category: 'Luxury',
-      price: 680000000,
-      range: 450,
-      power: 250,
-      torque: 500,
-      acceleration: 6.5,
-      topSpeed: 220,
-      seating: 5,
-      battery: 100,
-      charging: '60 phút',
-      warranty: '12 năm',
-      image: '/src/assets/images/electra summit.png',
-      features: ['Hiệu suất cao', 'Công nghệ AI', 'Nội thất siêu sang', 'Tốc độ cao', 'Hệ thống an toàn nâng cao']
-    },
-    {
-      id: 6,
-      name: 'Electra Velocity',
-      category: 'Sports',
-      price: 850000000,
-      range: 500,
-      power: 300,
-      torque: 600,
-      acceleration: 4.2,
-      topSpeed: 280,
-      seating: 2,
-      battery: 120,
-      charging: '70 phút',
-      warranty: '15 năm',
-      image: '/src/assets/images/electra velocity.png',
-      features: ['Tốc độ cao', 'Thiết kế thể thao', 'Hiệu suất đỉnh cao', 'Công nghệ F1', 'Hệ thống treo thể thao']
-    }
-  ];
-
   // Transform API models to vehicle format
   const transformModelToVehicle = (model) => {
+    // Extract features from description if available
+    const features = model.description 
+      ? model.description.split('.').map(f => f.trim()).filter(f => f.length > 0)
+      : ['Tính năng tiêu chuẩn'];
+    
     return {
       id: model.modelId,
       name: model.modelName,
-      category: mapBodyTypeToDisplay(model.bodyType),
-      price: model.price * 1000000, // Convert USD to VND
+      category: BODY_TYPES.find(t => t.value === model.bodyType)?.label || model.bodyType, // Same as EVM Staff
+      price: model.price || 0, // Price in USD (same as EVM Staff)
       range: model.range || 0,
       power: model.powerHp || 0,
       torque: model.torqueNm || 0,
       acceleration: model.acceleration || 0,
-      topSpeed: 180, // Default value since not in API
       seating: model.seatingCapacity || 5,
       battery: model.batteryCapacity || 0,
-      charging: '45 phút', // Default value since not in API
-      warranty: '8 năm', // Default value since not in API
+      modelYear: model.modelYear || new Date().getFullYear(),
       image: getModelImage(model.modelName),
-      features: model.description ? [model.description] : ['Tính năng tiêu chuẩn']
+      features: features
     };
   };
 
-  // Transform models to vehicles, use fallback if no models available
-  const vehicles = models.length > 0 ? models.map(transformModelToVehicle) : fallbackVehicles;
+  // Transform models to vehicles from API only
+  const vehicles = models.map(transformModelToVehicle);
 
   const addVehicle = (vehicle) => {
     if (selectedVehicles.length < 3 && !selectedVehicles.find(v => v.id === vehicle.id)) {
@@ -163,22 +72,21 @@ function CarComparison() {
   };
 
   const comparisonSpecs = [
-    { key: 'price', label: 'Giá bán', unit: 'VNĐ', format: 'currency' },
-    { key: 'range', label: 'Quãng đường', unit: 'km', format: 'number' },
+    { key: 'modelYear', label: 'Năm sản xuất', unit: '', format: 'number' },
+    { key: 'price', label: 'Giá bán', unit: 'USD', format: 'currency' },
+    { key: 'battery', label: 'Dung lượng pin', unit: 'kWh', format: 'number' },
+    { key: 'range', label: 'Tầm xa', unit: 'km', format: 'number' },
     { key: 'power', label: 'Công suất', unit: 'HP', format: 'number' },
     { key: 'torque', label: 'Mô-men xoắn', unit: 'Nm', format: 'number' },
-    { key: 'acceleration', label: 'Tăng tốc 0-100', unit: 's', format: 'number' },
-    { key: 'topSpeed', label: 'Tốc độ tối đa', unit: 'km/h', format: 'number' },
-    { key: 'seating', label: 'Số chỗ ngồi', unit: 'chỗ', format: 'number' },
-    { key: 'battery', label: 'Dung lượng pin', unit: 'kWh', format: 'number' },
-    { key: 'charging', label: 'Thời gian sạc', unit: '', format: 'text' },
-    { key: 'warranty', label: 'Bảo hành', unit: '', format: 'text' }
+    { key: 'acceleration', label: 'Tăng tốc 0-100km/h', unit: 's', format: 'number' },
+    { key: 'seating', label: 'Số chỗ ngồi', unit: 'chỗ', format: 'number' }
   ];
 
   const formatValue = (value, format) => {
     switch (format) {
       case 'currency':
-        return formatPrice(value);
+        // Format as USD (same as EVM Staff)
+        return `$${Number(value).toLocaleString('en-US')}`;
       case 'number':
         return formatNumber(value);
       case 'text':
@@ -232,17 +140,8 @@ function CarComparison() {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center justify-between mb-6">
+        <div className="mb-6">
           <h2 className="text-2xl font-bold text-gray-900">So sánh mẫu xe</h2>
-          <button
-            onClick={() => navigate('/dealer-staff')}
-            className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-          >
-            <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Quay lại
-          </button>
         </div>
 
         {/* Vehicle Selector */}
@@ -272,6 +171,9 @@ function CarComparison() {
                     />
                     <h4 className="font-semibold text-gray-900">{selectedVehicles[index].name}</h4>
                     <p className="text-sm text-gray-600">{selectedVehicles[index].category}</p>
+                    <p className="text-sm font-medium text-emerald-600 mt-1">
+                      ${Number(selectedVehicles[index].price).toLocaleString('en-US')}
+                    </p>
                     <button
                       onClick={() => removeVehicle(selectedVehicles[index].id)}
                       className="mt-2 text-red-600 hover:text-red-800 text-sm"
@@ -329,7 +231,7 @@ function CarComparison() {
                     <h4 className="font-semibold text-gray-900">{vehicle.name}</h4>
                     <p className="text-sm text-gray-600">{vehicle.category}</p>
                     <p className="text-sm font-medium text-emerald-600">
-                      {vehicle.price.toLocaleString('vi-VN')} VNĐ
+                      ${Number(vehicle.price).toLocaleString('en-US')}
                     </p>
                   </div>
                 ))}
@@ -400,8 +302,21 @@ function CarComparison() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
             <p className="text-gray-500">
-              {vehicles.length === 0 ? 'Không có xe nào để so sánh' : 'Chọn ít nhất 1 xe để bắt đầu so sánh'}
+              {vehicles.length === 0 
+                ? 'Chưa có xe nào trong hệ thống. Vui lòng thêm xe vào hệ thống trước.' 
+                : 'Chọn ít nhất 1 xe để bắt đầu so sánh'}
             </p>
+            {vehicles.length === 0 && (
+              <button
+                onClick={() => navigate('/evm-staff/vehicle-management')}
+                className="mt-4 px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors inline-flex items-center"
+              >
+                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Quản lý xe
+              </button>
+            )}
           </div>
         )}
       </div>
