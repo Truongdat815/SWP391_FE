@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
-import { getAllStoresThunk, getStoresByStatusThunk, getStoresByProvinceThunk, searchStoresThunk } from '../store/slices/storeSlice';
-import DealerCard from '../components/DealerCard';
+import { getAllStoresThunk, getStoresByStatusThunk, getStoresByProvinceThunk, searchStoresThunk } from '../../store/slices/storeSlice';
+import DealerCard from '../../components/DealerCard';
 
 const Dealers = () => {
   const dispatch = useDispatch();

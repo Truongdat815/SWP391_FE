@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { loginThunk, clearError } from '../store/slices/authSlice';
-import { useAuth } from "../contexts/AuthContext";
-import logo from "../assets/images/logo.png";
-import Button from '../components/ui/Button';
-import { Card, CardContent } from '../components/ui/Card';
-import { PageTransition } from '../components/Animated';
+import { loginThunk, clearError } from '../../store/slices/authSlice';
+import { useAuth } from "../../contexts/AuthContext";
+import logo from "../../assets/images/logo.png";
+import Button from '../../components/ui/Button';
+import { Card, CardContent } from '../../components/ui/Card';
+import { PageTransition } from '../../components/Animated';
 
 function SignIn() {
   const [formData, setFormData] = useState({
