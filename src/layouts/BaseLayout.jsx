@@ -80,13 +80,13 @@ const BaseLayout = ({
                 </>
               )}
               {sidebarCollapsed && (
-                <div className={`w-8 h-8 ${colorClasses.iconBg} rounded-lg flex items-center justify-center ring-0`}>
+                <div className="w-10 h-10 flex items-center justify-center">
                   <img 
                     src="/src/assets/images/logo.png" 
                     alt="Electra Logo" 
-                    className="h-6 w-6 object-contain"
+                    className="h-8 w-8 object-contain"
                     onError={(e) => {
-                      e.target.src = `https://via.placeholder.com/24x24/${brandColor === 'red' ? 'EF4444' : '10B981'}/FFFFFF?text=${userInfo.initials[0]}`;
+                      e.target.src = `https://via.placeholder.com/32x32/FFFFFF/333333?text=E`;
                     }}
                   />
                 </div>
@@ -117,13 +117,13 @@ const BaseLayout = ({
               <li key={item.path}>
                 <Link
                   to={item.path}
-                  className={`w-full flex items-center p-3 rounded-lg transition-colors ${
+                  className={`w-full flex items-center ${sidebarCollapsed ? 'justify-center p-3' : 'p-3'} rounded-lg transition-colors ${
                     location.pathname === item.path
                       ? colorClasses.active
                       : 'text-gray-700 hover:bg-gray-100'
                   }`}
                 >
-                  <div className={`${sidebarCollapsed ? 'mx-auto' : 'mr-3'}`}>
+                  <div className={`${sidebarCollapsed ? '' : 'mr-3'}`}>
                     {item.icon}
                   </div>
                   {!sidebarCollapsed && (
