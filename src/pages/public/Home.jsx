@@ -5,7 +5,6 @@ import Hero from '../../components/Hero';
 import About from '../../components/About';
 import Models from '../../components/Models';
 import Specs from '../../components/Specs';
-import NewsSection from '../../components/NewsSection';
 import StatisticsSection from '../../components/StatisticsSection';
 import Footer from '../../components/Footer';
 import { AnimatedSection } from '../../components/Animated';
@@ -36,13 +35,8 @@ function Home() {
         <Specs />
       </AnimatedSection>
       
-      {/* News Section */}
-      <AnimatedSection delay={0.2}>
-        <NewsSection />
-      </AnimatedSection>
-      
       {/* Statistics Section */}
-      <AnimatedSection delay={0.25}>
+      <AnimatedSection delay={0.2}>
         <StatisticsSection />
       </AnimatedSection>
       

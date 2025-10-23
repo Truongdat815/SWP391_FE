@@ -142,10 +142,10 @@ const Specs = () => {
                   className="bg-white/5 rounded-xl p-6 border border-white/10 hover:bg-white/10 transition-all duration-300"
                 >
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-lg font-semibold text-white">
+                    <h3 className="text-lg font-semibold text-gray-300">
                       {stat.label}
                     </h3>
-                    <span className={`text-2xl font-bold bg-gradient-to-r ${specifications[activeSpec].color} bg-clip-text text-transparent`}>
+                    <span className="text-2xl font-bold text-white">
                       {stat.value}
                     </span>
                   </div>
