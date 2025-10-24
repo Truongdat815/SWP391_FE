@@ -71,70 +71,87 @@ const BaseLayout = ({
       >
         {/* Sidebar Header */}
         <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center overflow-hidden">
-              <AnimatePresence mode="wait">
-                {!sidebarCollapsed ? (
-                  <motion.div
-                    key="expanded"
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -20 }}
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="flex items-center"
-                  >
-                    <img 
-                      src="/src/assets/images/logo.png" 
-                      alt="Electra Logo" 
-                      className="h-8 w-auto mr-3"
-                      onError={(e) => {
-                        e.target.src = `https://via.placeholder.com/120x40/${brandColor === 'red' ? 'EF4444' : '10B981'}/FFFFFF?text=ELECTRA`;
-                      }}
-                    />
-                    <div>
-                      <h1 className="text-xl font-bold text-gray-900">Electra</h1>
-                      <p className="text-sm text-gray-600">{roleLabel}</p>
-                    </div>
-                  </motion.div>
-                ) : (
-                  <motion.div
-                    key="collapsed"
-                    initial={{ opacity: 0, scale: 0.8 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.8 }}
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                    className="w-10 h-10 flex items-center justify-center"
-                  >
-                    <img 
-                      src="/src/assets/images/logo.png" 
-                      alt="Electra Logo" 
-                      className="h-8 w-8 object-contain"
-                      onError={(e) => {
-                        e.target.src = `https://via.placeholder.com/32x32/FFFFFF/333333?text=E`;
-                      }}
-                    />
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            <motion.button
-              aria-label="Toggle sidebar"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="p-2 rounded-md hover:bg-gray-100 text-gray-600"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              transition={{ duration: 0.2 }}
-            >
+          <AnimatePresence mode="wait">
+            {!sidebarCollapsed ? (
               <motion.div
-                animate={{ rotate: sidebarCollapsed ? 180 : 0 }}
+                key="expanded"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="flex items-center justify-between"
               >
-                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <div className="flex items-center overflow-hidden">
+                  <img 
+                    src="/src/assets/images/logo.png" 
+                    alt="Electra Logo" 
+                    className="h-8 w-auto mr-3 flex-shrink-0"
+                    onError={(e) => {
+                      e.target.src = `https://via.placeholder.com/120x40/${brandColor === 'red' ? 'EF4444' : '10B981'}/FFFFFF?text=ELECTRA`;
+                    }}
+                  />
+                  <div className="min-w-0">
+                    <h1 className="text-xl font-bold text-gray-900 truncate">Electra</h1>
+                    <p className="text-sm text-gray-600 truncate">{roleLabel}</p>
+                  </div>
+                </div>
+                <motion.button
+                  aria-label="Toggle sidebar"
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  className="p-2 rounded-md hover:bg-gray-100 text-gray-600 flex-shrink-0 ml-2"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <motion.div
+                    animate={{ rotate: 0 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                  >
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </motion.div>
+                </motion.button>
               </motion.div>
-            </motion.button>
-          </div>
+            ) : (
+              <motion.div
+                key="collapsed"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3, ease: "easeInOut" }}
+                className="flex flex-col items-center space-y-3"
+              >
+                <div className="w-12 h-12 flex items-center justify-center">
+                  <img 
+                    src="/src/assets/images/logo.png" 
+                    alt="Electra Logo" 
+                    className="h-10 w-10 object-contain"
+                    onError={(e) => {
+                      e.target.src = `https://via.placeholder.com/40x40/${brandColor === 'red' ? 'EF4444' : '10B981'}/FFFFFF?text=E`;
+                    }}
+                  />
+                </div>
+                <motion.button
+                  aria-label="Toggle sidebar"
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  className="p-2 rounded-md hover:bg-gray-100 text-gray-600"
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <motion.div
+                    animate={{ rotate: 180 }}
+                    transition={{ duration: 0.3, ease: "easeInOut" }}
+                  >
+                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </motion.div>
+                </motion.button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Navigation Menu */}
