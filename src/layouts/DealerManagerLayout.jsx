@@ -13,7 +13,7 @@ const DealerManagerLayout = () => {
 
   // Load user data from session
   useEffect(() => {
-    if (isAuthenticated && user && (user.roleName === 'Dealer Manager' || user.roleName === 'Quản lí cửa hàng')) {
+    if (isAuthenticated && user && (user.roleName === 'Dealer Manager' || user.roleName === 'Quản lý cửa hàng')) {
       const initials = user.fullName
         ? user.fullName.trim().charAt(0).toUpperCase()
         : 'Q';
