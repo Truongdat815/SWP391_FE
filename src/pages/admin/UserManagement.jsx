@@ -61,7 +61,7 @@ function UserManagement() {
 
   useEffect(() => {
     if (storesStatus === 'idle') {
-      (getAllStoresThunk());
+      dispatch(getAllStoresThunk());
     }
   }, [dispatch, storesStatus]);
 
@@ -128,7 +128,7 @@ function UserManagement() {
       case 'Admin': return 'from-purple-400 to-purple-600';
       case 'Nhân viên hãng xe': return 'from-red-400 to-red-600';
       case 'EVM Staff': return 'from-red-400 to-red-600';
-      case 'Quản lí cửa hàng': return 'from-green-400 to-green-600';
+      case 'Quản lý cửa hàng': return 'from-green-400 to-green-600';
       case 'Dealer Manager': return 'from-green-400 to-green-600';
       case 'Nhân viên cửa hàng': return 'from-blue-400 to-blue-600';
       case 'Dealer Staff': return 'from-blue-400 to-blue-600';
@@ -171,6 +171,8 @@ function UserManagement() {
       }
       
       await dispatch(createUserThunk(submitData)).unwrap();
+      
+      // Reset form
       setFormData({
         fullName: '',
         email: '',
@@ -180,10 +182,27 @@ function UserManagement() {
         roleId: '',
         status: 'ACTIVE'
       });
+      
       setShowAddModal(false);
-      dispatch(getAllUsersThunk());
+      
+      // Thêm delay nhỏ để đảm bảo backend đã xử lý xong
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Refresh danh sách users
+      await dispatch(getAllUsersThunk()).unwrap();
+      
+      // Nếu dùng fallback API, cũng refresh luôn
+      try {
+        const res = await get('/api/users/all');
+        const userData = res?.data?.data || res?.data || [];
+        setUsersApi(Array.isArray(userData) ? userData : []);
+      } catch (err) {
+        console.error('Failed to refresh users fallback:', err);
+      }
+      
     } catch (error) {
       console.error('Failed to create user:', error);
+      alert('Lỗi khi tạo người dùng: ' + error.message);
     }
   };
 
@@ -212,9 +231,25 @@ function UserManagement() {
       await dispatch(deleteUserThunk(userToDelete.userId)).unwrap();
       setShowDeleteModal(false);
       setUserToDelete(null);
-      dispatch(getAllUsersThunk());
+      
+      // Thêm delay nhỏ để đảm bảo backend đã xử lý xong
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Refresh danh sách users
+      await dispatch(getAllUsersThunk()).unwrap();
+      
+      // Nếu dùng fallback API, cũng refresh luôn
+      try {
+        const res = await get('/api/users/all');
+        const userData = res?.data?.data || res?.data || [];
+        setUsersApi(Array.isArray(userData) ? userData : []);
+      } catch (err) {
+        console.error('Failed to refresh users fallback:', err);
+      }
+      
     } catch (error) {
       console.error('Failed to delete user:', error);
+      alert('Lỗi khi xóa người dùng: ' + error.message);
     }
   };
 
@@ -271,9 +306,24 @@ function UserManagement() {
       setShowEditModal(false);
       setUserToEdit(null);
       
-      dispatch(getAllUsersThunk());
+      // Thêm delay nhỏ để đảm bảo backend đã xử lý xong
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Refresh danh sách users
+      await dispatch(getAllUsersThunk()).unwrap();
+      
+      // Nếu dùng fallback API, cũng refresh luôn
+      try {
+        const res = await get('/api/users/all');
+        const userData = res?.data?.data || res?.data || [];
+        setUsersApi(Array.isArray(userData) ? userData : []);
+      } catch (err) {
+        console.error('Failed to refresh users fallback:', err);
+      }
+      
     } catch (error) {
       console.error('Failed to update user:', error);
+      alert('Lỗi khi cập nhật người dùng: ' + error.message);
     }
   };
 
@@ -392,7 +442,7 @@ function UserManagement() {
 
   const tabs = [
     { id: 'dealer-staff', name: 'Nhân viên cửa hàng', count: getFilteredUsersByRole('Nhân viên cửa hàng').length },
-    { id: 'dealer-manager', name: 'Quản lí cửa hàng', count: getFilteredUsersByRole('Quản lí cửa hàng').length },
+    { id: 'dealer-manager', name: 'Quản lý cửa hàng', count: getFilteredUsersByRole('Quản lý cửa hàng').length },
     { id: 'evm-staff', name: 'Nhân viên hãng xe', count: getFilteredUsersByRole('Nhân viên hãng xe').length },
     { id: 'admin', name: 'Quản trị viên', count: getFilteredUsersByRole('Quản trị viên').length }
   ];
@@ -548,7 +598,7 @@ function UserManagement() {
 
   const renderEVMStaffTable = () => renderUserTable('Nhân viên hãng xe', getRoleColor('Nhân viên hãng xe'));
   const renderDealerStaffTable = () => renderUserTable('Nhân viên cửa hàng', getRoleColor('Nhân viên cửa hàng'));
-  const renderDealerManagerTable = () => renderUserTable('Quản lí cửa hàng', getRoleColor('Quản lí cửa hàng'));
+  const renderDealerManagerTable = () => renderUserTable('Quản lý cửa hàng', getRoleColor('Quản lý cửa hàng'));
   const renderAdminTable = () => renderUserTable('Quản trị viên', getRoleColor('Quản trị viên'));
 
 

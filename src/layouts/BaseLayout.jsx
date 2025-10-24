@@ -308,7 +308,20 @@ const BaseLayout = ({
         {/* Routed Content */}
         <div className="flex-1 py-6 px-4 sm:px-6 lg:px-8 overflow-auto w-full">
           <div className="max-w-7xl mx-auto">
-            <Outlet />
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={location.pathname}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{
+                  duration: 0.3,
+                  ease: [0.4, 0, 0.2, 1] // cubic-bezier cho smooth animation
+                }}
+              >
+                <Outlet />
+              </motion.div>
+            </AnimatePresence>
           </div>
         </div>
       </div>
