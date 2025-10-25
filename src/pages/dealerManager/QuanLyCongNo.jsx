@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import * as XLSX from 'xlsx';
 
 function QuanLyCongNo() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -158,7 +159,112 @@ function QuanLyCongNo() {
   };
 
   const handleExportReport = () => {
-    alert('Đang xuất báo cáo công nợ...');
+    try {
+      // Chuẩn bị dữ liệu cho Excel
+      const exportData = filteredDebts.map((debt, index) => ({
+        'STT': index + 1,
+        'Khách hàng': debt.customerName,
+        'Số điện thoại': debt.customerPhone,
+        'Email': debt.customerEmail,
+        'Số tiền nợ (VNĐ)': debt.amount,
+        'Số tiền gốc (VNĐ)': debt.originalAmount,
+        'Đã thanh toán (VNĐ)': debt.originalAmount - debt.amount,
+        'Ngày tạo': formatDate(debt.createdDate),
+        'Ngày đến hạn': formatDate(debt.dueDate),
+        'Số ngày quá hạn': debt.daysOverdue > 0 ? debt.daysOverdue : 0,
+        'Trạng thái': getStatusText(debt.status),
+        'Mô tả': debt.description,
+      }));
+
+      // Thêm thống kê tổng quan
+      const summaryData = [
+        { 'Thống kê': 'Tổng số khoản nợ', 'Giá trị': debts.length },
+        { 'Thống kê': 'Tổng công nợ (VNĐ)', 'Giá trị': totalDebt },
+        { 'Thống kê': 'Số khoản quá hạn', 'Giá trị': overdueDebts.length },
+        { 'Thống kê': 'Số khoản nghiêm trọng', 'Giá trị': criticalDebts.length },
+        { 'Thống kê': 'Ngày xuất báo cáo', 'Giá trị': new Date().toLocaleString('vi-VN') },
+      ];
+
+      // Tạo workbook
+      const wb = XLSX.utils.book_new();
+
+      // Sheet 1: Tổng quan
+      const wsSummary = XLSX.utils.json_to_sheet(summaryData);
+      XLSX.utils.book_append_sheet(wb, wsSummary, 'Tổng quan');
+
+      // Sheet 2: Chi tiết công nợ
+      const wsDetails = XLSX.utils.json_to_sheet(exportData);
+      
+      // Thiết lập độ rộng cột
+      const colWidths = [
+        { wch: 5 },  // STT
+        { wch: 25 }, // Khách hàng
+        { wch: 15 }, // SĐT
+        { wch: 30 }, // Email
+        { wch: 18 }, // Số tiền nợ
+        { wch: 18 }, // Số tiền gốc
+        { wch: 20 }, // Đã thanh toán
+        { wch: 12 }, // Ngày tạo
+        { wch: 12 }, // Ngày đến hạn
+        { wch: 15 }, // Số ngày quá hạn
+        { wch: 15 }, // Trạng thái
+        { wch: 40 }, // Mô tả
+      ];
+      wsDetails['!cols'] = colWidths;
+      
+      XLSX.utils.book_append_sheet(wb, wsDetails, 'Chi tiết công nợ');
+
+      // Sheet 3: Lịch sử thanh toán
+      const paymentHistory = [];
+      debts.forEach(debt => {
+        debt.paymentHistory.forEach(payment => {
+          paymentHistory.push({
+            'Khách hàng': debt.customerName,
+            'Ngày thanh toán': payment.date,
+            'Số tiền (VNĐ)': payment.amount,
+            'Ghi chú': payment.note,
+          });
+        });
+      });
+      
+      if (paymentHistory.length > 0) {
+        const wsPayment = XLSX.utils.json_to_sheet(paymentHistory);
+        wsPayment['!cols'] = [
+          { wch: 25 }, // Khách hàng
+          { wch: 15 }, // Ngày
+          { wch: 18 }, // Số tiền
+          { wch: 40 }, // Ghi chú
+        ];
+        XLSX.utils.book_append_sheet(wb, wsPayment, 'Lịch sử thanh toán');
+      }
+
+      // Sheet 4: Phân loại theo trạng thái
+      const statusBreakdown = [
+        { 'Trạng thái': 'Bình thường', 'Số lượng': debts.filter(d => d.status === 'normal').length, 'Tổng nợ (VNĐ)': debts.filter(d => d.status === 'normal').reduce((sum, d) => sum + d.amount, 0) },
+        { 'Trạng thái': 'Cảnh báo', 'Số lượng': debts.filter(d => d.status === 'warning').length, 'Tổng nợ (VNĐ)': debts.filter(d => d.status === 'warning').reduce((sum, d) => sum + d.amount, 0) },
+        { 'Trạng thái': 'Quá hạn', 'Số lượng': debts.filter(d => d.status === 'overdue').length, 'Tổng nợ (VNĐ)': debts.filter(d => d.status === 'overdue').reduce((sum, d) => sum + d.amount, 0) },
+        { 'Trạng thái': 'Nghiêm trọng', 'Số lượng': debts.filter(d => d.status === 'critical').length, 'Tổng nợ (VNĐ)': debts.filter(d => d.status === 'critical').reduce((sum, d) => sum + d.amount, 0) },
+      ];
+      const wsStatus = XLSX.utils.json_to_sheet(statusBreakdown);
+      wsStatus['!cols'] = [
+        { wch: 20 }, // Trạng thái
+        { wch: 12 }, // Số lượng
+        { wch: 18 }, // Tổng nợ
+      ];
+      XLSX.utils.book_append_sheet(wb, wsStatus, 'Phân loại trạng thái');
+
+      // Tạo tên file với timestamp
+      const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+      const fileName = `BaoCaoCongNo_${timestamp}.xlsx`;
+
+      // Xuất file
+      XLSX.writeFile(wb, fileName);
+      
+      alert(`Đã xuất báo cáo thành công!\nFile: ${fileName}`);
+    } catch (error) {
+      console.error('Lỗi khi xuất báo cáo:', error);
+      alert('Có lỗi xảy ra khi xuất báo cáo. Vui lòng thử lại!');
+    }
   };
 
   return (

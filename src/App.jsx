@@ -29,6 +29,7 @@ import XuatBaoCao from './pages/dealerManager/XuatBaoCao'
 import QuanLyNhanVien from './pages/dealerManager/QuanLyNhanVien'
 import QuanLyCongNo from './pages/dealerManager/QuanLyCongNo'
 import DealerManagerInventory from './pages/dealerManager/InventoryManagement'
+import DealerManagerSettings from './pages/dealerManager/DealerManagerSettings'
 
 // Dealer Staff Sub Pages
 import QuoteOrderManagement from './pages/dealerStaff/QuoteOrderManagement'
@@ -147,7 +148,7 @@ function AnimatedRoutes() {
             <Route path="quan-ly-cong-no" element={<QuanLyCongNo />} />
             <Route path="xuat-bao-cao" element={<XuatBaoCao />} />
             <Route path="profile" element={<CommonProfile />} />
-            <Route path="settings" element={<CommonSettings />} />
+            <Route path="settings" element={<DealerManagerSettings />} />
             <Route path="help" element={<CommonHelp />} />
           </Route>
 
