@@ -376,3 +376,10 @@ export const dealerManagerTranslations = {
   },
 };
 
+// Export cho các role khác (dùng chung cùng translations)
+export const adminTranslations = dealerManagerTranslations;
+export const dealerStaffTranslations = dealerManagerTranslations;
+export const evmStaffTranslations = dealerManagerTranslations;
+
+// Export chung cho tất cả settings pages
+export const settingsTranslations = dealerManagerTranslations;
