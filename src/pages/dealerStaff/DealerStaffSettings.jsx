@@ -13,8 +13,6 @@ const DealerStaffSettings = () => {
     timezone: 'UTC+7',
     dateFormat: 'DD/MM/YYYY',
     timeFormat: '24h',
-    numberFormat: 'vi-VN',
-    currencyDisplay: 'symbol',
 
     // Notifications
     emailNotifications: true,
@@ -245,27 +243,6 @@ const DealerStaffSettings = () => {
                           <select value={settings.timeFormat} onChange={(e) => handleSettingChange('timeFormat', e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white">
                             <option value="24h">{t.language.timeFormats['24h']}</option>
                             <option value="12h">{t.language.timeFormats['12h']}</option>
-                          </select>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="border-t pt-6">
-                      <h3 className="font-semibold text-gray-900 mb-4">{t.language.numberCurrencyTitle}</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">{t.language.numberFormat}</label>
-                          <select value={settings.numberFormat} onChange={(e) => handleSettingChange('numberFormat', e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white">
-                            <option value="vi-VN">{t.language.numberFormats.vietnam}</option>
-                            <option value="en-US">{t.language.numberFormats.international}</option>
-                          </select>
-                          <p className="text-sm text-gray-500 mt-1">{t.language.example}</p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">{t.language.currencyDisplay}</label>
-                          <select value={settings.currencyDisplay} onChange={(e) => handleSettingChange('currencyDisplay', e.target.value)} className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white">
-                            <option value="symbol">{t.language.currencyDisplays.symbol}</option>
-                            <option value="code">{t.language.currencyDisplays.code}</option>
-                            <option value="name">{t.language.currencyDisplays.name}</option>
                           </select>
                         </div>
                       </div>
