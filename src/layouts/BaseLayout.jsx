@@ -2,6 +2,57 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 
+// Component hiển thị thời gian thực
+const RealTimeClock = ({ roleKey = 'dealer-manager' }) => {
+  const [time, setTime] = useState(new Date());
+  const [timeFormat, setTimeFormat] = useState('24h');
+
+  useEffect(() => {
+    // Load time format từ localStorage
+    try {
+      const saved = localStorage.getItem(`${roleKey}-settings`);
+      if (saved) {
+        const settings = JSON.parse(saved);
+        if (settings.timeFormat) {
+          setTimeFormat(settings.timeFormat);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading time format:', error);
+    }
+
+    // Update time mỗi giây
+    const timer = setInterval(() => {
+      setTime(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [roleKey]);
+
+  const formatTime = (date) => {
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const seconds = date.getSeconds();
+
+    if (timeFormat === '12h') {
+      const period = hours >= 12 ? 'PM' : 'AM';
+      const hours12 = hours % 12 || 12;
+      return `${hours12.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')} ${period}`;
+    } else {
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-200">
+      <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span className="font-medium tabular-nums">{formatTime(time)}</span>
+    </div>
+  );
+};
+
 /**
  * BaseLayout - Layout component dùng chung cho tất cả role layouts
  * Loại bỏ code trùng lặp giữa Admin, EVM Staff, Dealer Manager, Dealer Staff layouts
@@ -212,33 +263,38 @@ const BaseLayout = ({
                 {location.pathname === basePath ? defaultSubtitle : 'Quản lý và thao tác'}
               </p>
             </div>
-            {/* User Profile Dropdown */}
-            <div className="relative" ref={dropdownRef}>
-              <button
-                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors active:scale-[0.98]"
-              >
-                <div className={`h-8 w-8 ${colorClasses.avatarGradient} rounded-full flex items-center justify-center shadow-md`}>
-                  <span className="text-white font-bold text-sm">{userInfo.initials}</span>
-                </div>
-                 <div className="text-left hidden sm:block">
-                   <p className="text-sm font-medium text-gray-900">{userInfo.name}</p>
-                   <p className="text-xs text-gray-500">{userInfo.role}</p>
-                 </div>
-                <svg 
-                  className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
-                    isDropdownOpen ? 'rotate-180' : ''
-                  }`} 
-                  fill="none" 
-                  viewBox="0 0 24 24" 
-                  stroke="currentColor"
+            {/* Real-time Clock & User Profile */}
+            <div className="flex items-center gap-3">
+              {/* Real-time Clock */}
+              <RealTimeClock roleKey={basePath.replace('/', '')} />
+              
+              {/* User Profile Dropdown */}
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors active:scale-[0.98]"
                 >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
+                  <div className={`h-8 w-8 ${colorClasses.avatarGradient} rounded-full flex items-center justify-center shadow-md`}>
+                    <span className="text-white font-bold text-sm">{userInfo.initials}</span>
+                  </div>
+                   <div className="text-left hidden sm:block">
+                     <p className="text-sm font-medium text-gray-900">{userInfo.name}</p>
+                     <p className="text-xs text-gray-500">{userInfo.role}</p>
+                   </div>
+                  <svg 
+                    className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
+                      isDropdownOpen ? 'rotate-180' : ''
+                    }`} 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
 
-              <AnimatePresence>
-                {isDropdownOpen && (
+                <AnimatePresence>
+                  {isDropdownOpen && (
                   <motion.div 
                     initial={{ opacity: 0, scale: 0.95, y: -10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -316,8 +372,9 @@ const BaseLayout = ({
                       </motion.button>
                     </div>
                   </motion.div>
-                )}
-              </AnimatePresence>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
         </div>
