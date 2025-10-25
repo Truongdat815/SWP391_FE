@@ -52,8 +52,10 @@ import SalesReport from './pages/EvmStaff/SalesReport'
 import ColorManagementPage from './components/ColorManagement'
 
 // Admin Sub Pages
+import AdminDashboard from './pages/admin/AdminDashboard'
 import StoreManagement from './pages/admin/StoreManagement'
 import UserManagement from './pages/admin/UserManagement'
+import AdminSettings from './pages/admin/AdminSettings'
 
 import { BrowserRouter, Route, Routes, useLocation, Navigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
@@ -104,11 +106,12 @@ function AnimatedRoutes() {
               <AdminLayout />
             </ProtectedRoute>
           }>
-            <Route index element={<Navigate to="/admin/store-management" replace />} />
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
             <Route path="store-management" element={<StoreManagement />} />
             <Route path="user-management" element={<UserManagement />} />
             <Route path="profile" element={<CommonProfile />} />
-            <Route path="settings" element={<CommonSettings />} />
+            <Route path="settings" element={<AdminSettings />} />
             <Route path="help" element={<CommonHelp />} />
           </Route>
 

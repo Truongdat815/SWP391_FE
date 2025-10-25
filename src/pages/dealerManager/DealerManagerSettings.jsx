@@ -279,8 +279,8 @@ const DealerManagerSettings = () => {
                             </svg>
                           </div>
                           <div>
-                            <span className="text-gray-800 font-medium">Thông báo Email</span>
-                            <p className="text-sm text-gray-500">Nhận thông báo qua email</p>
+                            <span className="text-gray-800 font-medium">{t.notifications.emailTitle}</span>
+                            <p className="text-sm text-gray-500">{t.notifications.emailDesc}</p>
                           </div>
                         </div>
                         <button
@@ -303,8 +303,8 @@ const DealerManagerSettings = () => {
                             </svg>
                           </div>
                           <div>
-                            <span className="text-gray-800 font-medium">Thông báo hệ thống</span>
-                            <p className="text-sm text-gray-500">Hiển thị badge trên giao diện</p>
+                            <span className="text-gray-800 font-medium">{t.notifications.systemTitle}</span>
+                            <p className="text-sm text-gray-500">{t.notifications.systemDesc}</p>
                           </div>
                         </div>
                         <button
@@ -327,8 +327,8 @@ const DealerManagerSettings = () => {
                             </svg>
                           </div>
                           <div>
-                            <span className="text-gray-800 font-medium">Thông báo trình duyệt</span>
-                            <p className="text-sm text-gray-500">Push notification desktop</p>
+                            <span className="text-gray-800 font-medium">{t.notifications.browserTitle}</span>
+                            <p className="text-sm text-gray-500">{t.notifications.browserDesc}</p>
                           </div>
                         </div>
                         <button
@@ -351,8 +351,8 @@ const DealerManagerSettings = () => {
                             </svg>
                           </div>
                           <div>
-                            <span className="text-gray-800 font-medium">Âm thanh thông báo</span>
-                            <p className="text-sm text-gray-500">Phát âm thanh khi có thông báo mới</p>
+                            <span className="text-gray-800 font-medium">{t.notifications.soundTitle}</span>
+                            <p className="text-sm text-gray-500">{t.notifications.soundDesc}</p>
                           </div>
                         </div>
                         <button
@@ -370,12 +370,12 @@ const DealerManagerSettings = () => {
 
                     {/* Loại thông báo */}
                     <div className="border-t pt-6 space-y-4">
-                      <h3 className="font-semibold text-gray-900">Loại thông báo nhận</h3>
+                      <h3 className="font-semibold text-gray-900">{t.notifications.typesTitle}</h3>
                       
                       <label className="flex items-center justify-between bg-gray-50 border rounded-xl p-4 cursor-pointer hover:bg-gray-100 transition">
                         <div>
-                          <span className="text-gray-800 font-medium">Đơn hàng mới</span>
-                          <p className="text-sm text-gray-500">Thông báo khi có đơn hàng mới từ nhân viên</p>
+                          <span className="text-gray-800 font-medium">{t.notifications.newOrdersTitle}</span>
+                          <p className="text-sm text-gray-500">{t.notifications.newOrdersDesc}</p>
                         </div>
                         <input
                           type="checkbox"
@@ -387,8 +387,8 @@ const DealerManagerSettings = () => {
 
                       <label className="flex items-center justify-between bg-gray-50 border rounded-xl p-4 cursor-pointer hover:bg-gray-100 transition">
                         <div>
-                          <span className="text-gray-800 font-medium">Cảnh báo tồn kho</span>
-                          <p className="text-sm text-gray-500">Khi hàng tồn kho xuống dưới mức an toàn</p>
+                          <span className="text-gray-800 font-medium">{t.notifications.lowStockTitle}</span>
+                          <p className="text-sm text-gray-500">{t.notifications.lowStockDesc}</p>
                         </div>
                         <input
                           type="checkbox"
@@ -400,8 +400,8 @@ const DealerManagerSettings = () => {
 
                       <label className="flex items-center justify-between bg-gray-50 border rounded-xl p-4 cursor-pointer hover:bg-gray-100 transition">
                         <div>
-                          <span className="text-gray-800 font-medium">Hành động nhân viên</span>
-                          <p className="text-sm text-gray-500">Thông báo các hành động quan trọng của nhân viên</p>
+                          <span className="text-gray-800 font-medium">{t.notifications.employeeActionsTitle}</span>
+                          <p className="text-sm text-gray-500">{t.notifications.employeeActionsDesc}</p>
                         </div>
                         <input
                           type="checkbox"
@@ -416,8 +416,8 @@ const DealerManagerSettings = () => {
                     <div className="border-t pt-6">
                       <div className="flex items-center justify-between mb-4">
                         <div>
-                          <h3 className="font-semibold text-gray-900">Email tóm tắt hàng ngày</h3>
-                          <p className="text-sm text-gray-500">Nhận báo cáo tổng hợp cuối ngày</p>
+                          <h3 className="font-semibold text-gray-900">{t.notifications.dailyDigestTitle}</h3>
+                          <p className="text-sm text-gray-500">{t.notifications.dailyDigestDesc}</p>
                         </div>
                         <button
                           onClick={() => handleSettingChange('dailyDigest', !settings.dailyDigest)}
@@ -433,7 +433,7 @@ const DealerManagerSettings = () => {
                       
                       {settings.dailyDigest && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Thời gian gửi</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">{t.notifications.sendTime}</label>
                           <input
                             type="time"
                             value={settings.digestTime}
@@ -450,8 +450,8 @@ const DealerManagerSettings = () => {
                 {activeSection === 'security' && (
                   <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
                     <div>
-                      <h2 className="text-2xl font-bold text-gray-900 mb-2">Lịch sử đăng nhập</h2>
-                      <p className="text-gray-600">Xem và quản lý các phiên đăng nhập của bạn</p>
+                      <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.security.title}</h2>
+                      <p className="text-gray-600">{t.security.subtitle}</p>
                     </div>
 
                     {/* Bảo mật */}
@@ -463,13 +463,13 @@ const DealerManagerSettings = () => {
                           </svg>
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 mb-1">Bảo mật tài khoản</h3>
-                          <p className="text-sm text-gray-600 mb-3">Nếu bạn thấy hoạt động đáng ngờ, hãy đăng xuất khỏi các thiết bị không tin cậy và đổi mật khẩu ngay.</p>
+                          <h3 className="font-semibold text-gray-900 mb-1">{t.security.accountSecurityTitle}</h3>
+                          <p className="text-sm text-gray-600 mb-3">{t.security.accountSecurityDesc}</p>
                           <button 
                             onClick={() => alert('Chức năng đổi mật khẩu')}
                             className="text-sm text-red-600 hover:text-red-700 font-medium"
                           >
-                            Đổi mật khẩu →
+                            {t.security.changePassword}
                           </button>
                         </div>
                       </div>
@@ -479,8 +479,8 @@ const DealerManagerSettings = () => {
                     <div className="space-y-4">
                       <div className="flex items-center justify-between bg-gray-50 border rounded-xl p-4">
                         <div>
-                          <p className="font-medium text-gray-800">Tự động đăng xuất</p>
-                          <p className="text-sm text-gray-500">Đăng xuất tự động khi không hoạt động</p>
+                          <p className="font-medium text-gray-800">{t.security.autoLogoutTitle}</p>
+                          <p className="text-sm text-gray-500">{t.security.autoLogoutDesc}</p>
                         </div>
                         <button
                           onClick={() => handleSettingChange('autoLogout', !settings.autoLogout)}
@@ -496,16 +496,16 @@ const DealerManagerSettings = () => {
 
                       {settings.autoLogout && (
                         <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2">Thời gian chờ (phút)</label>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">{t.security.sessionTimeout}</label>
                           <select
                             value={settings.sessionTimeout}
                             onChange={(e) => handleSettingChange('sessionTimeout', parseInt(e.target.value))}
                             className="w-full md:w-64 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white"
                           >
-                            <option value={15}>15 phút</option>
-                            <option value={30}>30 phút</option>
-                            <option value={60}>1 giờ</option>
-                            <option value={120}>2 giờ</option>
+                            <option value={15}>{t.security.timeoutOptions['15']}</option>
+                            <option value={30}>{t.security.timeoutOptions['30']}</option>
+                            <option value={60}>{t.security.timeoutOptions['60']}</option>
+                            <option value={120}>{t.security.timeoutOptions['120']}</option>
                           </select>
                         </div>
                       )}
@@ -513,7 +513,7 @@ const DealerManagerSettings = () => {
 
                     {/* Lịch sử */}
                     <div className="border-t pt-6">
-                      <h3 className="font-semibold text-gray-900 mb-4">Thiết bị đã đăng nhập ({loginHistory.length})</h3>
+                      <h3 className="font-semibold text-gray-900 mb-4">{t.security.loggedInDevicesTitle} ({loginHistory.length})</h3>
                       <div className="space-y-3">
                         {loginHistory.map((session) => (
                           <div key={session.id} className="flex items-start justify-between border rounded-xl p-4 hover:bg-gray-50 transition">
@@ -528,7 +528,7 @@ const DealerManagerSettings = () => {
                                   <p className="font-medium text-gray-900">{session.device}</p>
                                   {session.status === 'active' && (
                                     <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                                      Đang hoạt động
+                                      {t.security.activeStatus}
                                     </span>
                                   )}
                                 </div>
@@ -543,7 +543,7 @@ const DealerManagerSettings = () => {
                                 onClick={() => handleLogoutDevice(session.id)}
                                 className="text-sm text-red-600 hover:text-red-700 font-medium ml-4"
                               >
-                                Đăng xuất
+                                {t.security.logoutButton}
                               </button>
                             )}
                           </div>
@@ -557,18 +557,18 @@ const DealerManagerSettings = () => {
                 {activeSection === 'performance' && (
                   <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
                     <div>
-                      <h2 className="text-2xl font-bold text-gray-900 mb-2">Hiệu suất</h2>
-                      <p className="text-gray-600">Tối ưu hóa tốc độ và hiệu suất hệ thống</p>
+                      <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.performance.title}</h2>
+                      <p className="text-gray-600">{t.performance.subtitle}</p>
                     </div>
 
                     {/* Hiển thị */}
                     <div className="space-y-4">
-                      <h3 className="font-semibold text-gray-900">Giao diện</h3>
+                      <h3 className="font-semibold text-gray-900">{t.performance.interfaceTitle}</h3>
                       
                       <div className="flex items-center justify-between bg-gray-50 border rounded-xl p-4">
                         <div>
-                          <p className="font-medium text-gray-800">Hiệu ứng chuyển động</p>
-                          <p className="text-sm text-gray-500">Animations và transitions</p>
+                          <p className="font-medium text-gray-800">{t.performance.animationsTitle}</p>
+                          <p className="text-sm text-gray-500">{t.performance.animationsDesc}</p>
                         </div>
                         <button
                           onClick={() => handleSettingChange('animationsEnabled', !settings.animationsEnabled)}
@@ -584,8 +584,8 @@ const DealerManagerSettings = () => {
 
                       <div className="flex items-center justify-between bg-gray-50 border rounded-xl p-4">
                         <div>
-                          <p className="font-medium text-gray-800">Tự động tải hình ảnh</p>
-                          <p className="text-sm text-gray-500">Hiển thị hình ảnh trong bảng</p>
+                          <p className="font-medium text-gray-800">{t.performance.autoLoadImagesTitle}</p>
+                          <p className="text-sm text-gray-500">{t.performance.autoLoadImagesDesc}</p>
                         </div>
                         <button
                           onClick={() => handleSettingChange('autoLoadImages', !settings.autoLoadImages)}
@@ -600,43 +600,43 @@ const DealerManagerSettings = () => {
                       </div>
 
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Chất lượng hình ảnh</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t.performance.imageQuality}</label>
                         <select
                           value={settings.imageQuality}
                           onChange={(e) => handleSettingChange('imageQuality', e.target.value)}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white"
                           disabled={!settings.autoLoadImages}
                         >
-                          <option value="high">Cao (Tốt nhất, chậm hơn)</option>
-                          <option value="medium">Trung bình (Cân bằng)</option>
-                          <option value="low">Thấp (Nhanh nhất)</option>
+                          <option value="high">{t.performance.imageQualityOptions.high}</option>
+                          <option value="medium">{t.performance.imageQualityOptions.medium}</option>
+                          <option value="low">{t.performance.imageQualityOptions.low}</option>
                         </select>
                       </div>
                     </div>
 
                     {/* Dữ liệu */}
                     <div className="border-t pt-6 space-y-4">
-                      <h3 className="font-semibold text-gray-900">Phân trang</h3>
+                      <h3 className="font-semibold text-gray-900">{t.performance.paginationTitle}</h3>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Số bản ghi mỗi trang</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t.performance.itemsPerPage}</label>
                         <select
                           value={settings.itemsPerPage}
                           onChange={(e) => handleSettingChange('itemsPerPage', parseInt(e.target.value))}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white"
                         >
-                          <option value={10}>10 bản ghi</option>
-                          <option value={25}>25 bản ghi</option>
-                          <option value={50}>50 bản ghi</option>
-                          <option value={100}>100 bản ghi (Có thể chậm)</option>
+                          <option value={10}>{t.performance.itemsPerPageOptions['10']}</option>
+                          <option value={25}>{t.performance.itemsPerPageOptions['25']}</option>
+                          <option value={50}>{t.performance.itemsPerPageOptions['50']}</option>
+                          <option value={100}>{t.performance.itemsPerPageOptions['100']}</option>
                         </select>
-                        <p className="text-sm text-gray-500 mt-1">Số lượng cao hơn có thể làm chậm trang</p>
+                        <p className="text-sm text-gray-500 mt-1">{t.performance.itemsPerPageDesc}</p>
                       </div>
                     </div>
 
                     {/* Cache */}
                     <div className="border-t pt-6">
-                      <h3 className="font-semibold text-gray-900 mb-4">Cache & Dữ liệu tạm</h3>
+                      <h3 className="font-semibold text-gray-900 mb-4">{t.performance.cacheTitle}</h3>
                       <div className="bg-gray-50 border rounded-xl p-4">
                         <div className="flex items-start gap-3 mb-4">
                           <div className="h-10 w-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
@@ -646,20 +646,20 @@ const DealerManagerSettings = () => {
                           </div>
                           <div className="flex-1">
                             <p className="text-sm text-gray-600">
-                              Cache giúp tải trang nhanh hơn. Xóa cache nếu bạn gặp vấn đề với dữ liệu cũ hoặc lỗi hiển thị.
+                              {t.performance.cacheDesc}
                             </p>
                           </div>
                         </div>
                         <button
                           onClick={() => {
-                            if (confirm('Xóa cache? Trang sẽ tải lại sau khi xóa.')) {
-                              alert('Đã xóa cache. Đang tải lại...');
+                            if (confirm(t.performance.clearCacheConfirm)) {
+                              alert(t.performance.clearCacheAlert);
                               // Logic clear cache
                             }
                           }}
                           className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
                         >
-                          Xóa cache
+                          {t.performance.clearCacheButton}
                         </button>
                       </div>
                     </div>
@@ -670,8 +670,8 @@ const DealerManagerSettings = () => {
                 {activeSection === 'data' && (
                   <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
                     <div>
-                      <h2 className="text-2xl font-bold text-gray-900 mb-2">Dữ liệu & Quyền riêng tư</h2>
-                      <p className="text-gray-600">Quản lý dữ liệu cá nhân và quyền riêng tư của bạn</p>
+                      <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.data.title}</h2>
+                      <p className="text-gray-600">{t.data.subtitle}</p>
                     </div>
 
                     {/* Xuất dữ liệu */}
@@ -683,15 +683,15 @@ const DealerManagerSettings = () => {
                           </svg>
                         </div>
                         <div className="flex-1">
-                          <h3 className="font-semibold text-gray-900 mb-2">Xuất dữ liệu cá nhân</h3>
+                          <h3 className="font-semibold text-gray-900 mb-2">{t.data.exportDataTitle}</h3>
                           <p className="text-sm text-gray-600 mb-4">
-                            Tải xuất toàn bộ dữ liệu cá nhân của bạn theo quy định GDPR. File sẽ được gửi qua email trong vòng 48 giờ.
+                            {t.data.exportDataDesc}
                           </p>
                           <button
                             onClick={handleExportData}
                             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                           >
-                            Yêu cầu xuất dữ liệu
+                            {t.data.exportDataButton}
                           </button>
                         </div>
                       </div>
@@ -699,28 +699,28 @@ const DealerManagerSettings = () => {
 
                     {/* Lưu trữ dữ liệu */}
                     <div className="border-t pt-6 space-y-4">
-                      <h3 className="font-semibold text-gray-900">Lưu trữ dữ liệu</h3>
+                      <h3 className="font-semibold text-gray-900">{t.data.dataStorageTitle}</h3>
                       
                       <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">Thời gian lưu trữ lịch sử</label>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">{t.data.dataRetention}</label>
                         <select
                           value={settings.dataRetention}
                           onChange={(e) => handleSettingChange('dataRetention', parseInt(e.target.value))}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-red-500 bg-white"
                         >
-                          <option value={30}>30 ngày</option>
-                          <option value={60}>60 ngày</option>
-                          <option value={90}>90 ngày</option>
-                          <option value={180}>6 tháng</option>
-                          <option value={365}>1 năm</option>
+                          <option value={30}>{t.data.dataRetentionOptions['30']}</option>
+                          <option value={60}>{t.data.dataRetentionOptions['60']}</option>
+                          <option value={90}>{t.data.dataRetentionOptions['90']}</option>
+                          <option value={180}>{t.data.dataRetentionOptions['180']}</option>
+                          <option value={365}>{t.data.dataRetentionOptions['365']}</option>
                         </select>
-                        <p className="text-sm text-gray-500 mt-1">Dữ liệu cũ hơn sẽ tự động xóa</p>
+                        <p className="text-sm text-gray-500 mt-1">{t.data.dataRetentionDesc}</p>
                       </div>
 
                       <div className="flex items-center justify-between bg-gray-50 border rounded-xl p-4">
                         <div>
-                          <p className="font-medium text-gray-800">Sao lưu tự động</p>
-                          <p className="text-sm text-gray-500">Backup dữ liệu hàng tuần</p>
+                          <p className="font-medium text-gray-800">{t.data.autoBackupTitle}</p>
+                          <p className="text-sm text-gray-500">{t.data.autoBackupDesc}</p>
                         </div>
                         <button
                           onClick={() => handleSettingChange('autoBackup', !settings.autoBackup)}
@@ -737,19 +737,19 @@ const DealerManagerSettings = () => {
 
                     {/* Xóa dữ liệu */}
                     <div className="border-t pt-6">
-                      <h3 className="font-semibold text-gray-900 mb-4">Xóa dữ liệu</h3>
+                      <h3 className="font-semibold text-gray-900 mb-4">{t.data.deleteDataTitle}</h3>
                       <div className="space-y-3">
                         <div className="border border-orange-200 bg-orange-50 rounded-xl p-4">
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
-                              <p className="font-medium text-gray-900 mb-1">Xóa lịch sử hoạt động</p>
-                              <p className="text-sm text-gray-600">Xóa log hoạt động và lịch sử tìm kiếm</p>
+                              <p className="font-medium text-gray-900 mb-1">{t.data.clearHistoryTitle}</p>
+                              <p className="text-sm text-gray-600">{t.data.clearHistoryDesc}</p>
                             </div>
                             <button
                               onClick={handleClearHistory}
                               className="px-4 py-2 bg-white border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50 transition whitespace-nowrap"
                             >
-                              Xóa lịch sử
+                              {t.data.clearHistoryButton}
                             </button>
                           </div>
                         </div>
@@ -757,14 +757,14 @@ const DealerManagerSettings = () => {
                         <div className="border border-red-200 bg-red-50 rounded-xl p-4">
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
-                              <p className="font-medium text-gray-900 mb-1">Xóa tài khoản</p>
-                              <p className="text-sm text-gray-600">Xóa vĩnh viễn tài khoản và toàn bộ dữ liệu</p>
+                              <p className="font-medium text-gray-900 mb-1">{t.data.deleteAccountTitle}</p>
+                              <p className="text-sm text-gray-600">{t.data.deleteAccountDesc}</p>
                             </div>
                             <button
-                              onClick={() => alert('Vui lòng liên hệ admin để xóa tài khoản')}
+                              onClick={() => alert(t.data.deleteAccountAlert)}
                               className="px-4 py-2 bg-white border border-red-300 text-red-700 rounded-lg hover:bg-red-50 transition whitespace-nowrap"
                             >
-                              Xóa tài khoản
+                              {t.data.deleteAccountButton}
                             </button>
                           </div>
                         </div>
@@ -774,12 +774,11 @@ const DealerManagerSettings = () => {
                     {/* GDPR Info */}
                     <div className="border-t pt-6">
                       <div className="bg-gray-50 border rounded-xl p-4">
-                        <h4 className="font-medium text-gray-900 mb-2">🔒 Quyền riêng tư của bạn</h4>
+                        <h4 className="font-medium text-gray-900 mb-2">{t.data.gdprInfoTitle}</h4>
                         <ul className="text-sm text-gray-600 space-y-1">
-                          <li>• Bạn có quyền truy cập và tải xuất dữ liệu cá nhân</li>
-                          <li>• Bạn có quyền yêu cầu chỉnh sửa thông tin không chính xác</li>
-                          <li>• Bạn có quyền yêu cầu xóa dữ liệu cá nhân</li>
-                          <li>• Dữ liệu của bạn được mã hóa và bảo mật theo GDPR</li>
+                          {t.data.gdprInfoList.map((item, idx) => (
+                            <li key={idx}>• {item}</li>
+                          ))}
                         </ul>
                       </div>
                     </div>
