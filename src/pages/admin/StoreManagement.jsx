@@ -9,6 +9,7 @@ import {
   getStoresByStatusThunk
 } from '@store/slices/storeSlice';
 import Tooltip from '@/components/ui/Tooltip';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Skeleton Loading Component
 const TableSkeleton = () => (
@@ -686,23 +687,42 @@ function StoreManagement() {
       </div>
 
       {/* Add/Edit Store Modal */}
-      {(showAddModal || showEditModal) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm animate-fadeIn">
-          <div className="relative top-10 mx-auto p-5 border w-full max-w-3xl shadow-2xl rounded-xl bg-white animate-slideDown">
-            <div className="mt-3">
-              <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {editingStore ? '✏️ Chỉnh sửa cửa hàng' : '➕ Thêm cửa hàng mới'}
-                </h3>
-                <button
-                  onClick={handleCloseModal}
-                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
-                >
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+      <AnimatePresence>
+        {(showAddModal || showEditModal) && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={handleCloseModal}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-3xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+            >
+              <div className="mt-3">
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    {editingStore ? '✏️ Chỉnh sửa cửa hàng' : '➕ Thêm cửa hàng mới'}
+                  </h3>
+                  <button
+                    onClick={handleCloseModal}
+                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
+                  >
+                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               
               <form onSubmit={handleSubmit} className="space-y-4">
                 {errorMessage && (
@@ -895,16 +915,20 @@ function StoreManagement() {
                 </div>
                 
                 <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
-                  <button
+                  <motion.button
                     type="button"
                     onClick={handleCloseModal}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
                   >
                     ❌ Hủy
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
                     type="submit"
                     disabled={isCreatingStore}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                   >
                     {isCreatingStore && (
@@ -914,24 +938,44 @@ function StoreManagement() {
                       </svg>
                     )}
                     {isCreatingStore ? (editingStore ? '⏳ Đang cập nhật...' : '⏳ Đang tạo...') : (editingStore ? '✅ Cập nhật' : '✨ Tạo cửa hàng')}
-                  </button>
+                  </motion.button>
                 </div>
               </form>
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && storeToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm animate-fadeIn">
-          <div className="relative top-20 mx-auto p-6 border w-[480px] shadow-2xl rounded-xl bg-white animate-slideDown">
-            <div className="mt-3">
-              <div className="flex items-center justify-center w-16 h-16 mx-auto bg-gradient-to-br from-red-100 to-red-200 rounded-full mb-4 shadow-lg">
-                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-              </div>
+      <AnimatePresence>
+        {showDeleteModal && storeToDelete && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={cancelDelete}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-[480px] p-6 border shadow-2xl rounded-xl bg-white"
+            >
+              <div className="mt-3">
+                <div className="flex items-center justify-center w-16 h-16 mx-auto bg-gradient-to-br from-red-100 to-red-200 rounded-full mb-4 shadow-lg">
+                  <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
               
               <div className="text-center">
                 <h3 className="text-xl font-bold text-gray-900 mb-3">
@@ -997,27 +1041,32 @@ function StoreManagement() {
                 </div>
                 
                 <div className="flex justify-center space-x-3 mt-6">
-                  <button
+                  <motion.button
                     onClick={cancelDelete}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
                   >
                     Hủy
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
                     onClick={confirmDelete}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl flex items-center"
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                     Xóa cửa hàng
-                  </button>
+                  </motion.button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
