@@ -64,7 +64,7 @@ import { PageTransition } from './components/Animated'
 function AnimatedRoutes() {
   const location = useLocation();
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence initial={false}>
       <Routes location={location} key={location.pathname}>
           {/* Public Routes with Header and Footer */}
           <Route path="/" element={<PageTransition><Home /></PageTransition>} />

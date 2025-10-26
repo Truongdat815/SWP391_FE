@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 
 // Component hiển thị thời gian thực
 const RealTimeClock = ({ roleKey = 'dealer-manager' }) => {
@@ -206,46 +206,137 @@ const BaseLayout = ({
         </div>
 
         {/* Navigation Menu */}
-        <nav className={`flex-1 ${sidebarCollapsed ? 'px-2 py-4' : 'p-4'}`}>
-          <ul className="space-y-2">
-            {menuItems.map((item, index) => (
-              <li key={item.path}>
-                <Link
-                  to={item.path}
-                  className={`flex items-center justify-center rounded-lg transition-all duration-200 ${
-                    sidebarCollapsed 
-                      ? 'w-12 h-12' 
-                      : 'w-full p-3 justify-start'
-                  } ${
-                    location.pathname === item.path
-                      ? colorClasses.active
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+        <nav className={`flex-1 ${sidebarCollapsed ? 'px-2 py-4' : 'p-4'} overflow-visible`}>
+          <ul className="space-y-2 relative">
+            {menuItems.map((item, index) => {
+              const isActive = location.pathname === item.path;
+              
+              return (
+                <motion.li 
+                  key={item.path} 
+                  className="relative"
+                  initial={false}
                 >
-                  <motion.div 
-                    className={`flex items-center justify-center ${sidebarCollapsed ? '' : 'mr-3'}`}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.95 }}
-                    transition={{ duration: 0.2 }}
+                  <Link
+                    to={item.path}
+                    className={`flex items-center justify-center rounded-lg relative overflow-hidden ${
+                      sidebarCollapsed 
+                        ? 'w-12 h-12' 
+                        : 'w-full p-3 justify-start'
+                    }`}
                   >
-                    {item.icon}
-                  </motion.div>
-                  <AnimatePresence>
+                    {/* Animated Background with Gradient */}
+                    <motion.div
+                      className={`absolute inset-0 rounded-lg ${
+                        isActive 
+                          ? brandColor === 'red'
+                            ? 'bg-gradient-to-r from-red-50 via-red-100 to-red-50'
+                            : 'bg-gradient-to-r from-emerald-50 via-emerald-100 to-emerald-50'
+                          : 'bg-transparent'
+                      }`}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ 
+                        opacity: isActive ? 1 : 0,
+                        scale: isActive ? 1 : 0.9
+                      }}
+                      transition={{
+                        duration: 0.3,
+                        ease: [0.34, 1.56, 0.64, 1]
+                      }}
+                    />
+                    
+                    {/* Glow Effect */}
+                    {isActive && (
+                      <motion.div
+                        className={`absolute inset-0 rounded-lg ${
+                          brandColor === 'red'
+                            ? 'shadow-[0_0_20px_rgba(239,68,68,0.3)]'
+                            : 'shadow-[0_0_20px_rgba(16,185,129,0.3)]'
+                        }`}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: [0, 1, 0.7] }}
+                        transition={{
+                          duration: 0.6,
+                          ease: "easeOut"
+                        }}
+                      />
+                    )}
+                    
+                    {/* Left Border Accent */}
+                    <motion.div
+                      className={`absolute left-0 top-0 bottom-0 w-1 rounded-l-lg ${
+                        brandColor === 'red' ? 'bg-red-600' : 'bg-emerald-600'
+                      }`}
+                      initial={{ scaleY: 0, opacity: 0 }}
+                      animate={{ 
+                        scaleY: isActive ? 1 : 0,
+                        opacity: isActive ? 1 : 0
+                      }}
+                      transition={{
+                        duration: 0.3,
+                        ease: [0.34, 1.56, 0.64, 1]
+                      }}
+                      style={{ originY: 0.5 }}
+                    />
+                    
+                    {/* Icon with bounce animation */}
+                    <motion.div 
+                      className={`flex items-center justify-center relative z-10 ${sidebarCollapsed ? '' : 'mr-3'} ${
+                        isActive 
+                          ? brandColor === 'red' ? 'text-red-700' : 'text-emerald-700'
+                          : 'text-gray-700'
+                      }`}
+                      animate={{
+                        scale: isActive ? [1, 1.4, 1.05, 1] : 1,
+                        rotate: isActive ? [0, -12, 12, -8, 8, 0] : 0
+                      }}
+                      whileHover={{ scale: 1.15, rotate: 8 }}
+                      whileTap={{ scale: 0.85 }}
+                      transition={{ 
+                        scale: { 
+                          duration: 0.6, 
+                          ease: [0.34, 1.56, 0.64, 1],
+                          times: [0, 0.3, 0.6, 1]
+                        },
+                        rotate: { 
+                          duration: 0.7, 
+                          ease: "easeInOut",
+                          times: [0, 0.2, 0.4, 0.6, 0.8, 1]
+                        }
+                      }}
+                    >
+                      {item.icon}
+                    </motion.div>
+                    
+                    {/* Text Label with slide effect */}
                     {!sidebarCollapsed && (
                       <motion.span 
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -10 }}
-                        transition={{ duration: 0.2, delay: index * 0.02 }}
-                        className="font-medium whitespace-nowrap"
+                        className={`font-semibold whitespace-nowrap relative z-10 ${
+                          isActive 
+                            ? brandColor === 'red' ? 'text-red-700' : 'text-emerald-700'
+                            : 'text-gray-700'
+                        }`}
+                        animate={{
+                          x: isActive ? [0, 5, 0] : 0,
+                          fontWeight: isActive ? 600 : 500
+                        }}
+                        transition={{ duration: 0.3 }}
                       >
                         {item.name}
                       </motion.span>
                     )}
-                  </AnimatePresence>
-                </Link>
-              </li>
-            ))}
+                    
+                    {/* Hover Effect */}
+                    <motion.div
+                      className="absolute inset-0 bg-gray-100 rounded-lg -z-10"
+                      initial={{ opacity: 0 }}
+                      whileHover={{ opacity: isActive ? 0 : 0.5 }}
+                      transition={{ duration: 0.2 }}
+                    />
+                  </Link>
+                </motion.li>
+              );
+            })}
           </ul>
         </nav>
       </motion.div>
@@ -382,20 +473,23 @@ const BaseLayout = ({
         {/* Routed Content */}
         <div className="flex-1 py-6 px-4 sm:px-6 lg:px-8 overflow-auto w-full">
           <div className="max-w-7xl mx-auto">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={location.pathname}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{
-                  duration: 0.3,
-                  ease: [0.4, 0, 0.2, 1] // cubic-bezier cho smooth animation
-                }}
-              >
-                <Outlet />
-              </motion.div>
-            </AnimatePresence>
+            <div className="relative min-h-[500px]">
+              <AnimatePresence initial={false}>
+                <motion.div
+                  key={location.pathname}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{
+                    duration: 0.2,
+                    ease: "easeInOut"
+                  }}
+                  className="absolute inset-0 w-full"
+                >
+                  <Outlet />
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </div>
