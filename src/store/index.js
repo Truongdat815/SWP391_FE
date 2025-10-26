@@ -12,6 +12,7 @@ import snackbarReducer from './slices/snackbarSlice';
 import customerReducer from './slices/customerSlice';
 import orderReducer from './slices/orderSlice';
 import inventoryTransactionReducer from './slices/inventoryTransactionSlice';
+import appointmentReducer from './slices/appointmentSlice';
 
 export const store = configureStore({
     reducer: {
@@ -27,6 +28,7 @@ export const store = configureStore({
         snackbar: snackbarReducer,
         customers: customerReducer,
         orders: orderReducer,
+        appointments: appointmentReducer,
     },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware(),
 });
