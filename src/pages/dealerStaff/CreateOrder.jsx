@@ -17,6 +17,7 @@ import {
   Search,
   UserPlus
 } from 'lucide-react';
+import Tooltip from '@/components/ui/Tooltip';
 
 function CreateOrder({ onBack }) {
   const dispatch = useDispatch();
@@ -197,14 +198,16 @@ function CreateOrder({ onBack }) {
               <Users className="h-6 w-6 text-emerald-600 mr-2" />
               <h3 className="text-lg font-semibold text-gray-900">Chọn khách hàng</h3>
             </div>
-            <button
-              type="button"
-              onClick={handleAddCustomer}
-              className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-            >
-              <UserPlus className="h-4 w-4 mr-2" />
-              Thêm khách hàng mới
-            </button>
+            <Tooltip content="Thêm khách hàng mới nếu chưa có trong hệ thống" placement="left">
+              <button
+                type="button"
+                onClick={handleAddCustomer}
+                className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+              >
+                <UserPlus className="h-4 w-4 mr-2" />
+                Thêm khách hàng mới
+              </button>
+            </Tooltip>
           </div>
 
           {/* Search Bar */}

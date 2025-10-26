@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getModelImage, getModelPoster, formatPrice, formatNumber } from '../../utils/modelHelpers';
 import logo from '../../assets/images/logo.png';
+import Tooltip from '@/components/ui/Tooltip';
 
 function CarDetail() {
   const { modelId } = useParams();
@@ -182,26 +183,30 @@ function CarDetail() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <div className="absolute bottom-6 left-6 right-6">
                       <div className="flex space-x-3">
-                        <button
-                          onClick={() => setSelectedImage('main')}
-                          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                            selectedImage === 'main' 
-                              ? 'bg-white text-emerald-600 shadow-lg' 
-                              : 'bg-white/80 text-gray-600 hover:bg-white'
-                          }`}
-                        >
-                          Hình chính
-                        </button>
-                        <button
-                          onClick={() => setSelectedImage('poster')}
-                          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                            selectedImage === 'poster' 
-                              ? 'bg-white text-emerald-600 shadow-lg' 
-                              : 'bg-white/80 text-gray-600 hover:bg-white'
-                          }`}
-                        >
-                          Poster
-                        </button>
+                        <Tooltip content="Xem hình ảnh chính của xe" placement="top">
+                          <button
+                            onClick={() => setSelectedImage('main')}
+                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                              selectedImage === 'main' 
+                                ? 'bg-white text-emerald-600 shadow-lg' 
+                                : 'bg-white/80 text-gray-600 hover:bg-white'
+                            }`}
+                          >
+                            Hình chính
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Xem poster quảng cáo của xe" placement="top">
+                          <button
+                            onClick={() => setSelectedImage('poster')}
+                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                              selectedImage === 'poster' 
+                                ? 'bg-white text-emerald-600 shadow-lg' 
+                                : 'bg-white/80 text-gray-600 hover:bg-white'
+                            }`}
+                          >
+                            Poster
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                   </div>

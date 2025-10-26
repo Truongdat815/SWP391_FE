@@ -16,6 +16,7 @@ import {
   deleteTransactionThunk,
 } from '../../store/slices/inventoryTransactionSlice';
 import { showError, showSuccess, showWarning } from '../../store/slices/snackbarSlice';
+import Tooltip from '@/components/ui/Tooltip';
 
 function InventoryManagement() {
   const dispatch = useDispatch();
@@ -374,15 +375,34 @@ function InventoryManagement() {
       </div>
 
       {/* Approve Modal */}
-      {approveModal && selectedRequest && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Duyệt yêu cầu nhập hàng</h3>
-              <button onClick={() => setApproveModal(false)} className="text-gray-400 hover:text-gray-600">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
+      <AnimatePresence>
+        {approveModal && selectedRequest && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setApproveModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Duyệt yêu cầu nhập hàng</h3>
+                <button onClick={() => setApproveModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
             <form onSubmit={handleApprove} className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-sm text-blue-900 mb-2">
@@ -412,15 +432,29 @@ function InventoryManagement() {
               </div>
 
               <div className="flex justify-end gap-3 pt-4 border-t">
-                <button type="button" onClick={() => setApproveModal(false)} className="px-4 py-2 border rounded hover:bg-gray-50">Hủy</button>
-                <button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">
+                <motion.button 
+                  type="button" 
+                  onClick={() => setApproveModal(false)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </motion.button>
+                <motion.button 
+                  type="submit"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-lg"
+                >
                   Xác nhận duyệt
-                </button>
+                </motion.button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Create Stock Modal */}
       <AnimatePresence>
@@ -520,15 +554,34 @@ function InventoryManagement() {
       </AnimatePresence>
 
       {/* Update Quantity Modal */}
-      {updateQuantityModal && selectedStock && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Cập nhật số lượng</h3>
-              <button onClick={() => setUpdateQuantityModal(false)} className="text-gray-400 hover:text-gray-600">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
+      <AnimatePresence>
+        {updateQuantityModal && selectedStock && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setUpdateQuantityModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Cập nhật số lượng</h3>
+                <button onClick={() => setUpdateQuantityModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
             <form onSubmit={handleSubmitUpdateQuantity} className="space-y-4">
               <div>
                 <p className="text-sm text-gray-600 mb-2">
@@ -545,24 +598,59 @@ function InventoryManagement() {
                 />
               </div>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setUpdateQuantityModal(false)} className="px-4 py-2 border rounded">Hủy</button>
-                <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded">Cập nhật</button>
+                <motion.button 
+                  type="button" 
+                  onClick={() => setUpdateQuantityModal(false)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </motion.button>
+                <motion.button 
+                  type="submit"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                >
+                  Cập nhật
+                </motion.button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Update Price Modal */}
-      {updatePriceModal && selectedStock && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Cập nhật giá bán</h3>
-              <button onClick={() => setUpdatePriceModal(false)} className="text-gray-400 hover:text-gray-600">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
+      <AnimatePresence>
+        {updatePriceModal && selectedStock && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setUpdatePriceModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Cập nhật giá bán</h3>
+                <button onClick={() => setUpdatePriceModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
             <form onSubmit={handleSubmitUpdatePrice} className="space-y-4">
               <div>
                 <p className="text-sm text-gray-600 mb-2">
@@ -579,36 +667,87 @@ function InventoryManagement() {
                 />
               </div>
               <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setUpdatePriceModal(false)} className="px-4 py-2 border rounded">Hủy</button>
-                <button type="submit" className="px-4 py-2 bg-amber-600 text-white rounded">Cập nhật</button>
+                <motion.button 
+                  type="button" 
+                  onClick={() => setUpdatePriceModal(false)}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Hủy
+                </motion.button>
+                <motion.button 
+                  type="submit"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors shadow-lg"
+                >
+                  Cập nhật
+                </motion.button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Delete Confirmation Modal */}
-      {deleteModal && selectedStock && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Xác nhận xóa</h3>
-              <button onClick={() => setDeleteModal(false)} className="text-gray-400 hover:text-gray-600">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-              </button>
-            </div>
-            <div className="space-y-4">
-              <p className="text-gray-600">
-                Bạn có chắc chắn muốn xóa xe <strong>{selectedStock.modelName} • {selectedStock.colorName}</strong> khỏi kho?
-              </p>
-              <div className="flex justify-end gap-3 pt-2">
-                <button type="button" onClick={() => setDeleteModal(false)} className="px-4 py-2 border rounded">Hủy</button>
-                <button onClick={handleSubmitDelete} className="px-4 py-2 bg-red-600 text-white rounded">Xóa</button>
+      <AnimatePresence>
+        {deleteModal && selectedStock && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setDeleteModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Xác nhận xóa</h3>
+                <button onClick={() => setDeleteModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+              <div className="space-y-4">
+                <p className="text-gray-600">
+                  Bạn có chắc chắn muốn xóa xe <strong>{selectedStock.modelName} • {selectedStock.colorName}</strong> khỏi kho?
+                </p>
+                <div className="flex justify-end gap-3 pt-2">
+                  <motion.button 
+                    type="button" 
+                    onClick={() => setDeleteModal(false)}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    Hủy
+                  </motion.button>
+                  <motion.button 
+                    onClick={handleSubmitDelete}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-lg"
+                  >
+                    Xóa
+                  </motion.button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

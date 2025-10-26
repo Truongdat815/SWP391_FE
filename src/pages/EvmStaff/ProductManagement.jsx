@@ -9,6 +9,7 @@ import {
 } from '@store/slices/modelColorSlice';
 import { getAllModelsThunk } from '@store/slices/modelSlice';
 import { getAllColorsThunk } from '@store/slices/colorSlice';
+import Tooltip from '@/components/ui/Tooltip';
 
 function ProductManagement() {
   const dispatch = useDispatch();
@@ -236,15 +237,17 @@ function ProductManagement() {
                   <p className="text-gray-600 mt-1">Quản lý tổ hợp xe điện và màu sắc</p>
                 </div>
               </div>
-              <button
-                onClick={handleOpenCreate}
-                className="group px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2"
-              >
-                <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                Thêm sản phẩm mới
-              </button>
+              <Tooltip content="Tạo tổ hợp sản phẩm mới từ mẫu xe và màu sắc" placement="bottom">
+                <button
+                  onClick={handleOpenCreate}
+                  className="group px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2"
+                >
+                  <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                  </svg>
+                  Thêm sản phẩm mới
+                </button>
+              </Tooltip>
             </div>
           </div>
         </div>

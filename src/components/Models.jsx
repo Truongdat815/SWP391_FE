@@ -4,6 +4,7 @@ import AnimatedImage from '../components/Animated';
 import { Link } from 'react-router-dom';
 import { get } from '@/api/client';
 import { getModelImage } from '../utils/modelHelpers';
+import Tooltip from './ui/Tooltip';
 
 const Models = () => {
   const [models, setModels] = useState([]);
@@ -110,15 +111,17 @@ const Models = () => {
                   </span>
                 </div>
 
-                <Link to={`/car/${model.modelId}`}>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    className="w-full bg-[#6CA12B] text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-300"
-                  >
-                    Xem chi tiết
-                  </motion.button>
-                </Link>
+                <Tooltip content="Xem thông số kỹ thuật chi tiết và hình ảnh của mẫu xe" placement="top">
+                  <Link to={`/car/${model.modelId}`}>
+                    <motion.button
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      className="w-full bg-[#6CA12B] text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-300"
+                    >
+                      Xem chi tiết
+                    </motion.button>
+                  </Link>
+                </Tooltip>
               </div>
             </motion.div>
           ))}
