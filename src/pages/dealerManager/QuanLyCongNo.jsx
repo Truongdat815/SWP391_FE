@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import * as XLSX from 'xlsx';
+import { motion, AnimatePresence } from 'framer-motion';
 
 function QuanLyCongNo() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -284,24 +285,42 @@ function QuanLyCongNo() {
             </div>
           </div>
           <div className="flex space-x-3">
-            <button
+            <motion.button
               onClick={() => setShowAddModal(true)}
-              className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition flex items-center"
+              whileHover={{ scale: 1.03, y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              className="px-6 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
             >
-              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <motion.svg 
+                className="h-5 w-5" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+                whileHover={{ rotate: 90 }}
+                transition={{ duration: 0.3 }}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
+              </motion.svg>
               Thêm công nợ
-            </button>
-            <button
+            </motion.button>
+            <motion.button
               onClick={handleExportReport}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center"
+              whileHover={{ scale: 1.03, y: -2 }}
+              whileTap={{ scale: 0.97 }}
+              className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
             >
-              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <motion.svg 
+                className="h-5 w-5" 
+                fill="none" 
+                viewBox="0 0 24 24" 
+                stroke="currentColor"
+                whileHover={{ y: 2 }}
+                transition={{ duration: 0.3 }}
+              >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
+              </motion.svg>
               Xuất báo cáo
-            </button>
+            </motion.button>
           </div>
         </div>
       </div>
@@ -527,21 +546,46 @@ function QuanLyCongNo() {
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <button
-                          onClick={() => handlePayment(debt)}
-                          className="text-green-600 hover:text-green-900 mr-3"
-                        >
-                          Thanh toán
-                        </button>
-                        <button
-                          onClick={() => handleSendReminder(debt.id)}
-                          className="text-yellow-600 hover:text-yellow-900 mr-3"
-                        >
-                          Nhắc nở
-                        </button>
-                        <button className="text-blue-600 hover:text-blue-900">
-                          Chi tiết
-                        </button>
+                        <div className="flex gap-2">
+                          <motion.button
+                            onClick={() => handlePayment(debt)}
+                            whileHover={{ scale: 1.05, y: -1 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow hover:shadow-md transition-all text-sm"
+                          >
+                            <span className="flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                              </svg>
+                              Thanh toán
+                            </span>
+                          </motion.button>
+                          <motion.button
+                            onClick={() => handleSendReminder(debt.id)}
+                            whileHover={{ scale: 1.05, y: -1 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="px-3 py-1.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 shadow hover:shadow-md transition-all text-sm"
+                          >
+                            <span className="flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                              </svg>
+                              Nhắc nở
+                            </span>
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05, y: -1 }}
+                            whileTap={{ scale: 0.95 }}
+                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow hover:shadow-md transition-all text-sm"
+                          >
+                            <span className="flex items-center gap-1">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                              </svg>
+                              Chi tiết
+                            </span>
+                          </motion.button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -608,9 +652,28 @@ function QuanLyCongNo() {
       )}
 
       {/* Add Debt Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+      <AnimatePresence>
+        {showAddModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
+            onClick={() => setShowAddModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md p-6 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+            >
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Thêm công nợ mới</h3>
               <form onSubmit={handleAddDebt} className="space-y-4">
@@ -674,30 +737,54 @@ function QuanLyCongNo() {
                   />
                 </div>
                 <div className="flex justify-end space-x-3">
-                  <button
+                  <motion.button
                     type="button"
                     onClick={() => setShowAddModal(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                   >
                     Hủy
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
                     type="submit"
-                    className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 shadow-lg transition-colors"
                   >
                     Thêm
-                  </button>
+                  </motion.button>
                 </div>
               </form>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Payment Modal */}
-      {showPaymentModal && selectedDebt && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
+      <AnimatePresence>
+        {showPaymentModal && selectedDebt && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
+            onClick={() => setShowPaymentModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md p-6 border shadow-2xl rounded-xl bg-white"
+            >
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Ghi nhận thanh toán</h3>
               <div className="mb-4">
@@ -731,25 +818,30 @@ function QuanLyCongNo() {
                   />
                 </div>
                 <div className="flex justify-end space-x-3">
-                  <button
+                  <motion.button
                     type="button"
                     onClick={() => setShowPaymentModal(false)}
-                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                   >
                     Hủy
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
                     type="submit"
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-lg transition-colors"
                   >
                     Ghi nhận
-                  </button>
+                  </motion.button>
                 </div>
               </form>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

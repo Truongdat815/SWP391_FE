@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import Tooltip from '@/components/ui/Tooltip';
+import { motion, AnimatePresence } from 'framer-motion';
 
 function ViewOrders() {
   const [orders, setOrders] = useState([]);
@@ -241,12 +243,14 @@ function ViewOrders() {
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleViewDetails(order)}
-                        className="text-emerald-600 hover:text-emerald-900 transition-colors"
-                      >
-                        Xem chi tiết
-                      </button>
+                      <Tooltip content="Xem thông tin chi tiết đơn hàng và hợp đồng" placement="top">
+                        <button
+                          onClick={() => handleViewDetails(order)}
+                          className="text-emerald-600 hover:text-emerald-900 transition-colors"
+                        >
+                          Xem chi tiết
+                        </button>
+                      </Tooltip>
                       {order.status === 'pending' && (
                         <button
                           onClick={() => handleUpdateStatus(order.id, 'confirmed')}
@@ -295,22 +299,41 @@ function ViewOrders() {
       </div>
 
       {/* Modal for Order Details */}
-      {showModal && selectedOrder && (
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">
-                Chi tiết đơn hàng - {selectedOrder.orderNumber}
-              </h3>
-              <button
-                onClick={handleCloseModal}
-                className="text-gray-400 hover:text-gray-600"
-              >
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+      <AnimatePresence>
+        {showModal && selectedOrder && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
+            onClick={handleCloseModal}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-11/12 md:w-3/4 lg:w-1/2 p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">
+                  Chi tiết đơn hàng - {selectedOrder.orderNumber}
+                </h3>
+                <button
+                  onClick={handleCloseModal}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
 
             <div className="space-y-6">
               {/* Customer Information */}
@@ -392,22 +415,27 @@ function ViewOrders() {
 
               {/* Action Buttons */}
               <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200">
-                <button
+                <motion.button
                   onClick={handleCloseModal}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Đóng
-                </button>
-                <button
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-lg"
                 >
                   In đơn hàng
-                </button>
+                </motion.button>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

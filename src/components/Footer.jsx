@@ -2,6 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import logo from '../assets/images/logo.png';
+import Tooltip from './ui/Tooltip';
 
 function Footer() {
   return (
@@ -145,13 +146,15 @@ function Footer() {
                 placeholder="Nhập email của bạn"
                 className="flex-1 px-4 py-3 bg-gray-800 border border-gray-700 rounded-l-lg focus:outline-none focus:border-green-500 text-white"
               />
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="bg-gradient-to-r from-green-600 to-green-800 text-white px-6 py-3 rounded-r-lg font-semibold hover:shadow-lg transition-all duration-300"
-              >
-                Đăng ký
-              </motion.button>
+              <Tooltip content="Đăng ký nhận thông tin khuyến mãi và tin tức mới nhất" placement="top">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="bg-gradient-to-r from-green-600 to-green-800 text-white px-6 py-3 rounded-r-lg font-semibold hover:shadow-lg transition-all duration-300"
+                >
+                  Đăng ký
+                </motion.button>
+              </Tooltip>
             </div>
           </div>
         </motion.div>
