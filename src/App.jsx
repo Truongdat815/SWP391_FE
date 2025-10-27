@@ -30,12 +30,15 @@ import QuanLyNhanVien from './pages/dealerManager/QuanLyNhanVien'
 import QuanLyCongNo from './pages/dealerManager/QuanLyCongNo'
 import DealerManagerInventory from './pages/dealerManager/InventoryManagement'
 import DealerManagerSettings from './pages/dealerManager/DealerManagerSettings'
+import PromotionManagement from './pages/dealerManager/PromotionManagement'
 
 // Dealer Staff Sub Pages
 import QuoteOrderManagement from './pages/dealerStaff/QuoteOrderManagement'
 import ViewOrders from './pages/dealerStaff/ViewOrders'
 import CreateContract from './pages/dealerStaff/CreateContract'
 import CreateOrder from './pages/dealerStaff/CreateOrder'
+import AddOrderDetails from './pages/dealerStaff/AddOrderDetails'
+import OrderSummary from './pages/dealerStaff/OrderSummary'
 import AddCustomer from './pages/dealerStaff/AddCustomer'
 import CustomerManagement from './pages/dealerStaff/CustomerManagement'
 import Inventory from './pages/dealerStaff/Inventory'
@@ -123,6 +126,8 @@ function AnimatedRoutes() {
           }>
             <Route index element={<Navigate to="/dealer-staff/create-order" replace />} />
             <Route path="create-order" element={<CreateOrder />} />
+            <Route path="add-order-details/:orderId" element={<AddOrderDetails />} />
+            <Route path="order-summary/:orderId" element={<OrderSummary />} />
             <Route path="quote-order-management" element={<QuoteOrderManagement />} />
             <Route path="view-orders" element={<ViewOrders />} />
             <Route path="add-customer" element={<AddCustomer />} />
@@ -145,6 +150,7 @@ function AnimatedRoutes() {
           }>
             <Route index element={<Navigate to="/dealer-manager/inventory" replace />} />
             <Route path="inventory" element={<DealerManagerInventory />} />
+            <Route path="promotion-management" element={<PromotionManagement />} />
             <Route path="tao-bao-cao" element={<TaoBaoCao />} />
             <Route path="bao-cao-doanh-so" element={<BaoCaoDoanhSo />} />
             <Route path="quan-ly-nhan-vien" element={<QuanLyNhanVien />} />

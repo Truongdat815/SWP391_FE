@@ -13,6 +13,8 @@ import customerReducer from './slices/customerSlice';
 import orderReducer from './slices/orderSlice';
 import inventoryTransactionReducer from './slices/inventoryTransactionSlice';
 import appointmentReducer from './slices/appointmentSlice';
+import promotionReducer from './slices/promotionSlice';
+import contractReducer from './slices/contractSlice';
 
 export const store = configureStore({
     reducer: {
@@ -29,6 +31,8 @@ export const store = configureStore({
         customers: customerReducer,
         orders: orderReducer,
         appointments: appointmentReducer,
+        promotions: promotionReducer,
+        contracts: contractReducer,
     },
     middleware: (getDefaultMiddleware) => getDefaultMiddleware(),
 });

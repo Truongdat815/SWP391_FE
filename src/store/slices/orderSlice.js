@@ -108,7 +108,9 @@ const orderSlice = createSlice({
       })
       .addCase(fetchOrders.fulfilled, (state, action) => {
         state.loading = false;
-        state.orders = action.payload;
+        // Extract data from response if API returns { code, message, data }
+        const ordersData = action.payload.data || action.payload;
+        state.orders = Array.isArray(ordersData) ? ordersData : [];
       })
       .addCase(fetchOrders.rejected, (state, action) => {
         state.loading = false;
