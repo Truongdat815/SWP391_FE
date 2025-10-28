@@ -31,10 +31,10 @@ export const AuthProvider = ({ children }) => {
         
         // Try roleId mapping first (corrected based on actual database)
         const roleMapping = {
-            1: 'admin',       // Admin -> EVM Staff (temporary for testing)
-            2: 'evm-staff',       // EVM Staff
-            3: 'dealer-manager',  // Dealer Manager
-            4: 'dealer-staff'     // Dealer Staff
+            1: 'admin',            // Quản trị viên
+            2: 'dealer-staff',     // Nhân viên cửa hàng
+            3: 'dealer-manager',   // Quản lý cửa hàng
+            4: 'evm-staff'         // Nhân viên hãng xe
         };
         
         if (user.roleId && roleMapping[user.roleId]) {
@@ -43,27 +43,27 @@ export const AuthProvider = ({ children }) => {
             return mappedRole;
         }
         
-        // Fallback to roleName
+        // Fallback to roleName (handle Vietnamese names from backend)
         const roleName = user.roleName?.toLowerCase();
         console.log('getUserRole - roleName lowercase:', roleName);
         
         if (roleName) {
-            // Normalize role names
-            if (roleName.includes('dealer manager')) {
-                console.log('getUserRole - matched dealer manager');
-                return 'dealer-manager';
+            // Normalize role names (support both English and Vietnamese)
+            if (roleName.includes('quản trị viên') || roleName.includes('admin')) {
+                console.log('getUserRole - matched admin');
+                return 'admin';
             }
-            if (roleName.includes('dealer staff')) {
+            if (roleName.includes('nhân viên cửa hàng') || roleName.includes('dealer staff')) {
                 console.log('getUserRole - matched dealer staff');
                 return 'dealer-staff';
             }
-            if (roleName.includes('evm staff')) {
+            if (roleName.includes('quản lý cửa hàng') || roleName.includes('dealer manager')) {
+                console.log('getUserRole - matched dealer manager');
+                return 'dealer-manager';
+            }
+            if (roleName.includes('nhân viên hãng xe') || roleName.includes('evm staff')) {
                 console.log('getUserRole - matched evm staff');
                 return 'evm-staff';
-            }
-            if (roleName.includes('admin')) {
-                console.log('getUserRole - matched admin');
-                return 'admin';
             }
         }
         
