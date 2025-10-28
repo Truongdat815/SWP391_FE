@@ -11,8 +11,21 @@ const Models = () => {
 
   useEffect(() => {
     get('/api/models/all')
-      .then((res) => setModels(res.data.data))
-      .catch((err) => console.error('Lỗi lấy danh sách model:', err));
+      .then((res) => {
+        // Handle different response structures
+        const modelsData = res?.data?.data || res?.data || [];
+        console.log('📦 Models response:', res);
+        if (Array.isArray(modelsData)) {
+          setModels(modelsData);
+        } else {
+          console.warn('⚠️ Models data is not an array:', modelsData);
+          setModels([]);
+        }
+      })
+      .catch((err) => {
+        console.error('❌ Lỗi lấy danh sách model:', err);
+        setModels([]); // Set empty array on error
+      });
   }, []);
 
   return (

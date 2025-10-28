@@ -17,9 +17,10 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://103.188.243.122:8888',  // địa chỉ backend Spring Boot
+        target: 'https://tiembanhvuive.io.vn',  // Backend Spring Boot từ Swagger
         changeOrigin: true,
         secure: false,
+        // KHÔNG rewrite - giữ nguyên /api prefix vì backend có /api
       },
     },
   },
