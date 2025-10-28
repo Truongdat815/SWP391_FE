@@ -211,10 +211,13 @@ function CreateOrder({ onBack }) {
       
       setSuccess('Tạo đơn hàng thành công!');
       
-      // Navigate to view orders after 2 seconds
-      setTimeout(() => {
-        navigate('/dealer-staff/view-orders');
-      }, 2000);
+      // Navigate to add order details page immediately
+      navigate(`/dealer-staff/add-order-details/${orderData.orderId}`, {
+        state: { 
+          orderData,
+          customerInfo: customer 
+        }
+      });
       
     } catch (error) {
       console.error('❌ Error creating order:', error);
