@@ -29,6 +29,7 @@ function ViewOrders() {
   
   // Redux state
   const { orders: reduxOrders, loading, error } = useSelector((state) => state.orders);
+  const { selectedOrderDetails: reduxOrderDetails, loading: detailsLoading } = useSelector((state) => state.orderDetails);
   
   // Local state
   const [orders, setOrders] = useState([]);
@@ -215,7 +216,11 @@ function ViewOrders() {
     }
     
     try {
-      await dispatch(deleteOrderById(orderId)).unwrap();
+      await deleteOrder(orderId);
+      
+      // Remove from local state
+      setOrders(prev => prev.filter(order => order.orderId !== orderId));
+      
       setSuccessMessage('Đã xóa đơn hàng thành công!');
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
@@ -493,6 +498,7 @@ function ViewOrders() {
                     </div>
                   </div>
                 </div>
+              </div>
 
                 {/* Product Details */}
                 <div className="bg-gray-50 rounded-lg p-4">
@@ -586,6 +592,7 @@ function ViewOrders() {
                     <p><strong>Cửa hàng:</strong> {selectedOrder.storeName || 'N/A'}</p>
                   </div>
                 </div>
+              </div>
 
                 {/* Status Editor */}
                 <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
@@ -699,6 +706,7 @@ function ViewOrders() {
                     </motion.button>
                   </div>
                 </div>
+              </div>
               </div>
             </motion.div>
           </motion.div>
