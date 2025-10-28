@@ -106,10 +106,13 @@ function CreateOrder({ onBack }) {
       const orderData = result.data || result;
       console.log('Order created successfully:', orderData);
       
-      // Navigate to view orders after 2 seconds
-      setTimeout(() => {
-        navigate('/dealer-staff/view-orders');
-      }, 2000);
+      // Navigate to add order details page immediately
+      navigate(`/dealer-staff/add-order-details/${orderData.orderId}`, {
+        state: { 
+          orderData,
+          customerInfo: customer 
+        }
+      });
       
     } catch (error) {
       console.error('Error creating order:', error);

@@ -62,5 +62,5 @@ export async function updateOrderStatus(orderId, status) {
 
 // Delete order
 export async function deleteOrder(orderId) {
-    return request(`/api/orders/${orderId}`, { method: 'DELETE' });
+    return request(`/api/orders/delete/${orderId}`, { method: 'DELETE' });
 }
