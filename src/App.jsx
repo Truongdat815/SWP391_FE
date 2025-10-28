@@ -30,6 +30,7 @@ import QuanLyNhanVien from './pages/dealerManager/QuanLyNhanVien'
 import QuanLyCongNo from './pages/dealerManager/QuanLyCongNo'
 import DealerManagerInventory from './pages/dealerManager/InventoryManagement'
 import DealerManagerSettings from './pages/dealerManager/DealerManagerSettings'
+import DealerManagerOrders from './pages/dealerManager/OrderManagement'
 import PromotionManagement from './pages/dealerManager/PromotionManagement'
 
 // Dealer Staff Sub Pages
@@ -150,6 +151,7 @@ function AnimatedRoutes() {
           }>
             <Route index element={<Navigate to="/dealer-manager/inventory" replace />} />
             <Route path="inventory" element={<DealerManagerInventory />} />
+            <Route path="orders" element={<DealerManagerOrders />} />
             <Route path="promotion-management" element={<PromotionManagement />} />
             <Route path="tao-bao-cao" element={<TaoBaoCao />} />
             <Route path="bao-cao-doanh-so" element={<BaoCaoDoanhSo />} />
