@@ -71,10 +71,10 @@ function SignIn() {
         
         // Also check by roleId for more reliable mapping
         const roleIdRoutes = {
-          1: '/admin',           // Admin
-          2: '/evm-staff',       // EVM Staff  
-          3: '/dealer-manager',  // Dealer Manager
-          4: '/dealer-staff'     // Dealer Staff
+          1: '/admin',           // Quản trị viên
+          2: '/dealer-staff',    // Nhân viên cửa hàng
+          3: '/dealer-manager',  // Quản lý cửa hàng
+          4: '/evm-staff'        // Nhân viên hãng xe
         };
         
         // Try roleId first, then fallback to roleName
