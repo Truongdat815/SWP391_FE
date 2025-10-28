@@ -1,5 +1,15 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { createOrder, getAllOrders, getOrderById, updateOrder, updateOrderStatus, deleteOrder } from '../../api/orderService';
+import { 
+  createOrder, 
+  getAllOrders, 
+  getOrderById, 
+  updateOrder, 
+  updateOrderStatus, 
+  deleteOrder,
+  getOrdersByStatus,
+  getOrdersByDateRange,
+  getOrdersByCustomer
+} from '../../api/orderService';
 
 // Async thunks
 export const fetchOrders = createAsyncThunk(
@@ -68,6 +78,42 @@ export const deleteOrderById = createAsyncThunk(
     try {
       await deleteOrder(orderId);
       return orderId;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const fetchOrdersByStatus = createAsyncThunk(
+  'orders/fetchOrdersByStatus',
+  async (status, { rejectWithValue }) => {
+    try {
+      const response = await getOrdersByStatus(status);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const fetchOrdersByDateRange = createAsyncThunk(
+  'orders/fetchOrdersByDateRange',
+  async ({ startDate, endDate }, { rejectWithValue }) => {
+    try {
+      const response = await getOrdersByDateRange(startDate, endDate);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const fetchOrdersByCustomer = createAsyncThunk(
+  'orders/fetchOrdersByCustomer',
+  async (customerId, { rejectWithValue }) => {
+    try {
+      const response = await getOrdersByCustomer(customerId);
+      return response;
     } catch (error) {
       return rejectWithValue(error.message);
     }
@@ -197,6 +243,60 @@ const orderSlice = createSlice({
         state.success = 'Đơn hàng đã được xóa!';
       })
       .addCase(deleteOrderById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Fetch orders by status
+      .addCase(fetchOrdersByStatus.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchOrdersByStatus.fulfilled, (state, action) => {
+        state.loading = false;
+        const payload = action.payload;
+        state.orders = Array.isArray(payload?.data) 
+          ? payload.data 
+          : Array.isArray(payload) 
+          ? payload 
+          : [];
+      })
+      .addCase(fetchOrdersByStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Fetch orders by date range
+      .addCase(fetchOrdersByDateRange.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchOrdersByDateRange.fulfilled, (state, action) => {
+        state.loading = false;
+        const payload = action.payload;
+        state.orders = Array.isArray(payload?.data) 
+          ? payload.data 
+          : Array.isArray(payload) 
+          ? payload 
+          : [];
+      })
+      .addCase(fetchOrdersByDateRange.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Fetch orders by customer
+      .addCase(fetchOrdersByCustomer.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchOrdersByCustomer.fulfilled, (state, action) => {
+        state.loading = false;
+        const payload = action.payload;
+        state.orders = Array.isArray(payload?.data) 
+          ? payload.data 
+          : Array.isArray(payload) 
+          ? payload 
+          : [];
+      })
+      .addCase(fetchOrdersByCustomer.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

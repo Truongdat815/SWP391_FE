@@ -82,28 +82,15 @@ export async function createOrderDetail(orderDetailData) {
 }
 
 // Create multiple order details in one request
+// New simplified API: backend calculates all prices
 export async function createOrderDetailsInBatch(orderId, orderDetailsArray) {
-    // Build order details array for backend
-    const orderDetailsItems = orderDetailsArray.map(detail => {
-        const item = {
-            storeStockId: detail.storeStockId,
-            unitPrice: detail.unitPrice,
-            quantity: detail.quantity,
-            vatAmount: detail.vatAmount,
-            licensePlateFee: detail.licensePlateFee,
-            registrationFee: detail.registrationFee,
-            discountAmount: detail.discountAmount,
-            totalPrice: detail.totalPrice,
-            promotionId: detail.promotionId || 0
-        };
-        
-        // Add optional IDs only if they have values
-        if (detail.modelId) item.modelId = detail.modelId;
-        if (detail.modelColorId) item.modelColorId = detail.modelColorId;
-        if (detail.colorId) item.colorId = detail.colorId;
-        
-        return item;
-    });
+    // Build order details array for backend - only send required fields
+    const orderDetailsItems = orderDetailsArray.map(detail => ({
+        modelId: detail.modelId,
+        colorId: detail.colorId,
+        quantity: detail.quantity,
+        promotionId: detail.promotionId || 0
+    }));
     
     // Backend expects orderDetails array with orderId at top level
     const payload = {
@@ -120,10 +107,20 @@ export async function createOrderDetailsInBatch(orderId, orderDetailsArray) {
 }
 
 // Validate order detail before creating
+// Expected body: { modelId, colorId, quantity, promotionId }
 export async function validateOrderDetail(orderDetailData) {
+    const payload = {
+        modelId: orderDetailData.modelId,
+        colorId: orderDetailData.colorId,
+        quantity: orderDetailData.quantity,
+        promotionId: orderDetailData.promotionId || 0
+    };
+    
+    console.log('Validating order detail:', JSON.stringify(payload, null, 2));
+    
     return request('/api/order-details/validate', {
         method: 'POST',
-        body: orderDetailData
+        body: payload
     });
 }
 
