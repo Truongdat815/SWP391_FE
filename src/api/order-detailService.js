@@ -77,10 +77,6 @@ export async function createOrderDetail(orderDetailData) {
     
     return request('/api/order-details/create', {
         method: 'POST',
-        body: {
-            orderId: orderDetailData.orderId,
-            orderDetails: orderDetailData.orderDetails
-        }
         body: payload
     });
 }
