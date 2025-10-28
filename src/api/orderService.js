@@ -8,6 +8,8 @@ async function request(path, { method = 'GET', body } = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
+    console.log(`🌐 API Request: ${method} ${url}`, body ? { body } : '');
+
     const res = await fetch(url, {
         method,
         headers,
@@ -17,8 +19,11 @@ async function request(path, { method = 'GET', body } = {}) {
     const isJson = res.headers.get('content-type')?.includes('application/json');
     const data = isJson ? await res.json() : await res.text();
     
+    console.log(`📥 API Response: ${method} ${url}`, { status: res.status, data });
+    
     if (!res.ok) {
         const message = (isJson && data?.message) || res.statusText || 'Request failed';
+        console.error(`❌ API Error: ${method} ${url}`, { status: res.status, message, data });
         throw new Error(message);
     }
     return data;
@@ -62,5 +67,5 @@ export async function updateOrderStatus(orderId, status) {
 
 // Delete order
 export async function deleteOrder(orderId) {
-    return request(`/api/orders/${orderId}`, { method: 'DELETE' });
+    return request(`/api/orders/delete/${orderId}`, { method: 'DELETE' });
 }

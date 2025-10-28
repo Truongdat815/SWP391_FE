@@ -8,6 +8,8 @@ async function request(path, { method = 'GET', body } = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
+    console.log(`🌐 API Request (Order Details): ${method} ${url}`, body ? { body } : '');
+
     const res = await fetch(url, {
         method,
         headers,
@@ -17,49 +19,33 @@ async function request(path, { method = 'GET', body } = {}) {
     const isJson = res.headers.get('content-type')?.includes('application/json');
     const data = isJson ? await res.json() : await res.text();
     
+    console.log(`📥 API Response (Order Details): ${method} ${url}`, { status: res.status, data });
+    
     if (!res.ok) {
         const message = (isJson && data?.message) || res.statusText || 'Request failed';
+        console.error(`❌ API Error (Order Details): ${method} ${url}`, { status: res.status, message, data });
         throw new Error(message);
     }
     return data;
 }
 
-// Create order detail
+// Create order detail - Match Swagger API schema
+// Expected body: { orderId: number, orderDetails: [{ modelId, colorId, quantity, promotionId }] }
 export async function createOrderDetail(orderDetailData) {
     return request('/api/order-details/create', {
         method: 'POST',
         body: {
-            id: orderDetailData.id || 0,
-            unitPrice: orderDetailData.unitPrice,
-            quantity: orderDetailData.quantity,
-            vatAmount: orderDetailData.vatAmount,
-            licensePlateFee: orderDetailData.licensePlateFee,
-            registrationFee: orderDetailData.registrationFee,
-            discountAmount: orderDetailData.discountAmount,
-            totalPrice: orderDetailData.totalPrice,
-            createdAt: orderDetailData.createdAt || new Date().toISOString(),
-            updatedAt: orderDetailData.updatedAt || new Date().toISOString(),
             orderId: orderDetailData.orderId,
-            promotionId: orderDetailData.promotionId,
-            storeStockId: orderDetailData.storeStockId,
-            modelName: orderDetailData.modelName,
-            colorName: orderDetailData.colorName,
-            modelPrice: orderDetailData.modelPrice,
-            availableStock: orderDetailData.availableStock,
-            orderStatus: orderDetailData.orderStatus,
-            customerName: orderDetailData.customerName,
-            customerPhone: orderDetailData.customerPhone,
-            promotionName: orderDetailData.promotionName,
-            promotionType: orderDetailData.promotionType,
-            subtotal: orderDetailData.subtotal,
-            totalFees: orderDetailData.totalFees,
-            totalTax: orderDetailData.totalTax,
-            priceBeforeDiscount: orderDetailData.priceBeforeDiscount,
-            finalAmount: orderDetailData.finalAmount,
-            displayText: orderDetailData.displayText,
-            feeBreakdown: orderDetailData.feeBreakdown,
-            priceBreakdown: orderDetailData.priceBreakdown
+            orderDetails: orderDetailData.orderDetails
         }
+    });
+}
+
+// Validate order detail before creating
+export async function validateOrderDetail(orderDetailData) {
+    return request('/api/order-details/validate', {
+        method: 'POST',
+        body: orderDetailData
     });
 }
 

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   fetchOrders, 
-  fetchOrderById, 
   updateOrderStatusById, 
   deleteOrderById 
 } from '../../store/slices/orderSlice';
@@ -13,16 +12,17 @@ import Tooltip from '@/components/ui/Tooltip';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
-  Filter, 
   Eye, 
   Trash2, 
   Loader2, 
   AlertCircle,
   CheckCircle,
-  X
+  X,
+  Package,
+  FileText
 } from 'lucide-react';
 
-function ViewOrders() {
+function OrderManagement() {
   const dispatch = useDispatch();
   
   // Redux state
@@ -36,6 +36,11 @@ function ViewOrders() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  
+  // Bulk delete state
+  const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deletingCount, setDeletingCount] = useState(0);
 
   // Load orders on mount
   useEffect(() => {
@@ -45,12 +50,10 @@ function ViewOrders() {
   // Update filtered orders when orders or filters change
   useEffect(() => {
     console.log('📦 Orders from Redux:', orders);
-    console.log('📦 Is Array?', Array.isArray(orders));
     
     if (!orders) return;
     
     let filtered = Array.isArray(orders) ? [...orders] : [];
-    console.log('📦 Filtered orders:', filtered);
 
     // Filter by search term
     if (searchTerm) {
@@ -76,6 +79,9 @@ function ViewOrders() {
     }
 
     setFilteredOrders(filtered);
+    
+    // Clear selections when filters change
+    setSelectedOrderIds([]);
   }, [searchTerm, statusFilter, orders]);
 
   const getStatusColor = (status) => {
@@ -149,17 +155,90 @@ function ViewOrders() {
   };
 
   const handleDeleteOrder = async (orderId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa đơn hàng này?')) {
+    if (!window.confirm('Bạn có chắc chắn muốn xóa đơn hàng này? Hành động này không thể hoàn tác.')) {
       return;
     }
     
     try {
       await dispatch(deleteOrderById(orderId)).unwrap();
       setSuccessMessage('Đã xóa đơn hàng thành công!');
+      
+      // Refresh orders list
+      dispatch(fetchOrders());
+      
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       console.error('Error deleting order:', error);
+      alert('Không thể xóa đơn hàng. Vui lòng thử lại.');
     }
+  };
+
+  // Checkbox handlers
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      const allIds = filteredOrders.map(order => order.orderId);
+      setSelectedOrderIds(allIds);
+    } else {
+      setSelectedOrderIds([]);
+    }
+  };
+
+  const handleSelectOrder = (orderId) => {
+    setSelectedOrderIds(prev => {
+      if (prev.includes(orderId)) {
+        return prev.filter(id => id !== orderId);
+      } else {
+        return [...prev, orderId];
+      }
+    });
+  };
+
+  // Bulk delete handler (parallel deletion for speed)
+  const handleBulkDelete = async () => {
+    if (selectedOrderIds.length === 0) {
+      alert('Vui lòng chọn ít nhất một đơn hàng để xóa.');
+      return;
+    }
+
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${selectedOrderIds.length} đơn hàng đã chọn? Hành động này không thể hoàn tác.`)) {
+      return;
+    }
+
+    setIsDeleting(true);
+    setDeletingCount(selectedOrderIds.length);
+
+    // Delete all orders in parallel for speed
+    const deletePromises = selectedOrderIds.map(orderId => 
+      dispatch(deleteOrderById(orderId))
+        .unwrap()
+        .then(() => ({ orderId, success: true }))
+        .catch((error) => {
+          console.error(`Error deleting order ${orderId}:`, error);
+          return { orderId, success: false, error };
+        })
+    );
+
+    // Wait for all deletions to complete
+    const results = await Promise.all(deletePromises);
+    
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    setIsDeleting(false);
+    setDeletingCount(0);
+    setSelectedOrderIds([]);
+
+    // Show result message
+    if (failCount === 0) {
+      setSuccessMessage(`Đã xóa thành công ${successCount} đơn hàng!`);
+    } else {
+      setSuccessMessage(`Đã xóa ${successCount} đơn hàng. ${failCount} đơn hàng không thể xóa.`);
+    }
+
+    // Refresh orders list only once at the end
+    dispatch(fetchOrders());
+
+    setTimeout(() => setSuccessMessage(''), 4000);
   };
 
   // Calculate total from order details
@@ -175,6 +254,15 @@ function ViewOrders() {
 
   return (
     <div className="max-w-7xl mx-auto">
+      {/* Page Header */}
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+          <FileText className="h-8 w-8 mr-3 text-emerald-600" />
+          Quản lý đơn hàng
+        </h1>
+        <p className="text-gray-600 mt-2">Quản lý và theo dõi tất cả đơn hàng của cửa hàng</p>
+      </div>
+
       {/* Success Message */}
       {successMessage && (
         <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
@@ -192,41 +280,66 @@ function ViewOrders() {
       )}
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-2xl font-bold text-gray-900">Quản lý đơn hàng</h2>
-            <p className="text-gray-600 mt-1">Danh sách các đơn hàng đã tạo</p>
-          </div>
-        </div>
-
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Tìm kiếm theo tên khách hàng, mã đơn hàng..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-              />
+        {/* Filters and Bulk Actions */}
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm theo tên khách hàng, mã đơn hàng..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                />
+              </div>
+            </div>
+            <div className="sm:w-48">
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              >
+                <option value="all">Tất cả trạng thái</option>
+                <option value="pending">Chờ duyệt</option>
+                <option value="confirmed">Đã xác nhận</option>
+                <option value="processing">Đang xử lý</option>
+                <option value="completed">Hoàn thành</option>
+                <option value="cancelled">Đã hủy</option>
+              </select>
             </div>
           </div>
-          <div className="sm:w-48">
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+
+          {/* Bulk Delete Button */}
+          {selectedOrderIds.length > 0 && (
+            <motion.div 
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="flex items-center justify-between bg-red-50 border border-red-200 rounded-lg p-3"
             >
-              <option value="all">Tất cả trạng thái</option>
-              <option value="pending">Chờ duyệt</option>
-              <option value="confirmed">Đã xác nhận</option>
-              <option value="processing">Đang xử lý</option>
-              <option value="completed">Hoàn thành</option>
-              <option value="cancelled">Đã hủy</option>
-            </select>
-          </div>
+              <span className="text-sm text-red-700 font-medium">
+                Đã chọn {selectedOrderIds.length} đơn hàng
+              </span>
+              <button
+                onClick={handleBulkDelete}
+                disabled={isDeleting}
+                className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDeleting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Đang xóa {deletingCount} đơn hàng...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-4 w-4" />
+                    Xóa đã chọn
+                  </>
+                )}
+              </button>
+            </motion.div>
+          )}
         </div>
 
         {/* Loading State */}
@@ -237,9 +350,7 @@ function ViewOrders() {
           </div>
         ) : filteredOrders.length === 0 ? (
           <div className="text-center py-12">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-            </svg>
+            <Package className="mx-auto h-12 w-12 text-gray-400 mb-4" />
             <h3 className="mt-2 text-sm font-medium text-gray-900">Không có đơn hàng nào</h3>
             <p className="mt-1 text-sm text-gray-500">
               {searchTerm || statusFilter !== 'all' 
@@ -253,6 +364,19 @@ function ViewOrders() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 text-left">
+                    <Tooltip content="Chọn/Bỏ chọn tất cả" placement="top">
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length}
+                          onChange={handleSelectAll}
+                          className="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
+                        />
+                        <span className="text-xs font-medium text-gray-600">Tất cả</span>
+                      </div>
+                    </Tooltip>
+                  </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Mã đơn hàng
                   </th>
@@ -272,7 +396,20 @@ function ViewOrders() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredOrders.map((order) => (
-                  <tr key={order.orderId} className="hover:bg-gray-50">
+                  <tr 
+                    key={order.orderId} 
+                    className={`hover:bg-gray-50 transition-colors ${
+                      selectedOrderIds.includes(order.orderId) ? 'bg-emerald-50' : ''
+                    }`}
+                  >
+                    <td className="px-4 py-4 whitespace-nowrap">
+                      <input
+                        type="checkbox"
+                        checked={selectedOrderIds.includes(order.orderId)}
+                        onChange={() => handleSelectOrder(order.orderId)}
+                        className="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
+                      />
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {order.orderNumber || `ORD-${order.orderId}`}
                     </td>
@@ -302,8 +439,14 @@ function ViewOrders() {
                             <Eye className="h-5 w-5" />
                           </button>
                         </Tooltip>
-                        {/* Note: Dealer Staff không có quyền xóa đơn hàng (405 Method Not Allowed) */}
-                        {/* Chỉ Manager/Admin mới được xóa */}
+                        <Tooltip content="Xóa đơn hàng (Manager)" placement="top">
+                          <button
+                            onClick={() => handleDeleteOrder(order.orderId)}
+                            className="text-red-600 hover:text-red-900 transition-colors"
+                          >
+                            <Trash2 className="h-5 w-5" />
+                          </button>
+                        </Tooltip>
                       </div>
                     </td>
                   </tr>
@@ -461,4 +604,5 @@ function ViewOrders() {
   );
 }
 
-export default ViewOrders;
+export default OrderManagement;
+

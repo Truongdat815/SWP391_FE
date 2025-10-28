@@ -108,7 +108,13 @@ const orderSlice = createSlice({
       })
       .addCase(fetchOrders.fulfilled, (state, action) => {
         state.loading = false;
-        state.orders = action.payload;
+        // Handle both response formats: { data: [...] } or direct array
+        const payload = action.payload;
+        state.orders = Array.isArray(payload?.data) 
+          ? payload.data 
+          : Array.isArray(payload) 
+          ? payload 
+          : [];
       })
       .addCase(fetchOrders.rejected, (state, action) => {
         state.loading = false;
