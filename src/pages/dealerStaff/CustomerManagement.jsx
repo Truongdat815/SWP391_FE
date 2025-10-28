@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { get } from '@/api/client';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAllCustomersThunk, createCustomerThunk, deleteCustomerThunk, updateCustomerThunk } from '@store/slices/customerSlice';
+import { fetchOrdersByCustomer } from '@store/slices/orderSlice';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import Tooltip from '@/components/ui/Tooltip';
@@ -40,12 +41,16 @@ function CustomerManagement() {
   const [customerToEdit, setCustomerToEdit] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [customerToView, setCustomerToView] = useState(null);
+  const [showOrdersModal, setShowOrdersModal] = useState(false);
+  const [customerOrders, setCustomerOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
   
   const [formData, setFormData] = useState({
     fullName: '',
     address: '',
     email: '',
-    phone: ''
+    phone: '',
+    identificationNumber: ''
   });
 
   const handleInputChange = (e) => {
@@ -64,7 +69,8 @@ function CustomerManagement() {
         fullName: '',
         address: '',
         email: '',
-        phone: ''
+        phone: '',
+        identificationNumber: ''
       });
       setShowAddModal(false);
       dispatch(getAllCustomersThunk());
@@ -78,7 +84,8 @@ function CustomerManagement() {
       fullName: '',
       address: '',
       email: '',
-      phone: ''
+      phone: '',
+      identificationNumber: ''
     });
     setShowAddModal(false);
   };
@@ -112,7 +119,8 @@ function CustomerManagement() {
       fullName: customer.fullName || '',
       address: customer.address || '',
       email: customer.email || '',
-      phone: customer.phone || ''
+      phone: customer.phone || '',
+      identificationNumber: customer.identificationNumber || ''
     });
     setShowEditModal(true);
   };
@@ -133,7 +141,8 @@ function CustomerManagement() {
         fullName: '',
         address: '',
         email: '',
-        phone: ''
+        phone: '',
+        identificationNumber: ''
       });
       setShowEditModal(false);
       setCustomerToEdit(null);
@@ -149,7 +158,8 @@ function CustomerManagement() {
       fullName: '',
       address: '',
       email: '',
-      phone: ''
+      phone: '',
+      identificationNumber: ''
     });
     setShowEditModal(false);
     setCustomerToEdit(null);
@@ -165,6 +175,56 @@ function CustomerManagement() {
     setCustomerToView(null);
   };
 
+  const handleViewOrders = async (customer) => {
+    setLoadingOrders(true);
+    setShowOrdersModal(true);
+    try {
+      const result = await dispatch(fetchOrdersByCustomer(customer.customerId)).unwrap();
+      const ordersData = result?.data || result || [];
+      setCustomerOrders(Array.isArray(ordersData) ? ordersData : []);
+    } catch (error) {
+      console.error('Failed to fetch customer orders:', error);
+      setCustomerOrders([]);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  const handleCloseOrdersModal = () => {
+    setShowOrdersModal(false);
+    setCustomerOrders([]);
+  };
+
+  const getStatusColor = (status) => {
+    if (!status) return 'bg-gray-100 text-gray-800';
+    const upperStatus = status?.toUpperCase();
+    switch (upperStatus) {
+      case 'DRAFT': return 'bg-gray-100 text-gray-800';
+      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
+      case 'APPROVED': return 'bg-blue-100 text-blue-800';
+      case 'CONFIRMED': return 'bg-blue-100 text-blue-800';
+      case 'PROCESSING': return 'bg-purple-100 text-purple-800';
+      case 'COMPLETED': return 'bg-green-100 text-green-800';
+      case 'CANCELLED': return 'bg-red-100 text-red-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getStatusText = (status) => {
+    if (!status) return 'Không xác định';
+    const upperStatus = status?.toUpperCase();
+    switch (upperStatus) {
+      case 'DRAFT': return 'Nháp';
+      case 'PENDING': return 'Chờ duyệt';
+      case 'APPROVED': return 'Đã phê duyệt';
+      case 'CONFIRMED': return 'Đã xác nhận';
+      case 'PROCESSING': return 'Đang xử lý';
+      case 'COMPLETED': return 'Hoàn thành';
+      case 'CANCELLED': return 'Đã hủy';
+      default: return status || 'N/A';
+    }
+  };
+
   // Hàm lọc khách hàng theo search term
   const getFilteredCustomers = () => {
     return customersList.filter(customer => {
@@ -172,7 +232,8 @@ function CustomerManagement() {
         (customer.fullName && customer.fullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (customer.phone && customer.phone.includes(searchTerm)) ||
-        (customer.address && customer.address.toLowerCase().includes(searchTerm.toLowerCase()));
+        (customer.address && customer.address.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (customer.identificationNumber && customer.identificationNumber.includes(searchTerm));
       return matchesSearch;
     });
   };
@@ -231,7 +292,7 @@ function CustomerManagement() {
               </div>
               <input
                 type="text"
-                placeholder="Tìm kiếm khách hàng theo tên, email, số điện thoại, địa chỉ..."
+                placeholder="Tìm kiếm khách hàng theo tên, email, số điện thoại, địa chỉ, CMND/CCCD..."
                 className="block w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm hover:shadow-md"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -336,6 +397,18 @@ function CustomerManagement() {
                         </svg>
                         <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
                           Xem chi tiết
+                        </span>
+                      </button>
+
+                      <button 
+                        onClick={() => handleViewOrders(customer)}
+                        className="group relative p-2 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                        </svg>
+                        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                          Xem đơn hàng
                         </span>
                       </button>
                       
@@ -489,6 +562,22 @@ function CustomerManagement() {
                       required
                     />
                   </div>
+
+                  {/* Identification Number */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Số CMND/CCCD <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="identificationNumber"
+                      value={formData.identificationNumber}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
+                      placeholder="Nhập số CMND/CCCD"
+                      required
+                    />
+                  </div>
                 </div>
                 
                 <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
@@ -618,6 +707,21 @@ function CustomerManagement() {
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
                       placeholder="Nhập địa chỉ"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Số CMND/CCCD <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      name="identificationNumber"
+                      value={formData.identificationNumber}
+                      onChange={handleInputChange}
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
+                      placeholder="Nhập số CMND/CCCD"
                       required
                     />
                   </div>
@@ -805,7 +909,7 @@ function CustomerManagement() {
                 </div>
 
                 {/* Detailed Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6">
                   {/* Contact Information */}
                   <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
                     <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
@@ -864,6 +968,26 @@ function CustomerManagement() {
                   </div>
                 </div>
 
+                {/* Identification Information */}
+                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                  <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                    </svg>
+                    Thông tin định danh
+                  </h5>
+                  <div className="space-y-3">
+                    <div className="flex items-center">
+                      <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
+                      </svg>
+                      <span className="text-sm text-gray-600">Số CMND/CCCD:</span>
+                      <span className="ml-2 text-sm font-medium text-gray-900">{customerToView.identificationNumber || 'Chưa cập nhật'}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
                 {/* Action Buttons */}
                 <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
                   <motion.button
@@ -890,6 +1014,127 @@ function CustomerManagement() {
                   </motion.button>
                 </div>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Customer Orders Modal */}
+      <AnimatePresence>
+        {showOrdersModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={handleCloseOrdersModal}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-6xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+            >
+              <div className="mt-3">
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                  <h3 className="text-2xl font-bold text-gray-900">📋 Đơn hàng của khách hàng</h3>
+                  <button
+                    onClick={handleCloseOrdersModal}
+                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
+                  >
+                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              
+                {/* Loading State */}
+                {loadingOrders ? (
+                  <div className="flex items-center justify-center py-12">
+                    <svg className="animate-spin h-8 w-8 text-purple-600 mr-3" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <span className="text-gray-600">Đang tải đơn hàng...</span>
+                  </div>
+                ) : customerOrders.length === 0 ? (
+                  <div className="text-center py-12">
+                    <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <h3 className="mt-4 text-lg font-semibold text-gray-900">Chưa có đơn hàng</h3>
+                    <p className="mt-2 text-sm text-gray-500">Khách hàng này chưa có đơn hàng nào</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {customerOrders.map((order, index) => (
+                      <div key={order.orderId || index} className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center space-x-3 mb-2">
+                              <h4 className="text-lg font-semibold text-gray-900">
+                                Đơn hàng #{order.orderCode || order.orderId}
+                              </h4>
+                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
+                                {getStatusText(order.status)}
+                              </span>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-4 text-sm">
+                              <div>
+                                <span className="text-gray-600">Ngày tạo:</span>
+                                <span className="ml-2 font-medium text-gray-900">
+                                  {order.orderDate ? new Date(order.orderDate).toLocaleDateString('vi-VN') : 'N/A'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-gray-600">Nhân viên:</span>
+                                <span className="ml-2 font-medium text-gray-900">
+                                  {order.staffName || 'N/A'}
+                                </span>
+                              </div>
+                              {order.totalPayment !== null && order.totalPayment !== undefined && (
+                                <div>
+                                  <span className="text-gray-600">Tổng tiền:</span>
+                                  <span className="ml-2 font-semibold text-purple-600">
+                                    {order.totalPayment?.toLocaleString('vi-VN')} VNĐ
+                                  </span>
+                                </div>
+                              )}
+                              {order.storeName && (
+                                <div>
+                                  <span className="text-gray-600">Cửa hàng:</span>
+                                  <span className="ml-2 font-medium text-gray-900">
+                                    {order.storeName}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Close Button */}
+                <div className="flex justify-end pt-6 border-t border-gray-200 mt-6">
+                  <motion.button
+                    onClick={handleCloseOrdersModal}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
+                  >
+                    Đóng
+                  </motion.button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

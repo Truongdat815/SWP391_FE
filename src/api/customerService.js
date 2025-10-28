@@ -24,7 +24,7 @@ async function request(path, { method = 'GET', body } = {}) {
 }
 
 export async function createCustomer(customer) {
-    return request('/api/customers/create', { method: 'POST', body: customer });
+    return request('/api/customers/create', { method: 'POST', body: { customerId: 0, ...customer } });
 }
 
 export async function updateCustomer({ customerId, ...customer }) {

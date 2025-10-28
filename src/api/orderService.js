@@ -69,3 +69,22 @@ export async function updateOrderStatus(orderId, status) {
 export async function deleteOrder(orderId) {
     return request(`/api/orders/delete/${orderId}`, { method: 'DELETE' });
 }
+
+// Get orders by status (draft, confirmed)
+export async function getOrdersByStatus(status) {
+    return request(`/api/orders/status/${status}`, { method: 'GET' });
+}
+
+// Get orders by date range
+export async function getOrdersByDateRange(startDate, endDate) {
+    // Format: /api/orders/date-range?startDate=2024-01-01&endDate=2024-12-31
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    return request(`/api/orders/date-range?${params.toString()}`, { method: 'GET' });
+}
+
+// Get orders by customer
+export async function getOrdersByCustomer(customerId) {
+    return request(`/api/orders/customer/${customerId}`, { method: 'GET' });
+}
