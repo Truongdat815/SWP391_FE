@@ -15,12 +15,12 @@ jobs:
       - name: Remove Old Docker Image if Exists
         run: |
           echo "Removing old Docker image if exists..."
-          docker rmi -f fe_tixclick:latest || true
+          docker rmi -f swp391:latest || true
 
       - name: Build Docker Image
         run: |
           echo "Building Docker image for frontend..."
-          docker build -t fe_tixclick:latest -f ./Dockerfile .
+          docker build -t swp391:latest -f ./Dockerfile .
 
       - name: Stop and Remove Existing Container if Any
         run: |
@@ -35,7 +35,7 @@ jobs:
         run: |
           CNAME=${{ env.CONTAINER_NAME }}
           echo ":: Running new frontend container - $CNAME"
-          docker run -d -p 5173:5173 --name $CNAME fe_tixclick:latest
+          docker run -d -p 5173:5173 --name $CNAME swp391:latest
       - name: Cleanup Unused Docker Images
         run: |
           echo "Cleaning up unused Docker images..."
