@@ -8,6 +8,7 @@ async function request(path, { method = 'GET', body } = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
+    console.log(`🌐 API Request (Order Details): ${method} ${url}`, body ? { body } : '');
     console.log(`[API ${method}] ${url}`, body ? { body } : '');
 
     const res = await fetch(url, {
@@ -19,8 +20,11 @@ async function request(path, { method = 'GET', body } = {}) {
     const isJson = res.headers.get('content-type')?.includes('application/json');
     const data = isJson ? await res.json() : await res.text();
     
+    console.log(`📥 API Response (Order Details): ${method} ${url}`, { status: res.status, data });
+    
     if (!res.ok) {
         const message = (isJson && data?.message) || res.statusText || 'Request failed';
+        console.error(`❌ API Error (Order Details): ${method} ${url}`, { status: res.status, message, data });
         
         // Don't log 404 as error for order details (it's expected for new orders)
         if (res.status === 404 && path.includes('/order-details/order/')) {
@@ -41,6 +45,8 @@ async function request(path, { method = 'GET', body } = {}) {
     return data;
 }
 
+// Create order detail - Match Swagger API schema
+// Expected body: { orderId: number, orderDetails: [{ modelId, colorId, quantity, promotionId }] }
 // Create order detail - sends single item in array format
 export async function createOrderDetail(orderDetailData) {
     // Build single order detail item
@@ -71,6 +77,10 @@ export async function createOrderDetail(orderDetailData) {
     
     return request('/api/order-details/create', {
         method: 'POST',
+        body: {
+            orderId: orderDetailData.orderId,
+            orderDetails: orderDetailData.orderDetails
+        }
         body: payload
     });
 }
@@ -110,6 +120,14 @@ export async function createOrderDetailsInBatch(orderId, orderDetailsArray) {
     return request('/api/order-details/create', {
         method: 'POST',
         body: payload
+    });
+}
+
+// Validate order detail before creating
+export async function validateOrderDetail(orderDetailData) {
+    return request('/api/order-details/validate', {
+        method: 'POST',
+        body: orderDetailData
     });
 }
 
