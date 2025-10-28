@@ -498,7 +498,6 @@ function ViewOrders() {
                     </div>
                   </div>
                 </div>
-              </div>
 
                 {/* Product Details */}
                 <div className="bg-gray-50 rounded-lg p-4">
@@ -592,7 +591,6 @@ function ViewOrders() {
                     <p><strong>Cửa hàng:</strong> {selectedOrder.storeName || 'N/A'}</p>
                   </div>
                 </div>
-              </div>
 
                 {/* Status Editor */}
                 <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
@@ -706,7 +704,6 @@ function ViewOrders() {
                     </motion.button>
                   </div>
                 </div>
-              </div>
               </div>
             </motion.div>
           </motion.div>
