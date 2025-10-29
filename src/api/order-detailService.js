@@ -75,7 +75,7 @@ export async function createOrderDetail(orderDetailData) {
     
     console.log('Creating order detail:', JSON.stringify(payload, null, 2));
     
-    return request('/api/order-details/create', {
+    return request('/api/orders/create/quote', {
         method: 'POST',
         body: payload
     });
@@ -100,7 +100,7 @@ export async function createOrderDetailsInBatch(orderId, orderDetailsArray) {
     
     console.log(`Creating ${orderDetailsItems.length} order details in batch:`, JSON.stringify(payload, null, 2));
     
-    return request('/api/order-details/create', {
+    return request('/api/orders/create/quote', {
         method: 'POST',
         body: payload
     });

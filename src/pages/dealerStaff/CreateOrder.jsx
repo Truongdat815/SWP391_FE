@@ -5,7 +5,7 @@ import { getAllCustomersThunk } from '../../store/slices/customerSlice';
 import { getAllModelsThunk } from '../../store/slices/modelSlice';
 import { getAllColorsThunk } from '../../store/slices/colorSlice';
 import { fetchPromotions } from '../../store/slices/promotionSlice';
-import { createNewOrder } from '../../store/slices/orderSlice';
+import { createNewOrder, confirmOrderThunk } from '../../store/slices/orderSlice';
 import { validateOrderDetailThunk, clearValidationResult } from '../../store/slices/orderDetailSlice';
 import { createOrderDetailsInBatch } from '../../api/order-detailService';
 import { 
@@ -227,14 +227,15 @@ function CreateOrder({ onBack }) {
     setError(null);
   };
 
-  // Step 3: Confirm and create order
-  const handleConfirmOrder = async () => {
+  // Step 3: Save draft (no confirmation)
+  const handleSaveDraft = async () => {
     try {
       setError(null);
+      setSuccess(null);
       
       console.log('🚀 Step 1: Creating order for customer:', selectedCustomer);
       
-      // Step 1: Create order
+      // Step 1: Create order (status = DRAFT)
       const orderResult = await dispatch(createNewOrder({ 
         customerId: selectedCustomer.customerId 
       })).unwrap();
@@ -251,14 +252,14 @@ function CreateOrder({ onBack }) {
         throw new Error('Không nhận được orderId từ server');
       }
 
-      // Step 2: Create order details
-      console.log('🚀 Step 2: Creating order details:', selectedItems);
+      // Step 2: Create order details (quote)
+      console.log('🚀 Step 2: Creating order quote:', selectedItems);
 
       await createOrderDetailsInBatch(orderId, selectedItems);
       
-      console.log('✅ Order details created successfully');
+      console.log('✅ Order details/quote created successfully');
       
-      setSuccess('Tạo đơn hàng thành công!');
+      setSuccess('Lưu đơn hàng nháp thành công! Trạng thái: DRAFT');
       
       // Navigate to orders list
       setTimeout(() => {
@@ -266,10 +267,74 @@ function CreateOrder({ onBack }) {
       }, 1500);
       
     } catch (error) {
-      console.error('❌ Error creating order:', error);
+      console.error('❌ Error saving draft:', error);
       
       // Display user-friendly error
-      let errorMessage = 'Không thể tạo đơn hàng. ';
+      let errorMessage = 'Không thể lưu đơn hàng nháp. ';
+      
+      if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
+        errorMessage += 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.';
+      } else if (error.message?.includes('403') || error.message?.includes('Forbidden')) {
+        errorMessage += 'Bạn không có quyền thực hiện thao tác này.';
+      } else {
+        errorMessage += error.message || 'Lỗi không xác định. Vui lòng thử lại.';
+      }
+      
+      setError(errorMessage);
+    }
+  };
+
+  // Step 3: Confirm order (DRAFT → CONFIRMED)
+  const handleConfirmOrder = async () => {
+    try {
+      setError(null);
+      setSuccess(null);
+      
+      console.log('🚀 Step 1: Creating order for customer:', selectedCustomer);
+      
+      // Step 1: Create order (status = DRAFT)
+      const orderResult = await dispatch(createNewOrder({ 
+        customerId: selectedCustomer.customerId 
+      })).unwrap();
+      
+      console.log('✅ Order created:', orderResult);
+      
+      const orderData = orderResult.data || orderResult;
+      const orderId = orderData.orderId || orderData.id;
+      
+      console.log('📝 Extracted orderId:', orderId);
+      
+      if (!orderId) {
+        console.error('❌ No orderId in response:', orderResult);
+        throw new Error('Không nhận được orderId từ server');
+      }
+
+      // Step 2: Create order details (quote)
+      console.log('🚀 Step 2: Creating order quote:', selectedItems);
+
+      await createOrderDetailsInBatch(orderId, selectedItems);
+      
+      console.log('✅ Order details/quote created successfully');
+      
+      // Step 3: Confirm order (DRAFT → CONFIRMED)
+      console.log('🚀 Step 3: Confirming order...');
+      
+      await dispatch(confirmOrderThunk(orderId)).unwrap();
+      
+      console.log('✅ Order confirmed successfully');
+      
+      setSuccess('Tạo và xác nhận đơn hàng thành công! Trạng thái: CONFIRMED');
+      
+      // Navigate to orders list
+      setTimeout(() => {
+        navigate('/dealer-staff/view-orders');
+      }, 1500);
+      
+    } catch (error) {
+      console.error('❌ Error confirming order:', error);
+      
+      // Display user-friendly error
+      let errorMessage = 'Không thể xác nhận đơn hàng. ';
       
       if (error.message?.includes('401') || error.message?.includes('Unauthorized')) {
         errorMessage += 'Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại.';
@@ -647,29 +712,53 @@ function CreateOrder({ onBack }) {
                 <AlertCircle className="h-5 w-5 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-blue-800">
                   <p className="font-semibold mb-1">Lưu ý:</p>
-                  <p>Giá và các thông tin chi tiết sẽ được hệ thống tự động tính toán sau khi tạo đơn hàng.</p>
+                  <ul className="list-disc list-inside space-y-1">
+                    <li><strong>Lưu nháp:</strong> Tạo đơn hàng với trạng thái DRAFT, có thể chỉnh sửa sau.</li>
+                    <li><strong>Xác nhận:</strong> Tạo và xác nhận đơn hàng với trạng thái CONFIRMED.</li>
+                    <li>Giá và các thông tin chi tiết sẽ được hệ thống tự động tính toán.</li>
+                  </ul>
                 </div>
               </div>
             </div>
 
-            {/* Confirm Button */}
-            <button
-              onClick={handleConfirmOrder}
-              disabled={orderLoading}
-              className="w-full px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-semibold"
-            >
-              {orderLoading ? (
-                <>
-                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                  Đang tạo đơn hàng...
-                </>
-              ) : (
-                <>
-                  <ShoppingCart className="h-5 w-5 mr-2" />
-                  Xác nhận tạo đơn hàng
-                </>
-              )}
-            </button>
+            {/* Action Buttons - 2 nút */}
+            <div className="flex space-x-3">
+              <button
+                onClick={handleSaveDraft}
+                disabled={orderLoading}
+                className="flex-1 px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-gray-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-semibold"
+              >
+                {orderLoading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    Đang lưu...
+                  </>
+                ) : (
+                  <>
+                    <Package className="h-5 w-5 mr-2" />
+                    Lưu nháp (DRAFT)
+                  </>
+                )}
+              </button>
+              
+              <button
+                onClick={handleConfirmOrder}
+                disabled={orderLoading}
+                className="flex-1 px-4 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center font-semibold"
+              >
+                {orderLoading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                    Đang xác nhận...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle className="h-5 w-5 mr-2" />
+                    Xác nhận đơn hàng (CONFIRMED)
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         )}
 
