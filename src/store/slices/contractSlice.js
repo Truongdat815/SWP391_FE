@@ -6,7 +6,9 @@ import {
     getContractsByStatus,
     updateContract,
     updateContractStatus,
-    deleteContract
+    deleteContract,
+    uploadSignedContract,
+    createContractFromOrder
 } from '../../api/contractService';
 
 // Async thunks
@@ -88,6 +90,30 @@ export const deleteContractById = createAsyncThunk(
         try {
             await deleteContract(contractId);
             return contractId;
+        } catch (error) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const uploadSignedContractThunk = createAsyncThunk(
+    'contracts/uploadSigned',
+    async ({ contractId, file }, { rejectWithValue }) => {
+        try {
+            const response = await uploadSignedContract(contractId, file);
+            return response;
+        } catch (error) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const createContractFromOrderThunk = createAsyncThunk(
+    'contracts/createFromOrder',
+    async (orderId, { rejectWithValue }) => {
+        try {
+            const response = await createContractFromOrder(orderId);
+            return response;
         } catch (error) {
             return rejectWithValue(error.message);
         }
@@ -218,6 +244,41 @@ const contractSlice = createSlice({
                 state.success = 'Xóa hợp đồng thành công!';
             })
             .addCase(deleteContractById.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            })
+            // Upload signed contract
+            .addCase(uploadSignedContractThunk.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(uploadSignedContractThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                const contractData = action.payload.data || action.payload;
+                const index = state.contracts.findIndex(c => c.contractId === contractData.contractId);
+                if (index !== -1) {
+                    state.contracts[index] = contractData;
+                }
+                state.selectedContract = contractData;
+                state.success = 'Upload hợp đồng đã ký thành công!';
+            })
+            .addCase(uploadSignedContractThunk.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            })
+            // Create contract from order
+            .addCase(createContractFromOrderThunk.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(createContractFromOrderThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                const contractData = action.payload.data || action.payload;
+                state.contracts.push(contractData);
+                state.selectedContract = contractData;
+                state.success = 'Tạo hợp đồng thành công!';
+            })
+            .addCase(createContractFromOrderThunk.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             });

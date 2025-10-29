@@ -42,6 +42,7 @@ import AddOrderDetails from './pages/dealerStaff/AddOrderDetails'
 import OrderSummary from './pages/dealerStaff/OrderSummary'
 import AddCustomer from './pages/dealerStaff/AddCustomer'
 import CustomerManagement from './pages/dealerStaff/CustomerManagement'
+import ContractManagement from './pages/dealerStaff/ContractManagement'
 import Inventory from './pages/dealerStaff/Inventory'
 import TestDriveSchedule from './pages/dealerStaff/TestDriveSchedule'
 import PaymentManagement from './pages/dealerStaff/PaymentManagement'
@@ -133,6 +134,7 @@ function AnimatedRoutes() {
             <Route path="view-orders" element={<ViewOrders />} />
             <Route path="add-customer" element={<AddCustomer />} />
             <Route path="customer-management" element={<CustomerManagement />} />
+            <Route path="contract-management" element={<ContractManagement />} />
             <Route path="test-drive-schedule" element={<TestDriveSchedule />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="payment-management" element={<PaymentManagement />} />
