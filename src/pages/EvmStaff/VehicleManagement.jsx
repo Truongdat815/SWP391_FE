@@ -431,8 +431,8 @@ function VehicleManagement() {
                             </p>
                           </div>
                           <div className="text-right">
-                            <div className="text-2xl font-bold">${model.price?.toLocaleString()}</div>
-                            <div className="text-blue-100 text-sm">USD</div>
+                            <div className="text-2xl font-bold">{model.price?.toLocaleString('vi-VN')} VNĐ</div>
+                            <div className="text-blue-100 text-sm">Giá bán</div>
                           </div>
                         </div>
                       </div>
@@ -516,7 +516,7 @@ function VehicleManagement() {
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Loại</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Pin (kWh)</th>
                         <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tầm xa (km)</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Giá ($)</th>
+                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Giá (VNĐ)</th>
                         <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">Thao tác</th>
                       </tr>
                     </thead>
@@ -542,7 +542,7 @@ function VehicleManagement() {
                             <td className="px-6 py-4 text-gray-600">{model.batteryCapacity}</td>
                             <td className="px-6 py-4 text-gray-600">{model.range}</td>
                             <td className="px-6 py-4">
-                              <span className="font-bold text-gray-900">${model.price?.toLocaleString()}</span>
+                              <span className="font-bold text-gray-900">{model.price?.toLocaleString('vi-VN')} VNĐ</span>
                             </td>
                             <td className="px-6 py-4 text-right">
                               <div className="flex items-center justify-end gap-3">
@@ -869,20 +869,19 @@ function VehicleManagement() {
                       {/* Price */}
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-3">
-                          Giá bán (USD) <span className="text-red-500">*</span>
+                          Giá bán (VNĐ) <span className="text-red-500">*</span>
                         </label>
                         <div className="relative">
-                          <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-lg font-medium">$</span>
                           <input
                             type="number"
-                            step="0.01"
+                            step="1000"
                             value={formData.price}
                             onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                             onWheel={handleWheelOnNumberInput}
-                            className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
+                            className="w-full pl-4 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
                             required
-                            min={0.01}
-                            placeholder="45000.00"
+                            min={1000}
+                            placeholder="450000000"
                           />
                         </div>
                       </div>
