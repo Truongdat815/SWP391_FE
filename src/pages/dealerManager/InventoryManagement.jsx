@@ -12,8 +12,6 @@ import {
 import { getAllModelColorsThunk } from '../../store/slices/modelColorSlice';
 import { 
   getAllTransactionsThunk,
-  updateTransactionThunk,
-  deleteTransactionThunk,
 } from '../../store/slices/inventoryTransactionSlice';
 import { showError, showSuccess, showWarning } from '../../store/slices/snackbarSlice';
 import Tooltip from '@/components/ui/Tooltip';
@@ -45,15 +43,6 @@ function InventoryManagement() {
   const [selectedStock, setSelectedStock] = useState(null);
   const [updateQuantity, setUpdateQuantity] = useState('');
   const [updatePrice, setUpdatePrice] = useState('');
-
-  const [approveModal, setApproveModal] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState(null);
-  const [approveData, setApproveData] = useState({
-    unitBasePrice: '',
-    importQuantity: '',
-    discountPercentage: 0,
-    deposit: 0,
-  });
 
   useEffect(() => {
     dispatch(getAllStoreStocksThunk());
@@ -104,54 +93,8 @@ function InventoryManagement() {
     return filtered;
   }, [transactions, myStocks, myStoreId]);
 
-  const handleOpenApprove = (req) => {
-    setSelectedRequest(req);
-    setApproveData({
-      unitBasePrice: req.unitBasePrice || '',
-      importQuantity: req.importQuantity || '',
-      discountPercentage: req.discountPercentage || 0,
-      deposit: req.deposit || 0,
-    });
-    setApproveModal(true);
-  };
-
-  const handleApprove = async (e) => {
-    e.preventDefault();
-    // Manager chỉ cần duyệt để chuyển cho EVM Staff
-    // EVM Staff sẽ nhập giá và số lượng sau
-    try {
-      await dispatch(updateTransactionThunk({
-        inventoryId: selectedRequest.inventoryId || selectedRequest.id,
-        payload: {
-          status: 'APPROVED',
-          // Giữ nguyên các thông tin từ nhân viên
-          importQuantity: selectedRequest.importQuantity,
-          deliveryDate: selectedRequest.deliveryDate
-        }
-      })).unwrap();
-      dispatch(showSuccess({ message: 'Đã duyệt yêu cầu và chuyển cho EVM Staff xử lý' }));
-      setApproveModal(false);
-      setSelectedRequest(null);
-      dispatch(getAllTransactionsThunk());
-    } catch (error) {
-      dispatch(showError({ message: error?.message || 'Không thể duyệt yêu cầu' }));
-    }
-  };
-
-  const handleReject = async (req) => {
-    if (!window.confirm('Bạn có chắc chắn muốn từ chối và xóa yêu cầu này?')) {
-      return;
-    }
-    
-    try {
-      // Manager từ chối = xóa request luôn
-      await dispatch(deleteTransactionThunk(req.inventoryId || req.id)).unwrap();
-      dispatch(showSuccess({ message: 'Đã từ chối và xóa yêu cầu' }));
-      dispatch(getAllTransactionsThunk());
-    } catch (error) {
-      dispatch(showError({ message: error?.message || 'Không thể xóa yêu cầu' }));
-    }
-  };
+  // LUỒNG 2 CẤP: Manager chỉ xem, không approve/reject
+  // EVM Staff sẽ xử lý trực tiếp các request từ Dealer Staff
 
   const openCreate = () => {
     setCreateData({
@@ -274,9 +217,14 @@ function InventoryManagement() {
           </motion.button>
         </div>
 
-        {/* Pending Requests */}
+        {/* Pending Requests - READ ONLY */}
         <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">Yêu cầu nhập hàng từ nhân viên</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-gray-900">Yêu cầu nhập hàng từ nhân viên</h2>
+            <div className="text-sm text-gray-600 bg-blue-50 px-3 py-1 rounded">
+              📋 Chỉ xem - EVM Staff sẽ xử lý trực tiếp
+            </div>
+          </div>
           <div className="overflow-x-auto border border-gray-200 rounded-lg">
             <table className="min-w-full">
               <thead className="bg-gray-50">
@@ -287,13 +235,12 @@ function InventoryManagement() {
                   <th className="px-4 py-2 text-left text-sm text-gray-700">SL đề xuất</th>
                   <th className="px-4 py-2 text-left text-sm text-gray-700">Ngày giao dự kiến</th>
                   <th className="px-4 py-2 text-left text-sm text-gray-700">Trạng thái</th>
-                  <th className="px-4 py-2 text-right text-sm text-gray-700">Thao tác</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {pendingRequests.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-4 py-6 text-center text-gray-500">Không có yêu cầu nào</td>
+                    <td colSpan={6} className="px-4 py-6 text-center text-gray-500">Không có yêu cầu nào</td>
                   </tr>
                 )}
                 {pendingRequests.map((req) => {
@@ -302,24 +249,18 @@ function InventoryManagement() {
                   const deliveryDate = req.deliveryDate ? new Date(req.deliveryDate).toLocaleDateString('vi-VN') : 'Chưa xác định';
                   
                   return (
-                    <tr key={req.inventoryId || req.id}>
+                    <tr key={req.inventoryId || req.id} className="hover:bg-gray-50">
                       <td className="px-4 py-2 text-sm text-gray-900">{req.inventoryId || req.id}</td>
                       <td className="px-4 py-2 text-sm text-gray-900">{req.storeStockId}</td>
                       <td className="px-4 py-2 text-sm text-gray-900">
                         {stock ? `${stock.modelName} • ${stock.colorName}` : 'N/A'}
                       </td>
-                      <td className="px-4 py-2 text-sm text-gray-900">{req.importQuantity}</td>
+                      <td className="px-4 py-2 text-sm text-gray-900">{req.importQuantity} xe</td>
                       <td className="px-4 py-2 text-sm text-gray-600">{deliveryDate}</td>
                       <td className="px-4 py-2 text-sm">
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
-                          {req.status || 'REQUESTED'}
+                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
+                          Chờ EVM xử lý
                         </span>
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <div className="inline-flex gap-2">
-                          <button onClick={() => handleOpenApprove(req)} className="px-3 py-1 bg-emerald-600 text-white rounded text-sm hover:bg-emerald-700">Duyệt</button>
-                          <button onClick={() => handleReject(req)} className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700">Từ chối</button>
-                        </div>
                       </td>
                     </tr>
                   );
@@ -373,88 +314,6 @@ function InventoryManagement() {
           </div>
         </div>
       </div>
-
-      {/* Approve Modal */}
-      <AnimatePresence>
-        {approveModal && selectedRequest && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setApproveModal(false)}
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 10 }}
-              transition={{ 
-                type: "spring",
-                stiffness: 300,
-                damping: 25
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg"
-            >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">Duyệt yêu cầu nhập hàng</h3>
-                <button onClick={() => setApproveModal(false)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-            <form onSubmit={handleApprove} className="space-y-4">
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <p className="text-sm text-blue-900 mb-2">
-                  <strong>Lưu ý:</strong> Khi bạn duyệt yêu cầu này, nó sẽ được chuyển đến EVM Staff để xử lý đặt hàng.
-                </p>
-              </div>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Mã yêu cầu:</span>
-                  <span className="text-sm font-medium text-gray-900">#{selectedRequest.inventoryId}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Stock ID:</span>
-                  <span className="text-sm font-medium text-gray-900">{selectedRequest.storeStockId}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Số lượng đề xuất:</span>
-                  <span className="text-sm font-medium text-gray-900">{selectedRequest.importQuantity} xe</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600">Ngày giao dự kiến:</span>
-                  <span className="text-sm font-medium text-gray-900">
-                    {selectedRequest.deliveryDate ? new Date(selectedRequest.deliveryDate).toLocaleDateString('vi-VN') : 'Chưa xác định'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t">
-                <motion.button 
-                  type="button" 
-                  onClick={() => setApproveModal(false)}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Hủy
-                </motion.button>
-                <motion.button 
-                  type="submit"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-lg"
-                >
-                  Xác nhận duyệt
-                </motion.button>
-              </div>
-            </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* Create Stock Modal */}
       <AnimatePresence>

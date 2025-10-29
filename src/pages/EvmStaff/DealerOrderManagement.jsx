@@ -3,8 +3,9 @@ import { useDispatch, useSelector } from 'react-redux';
 import { 
   getAllTransactionsThunk,
   updateTransactionThunk,
+  deleteTransactionThunk,
 } from '../../store/slices/inventoryTransactionSlice';
-import { getAllStoreStocksThunk } from '../../store/slices/store-stockSlice';
+import { getAllStoreStocksThunk, updateStockQuantityThunk } from '../../store/slices/store-stockSlice';
 import { showError, showSuccess, showWarning } from '../../store/slices/snackbarSlice';
 
 function DealerOrderManagement() {
@@ -26,41 +27,54 @@ function DealerOrderManagement() {
     dispatch(getAllStoreStocksThunk());
   }, [dispatch]);
 
-  // Lọc các orders đã được Manager duyệt (status = APPROVED)
-  const approvedOrders = useMemo(() => {
+  // Lọc các orders chưa xử lý từ Dealer (unitBasePrice = 0)
+  // LUỒNG 2 CẤP: Dealer Staff -> EVM Staff (bỏ Manager approval)
+  const pendingOrders = useMemo(() => {
     console.log('📊 All transactions (EVM):', transactions);
     return transactions.filter(t => {
-      let isApproved = false;
+      // Hiển thị tất cả đơn chưa được EVM xử lý:
+      // - unitBasePrice = 0 (chưa nhập giá)
+      // - totalPrice = 0 (chưa tính)
+      // - importQuantity > 0 (có số lượng)
+      // - deliveryDate có giá trị (có ngày giao)
+      // - storeStockId có giá trị (valid request)
       
-      if (t.status) {
-        // Nếu có status field, check APPROVED
-        isApproved = (t.status || '').toUpperCase() === 'APPROVED';
-      } else {
-        // Workaround: Nếu không có status, coi như APPROVED nếu:
-        // - unitBasePrice = 0 (chưa được EVM Staff nhập giá)
-        // - totalPrice = 0 (chưa được tính)
-        // - importQuantity > 0 (có số lượng đề xuất)
-        // - deliveryDate có giá trị (đã được Staff tạo request)
-        const hasQuantity = t.importQuantity && t.importQuantity > 0;
-        const notProcessed = (t.unitBasePrice === 0 || t.unitBasePrice === null) && 
-                            (t.totalPrice === 0 || t.totalPrice === null);
-        const hasDeliveryDate = t.deliveryDate != null;
-        
-        // Thêm điều kiện: check xem có storeStockId không (request hợp lệ)
-        isApproved = hasQuantity && notProcessed && hasDeliveryDate && t.storeStockId;
-      }
+      const hasQuantity = t.importQuantity && t.importQuantity > 0;
+      const notProcessedYet = (t.unitBasePrice === 0 || t.unitBasePrice === null) && 
+                              (t.totalPrice === 0 || t.totalPrice === null);
+      const hasDeliveryDate = t.deliveryDate != null;
+      const hasStoreStock = t.storeStockId != null;
       
-      console.log(`Transaction ${t.inventoryId}:`, { 
-        status: t.status,
+      const shouldShow = hasQuantity && notProcessedYet && hasDeliveryDate && hasStoreStock;
+      
+      console.log(`Transaction ${t.inventoryId}:`, {
         unitBasePrice: t.unitBasePrice,
         totalPrice: t.totalPrice,
         importQuantity: t.importQuantity,
         deliveryDate: t.deliveryDate,
         storeStockId: t.storeStockId,
-        isApproved 
+        shouldShow
       });
       
-      return isApproved;
+      return shouldShow;
+    });
+  }, [transactions]);
+
+  // Lọc các orders đang xử lý (unitBasePrice > 0 nhưng chưa update stock)
+  const processingOrders = useMemo(() => {
+    return transactions.filter(t => {
+      // Nếu có field status, dùng nó
+      if (t.status && t.status.toUpperCase() === 'PROCESSING') {
+        return true;
+      }
+      
+      // Không có status: Đơn đang xử lý là đơn đã nhập giá (unitBasePrice > 0)
+      // nhưng chưa hoàn thành (chưa update stock - ta không track được)
+      // Tạm thời hiển thị tất cả đơn có unitBasePrice > 0
+      const hasPrice = t.unitBasePrice && t.unitBasePrice > 0;
+      const hasTotalPrice = t.totalPrice && t.totalPrice > 0;
+      
+      return hasPrice && hasTotalPrice;
     });
   }, [transactions]);
 
@@ -92,14 +106,15 @@ function DealerOrderManagement() {
       await dispatch(updateTransactionThunk({
         inventoryId: selectedOrder.inventoryId || selectedOrder.id,
         payload: {
+          ...selectedOrder, // Giữ nguyên tất cả fields
           unitBasePrice: unit,
           importQuantity: qty,
           discountPercentage: discount,
           totalPrice: total,
           deposit,
           dept,
-          status: 'PROCESSING',
           transactionDate: new Date().toISOString()
+          // Không set status vì backend không có field này
         }
       })).unwrap();
       dispatch(showSuccess({ message: 'Đã xác nhận đơn hàng và bắt đầu xử lý' }));
@@ -112,19 +127,57 @@ function DealerOrderManagement() {
   };
 
   const handleReject = async (order) => {
-    if (!window.confirm('Bạn có chắc chắn muốn từ chối đơn hàng này?')) {
+    if (!window.confirm('Bạn có chắc chắn muốn từ chối và xóa đơn hàng này?')) {
       return;
     }
 
     try {
-      await dispatch(updateTransactionThunk({
-        inventoryId: order.inventoryId || order.id,
-        payload: { status: 'REJECTED' }
-      })).unwrap();
-      dispatch(showSuccess({ message: 'Đã từ chối đơn hàng' }));
+      // Xóa request (vì không có status field để mark REJECTED)
+      await dispatch(deleteTransactionThunk(order.inventoryId || order.id)).unwrap();
+      dispatch(showSuccess({ message: 'Đã từ chối và xóa đơn hàng' }));
       dispatch(getAllTransactionsThunk());
     } catch (error) {
-      dispatch(showError({ message: error?.message || 'Không thể từ chối đơn hàng' }));
+      dispatch(showError({ message: error?.message || 'Không thể xóa đơn hàng' }));
+    }
+  };
+
+  const handleComplete = async (order) => {
+    if (!window.confirm(`Xác nhận đơn hàng #${order.inventoryId || order.id} đã giao xong và cập nhật ${order.importQuantity} xe vào kho?`)) {
+      return;
+    }
+
+    try {
+      // Bước 1: Cập nhật số lượng trong store_stock
+      const currentStock = storeStocks.find(s => s.stockId === order.storeStockId);
+      if (currentStock) {
+        const newQuantity = currentStock.quantity + order.importQuantity;
+        
+        await dispatch(updateStockQuantityThunk({
+          stockId: order.storeStockId,
+          quantity: newQuantity
+        })).unwrap();
+        
+        // Bước 2: Xóa transaction (vì không có status COMPLETED)
+        // Transaction đã hoàn thành nhiệm vụ → xóa để clean data
+        await dispatch(deleteTransactionThunk(order.inventoryId || order.id)).unwrap();
+        
+        dispatch(showSuccess({ 
+          message: `✅ Hoàn thành đơn #${order.inventoryId || order.id}! Đã cập nhật +${order.importQuantity} xe vào kho (tổng: ${newQuantity} xe)` 
+        }));
+      } else {
+        dispatch(showWarning({ 
+          message: 'Không tìm thấy stock để cập nhật số lượng' 
+        }));
+      }
+
+      // Refresh data
+      dispatch(getAllTransactionsThunk());
+      dispatch(getAllStoreStocksThunk());
+      
+    } catch (error) {
+      dispatch(showError({ 
+        message: error?.message || 'Không thể hoàn thành đơn hàng' 
+      }));
     }
   };
 
@@ -133,13 +186,13 @@ function DealerOrderManagement() {
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-gray-900">Quản lý đơn hàng từ đại lý</h1>
-          <p className="text-gray-600">Xử lý yêu cầu nhập hàng đã được Manager duyệt</p>
+          <p className="text-gray-600">Xử lý yêu cầu nhập hàng từ Dealer Staff</p>
         </div>
 
-        {/* Orders from Dealers */}
-        <div>
+        {/* Pending Orders from Dealers */}
+        <div className="mb-8">
           <h2 className="text-lg font-semibold text-gray-900 mb-3">
-            Đơn hàng chờ xử lý ({approvedOrders.length})
+            Đơn hàng chờ xử lý ({pendingOrders.length})
           </h2>
           <div className="overflow-x-auto border border-gray-200 rounded-lg">
             <table className="min-w-full">
@@ -156,14 +209,14 @@ function DealerOrderManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {approvedOrders.length === 0 && (
+                {pendingOrders.length === 0 && (
                   <tr>
                     <td colSpan={8} className="px-4 py-6 text-center text-gray-500">
                       Không có đơn hàng nào chờ xử lý
                     </td>
                   </tr>
                 )}
-                {approvedOrders.map((order) => {
+                {pendingOrders.map((order) => {
                   const stock = storeStocks.find(s => s.stockId === order.storeStockId);
                   const deliveryDate = order.deliveryDate 
                     ? new Date(order.deliveryDate).toLocaleDateString('vi-VN') 
@@ -182,8 +235,8 @@ function DealerOrderManagement() {
                       <td className="px-4 py-2 text-sm text-gray-900">{order.importQuantity} xe</td>
                       <td className="px-4 py-2 text-sm text-gray-600">{deliveryDate}</td>
                       <td className="px-4 py-2 text-sm">
-                        <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded text-xs font-medium">
-                          {order.status || 'APPROVED'}
+                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
+                          Chờ xử lý
                         </span>
                       </td>
                       <td className="px-4 py-2 text-right">
@@ -201,6 +254,80 @@ function DealerOrderManagement() {
                             Từ chối
                           </button>
                         </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Processing Orders */}
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-3">
+            Đơn hàng đang xử lý ({processingOrders.length})
+          </h2>
+          <div className="overflow-x-auto border border-gray-200 rounded-lg">
+            <table className="min-w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-4 py-2 text-left text-sm text-gray-700">Mã đơn</th>
+                  <th className="px-4 py-2 text-left text-sm text-gray-700">Model • Màu</th>
+                  <th className="px-4 py-2 text-left text-sm text-gray-700">Cửa hàng</th>
+                  <th className="px-4 py-2 text-left text-sm text-gray-700">Số lượng</th>
+                  <th className="px-4 py-2 text-left text-sm text-gray-700">Giá nhập</th>
+                  <th className="px-4 py-2 text-left text-sm text-gray-700">Tổng tiền</th>
+                  <th className="px-4 py-2 text-left text-sm text-gray-700">Còn nợ</th>
+                  <th className="px-4 py-2 text-left text-sm text-gray-700">Trạng thái</th>
+                  <th className="px-4 py-2 text-right text-sm text-gray-700">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {processingOrders.length === 0 && (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-6 text-center text-gray-500">
+                      Không có đơn hàng nào đang xử lý
+                    </td>
+                  </tr>
+                )}
+                {processingOrders.map((order) => {
+                  const stock = storeStocks.find(s => s.stockId === order.storeStockId);
+                  
+                  return (
+                    <tr key={order.inventoryId || order.id}>
+                      <td className="px-4 py-2 text-sm text-gray-900">#{order.inventoryId || order.id}</td>
+                      <td className="px-4 py-2 text-sm text-gray-900">
+                        {stock ? `${stock.modelName} • ${stock.colorName}` : 'N/A'}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-gray-600">
+                        {stock ? stock.storeName || `Store #${stock.storeId}` : 'N/A'}
+                      </td>
+                      <td className="px-4 py-2 text-sm text-gray-900">{order.importQuantity} xe</td>
+                      <td className="px-4 py-2 text-sm text-gray-900">
+                        {order.unitBasePrice?.toLocaleString('vi-VN')} VNĐ
+                      </td>
+                      <td className="px-4 py-2 text-sm text-gray-900">
+                        {order.totalPrice?.toLocaleString('vi-VN')} VNĐ
+                      </td>
+                      <td className="px-4 py-2 text-sm font-medium text-red-600">
+                        {order.dept?.toLocaleString('vi-VN')} VNĐ
+                      </td>
+                      <td className="px-4 py-2 text-sm">
+                        <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
+                          {order.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <button 
+                          onClick={() => handleComplete(order)}
+                          className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 flex items-center gap-1 ml-auto"
+                        >
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          Hoàn thành
+                        </button>
                       </td>
                     </tr>
                   );
@@ -242,7 +369,7 @@ function DealerOrderManagement() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm text-gray-700 mb-1">Giá nhập (USD) *</label>
+                  <label className="block text-sm text-gray-700 mb-1">Giá nhập (VNĐ) *</label>
                   <input 
                     type="number" 
                     value={processData.unitBasePrice} 
@@ -250,7 +377,7 @@ function DealerOrderManagement() {
                     className="w-full border rounded px-3 py-2" 
                     required 
                     min="0"
-                    step="0.01"
+                    step="1000"
                   />
                 </div>
                 <div>
@@ -265,14 +392,14 @@ function DealerOrderManagement() {
                   />
                 </div>
                 <div className="col-span-2">
-                  <label className="block text-sm text-gray-700 mb-1">Đặt cọc (USD)</label>
+                  <label className="block text-sm text-gray-700 mb-1">Đặt cọc (VNĐ)</label>
                   <input 
                     type="number" 
                     value={processData.deposit} 
                     onChange={(e) => setProcessData({ ...processData, deposit: e.target.value })} 
                     className="w-full border rounded px-3 py-2" 
                     min="0"
-                    step="0.01"
+                    step="1000"
                   />
                 </div>
               </div>
@@ -283,17 +410,17 @@ function DealerOrderManagement() {
                     <div className="flex justify-between">
                       <span className="text-gray-600">Tổng tiền:</span>
                       <span className="font-medium">
-                        ${(parseFloat(processData.unitBasePrice || 0) * selectedOrder.importQuantity * (1 - (parseFloat(processData.discountPercentage || 0) / 100))).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        {(parseFloat(processData.unitBasePrice || 0) * selectedOrder.importQuantity * (1 - (parseFloat(processData.discountPercentage || 0) / 100))).toLocaleString('vi-VN')} VNĐ
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-gray-600">Đã cọc:</span>
-                      <span className="font-medium">${parseFloat(processData.deposit || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+                      <span className="font-medium">{parseFloat(processData.deposit || 0).toLocaleString('vi-VN')} VNĐ</span>
                     </div>
                     <div className="flex justify-between border-t pt-1">
                       <span className="text-gray-900 font-medium">Còn nợ:</span>
                       <span className="font-bold text-blue-900">
-                        ${(parseFloat(processData.unitBasePrice || 0) * selectedOrder.importQuantity * (1 - (parseFloat(processData.discountPercentage || 0) / 100)) - parseFloat(processData.deposit || 0)).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        {(parseFloat(processData.unitBasePrice || 0) * selectedOrder.importQuantity * (1 - (parseFloat(processData.discountPercentage || 0) / 100)) - parseFloat(processData.deposit || 0)).toLocaleString('vi-VN')} VNĐ
                       </span>
                     </div>
                   </div>

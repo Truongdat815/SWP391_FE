@@ -26,7 +26,6 @@ function Inventory() {
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
   const [selectedStock, setSelectedStock] = useState(null);
-  const [debugMode, setDebugMode] = useState(false);
   const [reportData, setReportData] = useState({
     vehicleModel: '',
     color: '',
@@ -455,39 +454,15 @@ function Inventory() {
               <p className="text-gray-600">Theo dõi tồn kho tất cả cửa hàng và lập báo cáo đặt xe</p>
               {user && user.storeId && (
                 <p className="text-sm text-emerald-600 mt-1">
-                  Đang xem: Tất cả cửa hàng (Cửa hàng của bạn: {user.storeName || `Store #${user.storeId}`})
+                  Cửa hàng của bạn: {user.storeName || `Store #${user.storeId}`}
                 </p>
               )}
-              <div className="mt-2">
-                <button
-                  onClick={() => setDebugMode(!debugMode)}
-                  className="text-xs px-2 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300"
-                >
-                  {debugMode ? 'Ẩn Debug' : 'Hiện Debug'}
-                </button>
-              </div>
             </div>
             {/* Dealer Staff cannot create stock */}
           </div>
         </div>
 
         {/* Search Bar */}
-        {/* Debug Panel */}
-        {debugMode && (
-          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-            <h3 className="text-sm font-semibold text-yellow-800 mb-2">🐛 Debug Information</h3>
-            <div className="text-xs text-yellow-700 space-y-1">
-              <p><strong>API URL:</strong> {process.env.REACT_APP_API_URL || 'http://localhost:8080'}</p>
-              <p><strong>Store Stocks Status:</strong> {storeStocksStatus}</p>
-              <p><strong>Store Stocks Count:</strong> {storeStocks?.length || 0}</p>
-              <p><strong>User Store ID:</strong> {user?.storeId || 'N/A'}</p>
-              <p><strong>Token Available:</strong> {localStorage.getItem('access_token') ? 'Yes' : 'No'}</p>
-              {storeStocksError && (
-                <p><strong>Last Error:</strong> {storeStocksError}</p>
-              )}
-            </div>
-          </div>
-        )}
 
         <div className="mb-6">
           <div className="relative">
