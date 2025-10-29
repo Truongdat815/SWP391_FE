@@ -88,3 +88,10 @@ export async function getOrdersByDateRange(startDate, endDate) {
 export async function getOrdersByCustomer(customerId) {
     return request(`/api/orders/customer/${customerId}`, { method: 'GET' });
 }
+
+// Confirm order (DRAFT → CONFIRMED)
+export async function confirmOrder(orderId) {
+    return request(`/api/orders/${orderId}/confirm`, {
+        method: 'POST'
+    });
+}

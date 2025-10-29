@@ -8,7 +8,8 @@ import {
   deleteOrder,
   getOrdersByStatus,
   getOrdersByDateRange,
-  getOrdersByCustomer
+  getOrdersByCustomer,
+  confirmOrder
 } from '../../api/orderService';
 
 // Async thunks
@@ -113,6 +114,18 @@ export const fetchOrdersByCustomer = createAsyncThunk(
   async (customerId, { rejectWithValue }) => {
     try {
       const response = await getOrdersByCustomer(customerId);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const confirmOrderThunk = createAsyncThunk(
+  'orders/confirmOrder',
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await confirmOrder(orderId);
       return response;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -297,6 +310,25 @@ const orderSlice = createSlice({
           : [];
       })
       .addCase(fetchOrdersByCustomer.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Confirm order
+      .addCase(confirmOrderThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(confirmOrderThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        const confirmedOrder = action.payload?.data || action.payload;
+        // Update order in state if it exists
+        const index = state.orders.findIndex(o => o.orderId === confirmedOrder.orderId);
+        if (index !== -1) {
+          state.orders[index] = confirmedOrder;
+        }
+        state.success = 'Đơn hàng đã được xác nhận!';
+      })
+      .addCase(confirmOrderThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });
