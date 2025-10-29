@@ -2,7 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  fetchOrders, 
+  fetchOrders,
+  fetchOrdersByStatus,
+  fetchOrdersByDateRange,
   updateOrderStatusById, 
   deleteOrderById 
 } from '../../store/slices/orderSlice';
@@ -18,8 +20,22 @@ import {
   CheckCircle,
   X,
   Edit,
-  FileText,
-  Package
+  Package,
+  Calendar,
+  Filter,
+  User,
+  Phone,
+  Mail,
+  MapPin,
+  DollarSign,
+  ShoppingBag,
+  Building2,
+  UserCircle,
+  Receipt,
+  Tag,
+  TrendingUp,
+  CreditCard,
+  Plus
 } from 'lucide-react';
 
 function ViewOrders() {
@@ -36,6 +52,9 @@ function ViewOrders() {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [showDateFilter, setShowDateFilter] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedOrderDetails, setSelectedOrderDetails] = useState([]);
   const [showModal, setShowModal] = useState(false);
@@ -62,10 +81,17 @@ function ViewOrders() {
     }
   }, [location, dispatch]);
 
-  // Fetch orders from API on mount
+  // Fetch orders from API based on filters (server-side filtering)
   useEffect(() => {
-    dispatch(fetchOrders());
-  }, [dispatch]);
+    // Priority: Date range > Status > All
+    if (startDate && endDate) {
+      dispatch(fetchOrdersByDateRange({ startDate, endDate }));
+    } else if (statusFilter !== 'all') {
+      dispatch(fetchOrdersByStatus(statusFilter));
+    } else {
+      dispatch(fetchOrders());
+    }
+  }, [dispatch, statusFilter, startDate, endDate]);
   
   // Update local orders state when Redux orders change
   useEffect(() => {
@@ -75,7 +101,7 @@ function ViewOrders() {
     }
   }, [reduxOrders]);
 
-  // Update filtered orders when orders or filters change
+  // Update filtered orders when orders or search term changes (client-side search only)
   useEffect(() => {
     console.log('📦 Orders from Redux:', orders);
     console.log('📦 Is Array?', Array.isArray(orders));
@@ -85,7 +111,7 @@ function ViewOrders() {
     let filtered = Array.isArray(orders) ? [...orders] : [];
     console.log('📦 Filtered orders:', filtered);
 
-    // Filter by search term
+    // Filter by search term (client-side)
     if (searchTerm) {
       filtered = filtered.filter(order => {
         const customerName = order.customerName || order.customer?.fullName || '';
@@ -104,16 +130,8 @@ function ViewOrders() {
       });
     }
 
-    // Filter by status
-    if (statusFilter !== 'all') {
-      filtered = filtered.filter(order => {
-        const orderStatus = order.status || order.orderStatus || '';
-        return orderStatus.toLowerCase() === statusFilter.toLowerCase();
-      });
-    }
-
     setFilteredOrders(filtered);
-  }, [searchTerm, statusFilter, orders]);
+  }, [searchTerm, orders]);
 
   const getStatusColor = (status) => {
     if (!status) return 'bg-gray-100 text-gray-800';
@@ -274,35 +292,95 @@ function ViewOrders() {
 
         {/* Filters */}
         {!loading && (
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Tìm kiếm theo tên khách hàng, mã đơn hàng..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                />
+          <div className="space-y-4 mb-6">
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm theo tên khách hàng, mã đơn hàng..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  />
+                </div>
               </div>
-            </div>
-            <div className="sm:w-48">
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              <div className="sm:w-48">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                >
+                  <option value="all">Tất cả trạng thái</option>
+                  <option value="draft">Nháp</option>
+                  <option value="approved">Đã phê duyệt</option>
+                  <option value="pending">Chờ duyệt</option>
+                  <option value="confirmed">Đã xác nhận</option>
+                  <option value="processing">Đang xử lý</option>
+                  <option value="completed">Hoàn thành</option>
+                  <option value="cancelled">Đã hủy</option>
+                </select>
+              </div>
+              <button
+                onClick={() => setShowDateFilter(!showDateFilter)}
+                className="sm:w-auto px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
               >
-                <option value="all">Tất cả trạng thái</option>
-                <option value="draft">Nháp</option>
-                <option value="approved">Đã phê duyệt</option>
-                <option value="pending">Chờ duyệt</option>
-                <option value="confirmed">Đã xác nhận</option>
-                <option value="processing">Đang xử lý</option>
-                <option value="completed">Hoàn thành</option>
-                <option value="cancelled">Đã hủy</option>
-              </select>
+                <Calendar className="h-5 w-5 mr-2" />
+                Lọc theo ngày
+              </button>
             </div>
+
+            {/* Date Range Filter */}
+            <AnimatePresence>
+              {showDateFilter && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.2 }}
+                  className="flex flex-col sm:flex-row gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
+                >
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Từ ngày
+                    </label>
+                    <input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      onKeyDown={(e) => e.preventDefault()}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer"
+                      placeholder="Chọn ngày"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Đến ngày
+                    </label>
+                    <input
+                      type="date"
+                      value={endDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      onKeyDown={(e) => e.preventDefault()}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer"
+                      placeholder="Chọn ngày"
+                    />
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <button
+                      onClick={() => {
+                        setStartDate('');
+                        setEndDate('');
+                      }}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                    >
+                      Xóa bộ lọc
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )}
 
@@ -378,7 +456,7 @@ function ViewOrders() {
                             onClick={() => handleViewDetails(order)}
                             className="text-emerald-600 hover:text-emerald-900 transition-colors flex items-center"
                           >
-                            <FileText className="h-4 w-4 mr-1" />
+                            <Eye className="h-4 w-4 mr-1" />
                             Chi tiết
                           </button>
                         </Tooltip>
@@ -411,7 +489,7 @@ function ViewOrders() {
                           </>
                         )}
                         
-                        {order.status?.toUpperCase() === 'APPROVED' && !order.contractId && (
+                        {order.status?.toUpperCase() === 'APPROVED' && (!order.contractId || order.contractId === 0) && (
                           <button
                             onClick={() => handleCreateContract(order)}
                             className="text-blue-600 hover:text-blue-900 transition-colors font-semibold flex items-center"
@@ -461,91 +539,240 @@ function ViewOrders() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-11/12 md:w-3/4 lg:w-1/2 p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-7xl p-6 border shadow-2xl rounded-2xl bg-white max-h-[95vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900">
-                  Chi tiết đơn hàng - {selectedOrder.orderCode || `ORD-${selectedOrder.orderId}`}
-                </h3>
+              {/* Header */}
+              <div className="flex items-start justify-between mb-6 pb-4 border-b border-gray-200">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <Receipt className="h-8 w-8 text-emerald-600" />
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      Chi tiết đơn hàng
+                    </h3>
+                  </div>
+                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                    <span className="flex items-center">
+                      <Tag className="h-4 w-4 mr-1" />
+                      Mã: <span className="font-semibold ml-1">{selectedOrder.orderCode || `ORD-${selectedOrder.orderId}`}</span>
+                    </span>
+                    <span className="flex items-center">
+                      <Calendar className="h-4 w-4 mr-1" />
+                      {selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleDateString('vi-VN', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      }) : 'N/A'}
+                    </span>
+                    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedOrder.status)}`}>
+                      {getStatusText(selectedOrder.status)}
+                    </span>
+                  </div>
+                </div>
                 <button
                   onClick={handleCloseModal}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
                 >
                   <X className="h-6 w-6" />
                 </button>
               </div>
 
               <div className="space-y-6">
-                {/* Customer Information */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-3">Thông tin khách hàng</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Tên khách hàng</label>
-                      <p className="text-sm text-gray-900">{selectedOrder.customerName || 'N/A'}</p>
+                {/* Three Column Info Cards */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {/* Customer Information */}
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <User className="h-5 w-5 text-blue-600" />
+                      <h4 className="font-bold text-blue-900">Thông tin khách hàng</h4>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Số điện thoại</label>
-                      <p className="text-sm text-gray-900">{selectedOrder.customerPhone || 'N/A'}</p>
+                    <div className="space-y-3">
+                      <div className="flex items-start">
+                        <UserCircle className="h-4 w-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-xs text-blue-700">Tên khách hàng</p>
+                          <p className="text-sm font-semibold text-blue-900">{selectedOrder.customerName || 'N/A'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start">
+                        <Phone className="h-4 w-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-xs text-blue-700">Số điện thoại</p>
+                          <p className="text-sm font-semibold text-blue-900">{selectedOrder.customerPhone || 'N/A'}</p>
+                        </div>
+                      </div>
+                      {selectedOrder.customerEmail && (
+                        <div className="flex items-start">
+                          <Mail className="h-4 w-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-xs text-blue-700">Email</p>
+                            <p className="text-sm font-semibold text-blue-900 break-all">{selectedOrder.customerEmail}</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Email</label>
-                      <p className="text-sm text-gray-900">{selectedOrder.customerEmail || 'Chưa có'}</p>
+                  </div>
+
+                  {/* Staff & Store Information */}
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 border border-purple-200">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Building2 className="h-5 w-5 text-purple-600" />
+                      <h4 className="font-bold text-purple-900">Nhân viên & Cửa hàng</h4>
                     </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700">Ngày tạo đơn hàng</label>
-                      <p className="text-sm text-gray-900">{selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleDateString('vi-VN') : 'N/A'}</p>
+                    <div className="space-y-3">
+                      <div className="flex items-start">
+                        <UserCircle className="h-4 w-4 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-xs text-purple-700">Nhân viên phụ trách</p>
+                          <p className="text-sm font-semibold text-purple-900">{selectedOrder.staffName || 'N/A'}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-start">
+                        <Building2 className="h-4 w-4 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <p className="text-xs text-purple-700">Cửa hàng</p>
+                          <p className="text-sm font-semibold text-purple-900">{selectedOrder.storeName || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Financial Summary */}
+                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-5 border border-emerald-200">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <DollarSign className="h-5 w-5 text-emerald-600" />
+                      <h4 className="font-bold text-emerald-900">Tổng quan tài chính</h4>
+                    </div>
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-emerald-700">Tổng giá sản phẩm:</span>
+                        <span className="text-sm font-semibold text-emerald-900">
+                          {(selectedOrder.totalPrice || 0).toLocaleString('vi-VN')}đ
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-emerald-700">Thuế VAT:</span>
+                        <span className="text-sm font-semibold text-orange-600">
+                          +{(selectedOrder.totalTaxPrice || 0).toLocaleString('vi-VN')}đ
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-emerald-700">Khuyến mãi:</span>
+                        <span className="text-sm font-semibold text-red-600">
+                          -{(selectedOrder.totalPromotionAmount || 0).toLocaleString('vi-VN')}đ
+                        </span>
+                      </div>
+                      <div className="pt-2 border-t-2 border-emerald-300">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-bold text-emerald-900">Tổng thanh toán:</span>
+                          <span className="text-lg font-bold text-emerald-600">
+                            {(selectedOrder.totalPayment || 0).toLocaleString('vi-VN')}đ
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
 
                 {/* Product Details */}
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                    <Package className="h-5 w-5 text-emerald-600 mr-2" />
-                    Chi tiết sản phẩm
-                  </h4>
+                <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
+                  <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-4">
+                    <h4 className="font-bold text-white flex items-center text-lg">
+                      <ShoppingBag className="h-6 w-6 mr-2" />
+                      Chi tiết sản phẩm
+                    </h4>
+                  </div>
+                  
                   {loadingDetails ? (
-                    <div className="flex items-center justify-center py-8">
-                      <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-2" />
-                      <span className="text-gray-600">Đang tải chi tiết...</span>
+                    <div className="flex items-center justify-center py-12">
+                      <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mr-3" />
+                      <span className="text-gray-600 font-medium">Đang tải chi tiết sản phẩm...</span>
                     </div>
                   ) : selectedOrderDetails.length > 0 ? (
                     <div className="overflow-x-auto">
-                      <table className="min-w-full">
-                        <thead>
-                          <tr className="border-b border-gray-200">
-                            <th className="text-left py-2 text-sm font-medium text-gray-700">Sản phẩm</th>
-                            <th className="text-center py-2 text-sm font-medium text-gray-700">SL</th>
-                            <th className="text-right py-2 text-sm font-medium text-gray-700">Đơn giá</th>
-                            <th className="text-right py-2 text-sm font-medium text-gray-700">Phí</th>
-                            <th className="text-right py-2 text-sm font-medium text-gray-700">VAT</th>
-                            <th className="text-right py-2 text-sm font-medium text-gray-700">Giảm giá</th>
-                            <th className="text-right py-2 text-sm font-medium text-gray-700">Thành tiền</th>
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              Sản phẩm
+                            </th>
+                            <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              Số lượng
+                            </th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              Đơn giá
+                            </th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              Phí đăng ký
+                            </th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              Phí biển số
+                            </th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              VAT
+                            </th>
+                            {selectedOrderDetails.some(item => item.promotionName) && (
+                              <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                                Khuyến mãi
+                              </th>
+                            )}
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              Giảm giá
+                            </th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              Thành tiền
+                            </th>
                           </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="bg-white divide-y divide-gray-100">
                           {selectedOrderDetails.map((item, index) => (
-                            <tr key={index} className="border-b border-gray-100">
-                              <td className="py-3 text-sm">
-                                <div className="font-medium text-gray-900">{item.modelName || 'N/A'}</div>
-                                <div className="text-xs text-gray-500">{item.colorName || ''}</div>
+                            <tr key={index} className="hover:bg-emerald-50 transition-colors">
+                              <td className="px-6 py-4">
+                                <div className="flex items-center">
+                                  <div className="h-10 w-10 flex-shrink-0 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center mr-3">
+                                    <Package className="h-5 w-5 text-white" />
+                                  </div>
+                                  <div>
+                                    <div className="font-semibold text-gray-900">{item.modelName || 'N/A'}</div>
+                                    <div className="text-sm text-gray-500 flex items-center">
+                                      <Tag className="h-3 w-3 mr-1" />
+                                      {item.colorName || 'N/A'}
+                                    </div>
+                                  </div>
+                                </div>
                               </td>
-                              <td className="text-center py-3 text-sm text-gray-900 font-medium">{item.quantity || 0}</td>
-                              <td className="text-right py-3 text-sm text-gray-900">
+                              <td className="px-6 py-4 text-center">
+                                <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm font-bold">
+                                  {item.quantity || 0}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
                                 {(item.unitPrice || 0).toLocaleString('vi-VN')}đ
                               </td>
-                              <td className="text-right py-3 text-sm text-gray-600">
-                                {((item.licensePlateFee || 0) + (item.registrationFee || 0)).toLocaleString('vi-VN')}đ
+                              <td className="px-6 py-4 text-right text-sm text-gray-600">
+                                {(item.registrationFee || 0).toLocaleString('vi-VN')}đ
                               </td>
-                              <td className="text-right py-3 text-sm text-gray-600">
-                                {(item.vatAmount || 0).toLocaleString('vi-VN')}đ
+                              <td className="px-6 py-4 text-right text-sm text-gray-600">
+                                {(item.licensePlateFee || 0).toLocaleString('vi-VN')}đ
                               </td>
-                              <td className="text-right py-3 text-sm text-red-600">
-                                -{(item.discountAmount || 0).toLocaleString('vi-VN')}đ
+                              <td className="px-6 py-4 text-right text-sm text-orange-600 font-semibold">
+                                +{(item.vatAmount || 0).toLocaleString('vi-VN')}đ
                               </td>
-                              <td className="text-right py-3 text-sm font-bold text-emerald-600">
+                              {selectedOrderDetails.some(i => i.promotionName) && (
+                                <td className="px-6 py-4 text-right text-xs">
+                                  {item.promotionName ? (
+                                    <span className="inline-flex items-center px-2 py-1 bg-pink-100 text-pink-800 rounded-full">
+                                      <Tag className="h-3 w-3 mr-1" />
+                                      {item.promotionName}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400">-</span>
+                                  )}
+                                </td>
+                              )}
+                              <td className="px-6 py-4 text-right text-sm text-red-600 font-semibold">
+                                {(item.discountAmount || 0) > 0 ? `-${(item.discountAmount || 0).toLocaleString('vi-VN')}đ` : '-'}
+                              </td>
+                              <td className="px-6 py-4 text-right text-base font-bold text-emerald-600">
                                 {(item.totalPrice || 0).toLocaleString('vi-VN')}đ
                               </td>
                             </tr>
@@ -554,73 +781,63 @@ function ViewOrders() {
                       </table>
                     </div>
                   ) : (
-                    <div className="text-center py-8">
-                      <Package className="h-12 w-12 text-gray-300 mx-auto mb-3" />
-                      <p className="text-gray-500 mb-2">Chưa có sản phẩm trong đơn hàng</p>
+                    <div className="text-center py-12">
+                      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 mb-4">
+                        <Package className="h-10 w-10 text-gray-400" />
+                      </div>
+                      <h4 className="text-lg font-semibold text-gray-900 mb-2">Chưa có sản phẩm</h4>
+                      <p className="text-gray-500 mb-4">Đơn hàng này chưa có sản phẩm nào</p>
                       {selectedOrder.status?.toUpperCase() === 'DRAFT' && (
                         <button
                           onClick={() => {
                             handleEditOrder(selectedOrder.orderId);
                             handleCloseModal();
                           }}
-                          className="text-sm text-blue-600 hover:text-blue-800 underline"
+                          className="inline-flex items-center px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
                         >
-                          Thêm sản phẩm ngay →
+                          <Plus className="h-5 w-5 mr-2" />
+                          Thêm sản phẩm ngay
                         </button>
                       )}
                     </div>
                   )}
                 </div>
 
-                {/* Order Summary */}
-                <div className="bg-emerald-50 rounded-lg p-4">
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-semibold text-gray-900">Tổng tiền:</span>
-                    <span className="text-xl font-bold text-emerald-600">
-                      {(selectedOrder.totalPayment || selectedOrder.totalPrice || 0).toLocaleString('vi-VN')} VNĐ
-                    </span>
-                  </div>
-                  <div className="mt-2">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedOrder.status)}`}>
+                {/* Status Management */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-3">
+                      <TrendingUp className="h-6 w-6 text-blue-600" />
+                      <h4 className="font-bold text-blue-900 text-lg">Quản lý trạng thái</h4>
+                    </div>
+                    <span className={`px-4 py-2 text-sm font-bold rounded-full ${getStatusColor(selectedOrder.status)}`}>
                       {getStatusText(selectedOrder.status)}
                     </span>
                   </div>
-                  <div className="mt-2 text-sm text-gray-600">
-                    <p><strong>Mã đơn hàng:</strong> {selectedOrder.orderCode || `ORD-${selectedOrder.orderId}`}</p>
-                    <p><strong>Mã hợp đồng:</strong> {selectedOrder.contractId || 'Chưa có'}</p>
-                    <p><strong>Nhân viên:</strong> {selectedOrder.staffName || 'N/A'}</p>
-                    <p><strong>Cửa hàng:</strong> {selectedOrder.storeName || 'N/A'}</p>
-                  </div>
-                </div>
-              </div>
-
-                {/* Status Editor */}
-                <div className="bg-blue-50 rounded-lg p-4 border border-blue-200">
-                  <h4 className="font-semibold text-gray-900 mb-3">Thay đổi trạng thái</h4>
                   <div className="flex items-center gap-4">
+                    <label className="text-sm font-medium text-blue-900">Cập nhật trạng thái:</label>
                     <select
                       value={selectedOrder.status || 'DRAFT'}
                       onChange={(e) => {
                         if (window.confirm(`Bạn có chắc muốn đổi trạng thái thành "${getStatusText(e.target.value)}"?`)) {
                           handleUpdateStatus(selectedOrder.orderId, e.target.value);
+                          handleCloseModal();
                         }
                       }}
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                      className="flex-1 px-4 py-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-semibold text-gray-900 shadow-sm hover:shadow-md transition-all"
                     >
-                      <option value="DRAFT">Nháp</option>
-                      <option value="PENDING">Chờ duyệt</option>
-                      <option value="APPROVED">Đã phê duyệt</option>
-                      <option value="CONFIRMED">Đã xác nhận</option>
-                      <option value="PROCESSING">Đang xử lý</option>
-                      <option value="COMPLETED">Hoàn thành</option>
-                      <option value="CANCELLED">Đã hủy</option>
+                      <option value="DRAFT">📝 Nháp</option>
+                      <option value="PENDING">⏳ Chờ duyệt</option>
+                      <option value="APPROVED">✅ Đã phê duyệt</option>
+                      <option value="CONFIRMED">✔️ Đã xác nhận</option>
+                      <option value="PROCESSING">⚙️ Đang xử lý</option>
+                      <option value="COMPLETED">🎉 Hoàn thành</option>
+                      <option value="CANCELLED">❌ Đã hủy</option>
                     </select>
-                    <span className={`px-3 py-2 text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(selectedOrder.status)}`}>
-                      {getStatusText(selectedOrder.status)}
-                    </span>
                   </div>
-                  <p className="text-xs text-gray-600 mt-2">
-                    💡 Chọn trạng thái mới từ dropdown để cập nhật
+                  <p className="text-xs text-blue-700 mt-3 flex items-center">
+                    <AlertCircle className="h-4 w-4 mr-1" />
+                    Chọn trạng thái mới từ dropdown để cập nhật đơn hàng
                   </p>
                 </div>
 
@@ -656,7 +873,7 @@ function ViewOrders() {
                       </>
                     )}
                     
-                    {selectedOrder.status?.toUpperCase() === 'APPROVED' && !selectedOrder.contractId && (
+                    {selectedOrder.status?.toUpperCase() === 'APPROVED' && (!selectedOrder.contractId || selectedOrder.contractId === 0) && (
                       <motion.button
                         onClick={() => {
                           handleCreateContract(selectedOrder);
@@ -706,7 +923,6 @@ function ViewOrders() {
                     </motion.button>
                   </div>
                 </div>
-              </div>
               </div>
             </motion.div>
           </motion.div>

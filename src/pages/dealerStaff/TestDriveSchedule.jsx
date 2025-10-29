@@ -6,8 +6,16 @@ import {
   getAllAppointmentsThunk, 
   createAppointmentThunk,
   updateAppointmentThunk,
-  deleteAppointmentThunk
+  deleteAppointmentThunk,
+  getAppointmentsByStoreThunk,
+  getAppointmentsByStatusThunk,
+  getAppointmentsByStaffThunk,
+  getAppointmentsByModelThunk,
+  getAppointmentsByCustomerThunk,
+  updateAppointmentStatusThunk
 } from '../../store/slices/appointmentSlice';
+import { getAllCustomersThunk } from '../../store/slices/customerSlice';
+import { getAllModelsThunk } from '../../store/slices/modelSlice';
 import { showSuccess, showError } from '../../store/slices/snackbarSlice';
 
 function TestDriveSchedule({ onBack }) {
@@ -18,6 +26,8 @@ function TestDriveSchedule({ onBack }) {
   const appointments = useSelector((state) => state.appointments.items);
   const appointmentsStatus = useSelector((state) => state.appointments.status);
   const appointmentsError = useSelector((state) => state.appointments.error);
+  const { items: customers, loading: customersLoading } = useSelector((state) => state.customers);
+  const { items: models, loading: modelsLoading } = useSelector((state) => state.models);
 
   // Local UI state
   const [selectedDate, setSelectedDate] = useState('');
@@ -26,27 +36,22 @@ function TestDriveSchedule({ onBack }) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   
+  // Filter states
+  const [filterStatus, setFilterStatus] = useState('');
+  const [filterModelId, setFilterModelId] = useState('');
+  const [filterCustomerId, setFilterCustomerId] = useState('');
+  
+  // Form states
+  const [customerSearchTerm, setCustomerSearchTerm] = useState('');
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [selectedModel, setSelectedModel] = useState(null);
+  
   const [newAppointment, setNewAppointment] = useState({
-    customerName: '',
-    phone: '',
-    vehicleModel: '',
     date: '',
-    time: '',
-    notes: '',
-    modelId: '',
-    customerId: ''
+    time: ''
   });
 
-  const vehicleModels = [
-    'Electra Ascent',
-    'Electra CityLink',
-    'Electra GrandTour',
-    'Electra Micro',
-    'Electra Summit',
-    'Electra Velocity',
-    'Electra UrbanPulse',
-    'Electra Voyager'
-  ];
+  const statusOptions = ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
 
   const timeSlots = [
     '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
@@ -54,32 +59,51 @@ function TestDriveSchedule({ onBack }) {
     '16:00', '16:30', '17:00', '17:30'
   ];
 
-  // Fetch appointments on mount
+  // Fetch initial data
   useEffect(() => {
-    dispatch(getAllAppointmentsThunk());
+    dispatch(getAllCustomersThunk());
+    dispatch(getAllModelsThunk());
   }, [dispatch]);
 
-  // Filter appointments by selected date and store
+  // Fetch appointments with filters
+  useEffect(() => {
+    if (filterStatus) {
+      dispatch(getAppointmentsByStatusThunk(filterStatus));
+    } else if (filterModelId) {
+      dispatch(getAppointmentsByModelThunk(filterModelId));
+    } else if (filterCustomerId) {
+      dispatch(getAppointmentsByCustomerThunk(filterCustomerId));
+    } else if (user?.storeId) {
+      dispatch(getAppointmentsByStoreThunk(user.storeId));
+    } else {
+      dispatch(getAllAppointmentsThunk());
+    }
+  }, [dispatch, filterStatus, filterModelId, filterCustomerId, user?.storeId]);
+
+  // Filter customers by search term
+  const filteredCustomers = (customers || []).filter(customer =>
+    customer.fullName?.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+    customer.phone?.includes(customerSearchTerm) ||
+    customer.email?.toLowerCase().includes(customerSearchTerm.toLowerCase())
+  );
+
+  // Filter appointments by selected date (local filter)
   const filteredAppointments = appointments.filter(apt => {
-    // Filter by store (staff can only see their store's appointments)
-    const matchesStore = !user?.storeId || apt.storeId === user.storeId;
-    
-    // Filter by selected date
     if (selectedDate && apt.startTime) {
       const aptDate = new Date(apt.startTime).toISOString().split('T')[0];
-      return matchesStore && aptDate === selectedDate;
+      return aptDate === selectedDate;
     }
-    
-    return matchesStore;
+    return true;
   });
 
   const getStatusColor = (status) => {
     const statusUpper = (status || '').toUpperCase();
     switch (statusUpper) {
       case 'CONFIRMED': return 'bg-green-100 text-green-800';
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
+      case 'IN_PROGRESS': return 'bg-blue-100 text-blue-800';
+      case 'COMPLETED': return 'bg-purple-100 text-purple-800';
       case 'CANCELLED': return 'bg-red-100 text-red-800';
-      case 'COMPLETED': return 'bg-blue-100 text-blue-800';
+      case 'NO_SHOW': return 'bg-orange-100 text-orange-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
@@ -88,9 +112,10 @@ function TestDriveSchedule({ onBack }) {
     const statusUpper = (status || '').toUpperCase();
     switch (statusUpper) {
       case 'CONFIRMED': return 'Đã xác nhận';
-      case 'PENDING': return 'Chờ xác nhận';
-      case 'CANCELLED': return 'Đã hủy';
+      case 'IN_PROGRESS': return 'Đang tiến hành';
       case 'COMPLETED': return 'Hoàn thành';
+      case 'CANCELLED': return 'Đã hủy';
+      case 'NO_SHOW': return 'Không đến';
       default: return status;
     }
   };
@@ -118,9 +143,30 @@ function TestDriveSchedule({ onBack }) {
     return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
+  // Helper functions
+  const getCustomerName = (customerId) => {
+    const customer = customers?.find(c => c.customerId === customerId);
+    return customer ? customer.fullName : `Customer #${customerId}`;
+  };
+
+  const getModelName = (modelId) => {
+    const model = models?.find(m => m.modelId === modelId);
+    return model ? model.modelName : `Model #${modelId}`;
+  };
+
   // CRUD Operations
   const handleAddAppointment = async (e) => {
     e.preventDefault();
+    
+    if (!selectedCustomer) {
+      dispatch(showError({ message: 'Vui lòng chọn khách hàng' }));
+      return;
+    }
+    
+    if (!selectedModel) {
+      dispatch(showError({ message: 'Vui lòng chọn mẫu xe' }));
+      return;
+    }
     
     try {
       // Combine date and time
@@ -130,9 +176,9 @@ function TestDriveSchedule({ onBack }) {
       const payload = {
         startTime: startDateTime.toISOString(),
         endTime: endDateTime.toISOString(),
-        status: 'PENDING',
-        modelId: parseInt(newAppointment.modelId) || 1,
-        customerId: parseInt(newAppointment.customerId) || 1,
+        status: 'CONFIRMED',
+        modelId: selectedModel.modelId,
+        customerId: selectedCustomer.customerId,
         staffId: user?.userId || 1,
         storeId: user?.storeId || 1
       };
@@ -142,19 +188,20 @@ function TestDriveSchedule({ onBack }) {
       
       // Reset form
       setNewAppointment({
-        customerName: '',
-        phone: '',
-        vehicleModel: '',
         date: '',
-        time: '',
-        notes: '',
-        modelId: '',
-        customerId: ''
+        time: ''
       });
+      setSelectedCustomer(null);
+      setSelectedModel(null);
+      setCustomerSearchTerm('');
       setShowAddModal(false);
       
       // Refresh data
-      dispatch(getAllAppointmentsThunk());
+      if (user?.storeId) {
+        dispatch(getAppointmentsByStoreThunk(user.storeId));
+      } else {
+        dispatch(getAllAppointmentsThunk());
+      }
     } catch (error) {
       dispatch(showError({ message: error || 'Không thể thêm lịch hẹn' }));
     }
@@ -164,6 +211,16 @@ function TestDriveSchedule({ onBack }) {
     e.preventDefault();
     
     if (!selectedAppointment) return;
+    
+    if (!selectedCustomer) {
+      dispatch(showError({ message: 'Vui lòng chọn khách hàng' }));
+      return;
+    }
+    
+    if (!selectedModel) {
+      dispatch(showError({ message: 'Vui lòng chọn mẫu xe' }));
+      return;
+    }
 
     try {
       const startDateTime = new Date(`${newAppointment.date}T${newAppointment.time}:00`);
@@ -173,8 +230,8 @@ function TestDriveSchedule({ onBack }) {
         startTime: startDateTime.toISOString(),
         endTime: endDateTime.toISOString(),
         status: selectedAppointment.status,
-        modelId: parseInt(newAppointment.modelId) || selectedAppointment.modelId,
-        customerId: parseInt(newAppointment.customerId) || selectedAppointment.customerId,
+        modelId: selectedModel.modelId,
+        customerId: selectedCustomer.customerId,
         staffId: selectedAppointment.staffId,
         storeId: selectedAppointment.storeId
       };
@@ -187,9 +244,16 @@ function TestDriveSchedule({ onBack }) {
       dispatch(showSuccess({ message: 'Đã cập nhật lịch hẹn thành công!' }));
       setShowEditModal(false);
       setSelectedAppointment(null);
+      setSelectedCustomer(null);
+      setSelectedModel(null);
+      setCustomerSearchTerm('');
       
       // Refresh data
-      dispatch(getAllAppointmentsThunk());
+      if (user?.storeId) {
+        dispatch(getAppointmentsByStoreThunk(user.storeId));
+      } else {
+        dispatch(getAllAppointmentsThunk());
+      }
     } catch (error) {
       dispatch(showError({ message: error || 'Không thể cập nhật lịch hẹn' }));
     }
@@ -210,16 +274,27 @@ function TestDriveSchedule({ onBack }) {
 
   const handleUpdateStatus = async (appointment, newStatus) => {
     try {
-      await dispatch(updateAppointmentThunk({
+      await dispatch(updateAppointmentStatusThunk({
         appointmentId: appointment.appointmentId,
-        data: {
-          ...appointment,
-          status: newStatus
-        }
+        status: newStatus
       })).unwrap();
 
-      dispatch(showSuccess({ message: `Đã ${newStatus === 'CONFIRMED' ? 'xác nhận' : 'cập nhật'} lịch hẹn!` }));
-      dispatch(getAllAppointmentsThunk());
+      const statusMessages = {
+        'CONFIRMED': 'xác nhận',
+        'IN_PROGRESS': 'bắt đầu',
+        'COMPLETED': 'hoàn thành',
+        'CANCELLED': 'hủy',
+        'NO_SHOW': 'đánh dấu không đến'
+      };
+
+      dispatch(showSuccess({ message: `Đã ${statusMessages[newStatus] || 'cập nhật'} lịch hẹn!` }));
+      
+      // Refresh data
+      if (user?.storeId) {
+        dispatch(getAppointmentsByStoreThunk(user.storeId));
+      } else {
+        dispatch(getAllAppointmentsThunk());
+      }
     } catch (error) {
       dispatch(showError({ message: error || 'Không thể cập nhật trạng thái' }));
     }
@@ -227,15 +302,18 @@ function TestDriveSchedule({ onBack }) {
 
   const openEditModal = (appointment) => {
     setSelectedAppointment(appointment);
+    
+    // Find and set customer
+    const customer = customers?.find(c => c.customerId === appointment.customerId);
+    setSelectedCustomer(customer || null);
+    
+    // Find and set model
+    const model = models?.find(m => m.modelId === appointment.modelId);
+    setSelectedModel(model || null);
+    
     setNewAppointment({
-      customerName: appointment.customerName || '',
-      phone: appointment.phone || '',
-      vehicleModel: appointment.vehicleModel || '',
       date: formatDate(appointment.startTime),
-      time: formatTime(appointment.startTime),
-      notes: appointment.notes || '',
-      modelId: appointment.modelId?.toString() || '',
-      customerId: appointment.customerId?.toString() || ''
+      time: formatTime(appointment.startTime)
     });
     setShowEditModal(true);
   };
@@ -297,25 +375,71 @@ function TestDriveSchedule({ onBack }) {
           </div>
         </div>
 
-        {/* Date Filter */}
-        <div className="mb-6 flex items-center gap-4">
-          <label className="text-sm font-medium text-gray-700">Lọc theo ngày:</label>
-          <input
-            type="date"
-            value={selectedDate}
-            onChange={(e) => setSelectedDate(e.target.value)}
-            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-          />
-          {selectedDate && (
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setSelectedDate('')}
-              className="text-sm text-emerald-600 hover:text-emerald-700"
-            >
-              Xóa bộ lọc
-            </motion.button>
-          )}
+        {/* Filters */}
+        <div className="mb-6 space-y-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Lọc theo ngày:</label>
+              <input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Trạng thái:</label>
+              <select
+                value={filterStatus}
+                onChange={(e) => setFilterStatus(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              >
+                <option value="">Tất cả</option>
+                {statusOptions.map(status => (
+                  <option key={status} value={status}>{getStatusText(status)}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Model ID:</label>
+              <input
+                type="number"
+                value={filterModelId}
+                onChange={(e) => setFilterModelId(e.target.value)}
+                placeholder="Nhập Model ID"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-32"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-700">Customer ID:</label>
+              <input
+                type="number"
+                value={filterCustomerId}
+                onChange={(e) => setFilterCustomerId(e.target.value)}
+                placeholder="Nhập Customer ID"
+                className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent w-32"
+              />
+            </div>
+
+            {(selectedDate || filterStatus || filterModelId || filterCustomerId) && (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => {
+                  setSelectedDate('');
+                  setFilterStatus('');
+                  setFilterModelId('');
+                  setFilterCustomerId('');
+                }}
+                className="text-sm text-emerald-600 hover:text-emerald-700 font-medium"
+              >
+                Xóa tất cả bộ lọc
+              </motion.button>
+            )}
+          </div>
         </div>
 
         {/* Error Message */}
@@ -386,11 +510,12 @@ function TestDriveSchedule({ onBack }) {
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{appointment.customerName || `Customer #${appointment.customerId}`}</div>
-                      <div className="text-sm text-gray-500">{appointment.phone || 'N/A'}</div>
+                      <div className="text-sm text-gray-900">{getCustomerName(appointment.customerId)}</div>
+                      <div className="text-sm text-gray-500">ID: {appointment.customerId}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm text-gray-900">{appointment.vehicleModel || `Model #${appointment.modelId}`}</div>
+                      <div className="text-sm text-gray-900">{getModelName(appointment.modelId)}</div>
+                      <div className="text-sm text-gray-500">ID: {appointment.modelId}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(appointment.status)}`}>
@@ -399,14 +524,24 @@ function TestDriveSchedule({ onBack }) {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end gap-2">
-                        {appointment.status?.toUpperCase() === 'PENDING' && (
+                        {appointment.status?.toUpperCase() === 'CONFIRMED' && (
                           <motion.button
                             whileHover={{ scale: 1.05, y: -1 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => handleUpdateStatus(appointment, 'CONFIRMED')}
-                            className="px-3 py-1.5 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow hover:shadow-md transition-all text-xs"
+                            onClick={() => handleUpdateStatus(appointment, 'IN_PROGRESS')}
+                            className="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow hover:shadow-md transition-all text-xs"
                           >
-                            Xác nhận
+                            Bắt đầu
+                          </motion.button>
+                        )}
+                        {appointment.status?.toUpperCase() === 'IN_PROGRESS' && (
+                          <motion.button
+                            whileHover={{ scale: 1.05, y: -1 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleUpdateStatus(appointment, 'COMPLETED')}
+                            className="px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 shadow hover:shadow-md transition-all text-xs"
+                          >
+                            Hoàn thành
                           </motion.button>
                         )}
                         <motion.button
@@ -468,66 +603,87 @@ function TestDriveSchedule({ onBack }) {
               </div>
 
               <form onSubmit={handleAddAppointment} className="space-y-4">
+                {/* Customer Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Khách hàng *</label>
+                  {selectedCustomer ? (
+                    <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">{selectedCustomer.fullName}</p>
+                        <p className="text-sm text-gray-600">{selectedCustomer.phone} • {selectedCustomer.email}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCustomer(null)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Tìm khách hàng theo tên, số điện thoại, email..."
+                        value={customerSearchTerm}
+                        onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500 mb-2"
+                      />
+                      {customerSearchTerm && (
+                        <div className="max-h-48 overflow-y-auto border rounded-lg">
+                          {customersLoading ? (
+                            <div className="p-3 text-center text-gray-500">Đang tải...</div>
+                          ) : filteredCustomers.length === 0 ? (
+                            <div className="p-3 text-center text-gray-500">Không tìm thấy khách hàng</div>
+                          ) : (
+                            filteredCustomers.map(customer => (
+                              <div
+                                key={customer.customerId}
+                                onClick={() => {
+                                  setSelectedCustomer(customer);
+                                  setCustomerSearchTerm('');
+                                }}
+                                className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                              >
+                                <p className="font-medium text-gray-900">{customer.fullName}</p>
+                                <p className="text-sm text-gray-600">{customer.phone} • {customer.email}</p>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Model Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mẫu xe *</label>
+                  <select
+                    value={selectedModel?.modelId || ''}
+                    onChange={(e) => {
+                      const model = models?.find(m => m.modelId === parseInt(e.target.value));
+                      setSelectedModel(model || null);
+                    }}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
+                    required
+                  >
+                    <option value="">Chọn mẫu xe</option>
+                    {modelsLoading ? (
+                      <option disabled>Đang tải...</option>
+                    ) : (
+                      models?.map(model => (
+                        <option key={model.modelId} value={model.modelId}>
+                          {model.modelName} - {model.modelId}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tên khách hàng</label>
-                    <input
-                      type="text"
-                      name="customerName"
-                      value={newAppointment.customerName}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
-                      placeholder="VD: Nguyễn Văn A"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={newAppointment.phone}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
-                      placeholder="VD: 0901234567"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Mẫu xe *</label>
-                    <select
-                      name="vehicleModel"
-                      value={newAppointment.vehicleModel}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
-                      required
-                    >
-                      <option value="">Chọn mẫu xe</option>
-                      {vehicleModels.map(model => (
-                        <option key={model} value={model}>{model}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Model ID</label>
-                    <input
-                      type="number"
-                      name="modelId"
-                      value={newAppointment.modelId}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
-                      placeholder="VD: 1"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Customer ID</label>
-                    <input
-                      type="number"
-                      name="customerId"
-                      value={newAppointment.customerId}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
-                      placeholder="VD: 1"
-                    />
-                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Ngày hẹn *</label>
                     <input
@@ -553,17 +709,6 @@ function TestDriveSchedule({ onBack }) {
                         <option key={time} value={time}>{time}</option>
                       ))}
                     </select>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
-                    <textarea
-                      name="notes"
-                      value={newAppointment.notes}
-                      onChange={handleInputChange}
-                      rows={3}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
-                      placeholder="Ghi chú về lịch hẹn..."
-                    />
                   </div>
                 </div>
 
@@ -626,52 +771,87 @@ function TestDriveSchedule({ onBack }) {
               </div>
 
               <form onSubmit={handleEditAppointment} className="space-y-4">
+                {/* Customer Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Khách hàng *</label>
+                  {selectedCustomer ? (
+                    <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">{selectedCustomer.fullName}</p>
+                        <p className="text-sm text-gray-600">{selectedCustomer.phone} • {selectedCustomer.email}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedCustomer(null)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <input
+                        type="text"
+                        placeholder="Tìm khách hàng theo tên, số điện thoại, email..."
+                        value={customerSearchTerm}
+                        onChange={(e) => setCustomerSearchTerm(e.target.value)}
+                        className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 mb-2"
+                      />
+                      {customerSearchTerm && (
+                        <div className="max-h-48 overflow-y-auto border rounded-lg">
+                          {customersLoading ? (
+                            <div className="p-3 text-center text-gray-500">Đang tải...</div>
+                          ) : filteredCustomers.length === 0 ? (
+                            <div className="p-3 text-center text-gray-500">Không tìm thấy khách hàng</div>
+                          ) : (
+                            filteredCustomers.map(customer => (
+                              <div
+                                key={customer.customerId}
+                                onClick={() => {
+                                  setSelectedCustomer(customer);
+                                  setCustomerSearchTerm('');
+                                }}
+                                className="p-3 hover:bg-gray-50 cursor-pointer border-b last:border-b-0"
+                              >
+                                <p className="font-medium text-gray-900">{customer.fullName}</p>
+                                <p className="text-sm text-gray-600">{customer.phone} • {customer.email}</p>
+                              </div>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* Model Selection */}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mẫu xe *</label>
+                  <select
+                    value={selectedModel?.modelId || ''}
+                    onChange={(e) => {
+                      const model = models?.find(m => m.modelId === parseInt(e.target.value));
+                      setSelectedModel(model || null);
+                    }}
+                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                    required
+                  >
+                    <option value="">Chọn mẫu xe</option>
+                    {modelsLoading ? (
+                      <option disabled>Đang tải...</option>
+                    ) : (
+                      models?.map(model => (
+                        <option key={model.modelId} value={model.modelId}>
+                          {model.modelName} - {model.modelId}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Tên khách hàng</label>
-                    <input
-                      type="text"
-                      name="customerName"
-                      value={newAppointment.customerName}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
-                    <input
-                      type="tel"
-                      name="phone"
-                      value={newAppointment.phone}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Mẫu xe *</label>
-                    <select
-                      name="vehicleModel"
-                      value={newAppointment.vehicleModel}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="">Chọn mẫu xe</option>
-                      {vehicleModels.map(model => (
-                        <option key={model} value={model}>{model}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Model ID</label>
-                    <input
-                      type="number"
-                      name="modelId"
-                      value={newAppointment.modelId}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Ngày hẹn *</label>
                     <input
@@ -697,16 +877,6 @@ function TestDriveSchedule({ onBack }) {
                         <option key={time} value={time}>{time}</option>
                       ))}
                     </select>
-                  </div>
-                  <div className="md:col-span-2">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
-                    <textarea
-                      name="notes"
-                      value={newAppointment.notes}
-                      onChange={handleInputChange}
-                      rows={3}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
                   </div>
                 </div>
 
