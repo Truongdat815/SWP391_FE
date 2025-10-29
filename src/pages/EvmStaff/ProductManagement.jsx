@@ -476,7 +476,7 @@ function ProductManagement() {
                               <div className="flex items-center justify-between p-3 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg">
                                 <div>
                                   <p className="text-xs text-gray-600">Giá bán</p>
-                                  <p className="text-lg font-bold text-emerald-600">${modelDetails.price?.toLocaleString()}</p>
+                                  <p className="text-lg font-bold text-emerald-600">{modelDetails.price?.toLocaleString('vi-VN')} VNĐ</p>
                                 </div>
                                 <div className="text-right">
                                   <p className="text-xs text-gray-600">Năm</p>
@@ -650,7 +650,7 @@ function ProductManagement() {
                                 {modelDetails ? (
                                   <div className="space-y-1">
                                     <div className="text-lg font-bold text-emerald-600">
-                                      ${modelDetails.price?.toLocaleString()}
+                                      {modelDetails.price?.toLocaleString('vi-VN')} VNĐ
                                     </div>
                                     <div className="text-sm text-gray-600">
                                       Năm {modelDetails.modelYear}
