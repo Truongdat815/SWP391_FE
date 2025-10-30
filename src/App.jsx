@@ -36,13 +36,13 @@ import PromotionManagement from './pages/dealerManager/PromotionManagement'
 // Dealer Staff Sub Pages
 import QuoteOrderManagement from './pages/dealerStaff/QuoteOrderManagement'
 import ViewOrders from './pages/dealerStaff/ViewOrders'
-import CreateContract from './pages/dealerStaff/CreateContract'
 import CreateOrder from './pages/dealerStaff/CreateOrder'
 import AddOrderDetails from './pages/dealerStaff/AddOrderDetails'
 import OrderSummary from './pages/dealerStaff/OrderSummary'
 import AddCustomer from './pages/dealerStaff/AddCustomer'
 import CustomerManagement from './pages/dealerStaff/CustomerManagement'
 import ContractManagement from './pages/dealerStaff/ContractManagement'
+import ViewContracts from './pages/dealerStaff/ViewContracts'
 import Inventory from './pages/dealerStaff/Inventory'
 import TestDriveSchedule from './pages/dealerStaff/TestDriveSchedule'
 import PaymentManagement from './pages/dealerStaff/PaymentManagement'
@@ -135,6 +135,7 @@ function AnimatedRoutes() {
             <Route path="add-customer" element={<AddCustomer />} />
             <Route path="customer-management" element={<CustomerManagement />} />
             <Route path="contract-management" element={<ContractManagement />} />
+            <Route path="view-contracts" element={<ViewContracts />} />
             <Route path="test-drive-schedule" element={<TestDriveSchedule />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="payment-management" element={<PaymentManagement />} />
