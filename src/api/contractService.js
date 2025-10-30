@@ -113,6 +113,34 @@ export async function uploadContractFile(contractId, file) {
     return data;
 }
 
+// Upload signed contract file (NEW API)
+export async function uploadSignedContract(contractId, file) {
+    const token = getToken();
+    const url = `${API_URL}/api/contracts/${contractId}/upload-signed`;
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+            'Authorization': `Bearer ${token}`
+            // Don't set Content-Type, let browser set it for multipart/form-data
+        },
+        body: formData
+    });
+    
+    const isJson = res.headers.get('content-type')?.includes('application/json');
+    const data = isJson ? await res.json() : await res.text();
+    
+    if (!res.ok) {
+        const message = (isJson && data?.message) || res.statusText || 'Upload failed';
+        throw new Error(message);
+    }
+    
+    return data;
+}
+
 // Get contract by order ID (helper function)
 export async function getContractByOrderId(orderId) {
     const response = await getAllContracts();
@@ -128,4 +156,13 @@ export function calculateRemainPrice(totalPayment, depositPrice) {
     return totalPayment - depositPrice;
 }
 
+// Create contract from order (NEW API - simplified)
+export async function createContractFromOrder(orderId) {
+    return request('/api/contracts/contracts', {
+        method: 'POST',
+        body: {
+            orderId: orderId
+        }
+    });
+}
 

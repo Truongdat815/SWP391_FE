@@ -6,7 +6,8 @@ import {
   fetchOrdersByStatus,
   fetchOrdersByDateRange,
   updateOrderStatusById, 
-  deleteOrderById 
+  deleteOrderById,
+  confirmOrderThunk
 } from '../../store/slices/orderSlice';
 import { getOrderById } from '../../api/orderService';
 import Tooltip from '@/components/ui/Tooltip';
@@ -19,7 +20,6 @@ import {
   AlertCircle,
   CheckCircle,
   X,
-  Edit,
   Package,
   Calendar,
   Filter,
@@ -33,7 +33,6 @@ import {
   UserCircle,
   Receipt,
   Tag,
-  TrendingUp,
   CreditCard,
   Plus
 } from 'lucide-react';
@@ -253,16 +252,50 @@ function ViewOrders() {
     }
     
     try {
-      await deleteOrder(orderId);
-      
-      // Remove from local state
-      setOrders(prev => prev.filter(order => order.orderId !== orderId));
+      // Dùng Redux thunk thay vì gọi trực tiếp API
+      await dispatch(deleteOrderById(orderId)).unwrap();
       
       setSuccessMessage('Đã xóa đơn hàng thành công!');
+      
+      // Refresh orders list từ server
+      if (startDate && endDate) {
+        dispatch(fetchOrdersByDateRange({ startDate, endDate }));
+      } else if (statusFilter !== 'all') {
+        dispatch(fetchOrdersByStatus(statusFilter));
+      } else {
+        dispatch(fetchOrders());
+      }
+      
       setTimeout(() => setSuccessMessage(null), 3000);
     } catch (error) {
       console.error('Error deleting order:', error);
-      setErrorMessage('Không thể xóa đơn hàng');
+      setErrorMessage('Không thể xóa đơn hàng: ' + error);
+      setTimeout(() => setErrorMessage(null), 3000);
+    }
+  };
+
+  const handleConfirmOrder = async (orderId) => {
+    if (!window.confirm('Xác nhận đơn hàng này? Đơn hàng sẽ chuyển từ DRAFT sang CONFIRMED.')) {
+      return;
+    }
+    
+    try {
+      await dispatch(confirmOrderThunk(orderId)).unwrap();
+      setSuccessMessage('Đã xác nhận đơn hàng thành công!');
+      
+      // Refresh orders list
+      if (startDate && endDate) {
+        dispatch(fetchOrdersByDateRange({ startDate, endDate }));
+      } else if (statusFilter !== 'all') {
+        dispatch(fetchOrdersByStatus(statusFilter));
+      } else {
+        dispatch(fetchOrders());
+      }
+      
+      setTimeout(() => setSuccessMessage(null), 3000);
+    } catch (error) {
+      console.error('Error confirming order:', error);
+      setErrorMessage('Không thể xác nhận đơn hàng: ' + error);
       setTimeout(() => setErrorMessage(null), 3000);
     }
   };
@@ -493,52 +526,24 @@ function ViewOrders() {
                         </Tooltip>
                         
                         {order.status?.toUpperCase() === 'DRAFT' && (
-                          <>
-                            <button
-                              onClick={() => handleEditOrder(order.orderId)}
-                              className="text-blue-600 hover:text-blue-900 transition-colors flex items-center"
-                              title="Chỉnh sửa"
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              Sửa
-                            </button>
-                            <button
-                              onClick={() => handleUpdateStatus(order.orderId, 'APPROVED')}
-                              className="text-green-600 hover:text-green-900 transition-colors"
-                              title="Phê duyệt đơn hàng"
-                            >
-                              Phê duyệt
-                            </button>
-                            <button
-                              onClick={() => handleDeleteOrder(order.orderId)}
-                              className="text-red-600 hover:text-red-900 transition-colors flex items-center"
-                              title="Xóa đơn hàng"
-                            >
-                              <Trash2 className="h-4 w-4 mr-1" />
-                              Xóa
-                            </button>
-                          </>
-                        )}
-                        
-                        {order.status?.toUpperCase() === 'APPROVED' && (!order.contractId || order.contractId === 0) && (
                           <button
-                            onClick={() => handleCreateContract(order)}
-                            className="text-blue-600 hover:text-blue-900 transition-colors font-semibold flex items-center"
-                            title="Tạo hợp đồng"
+                            onClick={() => handleConfirmOrder(order.orderId)}
+                            className="text-green-600 hover:text-green-900 transition-colors font-semibold flex items-center"
+                            title="Xác nhận đơn hàng"
                           >
-                            <FileText className="h-4 w-4 mr-1" />
-                            Tạo Hợp Đồng
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Xác nhận
                           </button>
                         )}
                         
-                        {order.status?.toUpperCase() === 'PROCESSING' && (
-                          <button
-                            onClick={() => handleUpdateStatus(order.orderId, 'COMPLETED')}
-                            className="text-green-600 hover:text-green-900 transition-colors"
-                          >
-                            Hoàn thành
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleDeleteOrder(order.orderId)}
+                          className="text-red-600 hover:text-red-900 transition-colors flex items-center"
+                          title="Xóa đơn hàng"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Xóa
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -834,102 +839,22 @@ function ViewOrders() {
                   )}
                 </div>
 
-                {/* Status Management */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border-2 border-blue-200">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center space-x-3">
-                      <TrendingUp className="h-6 w-6 text-blue-600" />
-                      <h4 className="font-bold text-blue-900 text-lg">Quản lý trạng thái</h4>
-                    </div>
-                    <span className={`px-4 py-2 text-sm font-bold rounded-full ${getStatusColor(selectedOrder.status)}`}>
-                      {getStatusText(selectedOrder.status)}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-4">
-                    <label className="text-sm font-medium text-blue-900">Cập nhật trạng thái:</label>
-                    <select
-                      value={selectedOrder.status || 'DRAFT'}
-                      onChange={(e) => {
-                        if (window.confirm(`Bạn có chắc muốn đổi trạng thái thành "${getStatusText(e.target.value)}"?`)) {
-                          handleUpdateStatus(selectedOrder.orderId, e.target.value);
-                          handleCloseModal();
-                        }
-                      }}
-                      className="flex-1 px-4 py-3 border-2 border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white font-semibold text-gray-900 shadow-sm hover:shadow-md transition-all"
-                    >
-                      <option value="DRAFT">📝 Nháp</option>
-                      <option value="PENDING">⏳ Chờ duyệt</option>
-                      <option value="APPROVED">✅ Đã phê duyệt</option>
-                      <option value="CONFIRMED">✔️ Đã xác nhận</option>
-                      <option value="PROCESSING">⚙️ Đang xử lý</option>
-                      <option value="COMPLETED">🎉 Hoàn thành</option>
-                      <option value="CANCELLED">❌ Đã hủy</option>
-                    </select>
-                  </div>
-                  <p className="text-xs text-blue-700 mt-3 flex items-center">
-                    <AlertCircle className="h-4 w-4 mr-1" />
-                    Chọn trạng thái mới từ dropdown để cập nhật đơn hàng
-                  </p>
-                </div>
-
                 {/* Action Buttons */}
                 <div className="flex justify-between items-center pt-4 border-t border-gray-200">
                   {/* Status Actions - LEFT SIDE */}
                   <div className="flex gap-2">
                     {selectedOrder.status?.toUpperCase() === 'DRAFT' && (
-                      <>
-                        <motion.button
-                          onClick={() => {
-                            handleEditOrder(selectedOrder.orderId);
-                            handleCloseModal();
-                          }}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Chỉnh sửa
-                        </motion.button>
-                        <motion.button
-                          onClick={() => {
-                            handleUpdateStatus(selectedOrder.orderId, 'APPROVED');
-                            handleCloseModal();
-                          }}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                        >
-                          Phê duyệt
-                        </motion.button>
-                      </>
-                    )}
-                    
-                    {selectedOrder.status?.toUpperCase() === 'APPROVED' && (!selectedOrder.contractId || selectedOrder.contractId === 0) && (
                       <motion.button
                         onClick={() => {
-                          handleCreateContract(selectedOrder);
+                          handleConfirmOrder(selectedOrder.orderId);
                           handleCloseModal();
                         }}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+                        className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center font-semibold"
                       >
-                        <FileText className="h-4 w-4 mr-2" />
-                        Tạo Hợp Đồng
-                      </motion.button>
-                    )}
-                    
-                    {selectedOrder.status?.toUpperCase() === 'PROCESSING' && (
-                      <motion.button
-                        onClick={() => {
-                          handleUpdateStatus(selectedOrder.orderId, 'COMPLETED');
-                          handleCloseModal();
-                        }}
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
-                      >
-                        Hoàn thành
+                        <CheckCircle className="h-5 w-5 mr-2" />
+                        Xác nhận đơn hàng
                       </motion.button>
                     )}
                   </div>
