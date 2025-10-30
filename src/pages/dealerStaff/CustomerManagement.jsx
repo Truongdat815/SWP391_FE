@@ -34,6 +34,7 @@ function CustomerManagement() {
   const customersList = (customers && customers.length) ? customers : customersApi;
 
   const [searchTerm, setSearchTerm] = useState('');
+  const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -238,7 +239,36 @@ function CustomerManagement() {
     });
   };
 
-  const filteredCustomers = getFilteredCustomers();
+  // Hàm sort khách hàng theo chế độ
+  const sortCustomers = (arr, mode = 'newest') => {
+    const getTime = (c) => new Date(c.createdAt || 0).getTime();
+    const getId = (c) => Number(c.customerId || 0);
+    const getName = (c) => (c.fullName || '').toLowerCase();
+
+    const byNewest = (a, b) => {
+      const t = getTime(b) - getTime(a);
+      if (t !== 0) return t;
+      return getId(b) - getId(a);
+    };
+    const byOldest = (a, b) => {
+      const t = getTime(a) - getTime(b);
+      if (t !== 0) return t;
+      return getId(a) - getId(b);
+    };
+    const byNameAsc = (a, b) => getName(a).localeCompare(getName(b), 'vi');
+    const byNameDesc = (a, b) => getName(b).localeCompare(getName(a), 'vi');
+
+    const copy = [...arr];
+    switch (mode) {
+      case 'oldest': return copy.sort(byOldest);
+      case 'name-asc': return copy.sort(byNameAsc);
+      case 'name-desc': return copy.sort(byNameDesc);
+      case 'newest':
+      default: return copy.sort(byNewest);
+    }
+  };
+
+  const filteredCustomers = sortCustomers(getFilteredCustomers(), sortMode);
 
   return (
     <div className="px-6 space-y-6">
@@ -268,6 +298,16 @@ function CustomerManagement() {
                 Thêm khách hàng
               </button>
             </Tooltip>
+            <select
+              value={sortMode}
+              onChange={(e) => setSortMode(e.target.value)}
+              className="bg-white text-gray-700 px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200"
+            >
+              <option value="newest">Khách hàng mới nhất</option>
+              <option value="oldest">Khách hàng cũ nhất</option>
+              <option value="name-asc">Tên A → Z</option>
+              <option value="name-desc">Tên Z → A</option>
+            </select>
             <Tooltip content="Xuất danh sách khách hàng ra file Excel" placement="bottom">
               <button className="bg-white text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200 flex items-center">
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

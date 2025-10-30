@@ -31,6 +31,24 @@ function ContractManagement() {
   const [successMessage, setSuccessMessage] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
   const [creatingContractForOrder, setCreatingContractForOrder] = useState(null);
+  const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
+  const sortOrders = (arr, mode = 'newest') => {
+    const getTime = (o) => new Date(o.orderDate || 0).getTime();
+    const getId = (o) => Number(o.orderId || 0);
+    const getName = (o) => (o.customerName || '').toLowerCase();
+    const byNewest = (a, b) => (getTime(b) - getTime(a)) || (getId(b) - getId(a));
+    const byOldest = (a, b) => (getTime(a) - getTime(b)) || (getId(a) - getId(b));
+    const byNameAsc = (a, b) => getName(a).localeCompare(getName(b), 'vi');
+    const byNameDesc = (a, b) => getName(b).localeCompare(getName(a), 'vi');
+    const copy = [...arr];
+    switch (mode) {
+      case 'oldest': return copy.sort(byOldest);
+      case 'name-asc': return copy.sort(byNameAsc);
+      case 'name-desc': return copy.sort(byNameDesc);
+      case 'newest':
+      default: return copy.sort(byNewest);
+    }
+  };
 
   // Load confirmed orders on mount
   useEffect(() => {
@@ -38,10 +56,13 @@ function ContractManagement() {
   }, [dispatch]);
 
   // Filter orders by search
-  const filteredOrders = (orders || []).filter(order => 
-    order.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.customerPhone?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredOrders = sortOrders(
+    (orders || []).filter(order => 
+      order.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customerPhone?.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
+    sortMode
   );
 
   // Handlers
@@ -105,6 +126,18 @@ function ContractManagement() {
             <p className="text-gray-600 mt-1">
               Danh sách đơn hàng đã xác nhận - Chọn đơn để tạo hợp đồng
             </p>
+          </div>
+          <div className="w-64">
+            <select
+              value={sortMode}
+              onChange={(e) => setSortMode(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+            >
+              <option value="newest">Đơn hàng mới nhất</option>
+              <option value="oldest">Đơn hàng cũ nhất</option>
+              <option value="name-asc">Tên KH A → Z</option>
+              <option value="name-desc">Tên KH Z → A</option>
+            </select>
           </div>
         </div>
 
