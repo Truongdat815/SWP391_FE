@@ -424,7 +424,7 @@ function CreateOrder({ onBack }) {
               </div>
               <Tooltip content="Thêm khách hàng mới" placement="left">
                 <button
-                  onClick={() => navigate('/dealer-staff/add-customer')}
+                  onClick={() => navigate('/dealer-staff/customer-management?add=new')}
                   className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
                 >
                   <UserPlus className="h-4 w-4 mr-2" />

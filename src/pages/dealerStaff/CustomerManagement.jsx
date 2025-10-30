@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { get } from '@/api/client';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAllCustomersThunk, createCustomerThunk, deleteCustomerThunk, updateCustomerThunk } from '@store/slices/customerSlice';
@@ -17,6 +18,9 @@ function CustomerManagement() {
   const isCreatingCustomer = customersStatus === 'loading';
   
   const [customersApi, setCustomersApi] = useState([]);
+  const location = useLocation();
+  const sortDropdownRef = useRef(null);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
 
   useEffect(() => {
     if (customersStatus === 'idle') {
@@ -24,18 +28,45 @@ function CustomerManagement() {
     }
   }, [dispatch, customersStatus]);
 
-  // Fallback fetch via api client for direct API usage
+  // Close dropdown when clicking outside
   useEffect(() => {
-    get('/api/customers/all')
-      .then((res) => setCustomersApi(Array.isArray(res?.data?.data) ? res.data.data : []))
-      .catch((err) => console.error('Lỗi lấy danh sách khách hàng:', err));
-  }, []);
+    const handleClickOutside = (event) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
+        setShowSortDropdown(false);
+      }
+    };
+
+    if (showSortDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showSortDropdown]);
+
+  // Fallback fetch via api client for direct API usage (Only if Redux fails)
+  useEffect(() => {
+    // Only fetch if Redux customers list is empty after initial load
+    if (customersStatus === 'succeeded' && customers.length === 0) {
+      get('/api/customers/all')
+        .then((res) => setCustomersApi(Array.isArray(res?.data?.data) ? res.data.data : []))
+        .catch((err) => console.error('Lỗi lấy danh sách khách hàng:', err));
+    }
+  }, [customersStatus, customers.length]);
 
   const customersList = (customers && customers.length) ? customers : customersApi;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
   const [showAddModal, setShowAddModal] = useState(false);
+
+  // Tự động mở modal thêm khách hàng nếu có query param add=new
+  useEffect(() => {
+    if (location.search.includes('add=new')) {
+      setShowAddModal(true);
+    }
+  }, [location]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState(null);
@@ -298,16 +329,68 @@ function CustomerManagement() {
                 Thêm khách hàng
               </button>
             </Tooltip>
-            <select
-              value={sortMode}
-              onChange={(e) => setSortMode(e.target.value)}
-              className="bg-white text-gray-700 px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200"
-            >
-              <option value="newest">Khách hàng mới nhất</option>
-              <option value="oldest">Khách hàng cũ nhất</option>
-              <option value="name-asc">Tên A → Z</option>
-              <option value="name-desc">Tên Z → A</option>
-            </select>
+            {/* Custom Dropdown */}
+            <div className="relative" ref={sortDropdownRef}>
+              <button
+                onClick={() => setShowSortDropdown(!showSortDropdown)}
+                className="bg-white text-gray-700 px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200 flex items-center"
+              >
+                <span>
+                  {sortMode === 'newest' && 'Khách hàng mới nhất'}
+                  {sortMode === 'oldest' && 'Khách hàng cũ nhất'}
+                  {sortMode === 'name-asc' && 'Tên A → Z'}
+                  {sortMode === 'name-desc' && 'Tên Z → A'}
+                </span>
+                <svg 
+                  className={`ml-2 h-4 w-4 transition-transform duration-200 ${showSortDropdown ? 'rotate-180' : ''}`}
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              <AnimatePresence>
+                {showSortDropdown && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ 
+                      duration: 0.2,
+                      ease: [0.4, 0, 0.2, 1]
+                    }}
+                    className="absolute right-0 mt-2 w-full min-w-[200px] bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50"
+                  >
+                    <div className="py-1">
+                      {[
+                        { value: 'newest', label: 'Khách hàng mới nhất' },
+                        { value: 'oldest', label: 'Khách hàng cũ nhất' },
+                        { value: 'name-asc', label: 'Tên A → Z' },
+                        { value: 'name-desc', label: 'Tên Z → A' }
+                      ].map((option, index) => (
+                        <motion.button
+                          key={option.value}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: index * 0.03, duration: 0.2 }}
+                          onClick={() => {
+                            setSortMode(option.value);
+                            setShowSortDropdown(false);
+                          }}
+                          className={`w-full px-4 py-2.5 text-left text-sm hover:bg-gray-50 transition-colors ${
+                            sortMode === option.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                          }`}
+                        >
+                          {option.label}
+                        </motion.button>
+                      ))}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
             <Tooltip content="Xuất danh sách khách hàng ra file Excel" placement="bottom">
               <button className="bg-white text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200 flex items-center">
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
