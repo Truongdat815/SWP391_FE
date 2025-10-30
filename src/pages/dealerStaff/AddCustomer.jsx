@@ -1,25 +1,15 @@
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import CustomerManagement from './CustomerManagement';
 
 function AddCustomer() {
   const navigate = useNavigate();
 
-  const handleBack = () => {
-    navigate(-1); // Go back to previous page
-  };
+  useEffect(() => {
+    // Redirect ngay lập tức đến trang customer-management với query param
+    navigate('/dealer-staff/customer-management?add=new', { replace: true });
+  }, [navigate]);
 
-  const handleSuccess = () => {
-    // Customer was added successfully
-    console.log('Customer added successfully');
-  };
-
-  return (
-    <CustomerManagement 
-      mode="add-only" 
-      onBack={handleBack} 
-      onSuccess={handleSuccess} 
-    />
-  );
+  return null; // Không render gì vì sẽ redirect
 }
 
 export default AddCustomer;
