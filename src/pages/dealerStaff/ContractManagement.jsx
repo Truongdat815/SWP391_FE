@@ -14,7 +14,6 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
-  Package,
   FileText,
   ShoppingCart
 } from 'lucide-react';
@@ -51,26 +50,35 @@ function ContractManagement() {
   };
 
   const handleCreateContract = async (order) => {
-    if (!window.confirm(`Tạo hợp đồng cho đơn hàng ${order.orderCode}?`)) {
-      return;
-    }
+    if (!order) return;
 
     try {
       setCreatingContractForOrder(order.orderId);
+      
+      // Call API to create contract
       const result = await dispatch(createContractFromOrderThunk(order.orderId)).unwrap();
       
+      console.log('Contract created:', result);
+      
+      // Extract contractId from result
+      const contractId = result.contractId || result.data?.contractId;
+      
+      // Show success message
       setSuccessMessage(`Đã tạo hợp đồng thành công cho đơn ${order.orderCode}!`);
       
-      // Refresh the list to remove this order (it now has a contract)
+      // Navigate to view contracts page after short delay
       setTimeout(() => {
-        dispatch(fetchOrdersByStatus('CONFIRMED'));
-        setSuccessMessage(null);
-      }, 2000);
+        navigate('/dealer-staff/view-contracts', {
+          state: {
+            message: `Đã tạo hợp đồng thành công cho đơn ${order.orderCode}!`,
+            contractId: contractId
+          }
+        });
+      }, 1500);
       
-      console.log('Contract created:', result);
     } catch (error) {
       console.error('Error creating contract:', error);
-      setErrorMessage('Không thể tạo hợp đồng: ' + error);
+      setErrorMessage('Không thể tạo hợp đồng: ' + (error.message || error));
       setTimeout(() => setErrorMessage(null), 3000);
     } finally {
       setCreatingContractForOrder(null);

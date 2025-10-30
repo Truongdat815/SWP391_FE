@@ -34,7 +34,8 @@ import {
   Receipt,
   Tag,
   CreditCard,
-  Plus
+  Plus,
+  FilePlus
 } from 'lucide-react';
 
 function ViewOrders() {
@@ -82,12 +83,13 @@ function ViewOrders() {
 
   // Fetch orders from API based on filters (server-side filtering)
   useEffect(() => {
-    // Priority: Date range > Status > All
+    // Only show DRAFT and CONFIRMED orders
     if (startDate && endDate) {
       dispatch(fetchOrdersByDateRange({ startDate, endDate }));
     } else if (statusFilter !== 'all') {
       dispatch(fetchOrdersByStatus(statusFilter));
     } else {
+      // Fetch all orders, but we'll filter to DRAFT and CONFIRMED
       dispatch(fetchOrders());
     }
   }, [dispatch, statusFilter, startDate, endDate]);
@@ -108,6 +110,13 @@ function ViewOrders() {
     if (!orders) return;
     
     let filtered = Array.isArray(orders) ? [...orders] : [];
+    
+    // Only show DRAFT and CONFIRMED orders
+    filtered = filtered.filter(order => {
+      const status = order.status?.toUpperCase();
+      return status === 'DRAFT' || status === 'CONFIRMED';
+    });
+    
     console.log('📦 Filtered orders:', filtered);
 
     // Filter by search term (client-side)
@@ -282,11 +291,8 @@ function ViewOrders() {
   };
 
   const handleCreateContract = (order) => {
-    navigate(`/dealer-staff/order-summary/${order.orderId}`, {
-      state: {
-        fromViewOrders: true
-      }
-    });
+    // Navigate to contract management page for creating contract
+    navigate('/dealer-staff/contract-management');
   };
 
   return (
@@ -451,9 +457,6 @@ function ViewOrders() {
                     Tổng tiền
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Mã hợp đồng
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Thao tác
                   </th>
                 </tr>
@@ -479,9 +482,6 @@ function ViewOrders() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {(order.totalPayment || order.totalPrice || 0).toLocaleString('vi-VN')} VNĐ
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {order.contractId || '-'}
-                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex flex-wrap gap-2">
                         <Tooltip content="Xem thông tin chi tiết đơn hàng và hợp đồng" placement="top">
@@ -493,6 +493,17 @@ function ViewOrders() {
                             Chi tiết
                           </button>
                         </Tooltip>
+                        
+                        {order.status?.toUpperCase() === 'CONFIRMED' && (
+                          <button
+                            onClick={() => handleCreateContract(order)}
+                            className="text-blue-600 hover:text-blue-900 transition-colors flex items-center"
+                            title="Tạo hợp đồng"
+                          >
+                            <FilePlus className="h-4 w-4 mr-1" />
+                            Tạo hợp đồng
+                          </button>
+                        )}
                         
                         {order.status?.toUpperCase() === 'DRAFT' && (
                           <button
