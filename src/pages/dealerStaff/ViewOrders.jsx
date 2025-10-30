@@ -61,6 +61,25 @@ function ViewOrders() {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
+  // Thêm state và hàm sort
+  const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
+  const sortOrders = (arr, mode = 'newest') => {
+    const getTime = (o) => new Date(o.orderDate || 0).getTime();
+    const getId = (o) => Number(o.orderId || 0);
+    const getName = (o) => (o.customerName || '').toLowerCase();
+    const byNewest = (a, b) => (getTime(b) - getTime(a)) || (getId(b) - getId(a));
+    const byOldest = (a, b) => (getTime(a) - getTime(b)) || (getId(a) - getId(b));
+    const byNameAsc = (a, b) => getName(a).localeCompare(getName(b), 'vi');
+    const byNameDesc = (a, b) => getName(b).localeCompare(getName(a), 'vi');
+    const copy = [...arr];
+    switch (mode) {
+      case 'oldest': return copy.sort(byOldest);
+      case 'name-asc': return copy.sort(byNameAsc);
+      case 'name-desc': return copy.sort(byNameDesc);
+      case 'newest':
+      default: return copy.sort(byNewest);
+    }
+  };
 
   // Show success message from location state and reload orders
   useEffect(() => {
@@ -130,8 +149,8 @@ function ViewOrders() {
       });
     }
 
-    setFilteredOrders(filtered);
-  }, [searchTerm, orders]);
+    setFilteredOrders(sortOrders(filtered, sortMode));
+  }, [searchTerm, orders, sortMode]);
 
   const getStatusColor = (status) => {
     if (!status) return 'bg-gray-100 text-gray-800';
@@ -320,6 +339,18 @@ function ViewOrders() {
                   <option value="processing">Đang xử lý</option>
                   <option value="completed">Hoàn thành</option>
                   <option value="cancelled">Đã hủy</option>
+                </select>
+              </div>
+              <div className="sm:w-60">
+                <select
+                  value={sortMode}
+                  onChange={(e) => setSortMode(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                >
+                  <option value="newest">Đơn hàng mới nhất</option>
+                  <option value="oldest">Đơn hàng cũ nhất</option>
+                  <option value="name-asc">Tên KH A → Z</option>
+                  <option value="name-desc">Tên KH Z → A</option>
                 </select>
               </div>
               <button
