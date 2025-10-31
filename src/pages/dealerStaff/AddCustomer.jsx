@@ -13,3 +13,4 @@ function AddCustomer() {
 }
 
 export default AddCustomer;
+

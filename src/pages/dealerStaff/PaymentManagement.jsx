@@ -109,8 +109,8 @@ function PaymentManagement({ onBack }) {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-gray-900">Quản lý thanh toán</h2>
           <button
             onClick={onBack}
@@ -124,8 +124,8 @@ function PaymentManagement({ onBack }) {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-emerald-50 rounded-lg p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+          <div className="bg-emerald-50 rounded-lg p-4">
             <div className="flex items-center">
               <div className="p-3 bg-emerald-100 rounded-lg">
                 <svg className="h-6 w-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -139,7 +139,7 @@ function PaymentManagement({ onBack }) {
             </div>
           </div>
 
-          <div className="bg-yellow-50 rounded-lg p-6">
+          <div className="bg-yellow-50 rounded-lg p-4">
             <div className="flex items-center">
               <div className="p-3 bg-yellow-100 rounded-lg">
                 <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -153,7 +153,7 @@ function PaymentManagement({ onBack }) {
             </div>
           </div>
 
-          <div className="bg-blue-50 rounded-lg p-6">
+          <div className="bg-blue-50 rounded-lg p-4">
             <div className="flex items-center">
               <div className="p-3 bg-blue-100 rounded-lg">
                 <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -171,7 +171,7 @@ function PaymentManagement({ onBack }) {
         {/* Payment Form Modal */}
         {showPaymentForm && selectedPayment && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="bg-white rounded-lg p-4 w-full max-w-md">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Ghi nhận thanh toán</h3>
               <form onSubmit={handlePaymentSubmit} className="space-y-4">
                 <div>
@@ -290,3 +290,4 @@ function PaymentManagement({ onBack }) {
 }
 
 export default PaymentManagement;
+

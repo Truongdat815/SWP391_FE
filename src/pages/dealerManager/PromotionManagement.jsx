@@ -287,10 +287,10 @@ function PromotionManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-8">
+        <div className="mb-4">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 flex items-center">
@@ -311,7 +311,7 @@ function PromotionManagement() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
             <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -364,7 +364,7 @@ function PromotionManagement() {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center"
+              className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center"
             >
               <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
               <span className="text-red-700">{error}</span>
@@ -376,7 +376,7 @@ function PromotionManagement() {
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center"
+              className="mb-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center"
             >
               <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
               <span className="text-green-700">{success}</span>

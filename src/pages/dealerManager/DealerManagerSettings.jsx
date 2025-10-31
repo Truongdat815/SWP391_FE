@@ -106,15 +106,15 @@ const DealerManagerSettings = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 rounded-2xl p-8 mb-6 shadow-sm">
+        <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 rounded-2xl p-4 mb-4 shadow-sm">
           <h1 className="text-3xl font-bold text-gray-900">{t.title}</h1>
           <p className="text-gray-600 mt-2">{t.subtitle}</p>
         </div>
 
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-12 gap-4">
           {/* Sidebar Navigation */}
           <div className="col-span-12 lg:col-span-3">
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm sticky top-6">
@@ -146,7 +146,7 @@ const DealerManagerSettings = () => {
           </div>
 
           {/* Main Content */}
-          <div className="col-span-12 lg:col-span-9 space-y-6">
+          <div className="col-span-12 lg:col-span-9 space-y-4">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeSection}
@@ -157,7 +157,7 @@ const DealerManagerSettings = () => {
               >
                 {/* NGÔN NGỮ & ĐỊNH DẠNG */}
                 {activeSection === 'language' && (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.language.title}</h2>
                       <p className="text-gray-600">{t.language.subtitle}</p>
@@ -227,7 +227,7 @@ const DealerManagerSettings = () => {
 
                 {/* THÔNG BÁO */}
                 {activeSection === 'notifications' && (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.notifications.title}</h2>
                       <p className="text-gray-600">{t.notifications.subtitle}</p>
@@ -414,7 +414,7 @@ const DealerManagerSettings = () => {
 
                 {/* LỊCH SỬ ĐĂNG NHẬP */}
                 {activeSection === 'security' && (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.security.title}</h2>
                       <p className="text-gray-600">{t.security.subtitle}</p>
@@ -521,7 +521,7 @@ const DealerManagerSettings = () => {
 
                 {/* HIỆU SUẤT */}
                 {activeSection === 'performance' && (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.performance.title}</h2>
                       <p className="text-gray-600">{t.performance.subtitle}</p>
@@ -634,14 +634,14 @@ const DealerManagerSettings = () => {
 
                 {/* DỮ LIỆU */}
                 {activeSection === 'data' && (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.data.title}</h2>
                       <p className="text-gray-600">{t.data.subtitle}</p>
                     </div>
 
                     {/* Xuất dữ liệu */}
-                    <div className="border border-blue-200 bg-blue-50 rounded-xl p-6">
+                    <div className="border border-blue-200 bg-blue-50 rounded-xl p-4">
                       <div className="flex items-start gap-4">
                         <div className="h-12 w-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
                           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">

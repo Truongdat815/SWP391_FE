@@ -96,8 +96,8 @@ function OrderFromManufacturer({ onBack }) {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-gray-900">Đặt xe từ hãng sản xuất</h2>
           <button
             onClick={onBack}
@@ -206,7 +206,7 @@ function OrderFromManufacturer({ onBack }) {
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Lịch sử đơn đặt hàng</h3>
             <div className="space-y-4">
               {orders.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
+                <div className="text-center py-4 text-gray-500">
                   <svg className="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                   </svg>
@@ -254,3 +254,4 @@ function OrderFromManufacturer({ onBack }) {
 }
 
 export default OrderFromManufacturer;
+
