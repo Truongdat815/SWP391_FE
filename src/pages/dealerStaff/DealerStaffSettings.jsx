@@ -149,10 +149,10 @@ const DealerStaffSettings = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-2xl p-8 mb-6 shadow-sm">
+        <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-2xl p-4 mb-4 shadow-sm">
           <h1 className="text-3xl font-bold text-gray-900">{t.title}</h1>
           <p className="text-gray-600 mt-2">{t.subtitle}</p>
           {unsavedChanges && (
@@ -165,7 +165,7 @@ const DealerStaffSettings = () => {
           )}
         </div>
 
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-12 gap-4">
           {/* Sidebar */}
           <div className="col-span-12 lg:col-span-3">
             <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sticky top-6">
@@ -201,7 +201,7 @@ const DealerStaffSettings = () => {
                 {/* Copy exact same sections as AdminSettings, just change theme color from red to emerald */}
                 {/* NGÔN NGỮ - Same as AdminSettings but emerald theme */}
                 {activeSection === 'language' && (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4">
                     {/* Copy from AdminSettings, change ring-red to ring-emerald */}
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.language.title}</h2>
@@ -227,7 +227,7 @@ const DealerStaffSettings = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="border-t pt-6">
+                    <div className="border-t pt-4">
                       <h3 className="font-semibold text-gray-900 mb-4">{t.language.dateTimeFormatTitle}</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -255,8 +255,8 @@ const DealerStaffSettings = () => {
                 
                 {/* Placeholder for other sections - they follow same pattern as AdminSettings */}
                 {activeSection !== 'language' && (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
-                    <div className="text-center py-12">
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4">
+                    <div className="text-center py-4">
                       <p className="text-gray-500">Section "{activeSection}" - Same structure as AdminSettings with emerald theme</p>
                       <p className="text-sm text-gray-400 mt-2">Full implementation follows AdminSettings pattern</p>
                     </div>
@@ -266,7 +266,7 @@ const DealerStaffSettings = () => {
             </AnimatePresence>
 
             {/* Action Buttons */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mt-6">
+            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 mt-4">
               <div className="flex items-center justify-between">
                 <button onClick={handleReset} className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition">
                   {t.buttons.reset}

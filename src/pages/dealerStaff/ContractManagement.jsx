@@ -110,22 +110,22 @@ function ContractManagement() {
     <div className="max-w-7xl mx-auto">
       {/* Success/Error Messages */}
       {successMessage && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
+        <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
           <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
           <span className="text-green-700">{successMessage}</span>
         </div>
       )}
       
       {errorMessage && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
+        <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
           <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
           <span className="text-red-700">{errorMessage}</span>
         </div>
       )}
 
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="text-3xl font-bold text-gray-900 flex items-center">
               <FileText className="h-8 w-8 text-emerald-600 mr-3" />
@@ -165,12 +165,12 @@ function ContractManagement() {
       {/* Orders Table */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-4">
             <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mr-3" />
             <span className="text-gray-600">Đang tải đơn hàng...</span>
           </div>
         ) : filteredOrders.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-4">
             <ShoppingCart className="h-16 w-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500 text-lg">Không có đơn hàng nào đã xác nhận</p>
             <p className="text-gray-400 text-sm mt-2">Các đơn hàng đã xác nhận sẽ xuất hiện ở đây</p>

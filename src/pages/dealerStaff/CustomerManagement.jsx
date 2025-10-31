@@ -302,9 +302,9 @@ function CustomerManagement() {
   const filteredCustomers = sortCustomers(getFilteredCustomers(), sortMode);
 
   return (
-    <div className="px-6 space-y-6">
+    <div className="px-6 space-y-4">
       {/* Header */}
-      <div className="bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-lg border border-gray-100 p-6">
+      <div className="bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-lg border border-gray-100 p-4">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
@@ -404,7 +404,7 @@ function CustomerManagement() {
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-4">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <div className="relative group">
@@ -562,7 +562,7 @@ function CustomerManagement() {
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">
                         {searchTerm ? 'Không tìm thấy khách hàng phù hợp' : 'Chưa có khách hàng'}
                       </h3>
-                      <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto">
+                      <p className="text-sm text-gray-500 mb-4 max-w-sm mx-auto">
                         {searchTerm ? 'Thử thay đổi từ khóa tìm kiếm' : 'Bắt đầu bằng cách thêm khách hàng mới'}
                       </p>
                       <button
@@ -608,7 +608,7 @@ function CustomerManagement() {
               className="w-full max-w-2xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
             >
               <div className="mt-3">
-                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
                   <h3 className="text-2xl font-bold text-gray-900">➕ Thêm khách hàng mới</h3>
                   <button
                     onClick={handleCloseModal}
@@ -703,7 +703,7 @@ function CustomerManagement() {
                   </div>
                 </div>
                 
-                <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
+                <div className="flex justify-end space-x-3 mt-4 pt-4 border-t border-gray-200">
                   <motion.button
                     type="button"
                     onClick={handleCloseModal}
@@ -760,7 +760,7 @@ function CustomerManagement() {
               className="w-full max-w-2xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
             >
               <div className="mt-3">
-                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
                   <h3 className="text-2xl font-bold text-gray-900">✏️ Chỉnh sửa khách hàng</h3>
                   <button
                     onClick={handleEditCancel}
@@ -850,7 +850,7 @@ function CustomerManagement() {
                   </div>
                 </div>
                 
-                <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
+                <div className="flex justify-end space-x-3 mt-4 pt-4 border-t border-gray-200">
                   <motion.button
                     type="button"
                     onClick={handleEditCancel}
@@ -904,7 +904,7 @@ function CustomerManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-[480px] p-6 border shadow-2xl rounded-xl bg-white"
+              className="w-[480px] p-4 border shadow-2xl rounded-xl bg-white"
             >
               <div className="mt-3">
                 <div className="flex items-center justify-center w-16 h-16 mx-auto bg-gradient-to-br from-red-100 to-red-200 rounded-full mb-4 shadow-lg">
@@ -1000,7 +1000,7 @@ function CustomerManagement() {
               className="w-full max-w-2xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
             >
               <div className="mt-3">
-                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
                   <h3 className="text-2xl font-bold text-gray-900">👤 Chi tiết khách hàng</h3>
                   <button
                     onClick={handleCloseDetailModal}
@@ -1012,9 +1012,9 @@ function CustomerManagement() {
                   </button>
                 </div>
               
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Customer Avatar and Basic Info */}
-                <div className="flex items-center space-x-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+                <div className="flex items-center space-x-6 p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
                   <div className="h-20 w-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-lg ring-4 ring-opacity-20 ring-gray-300">
                     <span className="text-white font-bold text-2xl">
                       {(customerToView.fullName || '').split(' ').pop()?.charAt(0) || 'C'}
@@ -1032,9 +1032,9 @@ function CustomerManagement() {
                 </div>
 
                 {/* Detailed Information */}
-                <div className="grid grid-cols-1 gap-6">
+                <div className="grid grid-cols-1 gap-4">
                   {/* Contact Information */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                  <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                     <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                       <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
@@ -1061,7 +1061,7 @@ function CustomerManagement() {
                   </div>
 
                   {/* Address Information */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                  <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                     <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                       <svg className="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -1092,7 +1092,7 @@ function CustomerManagement() {
                 </div>
 
                 {/* Identification Information */}
-                <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                <div className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm">
                   <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
                     <svg className="w-5 h-5 mr-2 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
@@ -1166,7 +1166,7 @@ function CustomerManagement() {
               className="w-full max-w-6xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
             >
               <div className="mt-3">
-                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
                   <h3 className="text-2xl font-bold text-gray-900">📋 Đơn hàng của khách hàng</h3>
                   <button
                     onClick={handleCloseOrdersModal}
@@ -1180,7 +1180,7 @@ function CustomerManagement() {
               
                 {/* Loading State */}
                 {loadingOrders ? (
-                  <div className="flex items-center justify-center py-12">
+                  <div className="flex items-center justify-center py-4">
                     <svg className="animate-spin h-8 w-8 text-purple-600 mr-3" fill="none" viewBox="0 0 24 24">
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
@@ -1188,7 +1188,7 @@ function CustomerManagement() {
                     <span className="text-gray-600">Đang tải đơn hàng...</span>
                   </div>
                 ) : customerOrders.length === 0 ? (
-                  <div className="text-center py-12">
+                  <div className="text-center py-4">
                     <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
                     </svg>
@@ -1248,7 +1248,7 @@ function CustomerManagement() {
                 )}
 
                 {/* Close Button */}
-                <div className="flex justify-end pt-6 border-t border-gray-200 mt-6">
+                <div className="flex justify-end pt-4 border-t border-gray-200 mt-4">
                   <motion.button
                     onClick={handleCloseOrdersModal}
                     whileHover={{ scale: 1.02 }}

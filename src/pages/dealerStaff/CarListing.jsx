@@ -134,8 +134,8 @@ function CarListing({ onBack }) {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-gray-900">Danh mục xe Electra</h2>
           <button
             onClick={onBack}
@@ -149,7 +149,7 @@ function CarListing({ onBack }) {
         </div>
 
         {/* Search and Filter */}
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="flex flex-col md:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
@@ -184,7 +184,7 @@ function CarListing({ onBack }) {
         </div>
 
         {/* Vehicles Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {filteredVehicles.map(vehicle => (
             <div key={vehicle.id} className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
               <div className="relative">
@@ -256,7 +256,7 @@ function CarListing({ onBack }) {
         </div>
 
         {filteredVehicles.length === 0 && (
-          <div className="text-center py-12">
+          <div className="text-center py-4">
             <svg className="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
@@ -269,3 +269,4 @@ function CarListing({ onBack }) {
 }
 
 export default CarListing;
+

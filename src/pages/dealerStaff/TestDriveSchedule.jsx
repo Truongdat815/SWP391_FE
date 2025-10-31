@@ -333,9 +333,9 @@ function TestDriveSchedule({ onBack }) {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         {/* Header */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Quản lý lịch hẹn lái thử</h2>
             <p className="text-gray-600">Tổng số: {filteredAppointments.length} lịch hẹn</p>
@@ -376,7 +376,7 @@ function TestDriveSchedule({ onBack }) {
         </div>
 
         {/* Filters */}
-        <div className="mb-6 space-y-4">
+        <div className="mb-4 space-y-4">
           <div className="flex flex-wrap items-center gap-4">
             <div className="flex items-center gap-2">
               <label className="text-sm font-medium text-gray-700">Lọc theo ngày:</label>
@@ -447,7 +447,7 @@ function TestDriveSchedule({ onBack }) {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-800"
+            className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg text-red-800"
           >
             <p className="font-medium">Lỗi: {appointmentsError}</p>
           </motion.div>
@@ -455,7 +455,7 @@ function TestDriveSchedule({ onBack }) {
 
         {/* Loading State */}
         {isLoading ? (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-4">
             <div className="text-center">
               <motion.div
                 animate={{ rotate: 360 }}
@@ -466,7 +466,7 @@ function TestDriveSchedule({ onBack }) {
             </div>
           </div>
         ) : filteredAppointments.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-4">
             <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
@@ -591,7 +591,7 @@ function TestDriveSchedule({ onBack }) {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-xl shadow-2xl p-4 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Thêm lịch hẹn mới</h3>
@@ -759,7 +759,7 @@ function TestDriveSchedule({ onBack }) {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-xl shadow-2xl p-4 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Chỉnh sửa lịch hẹn</h3>
@@ -927,7 +927,7 @@ function TestDriveSchedule({ onBack }) {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md"
+              className="bg-white rounded-xl shadow-2xl p-4 w-full max-w-md"
             >
               <div className="text-center">
                 <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100 mb-4">
@@ -936,7 +936,7 @@ function TestDriveSchedule({ onBack }) {
                   </svg>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Xác nhận xóa</h3>
-                <p className="text-gray-600 mb-6">
+                <p className="text-gray-600 mb-4">
                   Bạn có chắc chắn muốn xóa lịch hẹn này không? Hành động này không thể hoàn tác.
                 </p>
                 <div className="flex gap-3 justify-center">
@@ -969,3 +969,4 @@ function TestDriveSchedule({ onBack }) {
 }
 
 export default TestDriveSchedule;
+

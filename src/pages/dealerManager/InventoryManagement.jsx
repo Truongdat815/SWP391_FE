@@ -196,8 +196,8 @@ function InventoryManagement() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-start justify-between mb-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div className="flex items-start justify-between mb-4">
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Quản lý kho đại lý</h1>
             <p className="text-gray-600">Quản lý tồn kho và duyệt yêu cầu nhập hàng</p>
@@ -336,7 +336,7 @@ function InventoryManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl"
+              className="bg-white rounded-xl shadow-2xl p-4 w-full max-w-2xl"
             >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Thêm xe vào kho</h3>
@@ -433,7 +433,7 @@ function InventoryManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md"
+              className="bg-white rounded-xl shadow-2xl p-4 w-full max-w-md"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Cập nhật số lượng</h3>
@@ -502,7 +502,7 @@ function InventoryManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md"
+              className="bg-white rounded-xl shadow-2xl p-4 w-full max-w-md"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Cập nhật giá bán</h3>
@@ -571,7 +571,7 @@ function InventoryManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md"
+              className="bg-white rounded-xl shadow-2xl p-4 w-full max-w-md"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Xác nhận xóa</h3>

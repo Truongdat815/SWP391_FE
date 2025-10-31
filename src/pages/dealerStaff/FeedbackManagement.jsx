@@ -137,8 +137,8 @@ function FeedbackManagement({ onBack }) {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-gray-900">Quản lý phản hồi & khiếu nại</h2>
           <button
             onClick={onBack}
@@ -152,8 +152,8 @@ function FeedbackManagement({ onBack }) {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-yellow-50 rounded-lg p-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+          <div className="bg-yellow-50 rounded-lg p-4">
             <div className="flex items-center">
               <div className="p-3 bg-yellow-100 rounded-lg">
                 <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -169,7 +169,7 @@ function FeedbackManagement({ onBack }) {
             </div>
           </div>
 
-          <div className="bg-blue-50 rounded-lg p-6">
+          <div className="bg-blue-50 rounded-lg p-4">
             <div className="flex items-center">
               <div className="p-3 bg-blue-100 rounded-lg">
                 <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -185,7 +185,7 @@ function FeedbackManagement({ onBack }) {
             </div>
           </div>
 
-          <div className="bg-green-50 rounded-lg p-6">
+          <div className="bg-green-50 rounded-lg p-4">
             <div className="flex items-center">
               <div className="p-3 bg-green-100 rounded-lg">
                 <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -201,7 +201,7 @@ function FeedbackManagement({ onBack }) {
             </div>
           </div>
 
-          <div className="bg-gray-50 rounded-lg p-6">
+          <div className="bg-gray-50 rounded-lg p-4">
             <div className="flex items-center">
               <div className="p-3 bg-gray-100 rounded-lg">
                 <svg className="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -219,7 +219,7 @@ function FeedbackManagement({ onBack }) {
         {/* Resolve Form Modal */}
         {showResolveForm && selectedFeedback && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg p-6 w-full max-w-md">
+            <div className="bg-white rounded-lg p-4 w-full max-w-md">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Giải quyết phản hồi</h3>
               <form onSubmit={handleResolveSubmit} className="space-y-4">
                 <div>
@@ -276,7 +276,7 @@ function FeedbackManagement({ onBack }) {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Danh sách phản hồi</h3>
           <div className="space-y-4">
             {feedbacks.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-4 text-gray-500">
                 <svg className="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
                 </svg>
@@ -284,7 +284,7 @@ function FeedbackManagement({ onBack }) {
               </div>
             ) : (
               feedbacks.map((feedback) => (
-                <div key={feedback.id} className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-shadow">
+                <div key={feedback.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
                       <div className="flex items-center space-x-4 mb-2">
@@ -345,3 +345,4 @@ function FeedbackManagement({ onBack }) {
 }
 
 export default FeedbackManagement;
+

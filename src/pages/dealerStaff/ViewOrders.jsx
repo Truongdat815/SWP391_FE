@@ -318,7 +318,7 @@ function ViewOrders() {
     <div className="max-w-7xl mx-auto">
       {/* Success Message */}
       {successMessage && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
+        <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
           <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
           <span className="text-green-700">{successMessage}</span>
         </div>
@@ -326,14 +326,14 @@ function ViewOrders() {
 
       {/* Error Message */}
       {(error || errorMessage) && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
+        <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
           <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
           <span className="text-red-700">{error || errorMessage}</span>
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center justify-between mb-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div className="flex items-center justify-between mb-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Quản lý đơn hàng</h2>
             <p className="text-gray-600 mt-1">Danh sách các đơn hàng đã tạo</p>
@@ -342,7 +342,7 @@ function ViewOrders() {
 
         {/* Loading State */}
         {loading && (
-          <div className="flex items-center justify-center py-12">
+          <div className="flex items-center justify-center py-4">
             <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mr-3" />
             <span className="text-gray-600">Đang tải danh sách đơn hàng...</span>
           </div>
@@ -350,7 +350,7 @@ function ViewOrders() {
 
         {/* Filters */}
         {!loading && (
-          <div className="space-y-4 mb-6">
+          <div className="space-y-4 mb-4">
             <div className="flex flex-col sm:flex-row gap-4">
               <div className="flex-1">
                 <div className="relative">
@@ -409,7 +409,7 @@ function ViewOrders() {
                   animate={{ opacity: 1, height: 'auto' }}
                   exit={{ opacity: 0, height: 0 }}
                   transition={{ duration: 0.2 }}
-                  className="flex flex-col sm:flex-row gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200"
+                  className="flex flex-col sm:flex-row gap-4 p-3 bg-gray-50 rounded-lg border border-gray-200"
                 >
                   <div className="flex-1">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -456,7 +456,7 @@ function ViewOrders() {
 
         {/* Orders Table */}
         {!loading && filteredOrders.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-4">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
@@ -586,10 +586,10 @@ function ViewOrders() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-7xl p-6 border shadow-2xl rounded-2xl bg-white max-h-[95vh] overflow-y-auto"
+              className="w-full max-w-7xl p-4 border shadow-2xl rounded-2xl bg-white max-h-[95vh] overflow-y-auto"
             >
               {/* Header */}
-              <div className="flex items-start justify-between mb-6 pb-4 border-b border-gray-200">
+              <div className="flex items-start justify-between mb-4 pb-3 border-b border-gray-200">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
                     <Receipt className="h-8 w-8 text-emerald-600" />
@@ -623,16 +623,16 @@ function ViewOrders() {
                 </button>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Three Column Info Cards */}
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                   {/* Customer Information */}
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-5 border border-blue-200">
-                    <div className="flex items-center space-x-2 mb-4">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+                    <div className="flex items-center space-x-2 mb-3">
                       <User className="h-5 w-5 text-blue-600" />
                       <h4 className="font-bold text-blue-900">Thông tin khách hàng</h4>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <div className="flex items-start">
                         <UserCircle className="h-4 w-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
@@ -660,12 +660,12 @@ function ViewOrders() {
                   </div>
 
                   {/* Staff & Store Information */}
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-5 border border-purple-200">
-                    <div className="flex items-center space-x-2 mb-4">
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+                    <div className="flex items-center space-x-2 mb-3">
                       <Building2 className="h-5 w-5 text-purple-600" />
                       <h4 className="font-bold text-purple-900">Nhân viên & Cửa hàng</h4>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <div className="flex items-start">
                         <UserCircle className="h-4 w-4 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
@@ -684,12 +684,12 @@ function ViewOrders() {
                   </div>
 
                   {/* Financial Summary */}
-                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-5 border border-emerald-200">
-                    <div className="flex items-center space-x-2 mb-4">
+                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
+                    <div className="flex items-center space-x-2 mb-3">
                       <DollarSign className="h-5 w-5 text-emerald-600" />
                       <h4 className="font-bold text-emerald-900">Tổng quan tài chính</h4>
                     </div>
-                    <div className="space-y-3">
+                    <div className="space-y-2">
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-emerald-700">Tổng giá sản phẩm:</span>
                         <span className="text-sm font-semibold text-emerald-900">
@@ -730,7 +730,7 @@ function ViewOrders() {
                   </div>
                   
                   {loadingDetails ? (
-                    <div className="flex items-center justify-center py-12">
+                    <div className="flex items-center justify-center py-4">
                       <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mr-3" />
                       <span className="text-gray-600 font-medium">Đang tải chi tiết sản phẩm...</span>
                     </div>
@@ -828,7 +828,7 @@ function ViewOrders() {
                       </table>
                     </div>
                   ) : (
-                    <div className="text-center py-12">
+                    <div className="text-center py-4">
                       <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 mb-4">
                         <Package className="h-10 w-10 text-gray-400" />
                       </div>
@@ -851,7 +851,7 @@ function ViewOrders() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+                <div className="flex justify-between items-center pt-3 border-t border-gray-200">
                   {/* Status Actions - LEFT SIDE */}
                   <div className="flex gap-2">
                     {selectedOrder.status?.toUpperCase() === 'DRAFT' && (

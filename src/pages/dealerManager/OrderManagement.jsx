@@ -265,7 +265,7 @@ function OrderManagement() {
 
       {/* Success Message */}
       {successMessage && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
+        <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
           <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
           <span className="text-green-700">{successMessage}</span>
         </div>
@@ -273,7 +273,7 @@ function OrderManagement() {
 
       {/* Error Message */}
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
+        <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
           <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
           <span className="text-red-700">{error}</span>
         </div>

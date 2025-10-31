@@ -184,24 +184,24 @@ function OrderSummary() {
     }
     
     return (
-        <div className="max-w-6xl mx-auto p-6">
+        <div className="max-w-6xl mx-auto p-4">
             {/* Toast Notifications */}
             {error && (
-                <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
+                <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
                     <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
                     <span className="text-red-700">{error}</span>
                 </div>
             )}
             
             {success && (
-                <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
+                <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
                     <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
                     <span className="text-green-700">{success}</span>
                 </div>
             )}
             
             {/* Header */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
                 <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center">
                         <FileText className="h-8 w-8 text-emerald-600 mr-3" />
@@ -227,7 +227,7 @@ function OrderSummary() {
             </div>
             
             {/* Customer Information */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
                 <div className="flex items-center mb-4">
                     <User className="h-6 w-6 text-emerald-600 mr-2" />
                     <h3 className="text-xl font-semibold text-gray-900">Thông Tin Khách Hàng</h3>
@@ -252,7 +252,7 @@ function OrderSummary() {
             </div>
             
             {/* Order Details */}
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
                 <div className="flex items-center mb-4">
                     <Package className="h-6 w-6 text-emerald-600 mr-2" />
                     <h3 className="text-xl font-semibold text-gray-900">Chi Tiết Đơn Hàng</h3>
@@ -299,7 +299,7 @@ function OrderSummary() {
                                 ))
                             ) : (
                                 <tr>
-                                    <td colSpan="7" className="py-8 text-center text-gray-500">
+                                    <td colSpan="7" className="py-4 text-center text-gray-500">
                                         Chưa có sản phẩm trong đơn hàng
                                     </td>
                                 </tr>
@@ -311,14 +311,14 @@ function OrderSummary() {
             
             {/* Contract Form - Always shown */}
             {showContractForm && !contractCreated && (
-                <div className="bg-gradient-to-r from-blue-50 to-emerald-50 rounded-xl shadow-sm border-2 border-emerald-200 p-6 mb-6">
-                    <div className="flex items-center mb-6">
+                <div className="bg-gradient-to-r from-blue-50 to-emerald-50 rounded-xl shadow-sm border-2 border-emerald-200 p-4 mb-4">
+                    <div className="flex items-center mb-4">
                         <FileText className="h-6 w-6 text-emerald-600 mr-2" />
                         <h3 className="text-xl font-semibold text-gray-900">Tạo Hợp Đồng</h3>
                     </div>
                     
                     {/* Payment Summary in Contract Form */}
-                    <div className="bg-white rounded-lg p-4 mb-6">
+                    <div className="bg-white rounded-lg p-4 mb-4">
                         <h4 className="font-semibold text-gray-900 mb-3">Tổng Kết Thanh Toán</h4>
                         <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
@@ -430,4 +430,5 @@ function OrderSummary() {
 }
 
 export default OrderSummary;
+
 

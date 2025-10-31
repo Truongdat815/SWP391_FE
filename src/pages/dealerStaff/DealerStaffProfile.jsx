@@ -46,7 +46,7 @@ const DealerStaffProfile = ({ onBack }) => {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-4">
       {onBack && (
         <button
           onClick={onBack}
@@ -58,7 +58,7 @@ const DealerStaffProfile = ({ onBack }) => {
           Quay lại
         </button>
       )}
-      <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-2xl p-6 sm:p-8 shadow-sm mb-6">
+      <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-2xl p-4 sm:p-6 shadow-sm mb-4">
         <div className="flex items-center gap-4">
           <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center ring-8 ring-white shadow">
             <span className="text-emerald-600 font-bold text-xl">DS</span>
@@ -70,8 +70,8 @@ const DealerStaffProfile = ({ onBack }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 sm:p-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
             <input 
@@ -163,7 +163,7 @@ const DealerStaffProfile = ({ onBack }) => {
         </div>
 
         {/* Thành tích bán hàng */}
-        <div className="mt-8 border-t pt-6">
+        <div className="mt-4 border-t pt-4">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Thành tích bán hàng</h3>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-emerald-50 p-4 rounded-lg">
@@ -186,7 +186,7 @@ const DealerStaffProfile = ({ onBack }) => {
         </div>
 
         {/* Quyền hạn */}
-        <div className="mt-8 border-t pt-6">
+        <div className="mt-4 border-t pt-4">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Quyền hạn và nhiệm vụ</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="flex items-center p-3 bg-emerald-50 rounded-lg">
@@ -216,7 +216,7 @@ const DealerStaffProfile = ({ onBack }) => {
           </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-between">
+        <div className="mt-4 flex items-center justify-between">
           <p className="text-sm text-gray-500">Lần cập nhật gần nhất: hôm nay</p>
           <button 
             onClick={handleSave}

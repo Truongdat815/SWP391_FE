@@ -404,8 +404,8 @@ function Inventory() {
   if (storeStocksStatus === 'loading') {
     return (
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center justify-center py-12">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="flex items-center justify-center py-4">
             <div className="text-center">
               <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
               <p className="mt-4 text-gray-600">Đang tải dữ liệu kho hàng...</p>
@@ -420,8 +420,8 @@ function Inventory() {
   if (storeStocksStatus === 'failed') {
     return (
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-          <div className="flex items-center justify-center py-12">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="flex items-center justify-center py-4">
             <div className="text-center">
               <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -445,7 +445,7 @@ function Inventory() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         {/* Header */}
         <div className="mb-8">
           <div className="flex justify-between items-start">
@@ -464,7 +464,7 @@ function Inventory() {
 
         {/* Search Bar */}
 
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -482,9 +482,9 @@ function Inventory() {
         </div>
 
         {/* Vehicle Cards Grid */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {filteredInventory.map((vehicle) => (
-            <div key={vehicle.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
+            <div key={vehicle.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
               {/* Vehicle Header */}
               <div className="flex items-center justify-between mb-4">
                 <div>
@@ -576,7 +576,7 @@ function Inventory() {
         </div>
 
         {filteredInventory.length === 0 && storeStocksStatus === 'succeeded' && (
-          <div className="text-center py-12">
+          <div className="text-center py-4">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
             </svg>
@@ -597,7 +597,7 @@ function Inventory() {
       {createModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-10 mx-auto p-5 border w-11/12 md:w-2/3 lg:w-1/2 shadow-lg rounded-md bg-white">
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-gray-900">
                 Thêm xe vào kho
               </h3>
@@ -611,7 +611,7 @@ function Inventory() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmitCreate} className="space-y-6">
+            <form onSubmit={handleSubmitCreate} className="space-y-4">
               {/* Store Information */}
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-900 mb-3">Thông tin cửa hàng</h4>
@@ -962,7 +962,7 @@ function Inventory() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmitReport} className="space-y-6">
+            <form onSubmit={handleSubmitReport} className="space-y-4">
               {/* Vehicle Info */}
               <div className="bg-gray-50 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-900 mb-3">Thông tin xe</h4>
@@ -1071,3 +1071,4 @@ function Inventory() {
 }
 
 export default Inventory;
+

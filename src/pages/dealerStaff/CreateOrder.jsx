@@ -363,21 +363,21 @@ function CreateOrder({ onBack }) {
     <div className="max-w-6xl mx-auto">
       {/* Error/Success Messages */}
       {error && (
-        <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg flex items-center">
+        <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
           <AlertCircle className="h-5 w-5 text-red-500 mr-3 flex-shrink-0" />
           <span className="text-red-700">{error}</span>
         </div>
       )}
       
       {success && (
-        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-center">
+        <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
           <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
           <span className="text-green-700">{success}</span>
         </div>
       )}
 
       {/* Progress Steps */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
         <div className="flex items-center justify-between">
           {[
             { num: 1, label: 'Chọn khách hàng', icon: Users },
@@ -412,12 +412,12 @@ function CreateOrder({ onBack }) {
       </div>
 
       {/* Step Content */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         
         {/* STEP 1: Select Customer */}
         {currentStep === 1 && (
           <div>
-            <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center justify-between mb-4">
               <div className="flex items-center">
                 <Users className="h-8 w-8 text-emerald-600 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Chọn khách hàng</h2>
@@ -434,7 +434,7 @@ function CreateOrder({ onBack }) {
             </div>
 
             {/* Search */}
-            <div className="mb-4">
+            <div className="mb-3">
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
@@ -449,12 +449,12 @@ function CreateOrder({ onBack }) {
 
             {/* Customer List */}
             {customersLoading ? (
-              <div className="flex items-center justify-center py-8">
+              <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-2" />
                 <span>Đang tải...</span>
               </div>
             ) : filteredCustomers.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-4 text-gray-500">
                 Không tìm thấy khách hàng
               </div>
             ) : (
@@ -463,7 +463,7 @@ function CreateOrder({ onBack }) {
                   <div
                     key={customer.customerId}
                     onClick={() => handleCustomerSelect(customer)}
-                    className="p-4 border border-gray-200 rounded-lg hover:border-emerald-500 hover:shadow-md cursor-pointer transition-all"
+                    className="p-3 border border-gray-200 rounded-lg hover:border-emerald-500 hover:shadow-md cursor-pointer transition-all"
                   >
                     <div className="font-semibold text-gray-900">{customer.fullName}</div>
                     <div className="text-sm text-gray-600 mt-1">{customer.phone}</div>
@@ -478,7 +478,7 @@ function CreateOrder({ onBack }) {
         {/* STEP 2: Add Order Details */}
         {currentStep === 2 && (
           <div>
-            <div className="flex items-center mb-6">
+            <div className="flex items-center mb-4">
               <ShoppingCart className="h-8 w-8 text-emerald-600 mr-3" />
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Thêm sản phẩm vào đơn hàng</h2>
@@ -489,10 +489,10 @@ function CreateOrder({ onBack }) {
             </div>
 
             {/* Product Selection Form */}
-            <div className="bg-gray-50 rounded-lg p-6 mb-6">
-              <h3 className="font-semibold text-gray-900 mb-4">Chọn sản phẩm</h3>
+            <div className="bg-gray-50 rounded-lg p-3 mb-3">
+              <h3 className="font-semibold text-gray-900 mb-3">Chọn sản phẩm</h3>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                 {/* Model Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -572,7 +572,7 @@ function CreateOrder({ onBack }) {
 
               {/* Validation Result */}
               {currentValidation && currentValidation.isValid && (
-                <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <div className="bg-green-50 border border-green-200 rounded-lg p-3 mb-3">
                   <div className="flex items-start">
                     <CheckSquare className="h-5 w-5 text-green-600 mr-3 flex-shrink-0 mt-0.5" />
                     <div className="flex-1">
@@ -621,13 +621,13 @@ function CreateOrder({ onBack }) {
 
             {/* Selected Items List */}
             {selectedItems.length > 0 && (
-              <div className="bg-white border border-gray-200 rounded-lg p-6">
-                <h3 className="font-semibold text-gray-900 mb-4">
+              <div className="bg-white border border-gray-200 rounded-lg p-3">
+                <h3 className="font-semibold text-gray-900 mb-3">
                   Sản phẩm đã chọn ({selectedItems.length})
                 </h3>
-                <div className="space-y-3 mb-4">
+                <div className="space-y-2 mb-3">
                   {selectedItems.map((item, index) => (
-                    <div key={index} className="flex items-center justify-between bg-gray-50 p-4 rounded-lg">
+                    <div key={index} className="flex items-center justify-between bg-gray-50 p-3 rounded-lg">
                       <div className="flex-1">
                         <div className="font-medium text-gray-900">
                           {item.modelName} - {item.colorName}
@@ -657,7 +657,7 @@ function CreateOrder({ onBack }) {
             )}
 
             {selectedItems.length === 0 && (
-              <div className="text-center py-8 text-gray-500">
+              <div className="text-center py-4 text-gray-500">
                 <Package className="h-16 w-16 mx-auto mb-3 text-gray-400" />
                 <p>Chưa có sản phẩm nào được thêm</p>
                 <p className="text-sm mt-1">Vui lòng chọn và kiểm tra sản phẩm để thêm vào đơn hàng</p>
@@ -669,13 +669,13 @@ function CreateOrder({ onBack }) {
         {/* STEP 3: Confirm Order */}
         {currentStep === 3 && (
           <div>
-            <div className="flex items-center mb-6">
+            <div className="flex items-center mb-4">
               <CheckCircle className="h-8 w-8 text-emerald-600 mr-3" />
               <h2 className="text-2xl font-bold text-gray-900">Xác nhận đơn hàng</h2>
             </div>
 
             {/* Customer Info */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <div className="bg-gray-50 rounded-lg p-3 mb-3">
               <h3 className="font-semibold text-gray-900 mb-2">Thông tin khách hàng</h3>
               <div className="text-sm text-gray-700">
                 <p><strong>Tên:</strong> {selectedCustomer?.fullName}</p>
@@ -685,11 +685,11 @@ function CreateOrder({ onBack }) {
             </div>
 
             {/* Order Items */}
-            <div className="bg-gray-50 rounded-lg p-4 mb-4">
+            <div className="bg-gray-50 rounded-lg p-3 mb-3">
               <h3 className="font-semibold text-gray-900 mb-3">Chi tiết đơn hàng</h3>
               <div className="space-y-2">
                 {selectedItems.map((item, index) => (
-                  <div key={index} className="bg-white p-4 rounded-lg">
+                  <div key={index} className="bg-white p-3 rounded-lg">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
                         <div className="font-medium text-gray-900">
@@ -707,7 +707,7 @@ function CreateOrder({ onBack }) {
             </div>
 
             {/* Note */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
               <div className="flex items-start">
                 <AlertCircle className="h-5 w-5 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
                 <div className="text-sm text-blue-800">
@@ -763,7 +763,7 @@ function CreateOrder({ onBack }) {
         )}
 
         {/* Navigation Buttons */}
-        <div className="flex items-center justify-between mt-6 pt-6 border-t border-gray-200">
+        <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
           <button
             onClick={handleBack}
             disabled={orderLoading}
