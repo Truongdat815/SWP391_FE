@@ -18,6 +18,7 @@ import { getAllStoreStocks } from '../../api/store-stockService';
 import { createOrderDetailsInBatch } from '../../api/order-detailService';
 import { fetchActivePromotions } from '../../store/slices/promotionSlice';
 import { calculateDiscount } from '../../api/promotionService';
+import AnimatedSelect from '@/components/ui/AnimatedSelect';
 
 function AddOrderDetails() {
     const { orderId } = useParams();
@@ -323,9 +324,8 @@ function AddOrderDetails() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Xe có sẵn trong kho
                         </label>
-                        <select 
+                        <AnimatedSelect
                             value={selectedStock ? (selectedStock.stockId || selectedStock.storeStockId || selectedStock.id) : ''}
-                            className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                             onChange={(e) => {
                                 const value = parseInt(e.target.value);
                                 const stock = availableStock.find(s => 
@@ -334,18 +334,19 @@ function AddOrderDetails() {
                                 setSelectedStock(stock);
                                 setQuantity(1);
                             }}
-                        >
-                            <option value="">-- Chọn xe --</option>
-                            {availableStock.map(stock => {
-                                const stockId = stock.stockId || stock.storeStockId || stock.id;
-                                return (
-                                    <option key={stockId} value={stockId}>
-                                        {stock.modelName} - {stock.colorName} 
-                                        {' '}(Tồn: {stock.quantity}) - {(stock.priceOfStore || 0).toLocaleString()}đ
-                                    </option>
-                                );
-                            })}
-                        </select>
+                            placeholder="-- Chọn xe --"
+                            options={[
+                                { value: '', label: '-- Chọn xe --' },
+                                ...availableStock.map(stock => {
+                                    const stockId = stock.stockId || stock.storeStockId || stock.id;
+                                    return {
+                                        value: stockId.toString(),
+                                        label: `${stock.modelName} - ${stock.colorName} (Tồn: ${stock.quantity}) - ${(stock.priceOfStore || 0).toLocaleString()}đ`
+                                    };
+                                })
+                            ]}
+                            className="w-full"
+                        />
                     </div>
                     
                     {/* Quantity */}

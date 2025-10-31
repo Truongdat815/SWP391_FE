@@ -23,7 +23,17 @@ export async function getJson(path, options = {}) {
 
 // Helper functions to replace axiosClient usage
 export async function get(path, options = {}) {
-    const data = await getJson(path, options);
+    // Check if we should skip token (for public endpoints)
+    const skipAuth = options.skipAuth || false;
+    
+    if (skipAuth) {
+        // Public API call without token
+        const data = await getJson(path, options);
+        return { data };
+    }
+    
+    // Use request() function which handles token automatically
+    const data = await request(path, { method: 'GET', ...options });
     return { data }; // Mimic axios response structure
 }
 
