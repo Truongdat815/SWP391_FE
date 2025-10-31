@@ -34,8 +34,7 @@ import {
   Receipt,
   Tag,
   CreditCard,
-  Plus,
-  FilePlus
+  Plus
 } from 'lucide-react';
 
 function ViewOrders() {
@@ -524,28 +523,6 @@ function ViewOrders() {
                             Chi tiết
                           </button>
                         </Tooltip>
-                        
-                        {order.status?.toUpperCase() === 'CONFIRMED' && (
-                          <button
-                            onClick={() => handleCreateContract(order)}
-                            className="text-blue-600 hover:text-blue-900 transition-colors flex items-center"
-                            title="Tạo hợp đồng"
-                          >
-                            <FilePlus className="h-4 w-4 mr-1" />
-                            Tạo hợp đồng
-                          </button>
-                        )}
-                        
-                        {order.status?.toUpperCase() === 'DRAFT' && (
-                          <button
-                            onClick={() => handleConfirmOrder(order.orderId)}
-                            className="text-green-600 hover:text-green-900 transition-colors font-semibold flex items-center"
-                            title="Xác nhận đơn hàng"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Xác nhận
-                          </button>
-                        )}
                         
                         <button
                           onClick={() => handleDeleteOrder(order.orderId)}

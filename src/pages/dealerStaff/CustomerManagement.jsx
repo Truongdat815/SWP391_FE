@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { get } from '@/api/client';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAllCustomersThunk, createCustomerThunk, deleteCustomerThunk, updateCustomerThunk } from '@store/slices/customerSlice';
@@ -11,6 +11,7 @@ import Tooltip from '@/components/ui/Tooltip';
 
 function CustomerManagement() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const customers = useSelector((s) => s.customers.items);
   const customersStatus = useSelector((s) => s.customers.status);
   const customersError = useSelector((s) => s.customers.error);
@@ -96,7 +97,14 @@ function CustomerManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await dispatch(createCustomerThunk(formData)).unwrap();
+      const result = await dispatch(createCustomerThunk(formData)).unwrap();
+      const newCustomer = result.data || result;
+      
+      // Navigate to create order page with pre-selected customer
+      navigate('/dealer-staff/create-order', {
+        state: { selectedCustomer: newCustomer }
+      });
+      
       setFormData({
         fullName: '',
         address: '',
@@ -105,7 +113,6 @@ function CustomerManagement() {
         identificationNumber: ''
       });
       setShowAddModal(false);
-      dispatch(getAllCustomersThunk());
     } catch (error) {
       console.error('Failed to create customer:', error);
     }
