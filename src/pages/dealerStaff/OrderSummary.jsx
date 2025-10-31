@@ -13,9 +13,8 @@ import {
     DollarSign,
     ArrowLeft
 } from 'lucide-react';
-import { createNewContract } from '../../store/slices/contractSlice';
-import { getOrderById, updateOrderStatus } from '../../api/orderService';
-import { getOrderDetailsByOrderId } from '../../api/order-detailService';
+import { createContractFromOrderThunk } from '../../store/slices/contractSlice';
+import { getOrderById } from '../../api/orderService';
 
 function OrderSummary() {
     const { orderId } = useParams();
@@ -33,12 +32,7 @@ function OrderSummary() {
     
     // Contract form state
     const [showContractForm, setShowContractForm] = useState(true); // Show immediately
-    const [depositPrice, setDepositPrice] = useState(0);
-    const [terms, setTerms] = useState('');
     const [contractCreated, setContractCreated] = useState(false);
-    
-    // Get user info
-    const { user } = useSelector((state) => state.auth);
     
     // Load order data and details from API if not in location state
     useEffect(() => {
@@ -120,30 +114,16 @@ function OrderSummary() {
             setLoading(true);
             setError(null);
             
-            const contractData = {
-                orderId: parseInt(orderId),
-                contractDate: new Date().toISOString().split('T')[0],
-                depositPrice: depositPrice,
-                totalPayment: grandTotal,
-                remainPrice: grandTotal - depositPrice,
-                terms: terms || 'Điều khoản hợp đồng chuẩn',
-                status: 'DRAFT',
-                uploadedBy: user?.username || 'system'
-            };
+            // Create contract using new API
+            await dispatch(createContractFromOrderThunk(parseInt(orderId))).unwrap();
             
-            // Create contract
-            await dispatch(createNewContract(contractData)).unwrap();
-            
-            // Update order status to PROCESSING after creating contract
-            await updateOrderStatus(orderId, 'PROCESSING');
-            
-            setSuccess('Hợp đồng đã được tạo thành công! Đơn hàng đã chuyển sang trạng thái "Đang xử lý".');
+            setSuccess('Hợp đồng đã được tạo thành công!');
             setContractCreated(true);
             setLoading(false);
             
-            // Navigate to orders list after 2 seconds
+            // Navigate to contracts list after 2 seconds
             setTimeout(() => {
-                navigate('/dealer-staff/view-orders');
+                navigate('/dealer-staff/view-contracts');
             }, 2000);
             
         } catch (error) {

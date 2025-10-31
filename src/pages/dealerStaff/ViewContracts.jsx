@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
 import { 
-  fetchContracts,
   uploadSignedContractThunk
 } from '../../store/slices/contractSlice';
 import { getContractHtml } from '../../api/contractService';
@@ -35,10 +34,8 @@ function ViewContracts() {
   const [selectedContract, setSelectedContract] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
 
-  // Load contracts on mount
-  useEffect(() => {
-    dispatch(fetchContracts());
-  }, [dispatch]);
+  // Note: Contracts are loaded via Redux state from contract creation flow
+  // No getAllContracts API available, contracts are managed through local state
 
   // Handle success message from navigation state
   useEffect(() => {
@@ -137,11 +134,10 @@ function ViewContracts() {
       handleCloseModal();
       setSuccessMessage('Upload hợp đồng đã ký thành công!');
       
-      // Refresh contracts list
+      // Clear success message after delay
       setTimeout(() => {
-        dispatch(fetchContracts());
         setSuccessMessage(null);
-      }, 2000);
+      }, 3000);
       
     } catch (error) {
       console.error('Error uploading contract:', error);
@@ -257,6 +253,9 @@ function ViewContracts() {
                     Đã upload
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Hợp đồng đã ký
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Thao tác
                   </th>
                 </tr>
@@ -287,6 +286,20 @@ function ViewContracts() {
                         <CheckCircle className="h-5 w-5 text-green-500" />
                       ) : (
                         <span className="text-gray-400">Chưa có</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                      {contract.signedContractFileUrl ? (
+                        <a 
+                          href={contract.signedContractFileUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-900 transition-colors underline"
+                        >
+                          Xem hợp đồng đã ký
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">-</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
