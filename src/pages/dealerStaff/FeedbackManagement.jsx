@@ -1,45 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { getAllFeedbacks, updateFeedbackStatus } from '@/api/feedbackService';
+import { getFeedbackDetailsByFeedbackId } from '@/api/feedbackDetailService';
 
 function FeedbackManagement({ onBack }) {
-  const [feedbacks, setFeedbacks] = useState([
-    {
-      id: 1,
-      customerName: 'Nguyễn Văn A',
-      orderNumber: 'HD-001',
-      vehicleModel: 'Electra Ascent',
-      category: 'service',
-      rating: 4,
-      content: 'Dịch vụ tư vấn rất tốt, nhân viên nhiệt tình. Tuy nhiên thời gian giao xe hơi chậm.',
-      status: 'pending',
-      createdAt: '2024-01-15',
-      resolvedAt: null
-    },
-    {
-      id: 2,
-      customerName: 'Trần Thị B',
-      orderNumber: 'HD-002',
-      vehicleModel: 'Electra CityLink',
-      category: 'product',
-      rating: 5,
-      content: 'Xe rất đẹp, chất lượng tốt. Hài lòng với sản phẩm và dịch vụ.',
-      status: 'resolved',
-      createdAt: '2024-01-10',
-      resolvedAt: '2024-01-12'
-    },
-    {
-      id: 3,
-      customerName: 'Lê Văn C',
-      orderNumber: 'HD-003',
-      vehicleModel: 'Electra GrandTour',
-      category: 'complaint',
-      rating: 2,
-      content: 'Xe có vấn đề về hệ thống điều hòa, cần được kiểm tra và sửa chữa.',
-      status: 'in_progress',
-      createdAt: '2024-01-20',
-      resolvedAt: null
-    }
-  ]);
-
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [selectedFeedback, setSelectedFeedback] = useState(null);
   const [showResolveForm, setShowResolveForm] = useState(false);
   const [resolveForm, setResolveForm] = useState({
@@ -47,35 +13,109 @@ function FeedbackManagement({ onBack }) {
     notes: ''
   });
 
+  // Load feedbacks from API
+  useEffect(() => {
+    const fetchFeedbacks = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const response = await getAllFeedbacks();
+        
+        // Handle different response structures
+        let feedbacksData = [];
+        if (response?.data && Array.isArray(response.data)) {
+          feedbacksData = response.data;
+        } else if (Array.isArray(response)) {
+          feedbacksData = response;
+        } else if (response?.data?.data && Array.isArray(response.data.data)) {
+          feedbacksData = response.data.data;
+        }
+        
+        // Map API response to component format
+        const mappedFeedbacks = await Promise.all(
+          feedbacksData.map(async (feedback) => {
+            // Try to get feedback details for content, rating, category
+            let feedbackDetail = null;
+            try {
+              const detailResponse = await getFeedbackDetailsByFeedbackId(feedback.feedbackId || feedback.id);
+              const details = detailResponse?.data || detailResponse;
+              if (Array.isArray(details) && details.length > 0) {
+                feedbackDetail = details[0]; // Take first detail
+              } else if (details && !Array.isArray(details)) {
+                feedbackDetail = details;
+              }
+            } catch (err) {
+              console.log('No feedback detail found for feedback:', feedback.feedbackId || feedback.id);
+            }
+            
+            return {
+              id: feedback.feedbackId || feedback.id,
+              feedbackId: feedback.feedbackId || feedback.id,
+              customerName: feedback.customerName || feedback.customer_name || 'N/A',
+              orderNumber: feedback.orderId ? `HD-${feedback.orderId}` : feedback.orderNumber || 'N/A',
+              orderId: feedback.orderId,
+              vehicleModel: feedback.vehicleModel || feedback.vehicle_model || 'N/A',
+              category: (feedbackDetail?.category || feedback.category || 'service').toLowerCase(),
+              rating: feedbackDetail?.rating || feedback.rating || 0,
+              content: feedbackDetail?.content || feedback.content || 'Không có nội dung',
+              status: (feedback.status || 'pending').toLowerCase(),
+              createdAt: feedback.createdAt || feedback.created_at || feedback.createdDate || new Date().toISOString().split('T')[0],
+              resolvedAt: feedback.resolvedAt || feedback.resolved_at || feedback.resolvedDate || null
+            };
+          })
+        );
+        
+        setFeedbacks(mappedFeedbacks);
+      } catch (err) {
+        console.error('Error fetching feedbacks:', err);
+        setError(err.message || 'Không thể tải danh sách phản hồi');
+        setFeedbacks([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchFeedbacks();
+  }, []);
+
   const getStatusColor = (status) => {
-    switch (status) {
-      case 'pending': return 'bg-yellow-100 text-yellow-800';
-      case 'in_progress': return 'bg-blue-100 text-blue-800';
+    const normalizedStatus = status?.toLowerCase();
+    switch (normalizedStatus) {
+      case 'pending':
+      case 'draft': return 'bg-yellow-100 text-yellow-800';
+      case 'in_progress':
+      case 'inprogress': return 'bg-blue-100 text-blue-800';
       case 'resolved': return 'bg-green-100 text-green-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
   const getStatusText = (status) => {
-    switch (status) {
+    const normalizedStatus = status?.toLowerCase();
+    switch (normalizedStatus) {
       case 'pending': return 'Chờ xử lý';
-      case 'in_progress': return 'Đang xử lý';
+      case 'draft': return 'Bản nháp';
+      case 'in_progress':
+      case 'inprogress': return 'Đang xử lý';
       case 'resolved': return 'Đã giải quyết';
-      default: return status;
+      default: return status || 'N/A';
     }
   };
 
   const getCategoryText = (category) => {
-    switch (category) {
+    const normalizedCategory = category?.toLowerCase();
+    switch (normalizedCategory) {
       case 'service': return 'Dịch vụ';
       case 'product': return 'Sản phẩm';
       case 'complaint': return 'Khiếu nại';
-      default: return category;
+      default: return category || 'Khác';
     }
   };
 
   const getCategoryColor = (category) => {
-    switch (category) {
+    const normalizedCategory = category?.toLowerCase();
+    switch (normalizedCategory) {
       case 'service': return 'bg-blue-100 text-blue-800';
       case 'product': return 'bg-green-100 text-green-800';
       case 'complaint': return 'bg-red-100 text-red-800';
@@ -83,11 +123,19 @@ function FeedbackManagement({ onBack }) {
     }
   };
 
-  const handleResolveSubmit = (e) => {
+  const handleResolveSubmit = async (e) => {
     e.preventDefault();
-    if (selectedFeedback) {
+    if (!selectedFeedback) return;
+    
+    try {
+      const feedbackId = selectedFeedback.feedbackId || selectedFeedback.id;
+      
+      // Update status to RESOLVED
+      await updateFeedbackStatus(feedbackId, 'RESOLVED');
+      
+      // Update local state
       const updatedFeedbacks = feedbacks.map(feedback => {
-        if (feedback.id === selectedFeedback.id) {
+        if (feedback.id === feedbackId || feedback.feedbackId === feedbackId) {
           return {
             ...feedback,
             status: 'resolved',
@@ -100,7 +148,11 @@ function FeedbackManagement({ onBack }) {
       setShowResolveForm(false);
       setSelectedFeedback(null);
       setResolveForm({ resolution: '', notes: '' });
+      
       alert('Phản hồi đã được đánh dấu là đã giải quyết!');
+    } catch (err) {
+      console.error('Error resolving feedback:', err);
+      alert('Lỗi khi cập nhật trạng thái: ' + (err.message || 'Vui lòng thử lại'));
     }
   };
 
@@ -109,17 +161,30 @@ function FeedbackManagement({ onBack }) {
     setShowResolveForm(true);
   };
 
-  const updateFeedbackStatus = (feedbackId, newStatus) => {
-    const updatedFeedbacks = feedbacks.map(feedback => {
-      if (feedback.id === feedbackId) {
-        return {
-          ...feedback,
-          status: newStatus
-        };
-      }
-      return feedback;
-    });
-    setFeedbacks(updatedFeedbacks);
+  const handleUpdateStatus = async (feedbackId, newStatus) => {
+    try {
+      // Map lowercase status to uppercase for API
+      const apiStatus = newStatus.toUpperCase().replace('-', '_');
+      
+      await updateFeedbackStatus(feedbackId, apiStatus);
+      
+      // Update local state
+      const updatedFeedbacks = feedbacks.map(feedback => {
+        if (feedback.id === feedbackId || feedback.feedbackId === feedbackId) {
+          return {
+            ...feedback,
+            status: newStatus.toLowerCase()
+          };
+        }
+        return feedback;
+      });
+      setFeedbacks(updatedFeedbacks);
+      
+      alert(`Đã cập nhật trạng thái thành ${getStatusText(newStatus)}`);
+    } catch (err) {
+      console.error('Error updating feedback status:', err);
+      alert('Lỗi khi cập nhật trạng thái: ' + (err.message || 'Vui lòng thử lại'));
+    }
   };
 
   const renderStars = (rating) => {
@@ -271,11 +336,39 @@ function FeedbackManagement({ onBack }) {
           </div>
         )}
 
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center py-12">
+            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-600 mb-4"></div>
+            <p className="text-gray-600">Đang tải danh sách phản hồi...</p>
+          </div>
+        )}
+
+        {/* Error State */}
+        {error && !loading && (
+          <div className="text-center py-12 bg-red-50 rounded-lg border border-red-200">
+            <div className="inline-flex items-center justify-center w-12 h-12 bg-red-100 rounded-full mb-4">
+              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-2">Lỗi khi tải dữ liệu</h3>
+            <p className="text-red-600 mb-4">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+            >
+              Thử lại
+            </button>
+          </div>
+        )}
+
         {/* Feedbacks List */}
-        <div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Danh sách phản hồi</h3>
-          <div className="space-y-4">
-            {feedbacks.length === 0 ? (
+        {!loading && !error && (
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Danh sách phản hồi</h3>
+            <div className="space-y-4">
+              {feedbacks.length === 0 ? (
               <div className="text-center py-4 text-gray-500">
                 <svg className="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
@@ -311,15 +404,15 @@ function FeedbackManagement({ onBack }) {
                       )}
                     </div>
                     <div className="flex items-center space-x-2 ml-4">
-                      {feedback.status === 'pending' && (
+                      {(feedback.status === 'pending' || feedback.status === 'draft') && (
                         <button
-                          onClick={() => updateFeedbackStatus(feedback.id, 'in_progress')}
+                          onClick={() => handleUpdateStatus(feedback.feedbackId || feedback.id, 'in_progress')}
                           className="px-3 py-1 text-sm bg-emerald-100 text-emerald-800 rounded-lg hover:bg-emerald-200 transition-colors"
                         >
                           Bắt đầu xử lý
                         </button>
                       )}
-                      {feedback.status === 'in_progress' && (
+                      {(feedback.status === 'in_progress' || feedback.status === 'inprogress') && (
                         <button
                           onClick={() => openResolveForm(feedback)}
                           className="px-3 py-1 text-sm bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors"
@@ -336,9 +429,10 @@ function FeedbackManagement({ onBack }) {
                   </div>
                 </div>
               ))
-            )}
+              )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );

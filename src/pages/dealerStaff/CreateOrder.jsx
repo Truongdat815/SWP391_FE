@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { getAllCustomersThunk } from '../../store/slices/customerSlice';
 import { getAllModelsThunk } from '../../store/slices/modelSlice';
 import { getAllColorsThunk } from '../../store/slices/colorSlice';
@@ -8,7 +8,6 @@ import { fetchPromotions } from '../../store/slices/promotionSlice';
 import { createNewOrder, confirmOrderThunk } from '../../store/slices/orderSlice';
 import { validateOrderDetailThunk, clearValidationResult } from '../../store/slices/orderDetailSlice';
 import { createOrderDetailsInBatch } from '../../api/order-detailService';
-import { getModelColorsByModelId } from '../../api/modelColorService';
 import { 
   Users, 
   Car,
@@ -27,11 +26,11 @@ import {
   CheckSquare
 } from 'lucide-react';
 import Tooltip from '@/components/ui/Tooltip';
+import AnimatedSelect from '@/components/ui/AnimatedSelect';
 
 function CreateOrder({ onBack }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const location = useLocation();
   
   // Redux state
   const { items: customers, loading: customersLoading } = useSelector((state) => state.customers);
@@ -59,8 +58,6 @@ function CreateOrder({ onBack }) {
   const [selectedItems, setSelectedItems] = useState([]);
   const [isValidating, setIsValidating] = useState(false);
   const [currentValidation, setCurrentValidation] = useState(null);
-  const [modelColors, setModelColors] = useState([]);
-  const [loadingColors, setLoadingColors] = useState(false);
 
   // Load initial data
   useEffect(() => {
@@ -70,56 +67,20 @@ function CreateOrder({ onBack }) {
     dispatch(fetchPromotions());
   }, [dispatch]);
 
-  // Handle pre-selected customer from navigation state
-  useEffect(() => {
-    if (location.state?.selectedCustomer && customers.length > 0) {
-      const preSelectedCustomer = customers.find(c => c.customerId === location.state.selectedCustomer.customerId);
-      if (preSelectedCustomer) {
-        setSelectedCustomer(preSelectedCustomer);
-        setCurrentStep(2);
-        // Clear location state
-        window.history.replaceState({}, document.title);
-      }
-    }
-  }, [location.state, customers]);
+  // Filter customers
+  const filteredCustomers = (customers || []).filter(customer =>
+    customer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.phone?.includes(searchTerm) ||
+    customer.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
-  // Filter customers and sort newest first
-  const filteredCustomers = (customers || [])
-    .filter(customer =>
-      customer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.phone?.includes(searchTerm) ||
-      customer.email?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-      // Sort by newest first based on customerId (assuming higher ID = newer)
-      return (b.customerId || 0) - (a.customerId || 0);
-    });
-
-  // Fetch model colors when model is selected
-  useEffect(() => {
-    const fetchModelColors = async () => {
-      if (!formData.modelId) {
-        setModelColors([]);
-        return;
-      }
-      
-      try {
-        setLoadingColors(true);
-        const result = await getModelColorsByModelId(formData.modelId);
-        const colorsData = result.data || result;
-        setModelColors(Array.isArray(colorsData) ? colorsData : []);
-        // Clear selected color when model changes
-        setFormData(prev => ({ ...prev, colorId: '' }));
-      } catch (err) {
-        console.error('Failed to fetch model colors:', err);
-        setModelColors([]);
-      } finally {
-        setLoadingColors(false);
-      }
-    };
-    
-    fetchModelColors();
-  }, [formData.modelId]);
+  // Get colors filtered by selected model
+  const getFilteredColors = () => {
+    if (!formData.modelId || !colors) return [];
+    // In real app, you might filter colors by model from model-color associations
+    // For now, return all colors
+    return colors;
+  };
 
   // Get model name
   const getModelName = (modelId) => {
@@ -129,8 +90,7 @@ function CreateOrder({ onBack }) {
 
   // Get color name
   const getColorName = (colorId) => {
-    // Try to find in modelColors first, then fall back to all colors
-    const color = modelColors.find(c => c.colorId === colorId) || colors.find(c => c.colorId === colorId);
+    const color = colors.find(c => c.colorId === colorId);
     return color ? color.colorName : '';
   };
 
@@ -539,19 +499,20 @@ function CreateOrder({ onBack }) {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Model xe <span className="text-red-500">*</span>
                   </label>
-                  <select
+                  <AnimatedSelect
                     name="modelId"
                     value={formData.modelId}
                     onChange={handleFormChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  >
-                    <option value="">-- Chọn model --</option>
-                    {models.map(model => (
-                      <option key={model.modelId} value={model.modelId}>
-                        {model.modelName}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="-- Chọn model --"
+                    options={[
+                      { value: '', label: '-- Chọn model --' },
+                      ...models.map(model => ({
+                        value: model.modelId.toString(),
+                        label: model.modelName
+                      }))
+                    ]}
+                    className="w-full"
+                  />
                 </div>
 
                 {/* Color Selection */}
@@ -559,24 +520,21 @@ function CreateOrder({ onBack }) {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Màu sắc <span className="text-red-500">*</span>
                   </label>
-                  <select
+                  <AnimatedSelect
                     name="colorId"
                     value={formData.colorId}
                     onChange={handleFormChange}
-                    disabled={!formData.modelId || loadingColors}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent disabled:bg-gray-100"
-                  >
-                    <option value="">-- Chọn màu --</option>
-                    {loadingColors ? (
-                      <option value="" disabled>Đang tải...</option>
-                    ) : (
-                      modelColors.map(color => (
-                        <option key={color.colorId} value={color.colorId}>
-                          {color.colorName}
-                        </option>
-                      ))
-                    )}
-                  </select>
+                    placeholder="-- Chọn màu --"
+                    disabled={!formData.modelId}
+                    options={[
+                      { value: '', label: '-- Chọn màu --' },
+                      ...getFilteredColors().map(color => ({
+                        value: color.colorId.toString(),
+                        label: color.colorName
+                      }))
+                    ]}
+                    className="w-full"
+                  />
                 </div>
 
                 {/* Quantity */}
@@ -599,19 +557,20 @@ function CreateOrder({ onBack }) {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Khuyến mãi
                   </label>
-                  <select
+                  <AnimatedSelect
                     name="promotionId"
                     value={formData.promotionId}
                     onChange={handleFormChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                  >
-                    <option value="0">Không áp dụng</option>
-                    {promotions.map(promo => (
-                      <option key={promo.promotionId} value={promo.promotionId}>
-                        {promo.promotionName}
-                      </option>
-                    ))}
-                  </select>
+                    placeholder="Không áp dụng"
+                    options={[
+                      { value: '0', label: 'Không áp dụng' },
+                      ...promotions.map(promo => ({
+                        value: promo.promotionId.toString(),
+                        label: promo.promotionName
+                      }))
+                    ]}
+                    className="w-full"
+                  />
                 </div>
               </div>
 

@@ -17,6 +17,7 @@ import {
 import { getAllCustomersThunk } from '../../store/slices/customerSlice';
 import { getAllModelsThunk } from '../../store/slices/modelSlice';
 import { showSuccess, showError } from '../../store/slices/snackbarSlice';
+import AnimatedSelect from '@/components/ui/AnimatedSelect';
 
 function TestDriveSchedule({ onBack }) {
   const dispatch = useDispatch();
@@ -661,26 +662,23 @@ function TestDriveSchedule({ onBack }) {
                 {/* Model Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Mẫu xe *</label>
-                  <select
+                  <AnimatedSelect
                     value={selectedModel?.modelId || ''}
                     onChange={(e) => {
                       const model = models?.find(m => m.modelId === parseInt(e.target.value));
                       setSelectedModel(model || null);
                     }}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
-                    required
-                  >
-                    <option value="">Chọn mẫu xe</option>
-                    {modelsLoading ? (
-                      <option disabled>Đang tải...</option>
-                    ) : (
-                      models?.map(model => (
-                        <option key={model.modelId} value={model.modelId}>
-                          {model.modelName} - {model.modelId}
-                        </option>
-                      ))
-                    )}
-                  </select>
+                    placeholder={modelsLoading ? 'Đang tải...' : 'Chọn mẫu xe'}
+                    disabled={modelsLoading}
+                    options={[
+                      { value: '', label: modelsLoading ? 'Đang tải...' : 'Chọn mẫu xe' },
+                      ...(modelsLoading ? [] : models?.map(model => ({
+                        value: model.modelId.toString(),
+                        label: `${model.modelName} - ${model.modelId}`
+                      })) || [])
+                    ]}
+                    className="w-full"
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -697,18 +695,20 @@ function TestDriveSchedule({ onBack }) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Giờ hẹn *</label>
-                    <select
+                    <AnimatedSelect
                       name="time"
                       value={newAppointment.time}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-emerald-500"
-                      required
-                    >
-                      <option value="">Chọn giờ</option>
-                      {timeSlots.map(time => (
-                        <option key={time} value={time}>{time}</option>
-                      ))}
-                    </select>
+                      placeholder="Chọn giờ"
+                      options={[
+                        { value: '', label: 'Chọn giờ' },
+                        ...timeSlots.map(time => ({
+                          value: time,
+                          label: time
+                        }))
+                      ]}
+                      className="w-full"
+                    />
                   </div>
                 </div>
 
@@ -829,26 +829,23 @@ function TestDriveSchedule({ onBack }) {
                 {/* Model Selection */}
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Mẫu xe *</label>
-                  <select
+                  <AnimatedSelect
                     value={selectedModel?.modelId || ''}
                     onChange={(e) => {
                       const model = models?.find(m => m.modelId === parseInt(e.target.value));
                       setSelectedModel(model || null);
                     }}
-                    className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
-                  >
-                    <option value="">Chọn mẫu xe</option>
-                    {modelsLoading ? (
-                      <option disabled>Đang tải...</option>
-                    ) : (
-                      models?.map(model => (
-                        <option key={model.modelId} value={model.modelId}>
-                          {model.modelName} - {model.modelId}
-                        </option>
-                      ))
-                    )}
-                  </select>
+                    placeholder={modelsLoading ? 'Đang tải...' : 'Chọn mẫu xe'}
+                    disabled={modelsLoading}
+                    options={[
+                      { value: '', label: modelsLoading ? 'Đang tải...' : 'Chọn mẫu xe' },
+                      ...(modelsLoading ? [] : models?.map(model => ({
+                        value: model.modelId.toString(),
+                        label: `${model.modelName} - ${model.modelId}`
+                      })) || [])
+                    ]}
+                    className="w-full"
+                  />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -865,18 +862,20 @@ function TestDriveSchedule({ onBack }) {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Giờ hẹn *</label>
-                    <select
+                    <AnimatedSelect
                       name="time"
                       value={newAppointment.time}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
-                    >
-                      <option value="">Chọn giờ</option>
-                      {timeSlots.map(time => (
-                        <option key={time} value={time}>{time}</option>
-                      ))}
-                    </select>
+                      placeholder="Chọn giờ"
+                      options={[
+                        { value: '', label: 'Chọn giờ' },
+                        ...timeSlots.map(time => ({
+                          value: time,
+                          label: time
+                        }))
+                      ]}
+                      className="w-full"
+                    />
                   </div>
                 </div>
 

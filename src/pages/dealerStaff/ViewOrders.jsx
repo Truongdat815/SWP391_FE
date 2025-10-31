@@ -62,6 +62,8 @@ function ViewOrders() {
   const [errorMessage, setErrorMessage] = useState(null);
   // Thêm state và hàm sort
   const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
   const sortOrders = (arr, mode = 'newest') => {
     const getTime = (o) => new Date(o.orderDate || 0).getTime();
     const getId = (o) => Number(o.orderId || 0);
@@ -119,6 +121,21 @@ function ViewOrders() {
       setFilteredOrders(reduxOrders);
     }
   }, [reduxOrders]);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (!event.target.closest('.dropdown-container')) {
+        setShowStatusDropdown(false);
+        setShowSortDropdown(false);
+      }
+    };
+
+    if (showStatusDropdown || showSortDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showStatusDropdown, showSortDropdown]);
 
   // Update filtered orders when orders or search term changes (client-side search only)
   useEffect(() => {
@@ -363,54 +380,220 @@ function ViewOrders() {
                   />
                 </div>
               </div>
-              <div className="sm:w-48">
-                <select
-                  value={statusFilter}
-                  onChange={(e) => setStatusFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+              {/* Status Filter Dropdown */}
+              <div className="sm:w-48 relative dropdown-container">
+                <motion.button
+                  onClick={() => {
+                    setShowStatusDropdown(!showStatusDropdown);
+                    setShowSortDropdown(false);
+                  }}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-left flex items-center justify-between transition-all"
                 >
-                  <option value="all">Tất cả trạng thái</option>
-                  <option value="draft">Nháp</option>
-                  <option value="approved">Đã phê duyệt</option>
-                  <option value="pending">Chờ duyệt</option>
-                  <option value="confirmed">Đã xác nhận</option>
-                  <option value="processing">Đang xử lý</option>
-                  <option value="completed">Hoàn thành</option>
-                  <option value="cancelled">Đã hủy</option>
-                </select>
+                  <span className="text-gray-700">
+                    {statusFilter === 'all' ? 'Tất cả trạng thái' :
+                     statusFilter === 'draft' ? 'Nháp' :
+                     statusFilter === 'approved' ? 'Đã phê duyệt' :
+                     statusFilter === 'pending' ? 'Chờ duyệt' :
+                     statusFilter === 'confirmed' ? 'Đã xác nhận' :
+                     statusFilter === 'processing' ? 'Đang xử lý' :
+                     statusFilter === 'completed' ? 'Hoàn thành' :
+                     statusFilter === 'cancelled' ? 'Đã hủy' : 'Tất cả trạng thái'}
+                  </span>
+                  <motion.svg
+                    animate={{ rotate: showStatusDropdown ? 180 : 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="h-5 w-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </motion.svg>
+                </motion.button>
+                
+                <AnimatePresence>
+                  {showStatusDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ 
+                        duration: 0.2,
+                        ease: [0.4, 0, 0.2, 1]
+                      }}
+                      className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50 origin-top"
+                    >
+                      <div className="py-1 max-h-60 overflow-y-auto">
+                        {[
+                          { value: 'all', label: 'Tất cả trạng thái' },
+                          { value: 'draft', label: 'Nháp' },
+                          { value: 'approved', label: 'Đã phê duyệt' },
+                          { value: 'pending', label: 'Chờ duyệt' },
+                          { value: 'confirmed', label: 'Đã xác nhận' },
+                          { value: 'processing', label: 'Đang xử lý' },
+                          { value: 'completed', label: 'Hoàn thành' },
+                          { value: 'cancelled', label: 'Đã hủy' }
+                        ].map((option, index) => (
+                          <motion.button
+                            key={option.value}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.03, duration: 0.2 }}
+                            onClick={() => {
+                              setStatusFilter(option.value);
+                              setShowStatusDropdown(false);
+                            }}
+                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-emerald-50 transition-colors ${
+                              statusFilter === option.value 
+                                ? 'bg-emerald-50 text-emerald-700 font-medium' 
+                                : 'text-gray-700'
+                            }`}
+                          >
+                            {option.label}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              <div className="sm:w-60">
-                <select
-                  value={sortMode}
-                  onChange={(e) => setSortMode(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+
+              {/* Sort Dropdown */}
+              <div className="sm:w-60 relative dropdown-container">
+                <motion.button
+                  onClick={() => {
+                    setShowSortDropdown(!showSortDropdown);
+                    setShowStatusDropdown(false);
+                  }}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-left flex items-center justify-between transition-all"
                 >
-                  <option value="newest">Đơn hàng mới nhất</option>
-                  <option value="oldest">Đơn hàng cũ nhất</option>
-                  <option value="name-asc">Tên KH A → Z</option>
-                  <option value="name-desc">Tên KH Z → A</option>
-                </select>
+                  <span className="text-gray-700">
+                    {sortMode === 'newest' ? 'Đơn hàng mới nhất' :
+                     sortMode === 'oldest' ? 'Đơn hàng cũ nhất' :
+                     sortMode === 'name-asc' ? 'Tên KH A → Z' :
+                     sortMode === 'name-desc' ? 'Tên KH Z → A' : 'Đơn hàng mới nhất'}
+                  </span>
+                  <motion.svg
+                    animate={{ rotate: showSortDropdown ? 180 : 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="h-5 w-5 text-gray-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </motion.svg>
+                </motion.button>
+                
+                <AnimatePresence>
+                  {showSortDropdown && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ 
+                        duration: 0.2,
+                        ease: [0.4, 0, 0.2, 1]
+                      }}
+                      className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50 origin-top"
+                    >
+                      <div className="py-1">
+                        {[
+                          { value: 'newest', label: 'Đơn hàng mới nhất' },
+                          { value: 'oldest', label: 'Đơn hàng cũ nhất' },
+                          { value: 'name-asc', label: 'Tên KH A → Z' },
+                          { value: 'name-desc', label: 'Tên KH Z → A' }
+                        ].map((option, index) => (
+                          <motion.button
+                            key={option.value}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.03, duration: 0.2 }}
+                            onClick={() => {
+                              setSortMode(option.value);
+                              setShowSortDropdown(false);
+                            }}
+                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-emerald-50 transition-colors ${
+                              sortMode === option.value 
+                                ? 'bg-emerald-50 text-emerald-700 font-medium' 
+                                : 'text-gray-700'
+                            }`}
+                          >
+                            {option.label}
+                          </motion.button>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              <button
+              <motion.button
                 onClick={() => setShowDateFilter(!showDateFilter)}
-                className="sm:w-auto px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors flex items-center justify-center"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className={`sm:w-auto px-4 py-2 border rounded-lg transition-all flex items-center justify-center font-medium ${
+                  showDateFilter 
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm' 
+                    : 'border-gray-300 text-gray-700 hover:bg-gray-50'
+                }`}
               >
-                <Calendar className="h-5 w-5 mr-2" />
+                <motion.div
+                  animate={{ rotate: showDateFilter ? 180 : 0 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <Calendar className="h-5 w-5 mr-2" />
+                </motion.div>
                 Lọc theo ngày
-              </button>
+              </motion.button>
             </div>
 
             {/* Date Range Filter */}
             <AnimatePresence>
               {showDateFilter && (
                 <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  transition={{ duration: 0.2 }}
-                  className="flex flex-col sm:flex-row gap-4 p-3 bg-gray-50 rounded-lg border border-gray-200"
+                  initial={{ opacity: 0, maxHeight: 0, y: -10 }}
+                  animate={{ 
+                    opacity: 1, 
+                    maxHeight: 200,
+                    y: 0
+                  }}
+                  exit={{ 
+                    opacity: 0, 
+                    maxHeight: 0, 
+                    y: -10
+                  }}
+                  transition={{ 
+                    opacity: { duration: 0.2 },
+                    maxHeight: { 
+                      type: "spring", 
+                      stiffness: 500, 
+                      damping: 40,
+                      mass: 0.5
+                    },
+                    y: { 
+                      type: "spring", 
+                      stiffness: 500, 
+                      damping: 40,
+                      mass: 0.5
+                    }
+                  }}
+                  style={{ 
+                    overflow: 'hidden',
+                    willChange: 'transform, opacity, max-height'
+                  }}
+                  className="flex flex-col sm:flex-row gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-sm"
                 >
-                  <div className="flex-1">
+                  <motion.div 
+                    initial={{ opacity: 0, x: -15 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -15 }}
+                    transition={{ delay: 0.1, duration: 0.25, ease: "easeOut" }}
+                    className="flex-1"
+                  >
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Từ ngày
                     </label>
@@ -419,11 +602,17 @@ function ViewOrders() {
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
                       onKeyDown={(e) => e.preventDefault()}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer transition-shadow"
                       placeholder="Chọn ngày"
                     />
-                  </div>
-                  <div className="flex-1">
+                  </motion.div>
+                  <motion.div 
+                    initial={{ opacity: 0, x: -15 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -15 }}
+                    transition={{ delay: 0.15, duration: 0.25, ease: "easeOut" }}
+                    className="flex-1"
+                  >
                     <label className="block text-sm font-medium text-gray-700 mb-1">
                       Đến ngày
                     </label>
@@ -432,21 +621,29 @@ function ViewOrders() {
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
                       onKeyDown={(e) => e.preventDefault()}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer transition-shadow"
                       placeholder="Chọn ngày"
                     />
-                  </div>
-                  <div className="flex items-end gap-2">
-                    <button
+                  </motion.div>
+                  <motion.div 
+                    initial={{ opacity: 0, x: -15 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -15 }}
+                    transition={{ delay: 0.2, duration: 0.25, ease: "easeOut" }}
+                    className="flex items-end gap-2"
+                  >
+                    <motion.button
                       onClick={() => {
                         setStartDate('');
                         setEndDate('');
                       }}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
                     >
                       Xóa bộ lọc
-                    </button>
-                  </div>
+                    </motion.button>
+                  </motion.div>
                 </motion.div>
               )}
             </AnimatePresence>

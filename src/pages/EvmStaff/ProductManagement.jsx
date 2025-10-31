@@ -10,6 +10,7 @@ import {
 import { getAllModelsThunk } from '@store/slices/modelSlice';
 import { getAllColorsThunk } from '@store/slices/colorSlice';
 import Tooltip from '@/components/ui/Tooltip';
+import AnimatedSelect from '@/components/ui/AnimatedSelect';
 
 function ProductManagement() {
   const dispatch = useDispatch();
@@ -277,56 +278,60 @@ function ProductManagement() {
             {/* Model Filter */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Dòng xe</label>
-              <select
+              <AnimatedSelect
                 value={filterModel}
                 onChange={(e) => setFilterModel(e.target.value)}
-                className="block w-full px-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50/50"
-              >
-                <option value="">Tất cả xe</option>
-                {models.map(model => (
-                  <option key={model.modelId} value={model.modelId}>
-                    {model.modelName}
-                  </option>
-                ))}
-              </select>
+                placeholder="Tất cả xe"
+                options={[
+                  { value: '', label: 'Tất cả xe' },
+                  ...models.map(model => ({
+                    value: model.modelId.toString(),
+                    label: model.modelName
+                  }))
+                ]}
+                className="block w-full"
+              />
             </div>
 
             {/* Color Filter */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Màu sắc</label>
-              <select
+              <AnimatedSelect
                 value={filterColor}
                 onChange={(e) => setFilterColor(e.target.value)}
-                className="block w-full px-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50/50"
-              >
-                <option value="">Tất cả màu</option>
-                {colors.map(color => (
-                  <option key={color.colorId} value={color.colorId}>
-                    {color.colorName}
-                  </option>
-                ))}
-              </select>
+                placeholder="Tất cả màu"
+                options={[
+                  { value: '', label: 'Tất cả màu' },
+                  ...colors.map(color => ({
+                    value: color.colorId.toString(),
+                    label: color.colorName
+                  }))
+                ]}
+                className="block w-full"
+              />
             </div>
 
             {/* Sort */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Sắp xếp</label>
-              <select
+              <AnimatedSelect
                 value={`${sortBy}-${sortOrder}`}
                 onChange={(e) => {
                   const [field, order] = e.target.value.split('-');
                   setSortBy(field);
                   setSortOrder(order);
                 }}
-                className="block w-full px-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50/50"
-              >
-                <option value="modelName-asc">Xe A-Z</option>
-                <option value="modelName-desc">Xe Z-A</option>
-                <option value="colorName-asc">Màu A-Z</option>
-                <option value="colorName-desc">Màu Z-A</option>
-                <option value="hasImage-desc">Có hình ảnh</option>
-                <option value="hasImage-asc">Chưa có hình ảnh</option>
-              </select>
+                placeholder="Sắp xếp"
+                options={[
+                  { value: 'modelName-asc', label: 'Xe A-Z' },
+                  { value: 'modelName-desc', label: 'Xe Z-A' },
+                  { value: 'colorName-asc', label: 'Màu A-Z' },
+                  { value: 'colorName-desc', label: 'Màu Z-A' },
+                  { value: 'hasImage-desc', label: 'Có hình ảnh' },
+                  { value: 'hasImage-asc', label: 'Chưa có hình ảnh' }
+                ]}
+                className="block w-full"
+              />
             </div>
 
             {/* View Mode Toggle */}
@@ -800,20 +805,20 @@ function ProductManagement() {
                         <label className="block text-sm font-semibold text-gray-700 mb-3">
                           Dòng xe <span className="text-red-500">*</span>
                         </label>
-                        <select
+                        <AnimatedSelect
                           value={formData.modelId}
                           onChange={(e) => setFormData({ ...formData, modelId: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
-                          required
+                          placeholder="Chọn dòng xe"
                           disabled={!!editingItem}
-                        >
-                          <option value="">Chọn dòng xe</option>
-                          {models.map(model => (
-                            <option key={model.modelId} value={model.modelId}>
-                              {model.modelName}
-                            </option>
-                          ))}
-                        </select>
+                          options={[
+                            { value: '', label: 'Chọn dòng xe' },
+                            ...models.map(model => ({
+                              value: model.modelId.toString(),
+                              label: model.modelName
+                            }))
+                          ]}
+                          className="w-full"
+                        />
                       </div>
 
                       {/* Color Select */}
@@ -821,20 +826,20 @@ function ProductManagement() {
                         <label className="block text-sm font-semibold text-gray-700 mb-3">
                           Màu sắc <span className="text-red-500">*</span>
                         </label>
-                        <select
+                        <AnimatedSelect
                           value={formData.colorId}
                           onChange={(e) => setFormData({ ...formData, colorId: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
-                          required
+                          placeholder="Chọn màu sắc"
                           disabled={!!editingItem}
-                        >
-                          <option value="">Chọn màu sắc</option>
-                          {colors.map(color => (
-                            <option key={color.colorId} value={color.colorId}>
-                              {color.colorName}
-                            </option>
-                          ))}
-                        </select>
+                          options={[
+                            { value: '', label: 'Chọn màu sắc' },
+                            ...colors.map(color => ({
+                              value: color.colorId.toString(),
+                              label: color.colorName
+                            }))
+                          ]}
+                          className="w-full"
+                        />
                       </div>
                     </div>
 

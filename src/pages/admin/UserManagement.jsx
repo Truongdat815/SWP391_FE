@@ -6,6 +6,7 @@ import { getAllStoresThunk } from '@store/slices/storeSlice';
 import { getAllRolesThunk, createRoleThunk, updateRoleThunk, deleteRoleThunk } from '@store/slices/roleSlice';
 import Tooltip from '@/components/ui/Tooltip';
 import { motion, AnimatePresence } from 'framer-motion';
+import AnimatedSelect from '@/components/ui/AnimatedSelect';
 
 // Skeleton Loading Component
 const TableSkeleton = () => (
@@ -827,23 +828,21 @@ function UserManagement() {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Vai trò <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <AnimatedSelect
                       name="roleId"
                       value={formData.roleId}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      required
+                      placeholder={isRolesFetching ? 'Đang tải vai trò...' : 'Chọn vai trò'}
                       disabled={isRolesFetching}
-                    >
-                      <option value="">
-                        {isRolesFetching ? 'Đang tải vai trò...' : 'Chọn vai trò'}
-                      </option>
-                      {roles.map((role) => (
-                        <option key={role.roleId} value={role.roleId}>
-                          {role.roleName}
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: '', label: isRolesFetching ? 'Đang tải vai trò...' : 'Chọn vai trò' },
+                        ...roles.map(role => ({
+                          value: role.roleId.toString(),
+                          label: role.roleName
+                        }))
+                      ]}
+                      className="w-full"
+                    />
                   </div>
 
                   {/* Email */}
@@ -1031,23 +1030,21 @@ function UserManagement() {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Vai trò <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <AnimatedSelect
                       name="roleId"
                       value={formData.roleId}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      required
+                      placeholder={isRolesFetching ? 'Đang tải vai trò...' : 'Chọn vai trò'}
                       disabled={isRolesFetching}
-                    >
-                      <option value="">
-                        {isRolesFetching ? 'Đang tải vai trò...' : 'Chọn vai trò'}
-                      </option>
-                      {roles.map((role) => (
-                        <option key={role.roleId} value={role.roleId}>
-                          {role.roleName}
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: '', label: isRolesFetching ? 'Đang tải vai trò...' : 'Chọn vai trò' },
+                        ...roles.map(role => ({
+                          value: role.roleId.toString(),
+                          label: role.roleName
+                        }))
+                      ]}
+                      className="w-full"
+                    />
                   </div>
 
                   <div>
