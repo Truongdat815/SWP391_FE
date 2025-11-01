@@ -32,9 +32,9 @@ export const AuthProvider = ({ children }) => {
         // Try roleId mapping first (corrected based on actual database)
         const roleMapping = {
             1: 'admin',            // Quản trị viên
-            2: 'dealer-staff',     // Nhân viên cửa hàng
+            2: 'evm-staff',        // Nhân viên hãng xe
             3: 'dealer-manager',   // Quản lý cửa hàng
-            4: 'evm-staff'         // Nhân viên hãng xe
+            4: 'dealer-staff'      // Nhân viên cửa hàng
         };
         
         if (user.roleId && roleMapping[user.roleId]) {
