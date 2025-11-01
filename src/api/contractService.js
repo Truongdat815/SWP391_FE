@@ -88,6 +88,13 @@ export async function getContractHtml(contractId) {
     return htmlContent;
 }
 
+// Get all contracts (API: GET /api/contracts/all)
+export async function getAllContracts() {
+    return request('/api/contracts/all', {
+        method: 'GET'
+    });
+}
+
 // Upload signed contract file (API: POST /api/contracts/{contractId}/upload-signed)
 export async function uploadSignedContract(contractId, file) {
     const token = getToken();
