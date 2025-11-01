@@ -139,13 +139,24 @@ function UserManagement() {
     }
   };
 
+  // Helper: Check if roleId requires a store
+  // roleId 1 = Admin, roleId 2 = EVM Staff -> NO store needed
+  // roleId 3 = Dealer Manager, roleId 4 = Dealer Staff -> store needed
+  const requiresStore = (roleId) => {
+    return roleId !== 1 && roleId !== 2;
+  };
+
+  // Helper: Check if roleId does NOT require a store
+  const doesNotRequireStore = (roleId) => {
+    return roleId === 1 || roleId === 2;
+  };
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     
-    // Nếu thay đổi role thành Admin hoặc EVM Staff, tự động clear storeId
+    // Nếu thay đổi role thành Admin (1) hoặc EVM Staff (2), tự động clear storeId
     if (name === 'roleId') {
-      const selectedRole = roles.find(r => r.roleId === value);
-      if (selectedRole && (selectedRole.roleName === 'Quản trị viên' || selectedRole.roleName === 'Admin' || selectedRole.roleName === 'Nhân viên hãng xe' || selectedRole.roleName === 'EVM Staff')) {
+      if (doesNotRequireStore(parseInt(value))) {
         setFormData(prev => ({
           ...prev,
           [name]: value,
@@ -167,9 +178,8 @@ function UserManagement() {
       // Chuẩn bị dữ liệu submit
       const submitData = { ...formData };
       
-      // Nếu là Admin hoặc EVM Staff, không gửi storeId
-      const selectedRole = roles.find(r => r.roleId === formData.roleId);
-      if (selectedRole && (selectedRole.roleName === 'Quản trị viên' || selectedRole.roleName === 'Admin' || selectedRole.roleName === 'Nhân viên hãng xe' || selectedRole.roleName === 'EVM Staff')) {
+      // Nếu là Admin (1) hoặc EVM Staff (2), không gửi storeId
+      if (doesNotRequireStore(parseInt(formData.roleId))) {
         delete submitData.storeId;
       }
       
@@ -289,9 +299,8 @@ function UserManagement() {
         delete updateData.password;
       }
       
-      // Nếu là Admin hoặc EVM Staff, không gửi storeId
-      const selectedRole = roles.find(r => r.roleId === formData.roleId);
-      if (selectedRole && (selectedRole.roleName === 'Quản trị viên' || selectedRole.roleName === 'Admin' || selectedRole.roleName === 'Nhân viên hãng xe' || selectedRole.roleName === 'EVM Staff')) {
+      // Nếu là Admin (1) hoặc EVM Staff (2), không gửi storeId
+      if (doesNotRequireStore(parseInt(formData.roleId))) {
         delete updateData.storeId;
       }
       
@@ -798,19 +807,19 @@ function UserManagement() {
                   {/* Store Selection */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Cửa hàng {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') ? '' : <span className="text-red-500">*</span>}
+                      Cửa hàng {formData.roleId && doesNotRequireStore(parseInt(formData.roleId)) ? '' : <span className="text-red-500">*</span>}
                     </label>
                     <select
                       name="storeId"
                       value={formData.storeId}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      required={formData.roleId && !(roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')}
-                      disabled={isStoresFetching || (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff'))}
+                      required={formData.roleId && requiresStore(parseInt(formData.roleId))}
+                      disabled={isStoresFetching || (formData.roleId && doesNotRequireStore(parseInt(formData.roleId)))}
                     >
                       <option value="">
                         {isStoresFetching ? 'Đang tải cửa hàng...' : 
-                         (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
+                         (formData.roleId && doesNotRequireStore(parseInt(formData.roleId))) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
                       </option>
                       {stores.map((store) => (
                         <option key={store.storeId} value={store.storeId}>
@@ -818,7 +827,7 @@ function UserManagement() {
                         </option>
                       ))}
                     </select>
-                    {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') && (
+                    {formData.roleId && doesNotRequireStore(parseInt(formData.roleId)) && (
                       <p className="text-xs text-gray-500 mt-1.5">💡 Quản trị viên và Nhân viên hãng xe không thuộc về cửa hàng cụ thể</p>
                     )}
                   </div>
@@ -1001,19 +1010,19 @@ function UserManagement() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Cửa hàng {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') ? '' : <span className="text-red-500">*</span>}
+                      Cửa hàng {formData.roleId && doesNotRequireStore(parseInt(formData.roleId)) ? '' : <span className="text-red-500">*</span>}
                     </label>
                     <select
                       name="storeId"
                       value={formData.storeId}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      required={formData.roleId && !(roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')}
-                      disabled={isStoresFetching || (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff'))}
+                      required={formData.roleId && requiresStore(parseInt(formData.roleId))}
+                      disabled={isStoresFetching || (formData.roleId && doesNotRequireStore(parseInt(formData.roleId)))}
                     >
                       <option value="">
                         {isStoresFetching ? 'Đang tải cửa hàng...' : 
-                         (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
+                         (formData.roleId && doesNotRequireStore(parseInt(formData.roleId))) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
                       </option>
                       {stores.map((store) => (
                         <option key={store.storeId} value={store.storeId}>
@@ -1021,7 +1030,7 @@ function UserManagement() {
                         </option>
                       ))}
                     </select>
-                    {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') && (
+                    {formData.roleId && doesNotRequireStore(parseInt(formData.roleId)) && (
                       <p className="text-xs text-gray-500 mt-1.5">💡 Quản trị viên và Nhân viên hãng xe không thuộc về cửa hàng cụ thể</p>
                     )}
                   </div>

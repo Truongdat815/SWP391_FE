@@ -61,20 +61,24 @@ function SignIn() {
         // Navigate based on role (corrected mapping)
         const roleRoutes = {
           'admin': '/admin',
+          'quản trị viên': '/admin',
           'dealer manager': '/dealer-manager',
-          'dealer-manager': '/dealer-manager', 
+          'dealer-manager': '/dealer-manager',
+          'quản lý cửa hàng': '/dealer-manager',
           'dealer staff': '/dealer-staff',
           'dealer-staff': '/dealer-staff',
+          'nhân viên cửa hàng': '/dealer-staff',
           'evm staff': '/evm-staff',
-          'evm-staff': '/evm-staff'
+          'evm-staff': '/evm-staff',
+          'nhân viên hãng xe': '/evm-staff'
         };
         
         // Also check by roleId for more reliable mapping
         const roleIdRoutes = {
           1: '/admin',           // Quản trị viên
-          2: '/dealer-staff',    // Nhân viên cửa hàng
+          2: '/evm-staff',       // Nhân viên hãng xe
           3: '/dealer-manager',  // Quản lý cửa hàng
-          4: '/evm-staff'        // Nhân viên hãng xe
+          4: '/dealer-staff'     // Nhân viên cửa hàng
         };
         
         // Try roleId first, then fallback to roleName
@@ -82,9 +86,24 @@ function SignIn() {
         
         if (user.roleId && roleIdRoutes[user.roleId]) {
           targetRoute = roleIdRoutes[user.roleId];
-        } else {
-          const userRole = user.roleName?.toLowerCase();
-          targetRoute = roleRoutes[userRole] || '/dealer-staff';
+        } else if (user.roleName) {
+          const userRole = user.roleName.toLowerCase();
+          
+          // First try exact match
+          if (roleRoutes[userRole]) {
+            targetRoute = roleRoutes[userRole];
+          } else {
+            // Fallback to partial matching for Vietnamese names
+            if (userRole.includes('nhân viên cửa hàng') || userRole.includes('dealer staff')) {
+              targetRoute = '/dealer-staff';
+            } else if (userRole.includes('nhân viên hãng xe') || userRole.includes('evm staff')) {
+              targetRoute = '/evm-staff';
+            } else if (userRole.includes('quản lý cửa hàng') || userRole.includes('dealer manager')) {
+              targetRoute = '/dealer-manager';
+            } else if (userRole.includes('quản trị viên') || userRole.includes('admin')) {
+              targetRoute = '/admin';
+            }
+          }
         }
         
         console.log('User roleId:', user.roleId); // Debug log
