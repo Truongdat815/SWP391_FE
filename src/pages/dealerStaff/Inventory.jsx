@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getAllStoreStocksThunk, createStoreStockThunk, updateStockQuantityThunk, updateStockPriceThunk, deleteStoreStockThunk } from '../../store/slices/store-stockSlice';
 import { createTransactionThunk } from '../../store/slices/inventoryTransactionSlice';
 import { showSuccess, showError, showWarning } from '../../store/slices/snackbarSlice';
+import { motion } from 'framer-motion';
 
 function Inventory() {
   const dispatch = useDispatch();
@@ -23,9 +24,9 @@ function Inventory() {
   const [updateQuantityModal, setUpdateQuantityModal] = useState(false);
   const [updatePriceModal, setUpdatePriceModal] = useState(false);
   const [deleteModal, setDeleteModal] = useState(false);
+  const [selectedStock, setSelectedStock] = useState(null);
   const [selectedVehicle, setSelectedVehicle] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
-  const [selectedStock, setSelectedStock] = useState(null);
   const [reportData, setReportData] = useState({
     vehicleModel: '',
     color: '',
@@ -184,13 +185,13 @@ function Inventory() {
         transactionDate: new Date().toISOString(),
         deliveryDate: new Date(reportData.expectedDelivery).toISOString(),
         storeStockId: selectedColor.stockId,
-        status: 'REQUESTED'
+        status: 'PENDING' // Staff sends as PENDING to EVM
       };
 
       await dispatch(createTransactionThunk(payload)).unwrap();
 
       dispatch(showSuccess({ 
-        message: `Đã gửi yêu cầu đặt hàng! Mẫu xe: ${reportData.vehicleModel}, Màu: ${reportData.color}, Số lượng: ${reportData.requestedQuantity}` 
+        message: `Đã gửi yêu cầu đặt hàng tới EVM! Mẫu xe: ${reportData.vehicleModel}, Màu: ${reportData.color}, Số lượng: ${reportData.requestedQuantity}` 
       }));
     } catch (error) {
       dispatch(showError({ message: error?.message || 'Không thể gửi yêu cầu đặt hàng' }));
@@ -211,7 +212,7 @@ function Inventory() {
     });
   };
 
-  const handleCloseModal = () => {
+  const handleCloseReportModal = () => {
     setReportModal(false);
     setSelectedVehicle(null);
     setSelectedColor(null);
@@ -550,18 +551,15 @@ function Inventory() {
                                 <span className="text-sm text-gray-900">{colorItem.price.toLocaleString('vi-VN')} VNĐ</span>
                               </td>
                               <td className="py-3 px-4">
-                                <div className="flex flex-wrap gap-1">
-                                  {/* Dealer Staff: only request button */}
-                                  <button
-                                    onClick={() => handleReportToManager(vehicle, colorItem)}
-                                    className="px-2 py-1 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-                                    title="Báo cáo đặt hàng"
-                                  >
-                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
-                                    </svg>
-                                  </button>
-                                </div>
+                                <motion.button
+                                  onClick={() => handleReportToManager(vehicle, colorItem)}
+                                  whileHover={{ scale: 1.05 }}
+                                  whileTap={{ scale: 0.95 }}
+                                  className="text-blue-600 hover:text-blue-700 hover:underline font-medium text-sm transition-colors"
+                                  title="Đặt xe từ EVM"
+                                >
+                                  Đặt xe
+                                </motion.button>
                               </td>
                             </tr>
                           ))}
@@ -944,16 +942,16 @@ function Inventory() {
         </div>
       )}
 
-      {/* Report Modal */}
+      {/* Report/Order Modal */}
       {reportModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
           <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-2/3 lg:w-1/2 shadow-lg rounded-md bg-white">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
-                Báo cáo đặt hàng cho Manager
+                Đặt hàng từ EVM
               </h3>
               <button
-                onClick={handleCloseModal}
+                onClick={handleCloseReportModal}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -996,7 +994,7 @@ function Inventory() {
                     min="1"
                     value={reportData.requestedQuantity}
                     onChange={(e) => setReportData(prev => ({ ...prev, requestedQuantity: parseInt(e.target.value) || 0 }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
                 </div>
@@ -1008,7 +1006,7 @@ function Inventory() {
                   <select
                     value={reportData.priority}
                     onChange={(e) => setReportData(prev => ({ ...prev, priority: e.target.value }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   >
                     <option value="high">Cao - Cần đặt hàng ngay</option>
@@ -1026,7 +1024,7 @@ function Inventory() {
                     value={reportData.expectedDelivery}
                     onChange={(e) => setReportData(prev => ({ ...prev, expectedDelivery: e.target.value }))}
                     min={new Date().toISOString().split('T')[0]}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
                 </div>
@@ -1038,9 +1036,9 @@ function Inventory() {
                   <textarea
                     value={reportData.reason}
                     onChange={(e) => setReportData(prev => ({ ...prev, reason: e.target.value }))}
-                    rows={4}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    placeholder="Ví dụ: Khách hàng có nhu cầu cao, sắp hết hàng, có đơn hàng lớn..."
+                    rows={3}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="Nhập lý do đặt hàng..."
                     required
                   />
                 </div>
@@ -1050,22 +1048,23 @@ function Inventory() {
               <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200">
                 <button
                   type="button"
-                  onClick={handleCloseModal}
+                  onClick={handleCloseReportModal}
                   className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                 >
-                  Gửi báo cáo
+                  Gửi yêu cầu tới EVM
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
     </div>
   );
 }

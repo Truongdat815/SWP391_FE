@@ -1,6 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Outlet, Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
+import { useSelector, useDispatch } from 'react-redux';
+import { getAllTransactionsThunk } from '../store/slices/inventoryTransactionSlice';
+import { getAllStoreStocksThunk } from '../store/slices/store-stockSlice';
+import { useAuth } from '../contexts/AuthContext';
 
 // Component hiển thị thời gian thực
 const RealTimeClock = ({ roleKey = 'dealer-manager' }) => {
@@ -49,6 +53,455 @@ const RealTimeClock = ({ roleKey = 'dealer-manager' }) => {
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
       <span className="font-medium tabular-nums">{formatTime(time)}</span>
+    </div>
+  );
+};
+
+// Helper function để format thời gian
+const formatTimeAgo = (date) => {
+  if (!date) return 'Vừa xong';
+  
+  const now = new Date();
+  const diff = now - new Date(date);
+  const seconds = Math.floor(diff / 1000);
+  const minutes = Math.floor(seconds / 60);
+  const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+
+  if (seconds < 60) return 'Vừa xong';
+  if (minutes < 60) return `${minutes} phút trước`;
+  if (hours < 24) return `${hours} giờ trước`;
+  if (days < 7) return `${days} ngày trước`;
+  return new Date(date).toLocaleDateString('vi-VN');
+};
+
+// Component NotificationBell với hiệu ứng đẹp mắt
+const NotificationBell = ({ brandColor = 'red', basePath = '', onNotificationClick }) => {
+  const dispatch = useDispatch();
+  const { user } = useAuth();
+  const transactions = useSelector((state) => state.inventoryTransactions.items);
+  const storeStocks = useSelector((state) => state.storeStocks.items);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [notifications, setNotifications] = useState([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const notificationRef = useRef(null);
+
+  // Load notifications dựa trên role
+  useEffect(() => {
+    const loadNotifications = async () => {
+      try {
+        setIsLoading(true);
+        
+        // Load transactions and storeStocks
+        await Promise.all([
+          dispatch(getAllTransactionsThunk()).unwrap(),
+          dispatch(getAllStoreStocksThunk()).unwrap()
+        ]);
+      } catch (error) {
+        console.error('Error loading notifications:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadNotifications();
+    
+    // Poll every 30 seconds for new notifications
+    const interval = setInterval(loadNotifications, 30000);
+    return () => clearInterval(interval);
+  }, [dispatch]);
+
+  // Tính notification count và list dựa trên role
+  useEffect(() => {
+    if (!transactions || transactions.length === 0) {
+      setNotificationCount(0);
+      setNotifications([]);
+      return;
+    }
+
+    let count = 0;
+    let notificationList = [];
+
+    // Logic khác nhau cho từng role
+    if (basePath.includes('/evm-staff')) {
+      // EVM Staff: Nhận notification về pending orders từ dealers
+      const pendingOrders = transactions.filter(t => {
+        const statusUpper = (t.status || '').toUpperCase();
+        return statusUpper === 'PENDING' || statusUpper === 'REQUESTED';
+      });
+      
+      count = pendingOrders.length;
+      notificationList = pendingOrders.map(order => ({
+        id: order.inventoryId || order.id,
+        type: 'order_request',
+        title: 'Yêu cầu đặt hàng mới',
+        message: `Đơn hàng #${order.inventoryId || order.id} đang chờ xử lý`,
+        time: order.transactionDate ? new Date(order.transactionDate) : new Date(),
+        unread: true
+      }));
+    } else if (basePath.includes('/dealer-manager')) {
+      // Dealer Manager: Nhận notification về order status updates
+      const myStoreId = user?.storeId;
+      const myStockIds = new Set(storeStocks
+        .filter(s => s.storeId === myStoreId)
+        .map(s => s.stockId)
+      );
+      
+      const relevantTransactions = transactions.filter(t => {
+        const statusUpper = (t.status || '').toUpperCase();
+        const isCompleted = statusUpper === 'COMPLETED';
+        const isProcessing = statusUpper === 'PROCESSING';
+        const isRejected = statusUpper === 'REJECTED';
+        const belongsToMyStore = myStockIds.has(t.storeStockId) || 
+                                 (t.storeStock && t.storeStock.storeId === myStoreId);
+        
+        return (isCompleted || isProcessing || isRejected) && belongsToMyStore;
+      });
+      
+      count = relevantTransactions.length;
+      notificationList = relevantTransactions.map(t => {
+        const statusUpper = (t.status || '').toUpperCase();
+        if (statusUpper === 'COMPLETED') {
+          return {
+            id: t.inventoryId || t.id,
+            type: 'inventory_completed',
+            title: '✅ Xe đã được nhập kho',
+            message: `${t.importQuantity} xe đã được thêm vào kho thành công`,
+            time: t.transactionDate ? new Date(t.transactionDate) : new Date(),
+            unread: true
+          };
+        } else if (statusUpper === 'PROCESSING') {
+          return {
+            id: t.inventoryId || t.id,
+            type: 'order_processing',
+            title: '⏳ Đơn hàng đang xử lý',
+            message: `Đơn hàng #${t.inventoryId || t.id} đang được EVM xử lý`,
+            time: t.transactionDate ? new Date(t.transactionDate) : new Date(),
+            unread: true
+          };
+        } else if (statusUpper === 'REJECTED') {
+          return {
+            id: t.inventoryId || t.id,
+            type: 'order_rejected',
+            title: '❌ Yêu cầu bị từ chối',
+            message: `Yêu cầu đặt hàng #${t.inventoryId || t.id} đã bị EVM từ chối`,
+            time: t.transactionDate ? new Date(t.transactionDate) : new Date(),
+            unread: true
+          };
+        }
+        return null;
+      }).filter(n => n !== null);
+    } else if (basePath.includes('/dealer-staff')) {
+      // Dealer Staff: Nhận notification về order status updates từ Manager
+      // Manager gửi request → EVM duyệt/từ chối → Staff nhận thông báo
+      const myStoreId = user?.storeId;
+      const myStockIds = new Set(storeStocks
+        .filter(s => s.storeId === myStoreId)
+        .map(s => s.stockId)
+      );
+      
+      const relevantTransactions = transactions.filter(t => {
+        const statusUpper = (t.status || '').toUpperCase();
+        const isCompleted = statusUpper === 'COMPLETED';
+        const isProcessing = statusUpper === 'PROCESSING';
+        const isRejected = statusUpper === 'REJECTED';
+        const belongsToMyStore = myStockIds.has(t.storeStockId) || 
+                                 (t.storeStock && t.storeStock.storeId === myStoreId);
+        
+        return (isCompleted || isProcessing || isRejected) && belongsToMyStore;
+      });
+      
+      count = relevantTransactions.length;
+      notificationList = relevantTransactions.map(t => {
+        const statusUpper = (t.status || '').toUpperCase();
+        if (statusUpper === 'COMPLETED') {
+          return {
+            id: t.inventoryId || t.id,
+            type: 'inventory_completed',
+            title: '✅ Xe đã được nhập kho',
+            message: `${t.importQuantity} xe đã được thêm vào kho thành công`,
+            time: t.transactionDate ? new Date(t.transactionDate) : new Date(),
+            unread: true
+          };
+        } else if (statusUpper === 'PROCESSING') {
+          return {
+            id: t.inventoryId || t.id,
+            type: 'order_processing',
+            title: '⏳ Đơn hàng đang xử lý',
+            message: `Đơn hàng #${t.inventoryId || t.id} đang được EVM xử lý`,
+            time: t.transactionDate ? new Date(t.transactionDate) : new Date(),
+            unread: true
+          };
+        } else if (statusUpper === 'REJECTED') {
+          return {
+            id: t.inventoryId || t.id,
+            type: 'order_rejected',
+            title: '❌ Yêu cầu bị từ chối',
+            message: `Yêu cầu đặt hàng #${t.inventoryId || t.id} đã bị EVM từ chối`,
+            time: t.transactionDate ? new Date(t.transactionDate) : new Date(),
+            unread: true
+          };
+        }
+        return null;
+      }).filter(n => n !== null);
+    } else if (basePath.includes('/admin')) {
+      // Admin: System alerts
+      count = 0;
+      notificationList = [];
+    }
+
+    setNotificationCount(count);
+    setNotifications(notificationList.sort((a, b) => b.time - a.time));
+  }, [transactions, storeStocks, basePath, user]);
+
+  // Click outside to close
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Animation khi có notification mới
+  const [justReceived, setJustReceived] = useState(false);
+  const prevCountRef = useRef(0);
+  
+  useEffect(() => {
+    if (notificationCount > prevCountRef.current && prevCountRef.current > 0) {
+      setJustReceived(true);
+      const timer = setTimeout(() => setJustReceived(false), 1000);
+      return () => clearTimeout(timer);
+    }
+    prevCountRef.current = notificationCount;
+  }, [notificationCount]);
+
+  const brandStyles = brandColor === 'red' 
+    ? { 
+        icon: 'text-red-600', 
+        badge: 'bg-gradient-to-r from-red-500 to-red-600',
+        hover: 'hover:bg-red-50',
+        ring: 'ring-red-200'
+      }
+    : { 
+        icon: 'text-emerald-600', 
+        badge: 'bg-gradient-to-r from-emerald-500 to-emerald-600',
+        hover: 'hover:bg-emerald-50',
+        ring: 'ring-emerald-200'
+      };
+
+  return (
+    <div className="relative" ref={notificationRef}>
+      {/* Button với nhiều hiệu ứng */}
+      <motion.button
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.9 }}
+        onClick={() => {
+          setIsOpen(!isOpen);
+          onNotificationClick?.();
+        }}
+        className={`relative p-2.5 rounded-xl transition-all ${brandStyles.hover}`}
+      >
+        {/* Icon bell với nhiều animation */}
+        <motion.div
+          animate={justReceived ? {
+            rotate: [0, -25, 25, -25, 25, -15, 15, 0],
+            scale: [1, 1.2, 1, 1.1, 1]
+          } : {}}
+          transition={{ 
+            duration: 0.8,
+            ease: "easeOut"
+          }}
+        >
+          <svg 
+            className={`h-6 w-6 ${brandStyles.icon} transition-colors`}
+            fill="none" 
+            viewBox="0 0 24 24" 
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path 
+              strokeLinecap="round" 
+              strokeLinejoin="round" 
+              d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" 
+            />
+          </svg>
+        </motion.div>
+        
+        {/* Badge với animation */}
+        {notificationCount > 0 && (
+          <>
+            {/* Pulse effect */}
+            <motion.div
+              className={`absolute -top-0.5 -right-0.5 h-6 w-6 rounded-full ${brandStyles.badge}`}
+              animate={{
+                scale: [1, 1.2, 1],
+                opacity: [0.8, 1, 0.8]
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+            />
+            {/* Badge number */}
+            <motion.div
+              initial={{ scale: 0, rotate: -180 }}
+              animate={{ 
+                scale: 1, 
+                rotate: 0,
+              }}
+              className={`absolute -top-0.5 -right-0.5 h-6 w-6 rounded-full ${brandStyles.badge} flex items-center justify-center text-xs font-bold text-white shadow-lg`}
+            >
+              {notificationCount > 9 ? '9+' : notificationCount}
+            </motion.div>
+          </>
+        )}
+      </motion.button>
+
+      {/* Dropdown với animation đẹp */}
+      <AnimatePresence>
+        {isOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsOpen(false)}
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40"
+            />
+            
+            {/* Dropdown panel */}
+            <motion.div
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.95 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              className="absolute right-0 mt-2 w-96 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 max-h-[500px] overflow-hidden origin-top-right"
+            >
+              {/* Header với gradient */}
+              <div className={`p-4 bg-gradient-to-r ${
+                brandColor === 'red' 
+                  ? 'from-red-500 to-red-600' 
+                  : 'from-emerald-500 to-emerald-600'
+              }`}>
+                <div className="flex items-center justify-between">
+                  <h3 className="text-white font-bold text-lg flex items-center gap-2">
+                    <motion.div
+                      animate={{ rotate: [0, 10, -10, 0] }}
+                      transition={{ 
+                        duration: 0.5,
+                        repeat: Infinity,
+                        repeatDelay: 3
+                      }}
+                    >
+                      🔔
+                    </motion.div>
+                    Thông báo
+                  </h3>
+                  {notificationCount > 0 && (
+                    <motion.span 
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="bg-white text-red-600 text-xs font-bold px-2 py-1 rounded-full"
+                    >
+                      {notificationCount} mới
+                    </motion.span>
+                  )}
+                </div>
+              </div>
+
+              {/* Notification list */}
+              <div className="overflow-y-auto max-h-[400px]">
+                {notificationCount === 0 ? (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-12 text-center"
+                  >
+                    <div className="w-20 h-20 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+                      <svg className="h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                      </svg>
+                    </div>
+                    <p className="text-gray-500 font-medium">Không có thông báo mới</p>
+                    <p className="text-sm text-gray-400 mt-1">Chúng tôi sẽ thông báo cho bạn khi có cập nhật</p>
+                  </motion.div>
+                ) : (
+                  <motion.div className="divide-y divide-gray-100">
+                    {notifications.map((notification, index) => (
+                      <motion.div
+                        key={notification.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        className={`p-4 cursor-pointer transition-colors ${
+                          notification.unread ? 'bg-blue-50' : 'hover:bg-gray-50'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                            notification.unread 
+                              ? 'bg-blue-100' 
+                              : 'bg-gray-100'
+                          }`}>
+                                   {notification.type === 'order_request' ? '🟢' : 
+                                    notification.type === 'inventory_request' ? '🔵' :
+                                    notification.type === 'inventory_completed' ? '✅' :
+                                    notification.type === 'order_processing' ? '⏳' :
+                                    notification.type === 'order_rejected' ? '❌' : '🟢'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <p className="text-sm font-semibold text-gray-900">
+                                {notification.title}
+                              </p>
+                              {notification.unread && (
+                                <motion.span 
+                                  initial={{ scale: 0 }}
+                                  animate={{ scale: 1 }}
+                                  className="text-xs bg-blue-500 text-white px-2 py-0.5 rounded-full font-bold"
+                                >
+                                  MỚI
+                                </motion.span>
+                              )}
+                            </div>
+                            <p className="text-xs text-gray-600 line-clamp-2">
+                              {notification.message}
+                            </p>
+                            <p className="text-xs text-gray-400 mt-1">
+                              {formatTimeAgo(notification.time)}
+                            </p>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="border-t border-gray-200 bg-gray-50 p-3 text-center">
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="text-sm font-medium text-gray-700 hover:text-gray-900 transition-colors"
+                >
+                  Xem tất cả thông báo
+                </motion.button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
@@ -358,6 +811,13 @@ const BaseLayout = ({
             <div className="flex items-center gap-3">
               {/* Real-time Clock */}
               <RealTimeClock roleKey={basePath.replace('/', '')} />
+              
+              {/* Notification Bell */}
+              <NotificationBell 
+                brandColor={brandColor}
+                basePath={basePath}
+                onNotificationClick={() => {}}
+              />
               
               {/* User Profile Dropdown */}
               <div className="relative" ref={dropdownRef}>

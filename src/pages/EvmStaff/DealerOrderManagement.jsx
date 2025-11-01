@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   getAllTransactionsThunk,
   updateTransactionThunk,
@@ -27,54 +28,45 @@ function DealerOrderManagement() {
     dispatch(getAllStoreStocksThunk());
   }, [dispatch]);
 
-  // Lọc các orders chưa xử lý từ Dealer (unitBasePrice = 0)
-  // LUỒNG 2 CẤP: Dealer Staff -> EVM Staff (bỏ Manager approval)
+  // Lọc các orders chưa xử lý (PENDING hoặc REQUESTED)
+  // Có thể từ Manager hoặc Dealer Staff
   const pendingOrders = useMemo(() => {
-    console.log('📊 All transactions (EVM):', transactions);
     return transactions.filter(t => {
-      // Hiển thị tất cả đơn chưa được EVM xử lý:
-      // - unitBasePrice = 0 (chưa nhập giá)
-      // - totalPrice = 0 (chưa tính)
-      // - importQuantity > 0 (có số lượng)
-      // - deliveryDate có giá trị (có ngày giao)
-      // - storeStockId có giá trị (valid request)
-      
       const hasQuantity = t.importQuantity && t.importQuantity > 0;
-      const notProcessedYet = (t.unitBasePrice === 0 || t.unitBasePrice === null) && 
-                              (t.totalPrice === 0 || t.totalPrice === null);
       const hasDeliveryDate = t.deliveryDate != null;
       const hasStoreStock = t.storeStockId != null;
       
-      const shouldShow = hasQuantity && notProcessedYet && hasDeliveryDate && hasStoreStock;
+      // Kiểm tra status: PENDING hoặc REQUESTED
+      let isPending = false;
+      if (t.status) {
+        const statusUpper = (t.status || '').toUpperCase();
+        isPending = statusUpper === 'PENDING' || statusUpper === 'REQUESTED';
+      } else {
+        // Fallback: Nếu không có status, kiểm tra giá
+        isPending = (t.unitBasePrice === 0 || t.unitBasePrice === null) && 
+                    (t.totalPrice === 0 || t.totalPrice === null);
+      }
       
-      console.log(`Transaction ${t.inventoryId}:`, {
-        unitBasePrice: t.unitBasePrice,
-        totalPrice: t.totalPrice,
-        importQuantity: t.importQuantity,
-        deliveryDate: t.deliveryDate,
-        storeStockId: t.storeStockId,
-        shouldShow
-      });
-      
-      return shouldShow;
+      return hasQuantity && isPending && hasDeliveryDate && hasStoreStock;
     });
   }, [transactions]);
 
-  // Lọc các orders đang xử lý (unitBasePrice > 0 nhưng chưa update stock)
+  // Lọc các orders đang xử lý (đã approve nhưng chưa complete)
   const processingOrders = useMemo(() => {
     return transactions.filter(t => {
-      // Nếu có field status, dùng nó
-      if (t.status && t.status.toUpperCase() === 'PROCESSING') {
+      const statusUpper = t.status ? (t.status || '').toUpperCase() : '';
+      
+      // Đơn đang xử lý: có status PROCESSING hoặc đã có giá nhưng chưa COMPLETED
+      if (statusUpper === 'PROCESSING') {
         return true;
       }
       
-      // Không có status: Đơn đang xử lý là đơn đã nhập giá (unitBasePrice > 0)
-      // nhưng chưa hoàn thành (chưa update stock - ta không track được)
-      // Tạm thời hiển thị tất cả đơn có unitBasePrice > 0
+      // Fallback: Đã có giá nhưng chưa complete
       const hasPrice = t.unitBasePrice && t.unitBasePrice > 0;
       const hasTotalPrice = t.totalPrice && t.totalPrice > 0;
+      const notCompleted = statusUpper !== 'COMPLETED' && statusUpper !== 'FINISH';
       
-      return hasPrice && hasTotalPrice;
+      return hasPrice && hasTotalPrice && notCompleted;
     });
   }, [transactions]);
 
@@ -113,11 +105,11 @@ function DealerOrderManagement() {
           totalPrice: total,
           deposit,
           dept,
-          transactionDate: new Date().toISOString()
-          // Không set status vì backend không có field này
+          transactionDate: new Date().toISOString(),
+          status: 'PROCESSING' // Set status khi approve
         }
       })).unwrap();
-      dispatch(showSuccess({ message: 'Đã xác nhận đơn hàng và bắt đầu xử lý' }));
+      dispatch(showSuccess({ message: '✅ Đã duyệt đơn hàng và bắt đầu xử lý!' }));
       setProcessModal(false);
       setSelectedOrder(null);
       dispatch(getAllTransactionsThunk());
@@ -127,17 +119,18 @@ function DealerOrderManagement() {
   };
 
   const handleReject = async (order) => {
-    if (!window.confirm('Bạn có chắc chắn muốn từ chối và xóa đơn hàng này?')) {
+    if (!window.confirm(`Bạn có chắc chắn muốn từ chối đơn hàng #${order.inventoryId || order.id}? Đơn hàng sẽ bị xóa và không được cập nhật vào kho.`)) {
       return;
     }
 
     try {
-      // Xóa request (vì không có status field để mark REJECTED)
+      // Có thể update status thành REJECTED hoặc xóa luôn
+      // Ở đây ta xóa để clean data (backend có thể không hỗ trợ REJECTED status)
       await dispatch(deleteTransactionThunk(order.inventoryId || order.id)).unwrap();
-      dispatch(showSuccess({ message: 'Đã từ chối và xóa đơn hàng' }));
+      dispatch(showSuccess({ message: '❌ Đã từ chối đơn hàng. Đơn hàng đã bị xóa.' }));
       dispatch(getAllTransactionsThunk());
     } catch (error) {
-      dispatch(showError({ message: error?.message || 'Không thể xóa đơn hàng' }));
+      dispatch(showError({ message: error?.message || 'Không thể từ chối đơn hàng' }));
     }
   };
 
@@ -157,9 +150,20 @@ function DealerOrderManagement() {
           quantity: newQuantity
         })).unwrap();
         
-        // Bước 2: Xóa transaction (vì không có status COMPLETED)
-        // Transaction đã hoàn thành nhiệm vụ → xóa để clean data
-        await dispatch(deleteTransactionThunk(order.inventoryId || order.id)).unwrap();
+        // Bước 2: Update transaction với status COMPLETED
+        // Thay vì xóa, ta update status để Manager có thể xem lại lịch sử
+        try {
+          await dispatch(updateTransactionThunk({
+            inventoryId: order.inventoryId || order.id,
+            payload: {
+              ...order,
+              status: 'COMPLETED' // hoặc 'FINISH'
+            }
+          })).unwrap();
+        } catch (updateError) {
+          // Nếu backend không hỗ trợ update status, xóa transaction
+          await dispatch(deleteTransactionThunk(order.inventoryId || order.id)).unwrap();
+        }
         
         dispatch(showSuccess({ 
           message: `✅ Hoàn thành đơn #${order.inventoryId || order.id}! Đã cập nhật +${order.importQuantity} xe vào kho (tổng: ${newQuantity} xe)` 
@@ -184,16 +188,43 @@ function DealerOrderManagement() {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Quản lý đơn hàng từ đại lý</h1>
-          <p className="text-gray-600">Xử lý yêu cầu nhập hàng từ Dealer Staff</p>
-        </div>
+        <motion.div 
+          className="mb-6"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+            <motion.span
+              animate={{ rotate: [0, 360] }}
+              transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+            >
+              🚗
+            </motion.span>
+            Quản lý đơn hàng từ đại lý
+          </h1>
+          <p className="text-gray-600 mt-1">Xử lý yêu cầu nhập hàng từ Manager và Dealer Staff</p>
+        </motion.div>
 
         {/* Pending Orders from Dealers */}
-        <div className="mb-8">
-          <h2 className="text-lg font-semibold text-gray-900 mb-3">
-            Đơn hàng chờ xử lý ({pendingOrders.length})
-          </h2>
+        <motion.div 
+          className="mb-8"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-gray-900">
+              Đơn hàng chờ xử lý
+            </h2>
+            <motion.div
+              className="text-sm text-gray-600 bg-yellow-50 px-3 py-1 rounded-full border border-yellow-200"
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+            >
+              ⏳ {pendingOrders.length} đơn đang chờ
+            </motion.div>
+          </div>
           <div className="overflow-x-auto border border-gray-200 rounded-lg">
             <table className="min-w-full">
               <thead className="bg-gray-50">
@@ -209,62 +240,103 @@ function DealerOrderManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {pendingOrders.length === 0 && (
-                  <tr>
-                    <td colSpan={8} className="px-4 py-6 text-center text-gray-500">
-                      Không có đơn hàng nào chờ xử lý
-                    </td>
-                  </tr>
-                )}
-                {pendingOrders.map((order) => {
-                  const stock = storeStocks.find(s => s.stockId === order.storeStockId);
-                  const deliveryDate = order.deliveryDate 
-                    ? new Date(order.deliveryDate).toLocaleDateString('vi-VN') 
-                    : 'Chưa xác định';
+                <AnimatePresence>
+                  {pendingOrders.length === 0 && (
+                    <motion.tr
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                    >
+                      <td colSpan={8} className="px-4 py-6 text-center text-gray-500">
+                        Không có đơn hàng nào chờ xử lý
+                      </td>
+                    </motion.tr>
+                  )}
+                  {pendingOrders.map((order, index) => {
+                    const stock = storeStocks.find(s => s.stockId === order.storeStockId);
+                    const deliveryDate = order.deliveryDate 
+                      ? new Date(order.deliveryDate).toLocaleDateString('vi-VN') 
+                      : 'Chưa xác định';
+                    const statusUpper = order.status ? (order.status || '').toUpperCase() : '';
+                    const isFromManager = statusUpper === 'PENDING';
 
-                  return (
-                    <tr key={order.inventoryId || order.id}>
-                      <td className="px-4 py-2 text-sm text-gray-900">#{order.inventoryId || order.id}</td>
-                      <td className="px-4 py-2 text-sm text-gray-900">{order.storeStockId}</td>
-                      <td className="px-4 py-2 text-sm text-gray-900">
-                        {stock ? `${stock.modelName} • ${stock.colorName}` : 'N/A'}
-                      </td>
-                      <td className="px-4 py-2 text-sm text-gray-600">
-                        {stock ? stock.storeName || `Store #${stock.storeId}` : 'N/A'}
-                      </td>
-                      <td className="px-4 py-2 text-sm text-gray-900">{order.importQuantity} xe</td>
-                      <td className="px-4 py-2 text-sm text-gray-600">{deliveryDate}</td>
-                      <td className="px-4 py-2 text-sm">
-                        <span className="px-2 py-1 bg-yellow-100 text-yellow-800 rounded text-xs font-medium">
-                          Chờ xử lý
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 text-right">
-                        <div className="inline-flex gap-2">
-                          <button 
-                            onClick={() => handleOpenProcess(order)} 
-                            className="px-3 py-1 bg-emerald-600 text-white rounded text-sm hover:bg-emerald-700"
+                    return (
+                      <motion.tr 
+                        key={order.inventoryId || order.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        whileHover={{ backgroundColor: '#f9fafb' }}
+                        className="hover:bg-gray-50"
+                      >
+                        <td className="px-4 py-2 text-sm text-gray-900 font-medium">#{order.inventoryId || order.id}</td>
+                        <td className="px-4 py-2 text-sm text-gray-900">{order.storeStockId}</td>
+                        <td className="px-4 py-2 text-sm text-gray-900">
+                          {stock ? `${stock.modelName} • ${stock.colorName}` : 'N/A'}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-600">
+                          {stock ? stock.storeName || `Store #${stock.storeId}` : 'N/A'}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900 font-medium">{order.importQuantity} xe</td>
+                        <td className="px-4 py-2 text-sm text-gray-600">{deliveryDate}</td>
+                        <td className="px-4 py-2 text-sm">
+                          <motion.span 
+                            className={`px-2 py-1 rounded text-xs font-medium inline-flex items-center gap-1 ${
+                              isFromManager 
+                                ? 'bg-purple-100 text-purple-800' 
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}
+                            animate={{ 
+                              backgroundColor: isFromManager 
+                                ? ['#f3e8ff', '#e9d5ff', '#f3e8ff']
+                                : ['#fef3c7', '#fde68a', '#fef3c7']
+                            }}
+                            transition={{ duration: 2, repeat: Infinity }}
                           >
-                            Xử lý
-                          </button>
-                          <button 
-                            onClick={() => handleReject(order)} 
-                            className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700"
-                          >
-                            Từ chối
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                            {isFromManager ? '📋 Từ Manager' : '👤 Từ Staff'}
+                          </motion.span>
+                        </td>
+                        <td className="px-4 py-2 text-right">
+                          <div className="inline-flex gap-2">
+                            <motion.button 
+                              onClick={() => handleOpenProcess(order)} 
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              className="px-3 py-1 bg-emerald-600 text-white rounded text-sm hover:bg-emerald-700 flex items-center gap-1"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                              </svg>
+                              Duyệt
+                            </motion.button>
+                            <motion.button 
+                              onClick={() => handleReject(order)} 
+                              whileHover={{ scale: 1.05 }}
+                              whileTap={{ scale: 0.95 }}
+                              className="px-3 py-1 bg-red-600 text-white rounded text-sm hover:bg-red-700 flex items-center gap-1"
+                            >
+                              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                              </svg>
+                              Từ chối
+                            </motion.button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    );
+                  })}
+                </AnimatePresence>
               </tbody>
             </table>
           </div>
-        </div>
+        </motion.div>
 
         {/* Processing Orders */}
-        <div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+        >
           <h2 className="text-lg font-semibold text-gray-900 mb-3">
             Đơn hàng đang xử lý ({processingOrders.length})
           </h2>
@@ -291,65 +363,130 @@ function DealerOrderManagement() {
                     </td>
                   </tr>
                 )}
-                {processingOrders.map((order) => {
+                {processingOrders.map((order, index) => {
                   const stock = storeStocks.find(s => s.stockId === order.storeStockId);
                   
                   return (
-                    <tr key={order.inventoryId || order.id}>
-                      <td className="px-4 py-2 text-sm text-gray-900">#{order.inventoryId || order.id}</td>
+                    <motion.tr 
+                      key={order.inventoryId || order.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ delay: index * 0.05 }}
+                      whileHover={{ backgroundColor: '#f0fdf4' }}
+                      className="hover:bg-green-50"
+                    >
+                      <td className="px-4 py-2 text-sm text-gray-900 font-medium">#{order.inventoryId || order.id}</td>
                       <td className="px-4 py-2 text-sm text-gray-900">
                         {stock ? `${stock.modelName} • ${stock.colorName}` : 'N/A'}
                       </td>
                       <td className="px-4 py-2 text-sm text-gray-600">
                         {stock ? stock.storeName || `Store #${stock.storeId}` : 'N/A'}
                       </td>
-                      <td className="px-4 py-2 text-sm text-gray-900">{order.importQuantity} xe</td>
+                      <td className="px-4 py-2 text-sm text-gray-900 font-medium">{order.importQuantity} xe</td>
                       <td className="px-4 py-2 text-sm text-gray-900">
                         {order.unitBasePrice?.toLocaleString('vi-VN')} VNĐ
                       </td>
-                      <td className="px-4 py-2 text-sm text-gray-900">
+                      <td className="px-4 py-2 text-sm text-gray-900 font-medium">
                         {order.totalPrice?.toLocaleString('vi-VN')} VNĐ
                       </td>
                       <td className="px-4 py-2 text-sm font-medium text-red-600">
                         {order.dept?.toLocaleString('vi-VN')} VNĐ
                       </td>
                       <td className="px-4 py-2 text-sm">
-                        <span className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium">
-                          {order.status}
-                        </span>
+                        <motion.span 
+                          className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-medium inline-flex items-center gap-1"
+                          animate={{ 
+                            backgroundColor: ['#f3e8ff', '#e9d5ff', '#f3e8ff']
+                          }}
+                          transition={{ duration: 2, repeat: Infinity }}
+                        >
+                          <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                          </svg>
+                          Đang xử lý
+                        </motion.span>
                       </td>
                       <td className="px-4 py-2 text-right">
-                        <button 
+                        <motion.button 
                           onClick={() => handleComplete(order)}
-                          className="px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 flex items-center gap-1 ml-auto"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          className="px-3 py-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded text-sm hover:from-green-700 hover:to-emerald-700 flex items-center gap-1 ml-auto shadow-lg"
                         >
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <motion.svg 
+                            className="w-4 h-4" 
+                            fill="none" 
+                            viewBox="0 0 24 24" 
+                            stroke="currentColor"
+                            animate={{ scale: [1, 1.2, 1] }}
+                            transition={{ duration: 1.5, repeat: Infinity }}
+                          >
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
+                          </motion.svg>
                           Hoàn thành
-                        </button>
+                        </motion.button>
                       </td>
-                    </tr>
+                    </motion.tr>
                   );
                 })}
               </tbody>
             </table>
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Process Order Modal */}
-      {processModal && selectedOrder && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-6 w-full max-w-lg">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Xử lý đơn hàng</h3>
-              <button onClick={() => setProcessModal(false)} className="text-gray-400 hover:text-gray-600">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+      <AnimatePresence>
+        {processModal && selectedOrder && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            onClick={() => setProcessModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg"
+            >
+              <div className="flex items-center justify-between mb-6">
+                <motion.div
+                  initial={{ x: -10, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  transition={{ delay: 0.1 }}
+                >
+                  <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                    <motion.span
+                      animate={{ rotate: [0, 360] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    >
+                      ✅
+                    </motion.span>
+                    Duyệt và xử lý đơn hàng
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">Nhập giá và tính toán chi phí cho đơn hàng</p>
+                </motion.div>
+                <motion.button 
+                  onClick={() => setProcessModal(false)} 
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  whileHover={{ rotate: 90 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </motion.button>
+              </div>
 
             <form onSubmit={handleProcess} className="space-y-4">
               <div className="bg-gray-50 rounded-lg p-4 space-y-2">
@@ -427,18 +564,40 @@ function DealerOrderManagement() {
                 </div>
               )}
 
-              <div className="flex justify-end gap-3 pt-2 border-t">
-                <button type="button" onClick={() => setProcessModal(false)} className="px-4 py-2 border rounded hover:bg-gray-50">
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                <motion.button 
+                  type="button" 
+                  onClick={() => setProcessModal(false)}
+                  whileHover={{ scale: 1.05, x: -5 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+                >
                   Hủy
-                </button>
-                <button type="submit" className="px-4 py-2 bg-emerald-600 text-white rounded hover:bg-emerald-700">
-                  Xác nhận xử lý
-                </button>
+                </motion.button>
+                <motion.button 
+                  type="submit"
+                  whileHover={{ scale: 1.05, x: 5 }}
+                  whileTap={{ scale: 0.95 }}
+                  className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:from-emerald-700 hover:to-green-700 transition-all shadow-lg font-medium flex items-center gap-2"
+                >
+                  <motion.svg 
+                    className="w-5 h-5" 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor"
+                    animate={{ scale: [1, 1.2, 1] }}
+                    transition={{ duration: 1.5, repeat: Infinity }}
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </motion.svg>
+                  Duyệt và xử lý
+                </motion.button>
               </div>
             </form>
-          </div>
-        </div>
-      )}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
