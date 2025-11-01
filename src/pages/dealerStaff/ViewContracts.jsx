@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
 import { 
-  uploadSignedContractThunk
+  uploadSignedContractThunk,
+  fetchAllContractsThunk
 } from '../../store/slices/contractSlice';
 import { getContractHtml } from '../../api/contractService';
+import { getOrderById } from '../../api/orderService';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
   Eye, 
@@ -16,7 +19,14 @@ import {
   Package,
   Calendar,
   Download,
-  X
+  X,
+  User,
+  Phone,
+  DollarSign,
+  ShoppingBag,
+  UserCircle,
+  Receipt,
+  Tag
 } from 'lucide-react';
 import Tooltip from '@/components/ui/Tooltip';
 
@@ -33,9 +43,15 @@ function ViewContracts() {
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedContract, setSelectedContract] = useState(null);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [showOrderModal, setShowOrderModal] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [orderDetails, setOrderDetails] = useState([]);
+  const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
 
-  // Note: Contracts are loaded via Redux state from contract creation flow
-  // No getAllContracts API available, contracts are managed through local state
+  // Fetch contracts on component mount
+  useEffect(() => {
+    dispatch(fetchAllContractsThunk());
+  }, [dispatch]);
 
   // Handle success message from navigation state
   useEffect(() => {
@@ -51,6 +67,7 @@ function ViewContracts() {
   // Filter contracts by search
   const filteredContracts = (contracts || []).filter(contract => 
     contract.contractId?.toString().includes(searchTerm) ||
+    contract.contractCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contract.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     contract.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
   );
@@ -90,6 +107,34 @@ function ViewContracts() {
     setShowUploadModal(false);
     setSelectedContract(null);
     setSelectedFile(null);
+  };
+
+  const handleViewOrder = async (contract) => {
+    setSelectedOrder(null);
+    setShowOrderModal(true);
+    setLoadingOrderDetails(true);
+    
+    try {
+      const orderResponse = await getOrderById(contract.orderId);
+      const order = orderResponse.data || orderResponse;
+      setSelectedOrder(order);
+      
+      // Backend returns product details in 'getOrderDetailsResponses' array
+      const details = order.getOrderDetailsResponses || [];
+      setOrderDetails(details);
+    } catch (error) {
+      console.error('Error loading order:', error);
+      setErrorMessage('Không thể tải thông tin đơn hàng: ' + error.message);
+      setTimeout(() => setErrorMessage(null), 3000);
+    } finally {
+      setLoadingOrderDetails(false);
+    }
+  };
+
+  const handleCloseOrderModal = () => {
+    setShowOrderModal(false);
+    setSelectedOrder(null);
+    setOrderDetails([]);
   };
 
   const handleFileChange = (e) => {
@@ -250,6 +295,9 @@ function ViewContracts() {
                     Trạng thái
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tổng thanh toán
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Đã upload
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -264,14 +312,18 @@ function ViewContracts() {
                 {filteredContracts.map((contract) => (
                   <tr key={contract.contractId} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      #{contract.contractId}
+                      {contract.contractCode || `#${contract.contractId}`}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {contract.orderCode || `ORD-${contract.orderId}`}
+                      <button
+                        onClick={() => handleViewOrder(contract)}
+                        className="text-blue-600 hover:text-blue-900 hover:underline transition-colors font-medium"
+                      >
+                        {contract.orderCode || `ORD-${contract.orderId}`}
+                      </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{contract.customerName || 'N/A'}</div>
-                      <div className="text-sm text-gray-500">{contract.customerPhone || ''}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {contract.contractDate ? new Date(contract.contractDate).toLocaleDateString('vi-VN') : 'N/A'}
@@ -281,17 +333,20 @@ function ViewContracts() {
                         {getStatusText(contract.status)}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                      {(contract.totalPayment || 0).toLocaleString('vi-VN')} VNĐ
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {contract.signedContractFileUrl ? (
+                      {contract.signedContractFileUrl || contract.contractFileUrl ? (
                         <CheckCircle className="h-5 w-5 text-green-500" />
                       ) : (
                         <span className="text-gray-400">Chưa có</span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      {contract.signedContractFileUrl ? (
+                      {(contract.signedContractFileUrl || contract.contractFileUrl) ? (
                         <a 
-                          href={contract.signedContractFileUrl} 
+                          href={contract.signedContractFileUrl || contract.contractFileUrl} 
                           target="_blank" 
                           rel="noopener noreferrer"
                           className="text-blue-600 hover:text-blue-900 transition-colors underline"
@@ -350,7 +405,7 @@ function ViewContracts() {
                   Upload Hợp Đồng Đã Ký
                 </h3>
                 <p className="text-sm text-gray-600 mt-1">
-                  Mã hợp đồng: <span className="font-semibold">#{selectedContract.contractId}</span>
+                  Mã hợp đồng: <span className="font-semibold">{selectedContract.contractCode || `#${selectedContract.contractId}`}</span>
                 </p>
               </div>
               <button
@@ -433,6 +488,205 @@ function ViewContracts() {
           </div>
         </div>
       )}
+
+      {/* Order Details Modal */}
+      <AnimatePresence>
+        {showOrderModal && selectedOrder && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
+            onClick={handleCloseOrderModal}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-7xl p-4 border shadow-2xl rounded-2xl bg-white max-h-[95vh] overflow-y-auto"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between mb-4 pb-3 border-b border-gray-200">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-3 mb-2">
+                    <Receipt className="h-8 w-8 text-emerald-600" />
+                    <h3 className="text-2xl font-bold text-gray-900">
+                      Chi tiết đơn hàng
+                    </h3>
+                  </div>
+                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                    <span className="flex items-center">
+                      <Tag className="h-4 w-4 mr-1" />
+                      Mã: <span className="font-semibold ml-1">{selectedOrder.orderCode || `ORD-${selectedOrder.orderId}`}</span>
+                    </span>
+                    <span className="flex items-center">
+                      <Calendar className="h-4 w-4 mr-1" />
+                      {selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleDateString('vi-VN', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                      }) : 'N/A'}
+                    </span>
+                  </div>
+                </div>
+                <button
+                  onClick={handleCloseOrderModal}
+                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
+                >
+                  <X className="h-6 w-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                {/* Customer Information */}
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <User className="h-5 w-5 text-blue-600" />
+                    <h4 className="font-bold text-blue-900">Thông tin khách hàng</h4>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-start">
+                      <UserCircle className="h-4 w-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-xs text-blue-700">Tên khách hàng</p>
+                        <p className="text-sm font-semibold text-blue-900">{selectedOrder.customerName || 'N/A'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-start">
+                      <Phone className="h-4 w-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <p className="text-xs text-blue-700">Số điện thoại</p>
+                        <p className="text-sm font-semibold text-blue-900">{selectedOrder.customerPhone || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Financial Summary */}
+                <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <DollarSign className="h-5 w-5 text-emerald-600" />
+                    <h4 className="font-bold text-emerald-900">Tổng quan tài chính</h4>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-emerald-700">Tổng giá sản phẩm:</span>
+                      <span className="text-sm font-semibold text-emerald-900">
+                        {(selectedOrder.totalPrice || 0).toLocaleString('vi-VN')}đ
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-emerald-700">Thuế VAT:</span>
+                      <span className="text-sm font-semibold text-orange-600">
+                        +{(selectedOrder.totalTaxPrice || 0).toLocaleString('vi-VN')}đ
+                      </span>
+                    </div>
+                    <div className="pt-2 border-t-2 border-emerald-300">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm font-bold text-emerald-900">Tổng thanh toán:</span>
+                        <span className="text-lg font-bold text-emerald-600">
+                          {(selectedOrder.totalPayment || 0).toLocaleString('vi-VN')}đ
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Product Details */}
+                <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
+                  <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-4">
+                    <h4 className="font-bold text-white flex items-center text-lg">
+                      <ShoppingBag className="h-6 w-6 mr-2" />
+                      Chi tiết sản phẩm
+                    </h4>
+                  </div>
+                  
+                  {loadingOrderDetails ? (
+                    <div className="flex items-center justify-center py-4">
+                      <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mr-3" />
+                      <span className="text-gray-600 font-medium">Đang tải chi tiết sản phẩm...</span>
+                    </div>
+                  ) : orderDetails.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200">
+                        <thead className="bg-gray-50">
+                          <tr>
+                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              Sản phẩm
+                            </th>
+                            <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              Số lượng
+                            </th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              Đơn giá
+                            </th>
+                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              Thành tiền
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-100">
+                          {orderDetails.map((item, index) => (
+                            <tr key={index} className="hover:bg-emerald-50 transition-colors">
+                              <td className="px-6 py-4">
+                                <div className="flex items-center">
+                                  <div className="h-10 w-10 flex-shrink-0 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center mr-3">
+                                    <Package className="h-5 w-5 text-white" />
+                                  </div>
+                                  <div>
+                                    <div className="font-semibold text-gray-900">{item.modelName || 'N/A'}</div>
+                                    <div className="text-sm text-gray-500 flex items-center">
+                                      <Tag className="h-3 w-3 mr-1" />
+                                      {item.colorName || 'N/A'}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 text-center">
+                                <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm font-bold">
+                                  {item.quantity || 0}
+                                </span>
+                              </td>
+                              <td className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
+                                {(item.unitPrice || 0).toLocaleString('vi-VN')}đ
+                              </td>
+                              <td className="px-6 py-4 text-right text-sm font-bold text-emerald-600">
+                                {(item.totalPrice || 0).toLocaleString('vi-VN')}đ
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-4">
+                      <Package className="h-16 w-16 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">Chưa có sản phẩm trong đơn hàng</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Close Button */}
+              <div className="flex justify-end pt-4 border-t border-gray-200 mt-4">
+                <button
+                  onClick={handleCloseOrderModal}
+                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  Đóng
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

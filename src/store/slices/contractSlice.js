@@ -1,10 +1,23 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import {
     uploadSignedContract,
-    createContractFromOrder
+    createContractFromOrder,
+    getAllContracts
 } from '../../api/contractService';
 
 // Async thunks
+export const fetchAllContractsThunk = createAsyncThunk(
+    'contracts/fetchAll',
+    async (_, { rejectWithValue }) => {
+        try {
+            const response = await getAllContracts();
+            return response;
+        } catch (error) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
 export const uploadSignedContractThunk = createAsyncThunk(
     'contracts/uploadSigned',
     async ({ contractId, file }, { rejectWithValue }) => {
@@ -60,6 +73,20 @@ const contractSlice = createSlice({
     },
     extraReducers: (builder) => {
         builder
+            // Fetch all contracts
+            .addCase(fetchAllContractsThunk.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(fetchAllContractsThunk.fulfilled, (state, action) => {
+                state.loading = false;
+                // Response format: { data: [...] } or directly array
+                state.contracts = action.payload?.data || action.payload || [];
+            })
+            .addCase(fetchAllContractsThunk.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            })
             // Upload signed contract
             .addCase(uploadSignedContractThunk.pending, (state) => {
                 state.loading = true;
