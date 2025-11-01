@@ -53,6 +53,21 @@ function ViewContracts() {
     dispatch(fetchAllContractsThunk());
   }, [dispatch]);
 
+  // Sort contracts function
+  const sortContracts = (arr) => {
+    // Sort by newest first (by contractDate or contractId as fallback)
+    const copy = [...arr];
+    return copy.sort((a, b) => {
+      const timeA = new Date(a.contractDate || 0).getTime();
+      const timeB = new Date(b.contractDate || 0).getTime();
+      // If dates are equal or missing, sort by contractId desc
+      if (timeA === timeB) {
+        return (b.contractId || 0) - (a.contractId || 0);
+      }
+      return timeB - timeA; // Newest first
+    });
+  };
+
   // Handle success message from navigation state
   useEffect(() => {
     if (location.state?.message) {
@@ -64,12 +79,14 @@ function ViewContracts() {
     }
   }, [location]);
 
-  // Filter contracts by search
-  const filteredContracts = (contracts || []).filter(contract => 
-    contract.contractId?.toString().includes(searchTerm) ||
-    contract.contractCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contract.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contract.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
+  // Filter and sort contracts by search
+  const filteredContracts = sortContracts(
+    (contracts || []).filter(contract => 
+      contract.contractId?.toString().includes(searchTerm) ||
+      contract.contractCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      contract.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      contract.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
   );
 
   // Handle view contract HTML
@@ -178,6 +195,11 @@ function ViewContracts() {
       
       handleCloseModal();
       setSuccessMessage('Upload hợp đồng đã ký thành công!');
+      
+      // Reload contracts to get latest data from server after a short delay
+      setTimeout(() => {
+        dispatch(fetchAllContractsThunk());
+      }, 1000);
       
       // Clear success message after delay
       setTimeout(() => {
