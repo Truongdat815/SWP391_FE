@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { 
   fetchOrders,
   fetchOrdersByStatus,
@@ -41,6 +42,7 @@ function ViewOrders() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const { user, getStoreId } = useAuth();
   
   // Redux state
   const { orders: reduxOrders, loading, error } = useSelector((state) => state.orders);
@@ -114,13 +116,31 @@ function ViewOrders() {
     }
   }, [dispatch, statusFilter, startDate, endDate]);
   
-  // Update local orders state when Redux orders change
+  // Update local orders state when Redux orders change and filter by storeId
   useEffect(() => {
     if (reduxOrders && Array.isArray(reduxOrders)) {
-      setOrders(reduxOrders);
-      setFilteredOrders(reduxOrders);
+      const currentStoreId = user?.storeId || getStoreId();
+      
+      // Filter orders that belong to current store
+      // Orders can be linked to store through order details (storeStock.storeId)
+      const storeOrders = currentStoreId 
+        ? reduxOrders.filter(order => {
+            // Check if order has storeId directly
+            if (order.storeId === currentStoreId) return true;
+            
+            // Check through order details
+            const orderDetails = order.getOrderDetailsResponses || [];
+            return orderDetails.some(detail => 
+              detail.storeStock?.storeId === currentStoreId ||
+              detail.storeStockId && detail.storeStock?.storeId === currentStoreId
+            );
+          })
+        : reduxOrders;
+      
+      setOrders(storeOrders);
+      setFilteredOrders(storeOrders);
     }
-  }, [reduxOrders]);
+  }, [reduxOrders, user?.storeId, getStoreId]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {

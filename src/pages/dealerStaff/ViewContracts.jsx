@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { 
   uploadSignedContractThunk,
   fetchAllContractsThunk
@@ -33,6 +34,7 @@ import Tooltip from '@/components/ui/Tooltip';
 function ViewContracts() {
   const dispatch = useDispatch();
   const location = useLocation();
+  const { user, getStoreId } = useAuth();
   
   const { contracts, loading } = useSelector((state) => state.contracts);
   
@@ -79,14 +81,27 @@ function ViewContracts() {
     }
   }, [location]);
 
-  // Filter and sort contracts by search
+  // Filter and sort contracts by search and storeId
+  const currentStoreId = user?.storeId || getStoreId();
   const filteredContracts = sortContracts(
-    (contracts || []).filter(contract => 
-      contract.contractId?.toString().includes(searchTerm) ||
-      contract.contractCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contract.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contract.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
+    (contracts || []).filter(contract => {
+      // Filter by storeId - contracts are linked to orders
+      if (currentStoreId) {
+        const order = contract.order || {};
+        const belongsToStore = order.storeId === currentStoreId ||
+          contract.storeId === currentStoreId ||
+          (order.getOrderDetailsResponses || []).some(detail => 
+            detail.storeStock?.storeId === currentStoreId
+          );
+        if (!belongsToStore) return false;
+      }
+      
+      // Filter by search term
+      return contract.contractId?.toString().includes(searchTerm) ||
+        contract.contractCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contract.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contract.customerName?.toLowerCase().includes(searchTerm.toLowerCase());
+    })
   );
 
   // Handle view contract HTML
