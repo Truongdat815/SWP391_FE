@@ -47,14 +47,15 @@ function OrderSummary() {
                 setInitialLoading(true);
                 
                 // Load order data if not in state
-                if (!orderData) {
+                let currentOrder = orderData;
+                if (!currentOrder) {
                     const orderResponse = await getOrderById(orderId);
-                    const order = orderResponse.data || orderResponse;
-                    setOrderData(order);
+                    currentOrder = orderResponse.data || orderResponse;
+                    setOrderData(currentOrder);
                     
                     // Validate order status
-                    if (order.status?.toUpperCase() !== 'APPROVED') {
-                        setError(`Đơn hàng phải được phê duyệt trước khi tạo hợp đồng. Trạng thái hiện tại: ${order.status || 'N/A'}`);
+                    if (currentOrder.status?.toUpperCase() !== 'APPROVED') {
+                        setError(`Đơn hàng phải được phê duyệt trước khi tạo hợp đồng. Trạng thái hiện tại: ${currentOrder.status || 'N/A'}`);
                         setTimeout(() => {
                             navigate('/dealer-staff/view-orders');
                         }, 3000);
@@ -64,7 +65,7 @@ function OrderSummary() {
                 
                 // Load order details from getOrderDetailsResponses
                 if (!orderDetails || orderDetails.length === 0) {
-                    const details = latestOrder.getOrderDetailsResponses || [];
+                    const details = currentOrder.getOrderDetailsResponses || [];
                     setOrderDetails(Array.isArray(details) ? details : []);
                     console.log('Loaded order details from response:', details);
                 }
