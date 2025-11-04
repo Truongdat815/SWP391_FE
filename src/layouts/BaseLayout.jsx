@@ -574,7 +574,7 @@ const BaseLayout = ({
         className="bg-white shadow-lg border-r border-gray-200 flex flex-col relative flex-shrink-0"
       >
         {/* Sidebar Header */}
-        <div className="p-4 border-b border-gray-200">
+        <div className="border-b border-gray-200 h-[73px] flex items-center justify-center relative">
           <AnimatePresence mode="wait">
             {!sidebarCollapsed ? (
               <motion.div
@@ -583,9 +583,24 @@ const BaseLayout = ({
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="flex items-center justify-between"
+                className="flex flex-col items-center justify-center w-full px-4 h-full relative"
               >
-                <div className="flex items-center overflow-hidden">
+                {/* Nút thu gọn ở trên */}
+                <motion.button
+                  aria-label="Thu gọn sidebar"
+                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                  className="absolute top-2 right-2 p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors flex-shrink-0"
+                  whileHover={{ scale: 1.1, backgroundColor: "rgb(243, 244, 246)" }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                  </svg>
+                </motion.button>
+                
+                {/* Logo và text ở dưới */}
+                <div className="flex items-center justify-center mt-2">
                   <img 
                     src="/src/assets/images/logo.png" 
                     alt="Electra Logo" 
@@ -594,64 +609,42 @@ const BaseLayout = ({
                       e.target.src = `https://via.placeholder.com/120x40/${brandColor === 'red' ? 'EF4444' : '10B981'}/FFFFFF?text=ELECTRA`;
                     }}
                   />
-                  <div className="min-w-0">
-                    <h1 className="text-xl font-bold text-gray-900 truncate">Electra</h1>
-                    <p className="text-sm text-gray-600 truncate">{roleLabel}</p>
+                  <div className="min-w-0 flex flex-col justify-center">
+                    <h1 className="text-xl font-bold text-gray-900 truncate leading-tight">Electra</h1>
+                    <p className="text-sm text-gray-600 truncate leading-tight">{roleLabel}</p>
                   </div>
                 </div>
-                <motion.button
-                  aria-label="Toggle sidebar"
-                  onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                  className="p-2 rounded-md hover:bg-gray-100 text-gray-600 flex-shrink-0 ml-2"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <motion.div
-                    animate={{ rotate: 0 }}
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                  >
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </motion.div>
-                </motion.button>
               </motion.div>
             ) : (
               <motion.div
                 key="collapsed"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
+                initial={{ opacity: 0, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.3, ease: "easeInOut" }}
-                className="flex flex-col items-center space-y-3"
+                className="flex flex-col items-center justify-center w-full space-y-3 px-2"
               >
-                <div className="w-12 h-12 flex items-center justify-center">
+                <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
                   <img 
                     src="/src/assets/images/logo.png" 
                     alt="Electra Logo" 
-                    className="h-10 w-10 object-contain"
+                    className="h-full w-full object-contain"
                     onError={(e) => {
                       e.target.src = `https://via.placeholder.com/40x40/${brandColor === 'red' ? 'EF4444' : '10B981'}/FFFFFF?text=E`;
                     }}
                   />
                 </div>
                 <motion.button
-                  aria-label="Toggle sidebar"
+                  aria-label="Mở rộng sidebar"
                   onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-                  className="p-2 rounded-md hover:bg-gray-100 text-gray-600"
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 hover:text-gray-700 transition-colors"
+                  whileHover={{ scale: 1.1, backgroundColor: "rgb(243, 244, 246)" }}
+                  whileTap={{ scale: 0.95 }}
                   transition={{ duration: 0.2 }}
                 >
-                  <motion.div
-                    animate={{ rotate: 180 }}
-                    transition={{ duration: 0.3, ease: "easeInOut" }}
-                  >
-                    <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </motion.div>
+                  <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
                 </motion.button>
               </motion.div>
             )}
@@ -672,9 +665,9 @@ const BaseLayout = ({
                 >
                   <Link
                     to={item.path}
-                    className={`flex items-center justify-center rounded-lg relative overflow-hidden ${
+                    className={`flex items-center rounded-lg relative overflow-hidden ${
                       sidebarCollapsed 
-                        ? 'w-12 h-12' 
+                        ? 'w-12 h-12 justify-center' 
                         : 'w-full p-3 justify-start'
                     }`}
                   >
@@ -797,8 +790,8 @@ const BaseLayout = ({
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 w-full">
-          <div className="flex items-center justify-between">
+        <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 w-full h-[73px] flex items-center">
+          <div className="flex items-center justify-between w-full">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
                 {currentMenu?.name || defaultTitle}

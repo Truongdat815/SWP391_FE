@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
-import { getAllFeedbacks, updateFeedbackStatus } from '@/api/feedbackService';
-import { getFeedbackDetailsByFeedbackId } from '@/api/feedbackDetailService';
+import React, { useState, useEffect, useRef } from 'react';
+import { getAllFeedbacks, updateFeedbackStatus, createFeedback, updateFeedback } from '@/api/feedbackService';
+import { getFeedbackDetailsByFeedbackId, createFeedbackDetail, updateFeedbackDetail } from '@/api/feedbackDetailService';
+import { getAllOrders } from '@/api/orderService';
 
 function FeedbackManagement({ onBack }) {
   const [feedbacks, setFeedbacks] = useState([]);
@@ -8,76 +9,311 @@ function FeedbackManagement({ onBack }) {
   const [error, setError] = useState(null);
   const [selectedFeedback, setSelectedFeedback] = useState(null);
   const [showResolveForm, setShowResolveForm] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
+  const [sortBy, setSortBy] = useState('newest'); // 'newest', 'oldest', 'name', 'date', 'order'
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  const sortDropdownRef = useRef(null);
+  
   const [resolveForm, setResolveForm] = useState({
     resolution: '',
     notes: ''
   });
 
+  const [createForm, setCreateForm] = useState({
+    orderId: '',
+    customerName: '',
+    category: 'service',
+    rating: 5,
+    content: '',
+    status: 'DRAFT'
+  });
+
+  const [orders, setOrders] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
+        setShowSortDropdown(false);
+      }
+    };
+    if (showSortDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showSortDropdown]);
+
+  // Fetch orders when opening create/edit form
+  useEffect(() => {
+    const fetchOrders = async () => {
+      if (showCreateForm || showEditForm) {
+        try {
+          setLoadingOrders(true);
+          console.log('🔄 [FeedbackManagement] Đang tải danh sách đơn hàng...');
+          const response = await getAllOrders();
+          
+          // Handle different response structures
+          let ordersData = [];
+          if (Array.isArray(response)) {
+            ordersData = response;
+          } else if (response?.data && Array.isArray(response.data)) {
+            ordersData = response.data;
+          } else if (response?.data?.data && Array.isArray(response.data.data)) {
+            ordersData = response.data.data;
+          }
+          
+          console.log('✅ [FeedbackManagement] Đã tải danh sách đơn hàng:', ordersData.length);
+          setOrders(ordersData);
+        } catch (err) {
+          console.error('❌ [FeedbackManagement] Lỗi khi tải danh sách đơn hàng:', err);
+          setOrders([]);
+        } finally {
+          setLoadingOrders(false);
+        }
+      }
+    };
+    
+    fetchOrders();
+  }, [showCreateForm, showEditForm]);
+
+  // Handle order selection
+  const handleOrderSelect = (orderId) => {
+    if (!orderId || orderId === '') {
+      // Reset form if no order selected
+      setCreateForm(prev => ({
+        ...prev,
+        orderId: '',
+        customerName: ''
+      }));
+      return;
+    }
+    
+    const selectedOrder = orders.find(order => {
+      const oId = order.orderId || order.id || order.order_id;
+      return oId === parseInt(orderId) || oId.toString() === orderId.toString();
+    });
+    
+    if (selectedOrder) {
+      const customerName = selectedOrder.customerName || 
+                          selectedOrder.customer?.fullName || 
+                          selectedOrder.customer?.customerName ||
+                          selectedOrder.customer?.name ||
+                          'N/A';
+      
+      setCreateForm(prev => ({
+        ...prev,
+        orderId: orderId.toString(),
+        customerName: customerName
+      }));
+      
+      console.log('✅ [FeedbackManagement] Đã chọn đơn hàng:', {
+        orderId: selectedOrder.orderId || selectedOrder.id,
+        customerName: customerName,
+        fullOrder: selectedOrder
+      });
+    } else {
+      console.warn('⚠️ [FeedbackManagement] Không tìm thấy đơn hàng với ID:', orderId);
+      alert('Không tìm thấy đơn hàng được chọn!');
+    }
+  };
+
   // Load feedbacks from API
   useEffect(() => {
+    let isMounted = true; // Flag to prevent state update if component unmounts
+    
     const fetchFeedbacks = async () => {
       try {
         setLoading(true);
         setError(null);
         
+        console.log('🔄 [FeedbackManagement] Đang tải danh sách phản hồi...');
         const response = await getAllFeedbacks();
+        
+        if (!isMounted) return; // Don't update state if component unmounted
+        
+        // Debug: Log toàn bộ response để kiểm tra
+        console.log('📥 [FeedbackManagement] Raw API Response:', response);
+        console.log('📥 [FeedbackManagement] Response type:', typeof response);
+        console.log('📥 [FeedbackManagement] Is Array?', Array.isArray(response));
+        if (response && typeof response === 'object') {
+          console.log('📥 [FeedbackManagement] Response keys:', Object.keys(response));
+        }
         
         // Handle different response structures
         let feedbacksData = [];
-        if (response?.data && Array.isArray(response.data)) {
-          feedbacksData = response.data;
-        } else if (Array.isArray(response)) {
+        
+        // Check if response is directly an array
+        if (Array.isArray(response)) {
           feedbacksData = response;
-        } else if (response?.data?.data && Array.isArray(response.data.data)) {
+          console.log('✅ [FeedbackManagement] Response là array, số lượng:', feedbacksData.length);
+        }
+        // Check if response.data is an array
+        else if (response?.data && Array.isArray(response.data)) {
+          feedbacksData = response.data;
+          console.log('✅ [FeedbackManagement] Response.data là array, số lượng:', feedbacksData.length);
+        }
+        // Check if response.data.data is an array
+        else if (response?.data?.data && Array.isArray(response.data.data)) {
           feedbacksData = response.data.data;
+          console.log('✅ [FeedbackManagement] Response.data.data là array, số lượng:', feedbacksData.length);
+        }
+        // Try other possible structures
+        else if (response?.data && !Array.isArray(response.data)) {
+          console.log('⚠️ [FeedbackManagement] Response.data không phải array:', response.data);
+          // Try to extract array from response.data
+          if (response.data.list && Array.isArray(response.data.list)) {
+            feedbacksData = response.data.list;
+            console.log('✅ [FeedbackManagement] Tìm thấy response.data.list');
+          } else if (response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
+            feedbacksData = response.data.feedbacks;
+            console.log('✅ [FeedbackManagement] Tìm thấy response.data.feedbacks');
+          } else if (response.data.items && Array.isArray(response.data.items)) {
+            feedbacksData = response.data.items;
+            console.log('✅ [FeedbackManagement] Tìm thấy response.data.items');
+          } else {
+            console.warn('⚠️ [FeedbackManagement] Không tìm thấy array trong response');
+          }
+        }
+        
+        console.log('📊 [FeedbackManagement] Processed feedbacksData:', feedbacksData);
+        console.log('📊 [FeedbackManagement] Số lượng feedbacks:', feedbacksData.length);
+        
+        if (feedbacksData.length === 0) {
+          console.warn('⚠️ [FeedbackManagement] Không có feedback nào trong response');
+          setFeedbacks([]);
+          setLoading(false);
+          return;
         }
         
         // Map API response to component format
         const mappedFeedbacks = await Promise.all(
-          feedbacksData.map(async (feedback) => {
+          feedbacksData.map(async (feedback, index) => {
+            console.log(`🔄 [FeedbackManagement] Đang xử lý feedback ${index + 1}/${feedbacksData.length}:`, feedback);
+            
             // Try to get feedback details for content, rating, category
             let feedbackDetail = null;
             try {
-              const detailResponse = await getFeedbackDetailsByFeedbackId(feedback.feedbackId || feedback.id);
-              const details = detailResponse?.data || detailResponse;
-              if (Array.isArray(details) && details.length > 0) {
-                feedbackDetail = details[0]; // Take first detail
-              } else if (details && !Array.isArray(details)) {
-                feedbackDetail = details;
+              const feedbackId = feedback.feedbackId || feedback.id || feedback.feedback_id;
+              if (feedbackId) {
+                const detailResponse = await getFeedbackDetailsByFeedbackId(feedbackId);
+                const details = detailResponse?.data || detailResponse;
+                if (Array.isArray(details) && details.length > 0) {
+                  feedbackDetail = details[0];
+                  console.log(`✅ [FeedbackManagement] Tìm thấy feedback detail cho feedback ${index + 1}`);
+                } else if (details && !Array.isArray(details)) {
+                  feedbackDetail = details;
+                  console.log(`✅ [FeedbackManagement] Tìm thấy feedback detail (single) cho feedback ${index + 1}`);
+                }
               }
             } catch (err) {
-              console.log('No feedback detail found for feedback:', feedback.feedbackId || feedback.id);
+              console.log(`ℹ️ [FeedbackManagement] Không có feedback detail cho feedback ${index + 1}:`, err.message);
             }
             
-            return {
-              id: feedback.feedbackId || feedback.id,
-              feedbackId: feedback.feedbackId || feedback.id,
+            const mapped = {
+              id: feedback.feedbackId || feedback.id || feedback.feedback_id,
+              feedbackId: feedback.feedbackId || feedback.id || feedback.feedback_id,
               customerName: feedback.customerName || feedback.customer_name || 'N/A',
               orderNumber: feedback.orderId ? `HD-${feedback.orderId}` : feedback.orderNumber || 'N/A',
-              orderId: feedback.orderId,
+              orderId: feedback.orderId || feedback.order_id,
               vehicleModel: feedback.vehicleModel || feedback.vehicle_model || 'N/A',
               category: (feedbackDetail?.category || feedback.category || 'service').toLowerCase(),
               rating: feedbackDetail?.rating || feedback.rating || 0,
               content: feedbackDetail?.content || feedback.content || 'Không có nội dung',
               status: (feedback.status || 'pending').toLowerCase(),
               createdAt: feedback.createdAt || feedback.created_at || feedback.createdDate || new Date().toISOString().split('T')[0],
-              resolvedAt: feedback.resolvedAt || feedback.resolved_at || feedback.resolvedDate || null
+              resolvedAt: feedback.resolvedAt || feedback.resolved_at || feedback.resolvedDate || null,
+              feedbackDetailId: feedbackDetail?.feedbackDetailId || feedbackDetail?.id || null
             };
+            
+            console.log(`✅ [FeedbackManagement] Đã map feedback ${index + 1}:`, mapped);
+            return mapped;
           })
         );
         
-        setFeedbacks(mappedFeedbacks);
+        // Sort by newest first (default)
+        mappedFeedbacks.sort((a, b) => {
+          const dateA = new Date(a.createdAt);
+          const dateB = new Date(b.createdAt);
+          return dateB - dateA; // Newest first
+        });
+        
+        console.log('✅ [FeedbackManagement] Final mapped feedbacks:', mappedFeedbacks);
+        console.log('✅ [FeedbackManagement] Tổng số feedbacks:', mappedFeedbacks.length);
+        
+        if (isMounted) {
+          setFeedbacks(mappedFeedbacks);
+        }
       } catch (err) {
-        console.error('Error fetching feedbacks:', err);
-        setError(err.message || 'Không thể tải danh sách phản hồi');
-        setFeedbacks([]);
+        console.error('❌ [FeedbackManagement] Lỗi khi tải feedbacks:', err);
+        if (isMounted) {
+          setError(err.message || 'Không thể tải danh sách phản hồi');
+          setFeedbacks([]);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
     
     fetchFeedbacks();
+    
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  // Sort feedbacks - use useMemo to avoid infinite loop
+  const sortedFeedbacks = React.useMemo(() => {
+    if (feedbacks.length === 0) return feedbacks;
+    
+    const sorted = [...feedbacks];
+    
+    switch (sortBy) {
+      case 'newest':
+        sorted.sort((a, b) => {
+          const dateA = new Date(a.createdAt);
+          const dateB = new Date(b.createdAt);
+          return dateB - dateA; // Newest first
+        });
+        break;
+      case 'oldest':
+        sorted.sort((a, b) => {
+          const dateA = new Date(a.createdAt);
+          const dateB = new Date(b.createdAt);
+          return dateA - dateB; // Oldest first
+        });
+        break;
+      case 'name':
+        sorted.sort((a, b) => {
+          const nameA = (a.customerName || '').toLowerCase();
+          const nameB = (b.customerName || '').toLowerCase();
+          return nameA.localeCompare(nameB);
+        });
+        break;
+      case 'date':
+        sorted.sort((a, b) => {
+          const dateA = new Date(a.createdAt);
+          const dateB = new Date(b.createdAt);
+          return dateB - dateA; // Newest first
+        });
+        break;
+      case 'order':
+        sorted.sort((a, b) => {
+          const orderA = parseInt(a.orderId) || 0;
+          const orderB = parseInt(b.orderId) || 0;
+          return orderB - orderA; // Higher order ID first
+        });
+        break;
+      default:
+        break;
+    }
+    
+    return sorted;
+  }, [feedbacks, sortBy]);
 
   const getStatusColor = (status) => {
     const normalizedStatus = status?.toLowerCase();
@@ -134,7 +370,7 @@ function FeedbackManagement({ onBack }) {
       await updateFeedbackStatus(feedbackId, 'RESOLVED');
       
       // Update local state
-      const updatedFeedbacks = feedbacks.map(feedback => {
+      setFeedbacks(prevFeedbacks => prevFeedbacks.map(feedback => {
         if (feedback.id === feedbackId || feedback.feedbackId === feedbackId) {
           return {
             ...feedback,
@@ -143,8 +379,7 @@ function FeedbackManagement({ onBack }) {
           };
         }
         return feedback;
-      });
-      setFeedbacks(updatedFeedbacks);
+      }));
       setShowResolveForm(false);
       setSelectedFeedback(null);
       setResolveForm({ resolution: '', notes: '' });
@@ -169,7 +404,7 @@ function FeedbackManagement({ onBack }) {
       await updateFeedbackStatus(feedbackId, apiStatus);
       
       // Update local state
-      const updatedFeedbacks = feedbacks.map(feedback => {
+      setFeedbacks(prevFeedbacks => prevFeedbacks.map(feedback => {
         if (feedback.id === feedbackId || feedback.feedbackId === feedbackId) {
           return {
             ...feedback,
@@ -177,13 +412,186 @@ function FeedbackManagement({ onBack }) {
           };
         }
         return feedback;
-      });
-      setFeedbacks(updatedFeedbacks);
+      }));
       
       alert(`Đã cập nhật trạng thái thành ${getStatusText(newStatus)}`);
     } catch (err) {
       console.error('Error updating feedback status:', err);
       alert('Lỗi khi cập nhật trạng thái: ' + (err.message || 'Vui lòng thử lại'));
+    }
+  };
+
+  const handleCreateFeedback = async (e) => {
+    e.preventDefault();
+    try {
+      // Validation
+      if (!createForm.orderId || createForm.orderId === '') {
+        alert('Vui lòng chọn đơn hàng!');
+        return;
+      }
+      
+      if (!createForm.customerName || createForm.customerName === '') {
+        alert('Vui lòng chọn đơn hàng để tự động điền tên khách hàng!');
+        return;
+      }
+      
+      const orderIdInt = parseInt(createForm.orderId);
+      if (isNaN(orderIdInt) || orderIdInt <= 0) {
+        alert('Mã đơn hàng không hợp lệ!');
+        return;
+      }
+      
+      console.log('🔄 [FeedbackManagement] Đang tạo feedback:', createForm);
+      console.log('🔄 [FeedbackManagement] OrderId (parsed):', orderIdInt);
+      
+      // Create feedback first
+      const feedbackResponse = await createFeedback({
+        orderId: orderIdInt,
+        customerName: createForm.customerName,
+        status: createForm.status
+      });
+      
+      console.log('📥 [FeedbackManagement] Create feedback response:', feedbackResponse);
+      
+      const feedbackId = feedbackResponse?.data?.feedbackId || 
+                        feedbackResponse?.feedbackId || 
+                        feedbackResponse?.data?.id ||
+                        feedbackResponse?.id;
+      
+      if (!feedbackId) {
+        console.error('❌ [FeedbackManagement] Không thể lấy feedbackId từ response:', feedbackResponse);
+        throw new Error('Không thể lấy feedbackId từ API response');
+      }
+      
+      console.log('✅ [FeedbackManagement] Đã tạo feedback với ID:', feedbackId);
+      
+      // Create feedback detail
+      try {
+        await createFeedbackDetail({
+          feedbackId: feedbackId,
+          category: createForm.category.toUpperCase(),
+          rating: createForm.rating,
+          content: createForm.content
+        });
+        
+        console.log('✅ [FeedbackManagement] Đã tạo feedback detail');
+      } catch (detailErr) {
+        console.error('❌ [FeedbackManagement] Lỗi khi tạo feedback detail:', detailErr);
+        // Nếu feedback đã được tạo nhưng detail fail, vẫn hiển thị success
+        // vì có thể tạo detail sau
+      }
+      
+      // Close form and reset
+      setShowCreateForm(false);
+      setCreateForm({
+        orderId: '',
+        customerName: '',
+        category: 'service',
+        rating: 5,
+        content: '',
+        status: 'DRAFT'
+      });
+      
+      alert('Tạo phản hồi thành công!');
+      
+      // Refresh feedbacks list by reloading the page
+      window.location.reload();
+    } catch (err) {
+      console.error('❌ [FeedbackManagement] Lỗi khi tạo feedback:', err);
+      console.error('❌ [FeedbackManagement] Error details:', {
+        message: err.message,
+        stack: err.stack,
+        createForm: createForm
+      });
+      
+      let errorMessage = 'Lỗi khi tạo phản hồi';
+      if (err.message) {
+        errorMessage += ': ' + err.message;
+      } else if (err.response?.data?.message) {
+        errorMessage += ': ' + err.response.data.message;
+      } else {
+        errorMessage += '. Vui lòng thử lại hoặc kiểm tra console để biết thêm chi tiết.';
+      }
+      
+      alert(errorMessage);
+    }
+  };
+
+  const handleEditFeedback = (feedback) => {
+    setSelectedFeedback(feedback);
+    setCreateForm({
+      orderId: feedback.orderId?.toString() || '',
+      customerName: feedback.customerName || '',
+      category: feedback.category || 'service',
+      rating: feedback.rating || 5,
+      content: feedback.content || '',
+      status: feedback.status?.toUpperCase() || 'DRAFT'
+    });
+    setShowEditForm(true);
+  };
+
+  const handleUpdateFeedback = async (e) => {
+    e.preventDefault();
+    if (!selectedFeedback) return;
+    
+    try {
+      // Validation
+      if (!createForm.orderId || createForm.orderId === '') {
+        alert('Vui lòng chọn đơn hàng!');
+        return;
+      }
+      
+      if (!createForm.customerName || createForm.customerName === '') {
+        alert('Vui lòng chọn đơn hàng để tự động điền tên khách hàng!');
+        return;
+      }
+      
+      const orderIdInt = parseInt(createForm.orderId);
+      if (isNaN(orderIdInt) || orderIdInt <= 0) {
+        alert('Mã đơn hàng không hợp lệ!');
+        return;
+      }
+      
+      const feedbackId = selectedFeedback.feedbackId || selectedFeedback.id;
+      
+      console.log('🔄 [FeedbackManagement] Đang cập nhật feedback:', feedbackId, createForm);
+      console.log('🔄 [FeedbackManagement] OrderId (parsed):', orderIdInt);
+      
+      // Update feedback
+      await updateFeedback(feedbackId, {
+        orderId: orderIdInt,
+        customerName: createForm.customerName,
+        status: createForm.status
+      });
+      
+      // Update feedback detail if exists
+      if (selectedFeedback.feedbackDetailId) {
+        await updateFeedbackDetail(selectedFeedback.feedbackDetailId, {
+          category: createForm.category.toUpperCase(),
+          rating: createForm.rating,
+          content: createForm.content
+        });
+      } else {
+        // Create new detail if doesn't exist
+        await createFeedbackDetail({
+          feedbackId: feedbackId,
+          category: createForm.category.toUpperCase(),
+          rating: createForm.rating,
+          content: createForm.content
+        });
+      }
+      
+      console.log('✅ [FeedbackManagement] Đã cập nhật feedback');
+      
+      // Refresh feedbacks list
+      window.location.reload();
+      
+      setShowEditForm(false);
+      setSelectedFeedback(null);
+      alert('Cập nhật phản hồi thành công!');
+    } catch (err) {
+      console.error('❌ [FeedbackManagement] Lỗi khi cập nhật feedback:', err);
+      alert('Lỗi khi cập nhật phản hồi: ' + (err.message || 'Vui lòng thử lại'));
     }
   };
 
@@ -200,20 +608,97 @@ function FeedbackManagement({ onBack }) {
     ));
   };
 
+  const getSortText = () => {
+    switch (sortBy) {
+      case 'newest': return 'Mới nhất';
+      case 'oldest': return 'Cũ nhất';
+      case 'name': return 'Theo tên';
+      case 'date': return 'Theo ngày';
+      case 'order': return 'Theo đơn hàng';
+      default: return 'Sắp xếp';
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto">
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-gray-900">Quản lý phản hồi & khiếu nại</h2>
-          <button
-            onClick={onBack}
-            className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-          >
-            <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-            Quay lại
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Sort Dropdown */}
+            <div className="relative" ref={sortDropdownRef}>
+              <button
+                onClick={() => setShowSortDropdown(!showSortDropdown)}
+                className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
+                </svg>
+                {getSortText()}
+                <svg className={`h-4 w-4 ml-2 transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              
+              {showSortDropdown && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                  <button
+                    onClick={() => { setSortBy('newest'); setShowSortDropdown(false); }}
+                    className={`w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors ${sortBy === 'newest' ? 'bg-emerald-50 text-emerald-700 font-semibold' : ''}`}
+                  >
+                    Mới nhất
+                  </button>
+                  <button
+                    onClick={() => { setSortBy('oldest'); setShowSortDropdown(false); }}
+                    className={`w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors ${sortBy === 'oldest' ? 'bg-emerald-50 text-emerald-700 font-semibold' : ''}`}
+                  >
+                    Cũ nhất
+                  </button>
+                  <button
+                    onClick={() => { setSortBy('name'); setShowSortDropdown(false); }}
+                    className={`w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors ${sortBy === 'name' ? 'bg-emerald-50 text-emerald-700 font-semibold' : ''}`}
+                  >
+                    Theo tên
+                  </button>
+                  <button
+                    onClick={() => { setSortBy('date'); setShowSortDropdown(false); }}
+                    className={`w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors ${sortBy === 'date' ? 'bg-emerald-50 text-emerald-700 font-semibold' : ''}`}
+                  >
+                    Theo ngày
+                  </button>
+                  <button
+                    onClick={() => { setSortBy('order'); setShowSortDropdown(false); }}
+                    className={`w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors ${sortBy === 'order' ? 'bg-emerald-50 text-emerald-700 font-semibold' : ''}`}
+                  >
+                    Theo đơn hàng
+                  </button>
+                </div>
+              )}
+            </div>
+            
+            {/* Create Feedback Button */}
+            <button
+              onClick={() => setShowCreateForm(true)}
+              className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+            >
+              <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Tạo phản hồi
+            </button>
+            
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+              >
+                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                </svg>
+                Quay lại
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Summary Cards */}
@@ -228,7 +713,7 @@ function FeedbackManagement({ onBack }) {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Chờ xử lý</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {feedbacks.filter(f => f.status === 'pending').length}
+                  {sortedFeedbacks.filter(f => f.status === 'pending' || f.status === 'draft').length}
                 </p>
               </div>
             </div>
@@ -244,7 +729,7 @@ function FeedbackManagement({ onBack }) {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Đang xử lý</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {feedbacks.filter(f => f.status === 'in_progress').length}
+                  {sortedFeedbacks.filter(f => f.status === 'in_progress' || f.status === 'inprogress').length}
                 </p>
               </div>
             </div>
@@ -260,7 +745,7 @@ function FeedbackManagement({ onBack }) {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Đã giải quyết</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {feedbacks.filter(f => f.status === 'resolved').length}
+                  {sortedFeedbacks.filter(f => f.status === 'resolved').length}
                 </p>
               </div>
             </div>
@@ -275,11 +760,246 @@ function FeedbackManagement({ onBack }) {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Tổng phản hồi</p>
-                <p className="text-2xl font-bold text-gray-900">{feedbacks.length}</p>
+                <p className="text-2xl font-bold text-gray-900">{sortedFeedbacks.length}</p>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Create Feedback Modal */}
+        {showCreateForm && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowCreateForm(false)}>
+            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Tạo phản hồi mới</h3>
+                <button
+                  onClick={() => setShowCreateForm(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <form onSubmit={handleCreateFeedback} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mã đơn hàng *</label>
+                  {loadingOrders ? (
+                    <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-emerald-600 mr-2"></div>
+                      <span className="text-sm text-gray-500">Đang tải...</span>
+                    </div>
+                  ) : (
+                    <select
+                      value={createForm.orderId}
+                      onChange={(e) => handleOrderSelect(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">-- Chọn đơn hàng --</option>
+                      {orders.map((order) => {
+                        const orderId = order.orderId || order.id || order.order_id;
+                        const orderCode = order.orderCode || order.order_code || `HD-${orderId}`;
+                        const customerName = order.customerName || 
+                                            order.customer?.fullName || 
+                                            order.customer?.customerName || 
+                                            order.customer?.name ||
+                                            'N/A';
+                        return (
+                          <option key={orderId} value={orderId}>
+                            {orderCode} - {customerName}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Danh mục *</label>
+                  <select
+                    value={createForm.category}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, category: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="service">Dịch vụ</option>
+                    <option value="product">Sản phẩm</option>
+                    <option value="complaint">Khiếu nại</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Đánh giá (1-5) *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="5"
+                    value={createForm.rating}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, rating: parseInt(e.target.value) }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nội dung *</label>
+                  <textarea
+                    value={createForm.content}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, content: e.target.value }))}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    required
+                    placeholder="Nhập nội dung phản hồi..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Trạng thái *</label>
+                  <select
+                    value={createForm.status}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, status: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="DRAFT">Bản nháp</option>
+                    <option value="PENDING">Chờ xử lý</option>
+                    <option value="IN_PROGRESS">Đang xử lý</option>
+                  </select>
+                </div>
+                <div className="flex justify-end space-x-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateForm(false)}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                  >
+                    Tạo phản hồi
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Feedback Modal */}
+        {showEditForm && selectedFeedback && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => { setShowEditForm(false); setSelectedFeedback(null); }}>
+            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Chỉnh sửa phản hồi</h3>
+                <button
+                  onClick={() => { setShowEditForm(false); setSelectedFeedback(null); }}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <form onSubmit={handleUpdateFeedback} className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mã đơn hàng *</label>
+                  {loadingOrders ? (
+                    <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 flex items-center">
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-emerald-600 mr-2"></div>
+                      <span className="text-sm text-gray-500">Đang tải...</span>
+                    </div>
+                  ) : (
+                    <select
+                      value={createForm.orderId}
+                      onChange={(e) => handleOrderSelect(e.target.value)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                      required
+                    >
+                      <option value="">-- Chọn đơn hàng --</option>
+                      {orders.map((order) => {
+                        const orderId = order.orderId || order.id || order.order_id;
+                        const orderCode = order.orderCode || order.order_code || `HD-${orderId}`;
+                        const customerName = order.customerName || 
+                                            order.customer?.fullName || 
+                                            order.customer?.customerName || 
+                                            order.customer?.name ||
+                                            'N/A';
+                        return (
+                          <option key={orderId} value={orderId}>
+                            {orderCode} - {customerName}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Danh mục *</label>
+                  <select
+                    value={createForm.category}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, category: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="service">Dịch vụ</option>
+                    <option value="product">Sản phẩm</option>
+                    <option value="complaint">Khiếu nại</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Đánh giá (1-5) *</label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="5"
+                    value={createForm.rating}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, rating: parseInt(e.target.value) }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Nội dung *</label>
+                  <textarea
+                    value={createForm.content}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, content: e.target.value }))}
+                    rows={4}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    required
+                    placeholder="Nhập nội dung phản hồi..."
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Trạng thái *</label>
+                  <select
+                    value={createForm.status}
+                    onChange={(e) => setCreateForm(prev => ({ ...prev, status: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="DRAFT">Bản nháp</option>
+                    <option value="PENDING">Chờ xử lý</option>
+                    <option value="IN_PROGRESS">Đang xử lý</option>
+                    <option value="RESOLVED">Đã giải quyết</option>
+                  </select>
+                </div>
+                <div className="flex justify-end space-x-4">
+                  <button
+                    type="button"
+                    onClick={() => { setShowEditForm(false); setSelectedFeedback(null); }}
+                    className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+                  >
+                    Cập nhật
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        )}
 
         {/* Resolve Form Modal */}
         {showResolveForm && selectedFeedback && (
@@ -368,67 +1088,71 @@ function FeedbackManagement({ onBack }) {
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Danh sách phản hồi</h3>
             <div className="space-y-4">
-              {feedbacks.length === 0 ? (
-              <div className="text-center py-4 text-gray-500">
-                <svg className="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-                </svg>
-                <p>Chưa có phản hồi nào</p>
-              </div>
-            ) : (
-              feedbacks.map((feedback) => (
-                <div key={feedback.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <div className="flex items-center space-x-4 mb-2">
-                        <h4 className="font-semibold text-gray-900">{feedback.customerName}</h4>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getCategoryColor(feedback.category)}`}>
-                          {getCategoryText(feedback.category)}
-                        </span>
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(feedback.status)}`}>
-                          {getStatusText(feedback.status)}
-                        </span>
-                      </div>
-                      <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
-                        <span>HĐ: {feedback.orderNumber}</span>
-                        <span>Xe: {feedback.vehicleModel}</span>
-                        <span>Ngày: {feedback.createdAt}</span>
-                        <div className="flex items-center">
-                          <span className="mr-1">Đánh giá:</span>
-                          <div className="flex">{renderStars(feedback.rating)}</div>
+              {sortedFeedbacks.length === 0 ? (
+                <div className="text-center py-4 text-gray-500">
+                  <svg className="h-12 w-12 mx-auto mb-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                  </svg>
+                  <p>Chưa có phản hồi nào</p>
+                </div>
+              ) : (
+                sortedFeedbacks.map((feedback) => (
+                  <div key={feedback.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-4 mb-2">
+                          <h4 className="font-semibold text-gray-900">{feedback.customerName}</h4>
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getCategoryColor(feedback.category)}`}>
+                            {getCategoryText(feedback.category)}
+                          </span>
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(feedback.status)}`}>
+                            {getStatusText(feedback.status)}
+                          </span>
                         </div>
+                        <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
+                          <span>HĐ: {feedback.orderNumber}</span>
+                          <span>Xe: {feedback.vehicleModel}</span>
+                          <span>Ngày: {feedback.createdAt}</span>
+                          <div className="flex items-center">
+                            <span className="mr-1">Đánh giá:</span>
+                            <div className="flex">{renderStars(feedback.rating)}</div>
+                          </div>
+                        </div>
+                        <p className="text-gray-700 mb-3">{feedback.content}</p>
+                        {feedback.resolvedAt && (
+                          <p className="text-sm text-green-600">Đã giải quyết: {feedback.resolvedAt}</p>
+                        )}
                       </div>
-                      <p className="text-gray-700 mb-3">{feedback.content}</p>
-                      {feedback.resolvedAt && (
-                        <p className="text-sm text-green-600">Đã giải quyết: {feedback.resolvedAt}</p>
-                      )}
-                    </div>
-                    <div className="flex items-center space-x-2 ml-4">
-                      {(feedback.status === 'pending' || feedback.status === 'draft') && (
-                        <button
-                          onClick={() => handleUpdateStatus(feedback.feedbackId || feedback.id, 'in_progress')}
-                          className="px-3 py-1 text-sm bg-emerald-100 text-emerald-800 rounded-lg hover:bg-emerald-200 transition-colors"
+                      <div className="flex items-center space-x-2 ml-4">
+                        {(feedback.status === 'pending' || feedback.status === 'draft') && (
+                          <button
+                            onClick={() => handleUpdateStatus(feedback.feedbackId || feedback.id, 'in_progress')}
+                            className="px-3 py-1 text-sm bg-emerald-100 text-emerald-800 rounded-lg hover:bg-emerald-200 transition-colors"
+                          >
+                            Bắt đầu xử lý
+                          </button>
+                        )}
+                        {(feedback.status === 'in_progress' || feedback.status === 'inprogress') && (
+                          <button
+                            onClick={() => openResolveForm(feedback)}
+                            className="px-3 py-1 text-sm bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors"
+                          >
+                            Giải quyết
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => handleEditFeedback(feedback)}
+                          className="p-2 text-gray-400 hover:text-emerald-600 transition-colors"
+                          title="Chỉnh sửa"
                         >
-                          Bắt đầu xử lý
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
                         </button>
-                      )}
-                      {(feedback.status === 'in_progress' || feedback.status === 'inprogress') && (
-                        <button
-                          onClick={() => openResolveForm(feedback)}
-                          className="px-3 py-1 text-sm bg-green-100 text-green-800 rounded-lg hover:bg-green-200 transition-colors"
-                        >
-                          Giải quyết
-                        </button>
-                      )}
-                      <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                      </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))
+                ))
               )}
             </div>
           </div>
@@ -439,4 +1163,3 @@ function FeedbackManagement({ onBack }) {
 }
 
 export default FeedbackManagement;
-
