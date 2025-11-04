@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { useAuth } from '../../contexts/AuthContext';
 import { 
     ShoppingCart, 
     Plus, 
@@ -26,7 +25,6 @@ function AddOrderDetails() {
     const location = useLocation();
     const navigate = useNavigate();
     const dispatch = useDispatch();
-    const { user, getStoreId } = useAuth();
     
     // Get order info from navigation state
     const [orderInfo, setOrderInfo] = useState(location.state?.orderData || null);
@@ -52,8 +50,7 @@ function AddOrderDetails() {
     // Load available stock and promotions on mount
     useEffect(() => {
         loadData();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [dispatch, user?.storeId]);
+    }, [dispatch]);
     
     const loadData = async () => {
         try {
@@ -62,15 +59,7 @@ function AddOrderDetails() {
             // Load store stocks
             const stockResponse = await getAllStoreStocks();
             const stocks = stockResponse.data || stockResponse;
-            const allStocks = Array.isArray(stocks) ? stocks : [];
-            
-            // Filter stocks by current store ID - each store can only manage its own stocks
-            const currentStoreId = user?.storeId || getStoreId();
-            const filteredStocks = currentStoreId 
-                ? allStocks.filter(stock => stock.storeId === currentStoreId)
-                : allStocks;
-            
-            setAvailableStock(filteredStocks);
+            setAvailableStock(Array.isArray(stocks) ? stocks : []);
             
             // Load active promotions
             await dispatch(fetchActivePromotions());

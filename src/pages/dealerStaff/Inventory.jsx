@@ -51,7 +51,7 @@ function Inventory() {
     newPrice: ''
   });
 
-  // Fetch all store stocks from API, then filter by store ID on client side
+  // Fetch all store stocks from API
   useEffect(() => {
     dispatch(getAllStoreStocksThunk());
   }, [dispatch]);
@@ -60,15 +60,8 @@ function Inventory() {
   useEffect(() => {
     if (storeStocksStatus === 'succeeded') {
       if (storeStocks.length > 0) {
-        const currentStoreId = user?.storeId || getStoreId();
-        
-        // Filter by current store ID (safety measure)
-        const filteredStocks = currentStoreId 
-          ? storeStocks.filter(stock => stock.storeId === currentStoreId)
-          : storeStocks;
-        
         // Group by model
-        const groupedByModel = filteredStocks.reduce((acc, stock) => {
+        const groupedByModel = storeStocks.reduce((acc, stock) => {
           const modelName = stock.modelName;
           
           if (!acc[modelName]) {
@@ -102,7 +95,7 @@ function Inventory() {
         setFilteredInventory([]);
       }
     }
-  }, [storeStocks, storeStocksStatus, user?.storeId]);
+  }, [storeStocks, storeStocksStatus]);
 
   // Filter inventory based on search term
   useEffect(() => {
@@ -459,7 +452,7 @@ function Inventory() {
           <div className="flex justify-between items-start">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">Inventory Management</h1>
-              <p className="text-gray-600">Theo dõi tồn kho cửa hàng và lập báo cáo đặt xe</p>
+              <p className="text-gray-600">Theo dõi tồn kho tất cả cửa hàng và lập báo cáo đặt xe</p>
               {user && user.storeId && (
                 <p className="text-sm text-emerald-600 mt-1">
                   Cửa hàng của bạn: {user.storeName || `Store #${user.storeId}`}
@@ -541,7 +534,7 @@ function Inventory() {
                                 </div>
                               </td>
                               <td className="py-3 px-4">
-                                <span className="text-sm text-gray-900">{colorItem.storeName || user?.storeName || `Store #${colorItem.storeId}`}</span>
+                                <span className="text-sm text-gray-900">{colorItem.storeName || `Store #${colorItem.storeId}`}</span>
                               </td>
                               <td className="py-3 px-4">
                                 <span className={`text-sm font-medium ${
@@ -591,9 +584,7 @@ function Inventory() {
             <p className="mt-1 text-sm text-gray-500">
               {searchTerm 
                 ? 'Thử thay đổi từ khóa tìm kiếm.' 
-                : user?.storeId 
-                ? 'Kho hàng của cửa hàng bạn hiện chưa có xe nào. Vui lòng liên hệ quản lý để thêm xe vào kho.'
-                : 'Không thể xác định cửa hàng. Vui lòng đăng nhập lại.'
+                : 'Kho hàng hiện tại chưa có xe nào. Vui lòng liên hệ quản lý để thêm xe vào kho.'
               }
             </p>
           </div>

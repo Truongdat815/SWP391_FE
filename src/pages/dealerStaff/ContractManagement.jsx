@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../contexts/AuthContext';
 import { 
   fetchOrdersByStatus
 } from '../../store/slices/orderSlice';
@@ -23,7 +22,6 @@ import Tooltip from '@/components/ui/Tooltip';
 function ContractManagement() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user, getStoreId } = useAuth();
   
   const { orders, loading } = useSelector((state) => state.orders);
   const { loading: contractLoading } = useSelector((state) => state.contracts);
@@ -56,24 +54,13 @@ function ContractManagement() {
     dispatch(fetchOrdersByStatus('CONFIRMED'));
   }, [dispatch]);
 
-  // Filter orders by search and storeId
-  const currentStoreId = user?.storeId || getStoreId();
+  // Filter orders by search
   const filteredOrders = sortOrders(
-    (orders || []).filter(order => {
-      // Filter by storeId
-      if (currentStoreId) {
-        const belongsToStore = order.storeId === currentStoreId ||
-          (order.getOrderDetailsResponses || []).some(detail => 
-            detail.storeStock?.storeId === currentStoreId
-          );
-        if (!belongsToStore) return false;
-      }
-      
-      // Filter by search term
-      return order.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.customerPhone?.toLowerCase().includes(searchTerm.toLowerCase());
-    }),
+    (orders || []).filter(order => 
+      order.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customerPhone?.toLowerCase().includes(searchTerm.toLowerCase())
+    ),
     sortMode
   );
 

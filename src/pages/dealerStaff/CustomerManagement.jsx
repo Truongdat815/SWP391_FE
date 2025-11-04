@@ -2,8 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { get } from '@/api/client';
 import { useDispatch, useSelector } from 'react-redux';
-import { useAuth } from '../../contexts/AuthContext';
-import { getAllCustomersThunk, getCustomersByStoreThunk, createCustomerThunk, deleteCustomerThunk, updateCustomerThunk } from '@store/slices/customerSlice';
+import { getAllCustomersThunk, createCustomerThunk, deleteCustomerThunk, updateCustomerThunk } from '@store/slices/customerSlice';
 import { fetchOrdersByCustomer } from '@store/slices/orderSlice';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,7 +12,6 @@ import Tooltip from '@/components/ui/Tooltip';
 function CustomerManagement() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
-  const { user, getStoreId } = useAuth();
   const customers = useSelector((s) => s.customers.items);
   const customersStatus = useSelector((s) => s.customers.status);
   const customersError = useSelector((s) => s.customers.error);
@@ -25,32 +23,11 @@ function CustomerManagement() {
   const sortDropdownRef = useRef(null);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
 
-  // Refresh customers khi component mount hoặc khi quay lại từ trang khác
   useEffect(() => {
-    // Lấy storeId của user hiện tại
-    const currentStoreId = user?.storeId || getStoreId();
-    const storeIdNumber = currentStoreId ? Number(currentStoreId) : null;
-    
-    const fetchCustomers = async () => {
-      if (storeIdNumber) {
-        // Sử dụng API lấy customers theo storeId thay vì lấy tất cả
-        console.log('Fetching customers for storeId:', storeIdNumber);
-        try {
-          await dispatch(getCustomersByStoreThunk(storeIdNumber)).unwrap();
-        } catch (error) {
-          // Nếu API getCustomersByStore không tồn tại hoặc lỗi, fallback về getAllCustomers
-          console.warn('getCustomersByStore failed, falling back to getAllCustomers:', error);
-          dispatch(getAllCustomersThunk());
-        }
-      } else {
-        // Fallback: lấy tất cả customers nếu không có storeId
-        console.log('No storeId found, fetching all customers');
-        dispatch(getAllCustomersThunk());
-      }
-    };
-    
-    fetchCustomers();
-  }, [dispatch, location.pathname, user?.storeId, getStoreId]); // Refresh khi route thay đổi hoặc storeId thay đổi
+    if (customersStatus === 'idle') {
+      dispatch(getAllCustomersThunk());
+    }
+  }, [dispatch, customersStatus]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -78,14 +55,6 @@ function CustomerManagement() {
         .catch((err) => console.error('Lỗi lấy danh sách khách hàng:', err));
     }
   }, [customersStatus, customers.length]);
-
-  // Debug: Log customers từ Redux
-  useEffect(() => {
-    console.log('Customers from Redux:', customers);
-    console.log('Customers length:', customers?.length || 0);
-    console.log('Customers status:', customersStatus);
-    console.log('Customers error:', customersError);
-  }, [customers, customersStatus, customersError]);
 
   const customersList = (customers && customers.length) ? customers : customersApi;
 
@@ -128,43 +97,14 @@ function CustomerManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      // Thêm storeId vào customer data khi tạo
-      const currentStoreId = user?.storeId || getStoreId();
-      // Đảm bảo storeId là number
-      const storeIdNumber = currentStoreId ? Number(currentStoreId) : null;
-      
-      if (!storeIdNumber) {
-        console.error('StoreId is required to create customer');
-        return;
-      }
-      
-      const customerData = {
-        ...formData,
-        storeId: storeIdNumber // Gửi storeId lên backend để backend lưu
-      };
-      
-      console.log('Creating customer with data:', customerData);
-      
-      const result = await dispatch(createCustomerThunk(customerData)).unwrap();
+      const result = await dispatch(createCustomerThunk(formData)).unwrap();
       const newCustomer = result.data || result;
       
-      console.log('Customer created successfully:', newCustomer);
-      console.log('New customer storeId:', newCustomer?.storeId);
+      // Navigate to create order page with pre-selected customer
+      navigate('/dealer-staff/create-order', {
+        state: { selectedCustomer: newCustomer }
+      });
       
-      // Refresh customers list sau khi tạo để hiển thị customer mới
-      // Đảm bảo danh sách được cập nhật trước khi navigate
-      try {
-        // Thử dùng getCustomersByStoreThunk trước
-        const refreshResult = await dispatch(getCustomersByStoreThunk(storeIdNumber)).unwrap();
-        console.log('Customers refreshed by store. Total customers:', Array.isArray(refreshResult?.data) ? refreshResult.data.length : Array.isArray(refreshResult) ? refreshResult.length : 0);
-      } catch (error) {
-        // Nếu không có API theo store, dùng getAllCustomersThunk và filter ở client
-        console.warn('getCustomersByStore failed, using getAllCustomers:', error);
-        await dispatch(getAllCustomersThunk()).unwrap();
-        console.log('Customers refreshed (all). Customer should be visible now.');
-      }
-      
-      // Đóng modal trước
       setFormData({
         fullName: '',
         address: '',
@@ -173,11 +113,6 @@ function CustomerManagement() {
         identificationNumber: ''
       });
       setShowAddModal(false);
-      
-      // Navigate to create order page with pre-selected customer
-      navigate('/dealer-staff/create-order', {
-        state: { selectedCustomer: newCustomer }
-      });
     } catch (error) {
       console.error('Failed to create customer:', error);
     }
@@ -206,15 +141,7 @@ function CustomerManagement() {
       await dispatch(deleteCustomerThunk(customerToDelete.customerId)).unwrap();
       setShowDeleteModal(false);
       setCustomerToDelete(null);
-      
-      // Refresh customers list sau khi xóa
-      const currentStoreId = user?.storeId || getStoreId();
-      const storeIdNumber = currentStoreId ? Number(currentStoreId) : null;
-      if (storeIdNumber) {
-        dispatch(getCustomersByStoreThunk(storeIdNumber));
-      } else {
-        dispatch(getAllCustomersThunk());
-      }
+      dispatch(getAllCustomersThunk());
     } catch (error) {
       console.error('Failed to delete customer:', error);
     }
@@ -259,14 +186,7 @@ function CustomerManagement() {
       setShowEditModal(false);
       setCustomerToEdit(null);
       
-      // Refresh customers list sau khi cập nhật
-      const currentStoreId = user?.storeId || getStoreId();
-      const storeIdNumber = currentStoreId ? Number(currentStoreId) : null;
-      if (storeIdNumber) {
-        dispatch(getCustomersByStoreThunk(storeIdNumber));
-      } else {
-        dispatch(getAllCustomersThunk());
-      }
+      dispatch(getAllCustomersThunk());
     } catch (error) {
       console.error('Failed to update customer:', error);
     }
@@ -344,45 +264,9 @@ function CustomerManagement() {
     }
   };
 
-  // Hàm lọc khách hàng theo search term và storeId
-  // Hiển thị tất cả customers đã được tạo của store hiện tại
-  // Tất cả staff trong store đó tạo đều hiển thị
+  // Hàm lọc khách hàng theo search term
   const getFilteredCustomers = () => {
-    const currentStoreId = user?.storeId || getStoreId();
-    // Chuyển về number để so sánh chính xác (tránh type mismatch)
-    const storeIdNumber = currentStoreId ? Number(currentStoreId) : null;
-    
-    // Debug log để kiểm tra
-    console.log('=== Filter Debug ===');
-    console.log('Current StoreId (from user):', currentStoreId);
-    console.log('StoreId Number:', storeIdNumber);
-    console.log('Total customers in list:', customersList.length);
-    console.log('User object:', user);
-    
-    if (customersList.length > 0) {
-      console.log('Sample customer storeIds:', customersList.slice(0, 3).map(c => ({
-        id: c.customerId,
-        name: c.fullName,
-        storeId: c.storeId,
-        storeIdType: typeof c.storeId
-      })));
-    }
-    
-    const filtered = customersList.filter(customer => {
-      // Filter by storeId - chỉ hiển thị customers của store hiện tại
-      // Không filter theo staff cụ thể, chỉ filter theo store
-      if (storeIdNumber) {
-        // Chuyển customer.storeId về number để so sánh
-        const customerStoreId = customer.storeId != null ? Number(customer.storeId) : null;
-        
-        // Debug log cho customer không khớp
-        if (customerStoreId !== storeIdNumber) {
-          console.log(`Customer ${customer.customerId} (${customer.fullName}) filtered out: storeId ${customerStoreId} !== ${storeIdNumber}`);
-          return false;
-        }
-      }
-      
-      // Filter by search term
+    return customersList.filter(customer => {
       const matchesSearch = !searchTerm || 
         (customer.fullName && customer.fullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -391,11 +275,6 @@ function CustomerManagement() {
         (customer.identificationNumber && customer.identificationNumber.includes(searchTerm));
       return matchesSearch;
     });
-    
-    console.log('Filtered customers count:', filtered.length);
-    console.log('===================');
-    
-    return filtered;
   };
 
   // Hàm sort khách hàng theo chế độ
