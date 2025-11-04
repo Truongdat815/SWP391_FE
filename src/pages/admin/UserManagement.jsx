@@ -31,7 +31,12 @@ function UserManagement() {
   const usersStatus = useSelector((s) => s.users.status);
   const usersError = useSelector((s) => s.users.error);
   const isUsersFetching = usersStatus === 'loading';
-  const isCreatingUser = usersStatus === 'loading';
+  
+  // Track operation type để tách biệt loading states
+  const [operationType, setOperationType] = useState(null); // 'create', 'update', 'delete'
+  const isCreatingUser = usersStatus === 'loading' && operationType === 'create';
+  const isUpdatingUser = usersStatus === 'loading' && operationType === 'update';
+  const isDeletingUser = usersStatus === 'loading' && operationType === 'delete';
   
   const stores = useSelector((s) => s.stores.items);
   const storesStatus = useSelector((s) => s.stores.status);
@@ -50,15 +55,28 @@ function UserManagement() {
     }
   }, [dispatch, usersStatus]);
 
-  // Fallback fetch via api client for direct API usage
+  // Fallback fetch chỉ khi Redux thất bại hoặc không có data sau khi loaded
   useEffect(() => {
-    get('/api/users/all')
-      .then((res) => {
-        const userData = res?.data?.data || res?.data || [];
-        setUsersApi(Array.isArray(userData) ? userData : []);
-      })
-      .catch((err) => console.error('Lỗi lấy danh sách người dùng:', err));
-  }, []);
+    // Chỉ fetch fallback nếu Redux đã hoàn thành nhưng không có data hoặc có lỗi
+    if (usersStatus === 'succeeded' && (!users || users.length === 0)) {
+      console.log('Redux returned empty, trying fallback API...');
+      get('/api/users/all')
+        .then((res) => {
+          const userData = res?.data?.data || res?.data || [];
+          setUsersApi(Array.isArray(userData) ? userData : []);
+        })
+        .catch((err) => console.error('Lỗi lấy danh sách người dùng (fallback):', err));
+    } else if (usersStatus === 'failed') {
+      // Nếu Redux thất bại, thử fallback
+      console.log('Redux failed, trying fallback API...');
+      get('/api/users/all')
+        .then((res) => {
+          const userData = res?.data?.data || res?.data || [];
+          setUsersApi(Array.isArray(userData) ? userData : []);
+        })
+        .catch((err) => console.error('Lỗi lấy danh sách người dùng (fallback):', err));
+    }
+  }, [usersStatus, users]);
 
   const usersList = (users && users.length) ? users : usersApi;
 
@@ -175,6 +193,9 @@ function UserManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Set operation type để tracking loading state
+      setOperationType('create');
+      
       // Chuẩn bị dữ liệu submit
       const submitData = { ...formData };
       
@@ -184,6 +205,9 @@ function UserManagement() {
       }
       
       await dispatch(createUserThunk(submitData)).unwrap();
+      
+      // Reset operation type sau khi hoàn thành
+      setOperationType(null);
       
       // Reset form
       setFormData({
@@ -204,18 +228,10 @@ function UserManagement() {
       // Refresh danh sách users
       await dispatch(getAllUsersThunk()).unwrap();
       
-      // Nếu dùng fallback API, cũng refresh luôn
-      try {
-        const res = await get('/api/users/all');
-        const userData = res?.data?.data || res?.data || [];
-        setUsersApi(Array.isArray(userData) ? userData : []);
-      } catch (err) {
-        console.error('Failed to refresh users fallback:', err);
-      }
-      
     } catch (error) {
       console.error('Failed to create user:', error);
       alert('Lỗi khi tạo người dùng: ' + error.message);
+      setOperationType(null); // Reset operation type khi có lỗi
     }
   };
 
@@ -227,9 +243,10 @@ function UserManagement() {
       phone: '',
       storeId: '',
       roleId: '',
-      status: 'active'
+      status: 'ACTIVE'
     });
     setShowAddModal(false);
+    setOperationType(null); // Reset operation type khi đóng modal
   };
 
   const handleDeleteClick = (user) => {
@@ -241,7 +258,11 @@ function UserManagement() {
     if (!userToDelete) return;
     
     try {
+      setOperationType('delete');
       await dispatch(deleteUserThunk(userToDelete.userId)).unwrap();
+      
+      // Reset operation type sau khi hoàn thành
+      setOperationType(null);
       setShowDeleteModal(false);
       setUserToDelete(null);
       
@@ -251,24 +272,17 @@ function UserManagement() {
       // Refresh danh sách users
       await dispatch(getAllUsersThunk()).unwrap();
       
-      // Nếu dùng fallback API, cũng refresh luôn
-      try {
-        const res = await get('/api/users/all');
-        const userData = res?.data?.data || res?.data || [];
-        setUsersApi(Array.isArray(userData) ? userData : []);
-      } catch (err) {
-        console.error('Failed to refresh users fallback:', err);
-      }
-      
     } catch (error) {
       console.error('Failed to delete user:', error);
       alert('Lỗi khi xóa người dùng: ' + error.message);
+      setOperationType(null); // Reset operation type khi có lỗi
     }
   };
 
   const handleDeleteCancel = () => {
     setShowDeleteModal(false);
     setUserToDelete(null);
+    setOperationType(null); // Reset operation type khi hủy
   };
 
   const handleEditClick = (user) => {
@@ -290,6 +304,8 @@ function UserManagement() {
     if (!userToEdit) return;
     
     try {
+      setOperationType('update');
+      
       const updateData = {
         userId: userToEdit.userId,
         ...formData
@@ -305,6 +321,9 @@ function UserManagement() {
       }
       
       await dispatch(updateUserThunk(updateData)).unwrap();
+      
+      // Reset operation type sau khi hoàn thành
+      setOperationType(null);
       
       setFormData({
         fullName: '',
@@ -324,18 +343,10 @@ function UserManagement() {
       // Refresh danh sách users
       await dispatch(getAllUsersThunk()).unwrap();
       
-      // Nếu dùng fallback API, cũng refresh luôn
-      try {
-        const res = await get('/api/users/all');
-        const userData = res?.data?.data || res?.data || [];
-        setUsersApi(Array.isArray(userData) ? userData : []);
-      } catch (err) {
-        console.error('Failed to refresh users fallback:', err);
-      }
-      
     } catch (error) {
       console.error('Failed to update user:', error);
       alert('Lỗi khi cập nhật người dùng: ' + error.message);
+      setOperationType(null); // Reset operation type khi có lỗi
     }
   };
 
@@ -347,10 +358,11 @@ function UserManagement() {
       phone: '',
       storeId: '',
       roleId: '',
-      status: 'active'
+      status: 'ACTIVE'
     });
     setShowEditModal(false);
     setUserToEdit(null);
+    setOperationType(null); // Reset operation type khi hủy
   };
 
   const handleRoleInputChange = (e) => {
@@ -1133,18 +1145,18 @@ function UserManagement() {
                   </motion.button>
                   <motion.button
                     type="submit"
-                    disabled={isCreatingUser}
+                    disabled={isUpdatingUser}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                   >
-                    {isCreatingUser && (
+                    {isUpdatingUser && (
                       <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                     )}
-                    {isCreatingUser ? '⏳ Đang cập nhật...' : '✅ Cập nhật người dùng'}
+                    {isUpdatingUser ? '⏳ Đang cập nhật...' : '✅ Cập nhật người dùng'}
                   </motion.button>
                 </div>
               </form>
@@ -1226,18 +1238,18 @@ function UserManagement() {
                   </motion.button>
                   <motion.button
                     onClick={handleDeleteConfirm}
-                    disabled={isCreatingUser}
+                    disabled={isDeletingUser}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                   >
-                    {isCreatingUser && (
+                    {isDeletingUser && (
                       <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                     )}
-                    {isCreatingUser ? 'Đang xóa...' : 'Xóa người dùng'}
+                    {isDeletingUser ? 'Đang xóa...' : 'Xóa người dùng'}
                   </motion.button>
                 </div>
               </div>
