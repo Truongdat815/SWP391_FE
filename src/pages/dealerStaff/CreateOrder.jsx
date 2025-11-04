@@ -7,7 +7,6 @@ import { getAllColorsThunk } from '../../store/slices/colorSlice';
 import { fetchPromotions } from '../../store/slices/promotionSlice';
 import { createNewOrder, confirmOrderThunk } from '../../store/slices/orderSlice';
 import { validateOrderDetailThunk, clearValidationResult } from '../../store/slices/orderDetailSlice';
-import { getModelColorsByModelIdThunk } from '../../store/slices/modelColorSlice';
 import { createOrderDetailsInBatch } from '../../api/order-detailService';
 import { 
   Users, 
@@ -59,7 +58,6 @@ function CreateOrder({ onBack }) {
   const [selectedItems, setSelectedItems] = useState([]);
   const [isValidating, setIsValidating] = useState(false);
   const [currentValidation, setCurrentValidation] = useState(null);
-  const [availableColors, setAvailableColors] = useState([]);
 
   // Load initial data
   useEffect(() => {
@@ -69,57 +67,19 @@ function CreateOrder({ onBack }) {
     dispatch(fetchPromotions());
   }, [dispatch]);
 
-  // Load colors for selected model
-  useEffect(() => {
-    const loadModelColors = async () => {
-      if (formData.modelId) {
-        try {
-          const result = await dispatch(getModelColorsByModelIdThunk(formData.modelId)).unwrap();
-          const modelColorsData = result.data || result;
-          const colorsArray = Array.isArray(modelColorsData) ? modelColorsData : [];
-          setAvailableColors(colorsArray);
-        } catch (error) {
-          console.error('Error loading model colors:', error);
-          setAvailableColors([]);
-        }
-      } else {
-        setAvailableColors([]);
-      }
-    };
-
-    loadModelColors();
-  }, [formData.modelId, dispatch]);
-
   // Filter customers
-  const filteredCustomers = (customers || [])
-    .filter(customer =>
-      customer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      customer.phone?.includes(searchTerm) ||
-      customer.email?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    // Sort by newest first
-    .sort((a, b) => {
-      const timeA = new Date(a.createdAt || 0).getTime();
-      const timeB = new Date(b.createdAt || 0).getTime();
-      // If dates are equal, sort by customerId desc
-      if (timeA === timeB) {
-        return (b.customerId || 0) - (a.customerId || 0);
-      }
-      return timeB - timeA; // Newest first
-    });
+  const filteredCustomers = (customers || []).filter(customer =>
+    customer.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    customer.phone?.includes(searchTerm) ||
+    customer.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   // Get colors filtered by selected model
   const getFilteredColors = () => {
-    if (!formData.modelId || availableColors.length === 0) return [];
-    // Return available colors for the selected model from API
-    return availableColors.map(mc => {
-      // Find color details from colors list
-      const colorDetail = colors.find(c => c.colorId === mc.colorId);
-      return {
-        colorId: mc.colorId,
-        colorName: colorDetail ? colorDetail.colorName : mc.colorName || `Color ${mc.colorId}`
-      };
-    });
+    if (!formData.modelId || !colors) return [];
+    // In real app, you might filter colors by model from model-color associations
+    // For now, return all colors
+    return colors;
   };
 
   // Get model name
@@ -151,34 +111,18 @@ function CreateOrder({ onBack }) {
   // Step 2: Handle form input change
   const handleFormChange = (e) => {
     const { name, value } = e.target;
-    
-    // If model changes, clear color selection
-    if (name === 'modelId') {
-      setFormData(prev => ({
-        ...prev,
-        modelId: parseInt(value) || 0,
-        colorId: '' // Clear color when model changes
-      }));
-    } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: name === 'promotionId' || name === 'colorId' || name === 'quantity' 
-          ? parseInt(value) || 0 
-          : value
-      }));
-    }
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'promotionId' || name === 'modelId' || name === 'colorId' || name === 'quantity' 
+        ? parseInt(value) || 0 
+        : value
+    }));
     
     // Clear validation when form changes
     if (currentValidation) {
       setCurrentValidation(null);
       dispatch(clearValidationResult());
     }
-  };
-  
-  // Convert formData values to strings for AnimatedSelect
-  const getFormValueAsString = (fieldName) => {
-    const value = formData[fieldName];
-    return value ? value.toString() : '';
   };
 
   // Step 2: Validate order detail
@@ -557,7 +501,7 @@ function CreateOrder({ onBack }) {
                   </label>
                   <AnimatedSelect
                     name="modelId"
-                    value={getFormValueAsString('modelId')}
+                    value={formData.modelId}
                     onChange={handleFormChange}
                     placeholder="-- Chọn model --"
                     options={[
@@ -578,7 +522,7 @@ function CreateOrder({ onBack }) {
                   </label>
                   <AnimatedSelect
                     name="colorId"
-                    value={getFormValueAsString('colorId')}
+                    value={formData.colorId}
                     onChange={handleFormChange}
                     placeholder="-- Chọn màu --"
                     disabled={!formData.modelId}
@@ -615,7 +559,7 @@ function CreateOrder({ onBack }) {
                   </label>
                   <AnimatedSelect
                     name="promotionId"
-                    value={getFormValueAsString('promotionId')}
+                    value={formData.promotionId}
                     onChange={handleFormChange}
                     placeholder="Không áp dụng"
                     options={[

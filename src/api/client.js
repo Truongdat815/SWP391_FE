@@ -21,6 +21,26 @@ export async function getJson(path, options = {}) {
     return res.json();
 }
 
+// Helper để fetch external API không cần auth và không trigger preflight
+export async function fetchExternalApi(url, options = {}) {
+  // Không thêm Content-Type cho GET requests để tránh preflight
+  const fetchOptions = {
+    method: 'GET',
+    mode: 'cors',
+    ...options,
+    // Chỉ set headers nếu có custom headers được cung cấp
+    headers: options.headers || {}
+  };
+  
+  const response = await fetch(url, fetchOptions);
+  
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+  
+  return response.json();
+}
+
 // Helper functions to replace axiosClient usage
 export async function get(path, options = {}) {
     // Check if we should skip token (for public endpoints)

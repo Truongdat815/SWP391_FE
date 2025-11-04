@@ -39,6 +39,10 @@ export async function getAllCustomers() {
     return request('/api/customers/all', { method: 'GET' });
 }
 
+export async function getCustomersByStore(storeId) {
+    return request(`/api/customers/store/${encodeURIComponent(storeId)}`, { method: 'GET' });
+}
+
 export async function deleteCustomer(customerId) {
     return request(`/api/customers/delete/${encodeURIComponent(customerId)}`, { method: 'DELETE' });
 }
