@@ -188,28 +188,44 @@ const customerSlice = createSlice({
                 console.log('Normalized customers from API:', normalized.length);
                 if (normalized.length > 0) {
                     console.log('First customer sample:', normalized[0]);
+                    console.log('First customer storeId:', normalized[0].storeId, 'type:', typeof normalized[0].storeId);
                 }
                 
-                // Merge với customers hiện có để không mất customers vừa tạo (nếu API chưa trả về)
-                // Chỉ merge nếu API trả về ít hơn customers hiện có
+                // SỬA LẠI LOGIC: Khi reload, state.items reset về [], nên cần set trực tiếp
+                // Chỉ merge nếu có customers hiện có (không phải reload)
                 if (normalized.length === 0 && state.items.length > 0) {
-                    console.log('API returned empty, keeping existing customers:', state.items.length);
-                    // Giữ nguyên customers hiện có nếu API trả về rỗng
+                    // API trả về rỗng nhưng state có data (sau khi tạo mới, API chưa cập nhật)
+                    console.log('⚠️ API returned empty, keeping existing customers:', state.items.length);
                     return;
                 }
                 
-                // Merge customers mới với customers hiện có (loại bỏ duplicate)
-                const existingIds = new Set(state.items.map(c => c.customerId));
-                const newCustomers = normalized.filter(c => !existingIds.has(c.customerId));
-                
-                if (newCustomers.length > 0) {
-                    console.log('Adding new customers:', newCustomers.length);
-                    state.items = [...normalized, ...newCustomers];
+                if (normalized.length > 0) {
+                    // Có data từ API - set trực tiếp (bao gồm cả khi reload)
+                    if (state.items.length > 0) {
+                        // Merge để tránh mất customers vừa tạo (nếu có)
+                        const existingIds = new Set(state.items.map(c => c.customerId));
+                        const newCustomers = normalized.filter(c => !existingIds.has(c.customerId));
+                        
+                        if (newCustomers.length > 0) {
+                            console.log('Merging: API returned', normalized.length, 'customers, adding', newCustomers.length, 'new ones');
+                            state.items = [...normalized, ...newCustomers];
+                        } else {
+                            // Không có customers mới, chỉ cập nhật từ API
+                            console.log('Updating customers from API:', normalized.length);
+                            state.items = normalized;
+                        }
+                    } else {
+                        // State rỗng (reload) - set trực tiếp từ API
+                        console.log('✅ Setting customers from API (reload):', normalized.length);
+                        state.items = normalized;
+                    }
                 } else {
-                    state.items = normalized;
+                    // API trả về rỗng và state cũng rỗng
+                    state.items = [];
+                    console.log('⚠️ No customers from API');
                 }
                 
-                console.log('Final customers count:', state.items.length);
+                console.log('Final customers count in state:', state.items.length);
             })
             .addCase(getAllCustomersThunk.rejected, (state, action) => {
                 state.status = 'failed';
