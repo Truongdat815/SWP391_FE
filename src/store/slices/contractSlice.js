@@ -81,7 +81,23 @@ const contractSlice = createSlice({
             .addCase(fetchAllContractsThunk.fulfilled, (state, action) => {
                 state.loading = false;
                 // Response format: { data: [...] } or directly array
-                state.contracts = action.payload?.data || action.payload || [];
+                const newContracts = action.payload?.data || action.payload || [];
+                
+                // Preserve signedContractFileUrl from existing state if not in new data
+                state.contracts = newContracts.map(newContract => {
+                    const existingContract = state.contracts.find(
+                        c => String(c.contractId) === String(newContract.contractId)
+                    );
+                    // If new contract doesn't have signedContractFileUrl but old one does, keep it
+                    if (!newContract.signedContractFileUrl && existingContract?.signedContractFileUrl) {
+                        console.log('Preserving signedContractFileUrl for contract:', newContract.contractId, 'URL:', existingContract.signedContractFileUrl);
+                        return {
+                            ...newContract,
+                            signedContractFileUrl: existingContract.signedContractFileUrl
+                        };
+                    }
+                    return newContract;
+                });
             })
             .addCase(fetchAllContractsThunk.rejected, (state, action) => {
                 state.loading = false;
@@ -98,7 +114,7 @@ const contractSlice = createSlice({
                 console.log('Upload fulfilled payload:', action.payload);
                 
                 // Update the contract with the signed URL
-                const index = state.contracts.findIndex(c => c.contractId === contractId);
+                const index = state.contracts.findIndex(c => String(c.contractId) === String(contractId));
                 if (index !== -1) {
                     console.log('Updating contract at index:', index, 'with URL:', url);
                     state.contracts[index] = {
