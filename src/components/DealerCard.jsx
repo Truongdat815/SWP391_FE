@@ -2,6 +2,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import AnimatedImage from './Animated';
 import { Link } from 'react-router-dom';
+import Tooltip from './ui/Tooltip';
 
 const DealerCard = ({ dealer }) => {
   const displayName = dealer.storeName || dealer.name || 'Đại lý Electra';
@@ -57,15 +58,17 @@ const DealerCard = ({ dealer }) => {
           )}
         </div>
         
-        <Link
-          to={`/dealers/${dealerId}`}
-          className="inline-flex items-center justify-center w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors duration-200"
-        >
-          Xem chi tiết
-          <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </Link>
+        <Tooltip content="Xem thông tin chi tiết, sản phẩm và dịch vụ của đại lý" placement="top">
+          <Link
+            to={`/dealers/${dealerId}`}
+            className="inline-flex items-center justify-center w-full px-4 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-colors duration-200"
+          >
+            Xem chi tiết
+            <svg className="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </Tooltip>
       </div>
     </motion.div>
   );

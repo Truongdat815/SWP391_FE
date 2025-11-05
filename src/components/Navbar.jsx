@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
 import logo from '../assets/images/logo.png';
+import Tooltip from './ui/Tooltip';
 
 const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -90,17 +91,19 @@ const Navbar = () => {
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.3 }}
             >
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                <Link
-                  to="/signin"
-                  className="bg-gradient-to-r bg-[#6CA12B] text-white px-6 py-2 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 inline-block"
+              <Tooltip content="Đăng nhập vào hệ thống quản lý Electra" placement="bottom">
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  Đăng nhập
-                </Link>
-              </motion.div>
+                  <Link
+                    to="/signin"
+                    className="bg-gradient-to-r bg-[#6CA12B] text-white px-6 py-2 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 inline-block"
+                  >
+                    Đăng nhập
+                  </Link>
+                </motion.div>
+              </Tooltip>
             </motion.div>
           </div>
 

@@ -1,5 +1,16 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { createOrder, getAllOrders, getOrderById, updateOrder, updateOrderStatus, deleteOrder } from '../../api/orderService';
+import { 
+  createOrder, 
+  getAllOrders, 
+  getOrderById, 
+  updateOrder, 
+  updateOrderStatus, 
+  deleteOrder,
+  getOrdersByStatus,
+  getOrdersByDateRange,
+  getOrdersByCustomer,
+  confirmOrder
+} from '../../api/orderService';
 
 // Async thunks
 export const fetchOrders = createAsyncThunk(
@@ -74,6 +85,54 @@ export const deleteOrderById = createAsyncThunk(
   }
 );
 
+export const fetchOrdersByStatus = createAsyncThunk(
+  'orders/fetchOrdersByStatus',
+  async (status, { rejectWithValue }) => {
+    try {
+      const response = await getOrdersByStatus(status);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const fetchOrdersByDateRange = createAsyncThunk(
+  'orders/fetchOrdersByDateRange',
+  async ({ startDate, endDate }, { rejectWithValue }) => {
+    try {
+      const response = await getOrdersByDateRange(startDate, endDate);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const fetchOrdersByCustomer = createAsyncThunk(
+  'orders/fetchOrdersByCustomer',
+  async (customerId, { rejectWithValue }) => {
+    try {
+      const response = await getOrdersByCustomer(customerId);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const confirmOrderThunk = createAsyncThunk(
+  'orders/confirmOrder',
+  async (orderId, { rejectWithValue }) => {
+    try {
+      const response = await confirmOrder(orderId);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
 const initialState = {
   orders: [],
   selectedOrder: null,
@@ -108,7 +167,16 @@ const orderSlice = createSlice({
       })
       .addCase(fetchOrders.fulfilled, (state, action) => {
         state.loading = false;
-        state.orders = action.payload;
+        // Handle both response formats: { data: [...] } or direct array
+        const payload = action.payload;
+        state.orders = Array.isArray(payload?.data) 
+          ? payload.data 
+          : Array.isArray(payload) 
+          ? payload 
+          : [];
+        // Extract data from response if API returns { code, message, data }
+        const ordersData = action.payload.data || action.payload;
+        state.orders = Array.isArray(ordersData) ? ordersData : [];
       })
       .addCase(fetchOrders.rejected, (state, action) => {
         state.loading = false;
@@ -188,6 +256,98 @@ const orderSlice = createSlice({
         state.success = 'Đơn hàng đã được xóa!';
       })
       .addCase(deleteOrderById.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Fetch orders by status
+      .addCase(fetchOrdersByStatus.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchOrdersByStatus.fulfilled, (state, action) => {
+        state.loading = false;
+        const payload = action.payload;
+        state.orders = Array.isArray(payload?.data) 
+          ? payload.data 
+          : Array.isArray(payload) 
+          ? payload 
+          : [];
+      })
+      .addCase(fetchOrdersByStatus.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Fetch orders by date range
+      .addCase(fetchOrdersByDateRange.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchOrdersByDateRange.fulfilled, (state, action) => {
+        state.loading = false;
+        const payload = action.payload;
+        state.orders = Array.isArray(payload?.data) 
+          ? payload.data 
+          : Array.isArray(payload) 
+          ? payload 
+          : [];
+      })
+      .addCase(fetchOrdersByDateRange.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Fetch orders by customer
+      .addCase(fetchOrdersByCustomer.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchOrdersByCustomer.fulfilled, (state, action) => {
+        state.loading = false;
+        const payload = action.payload;
+        state.orders = Array.isArray(payload?.data) 
+          ? payload.data 
+          : Array.isArray(payload) 
+          ? payload 
+          : [];
+      })
+      .addCase(fetchOrdersByCustomer.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Confirm order
+      .addCase(confirmOrderThunk.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(confirmOrderThunk.fulfilled, (state, action) => {
+        state.loading = false;
+        // Extract data from response
+        const confirmedOrder = action.payload?.data || action.payload;
+        
+        // Update order in state if it exists
+        if (confirmedOrder && confirmedOrder.orderId) {
+          const index = state.orders.findIndex(o => 
+            String(o.orderId) === String(confirmedOrder.orderId)
+          );
+          if (index !== -1) {
+            // Update existing order with new data from response
+            state.orders[index] = {
+              ...state.orders[index],
+              ...confirmedOrder,
+              status: confirmedOrder.status || 'CONFIRMED',
+              getOrderDetailsResponses: confirmedOrder.getOrderDetailsResponses || [],
+              totalPrice: confirmedOrder.totalPrice || 0,
+              totalTaxPrice: confirmedOrder.totalTaxPrice || 0,
+              totalPromotionAmount: confirmedOrder.totalPromotionAmount || 0,
+              totalPayment: confirmedOrder.totalPayment || 0
+            };
+          } else {
+            // Add new order if not found
+            state.orders.push(confirmedOrder);
+          }
+        }
+        state.success = 'Đơn hàng đã được xác nhận!';
+      })
+      .addCase(confirmOrderThunk.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       });

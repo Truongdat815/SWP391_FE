@@ -41,7 +41,9 @@ export async function getStoreStocksByStore(storeId) {
 
 // Create new store stock
 export async function createStoreStock(storeStock) {
-    return request('/api/store-stocks/create', { method: 'POST', body: storeStock });
+    const response = await request('/api/store-stocks/create', { method: 'POST', body: storeStock });
+    // Backend returns { code, message, data: { ... } }
+    return response?.data || response;
 }
 
 // Update store stock

@@ -21,9 +21,39 @@ export async function getJson(path, options = {}) {
     return res.json();
 }
 
+// Helper để fetch external API không cần auth và không trigger preflight
+export async function fetchExternalApi(url, options = {}) {
+  // Không thêm Content-Type cho GET requests để tránh preflight
+  const fetchOptions = {
+    method: 'GET',
+    mode: 'cors',
+    ...options,
+    // Chỉ set headers nếu có custom headers được cung cấp
+    headers: options.headers || {}
+  };
+  
+  const response = await fetch(url, fetchOptions);
+  
+  if (!response.ok) {
+    throw new Error(`Request failed: ${response.status}`);
+  }
+  
+  return response.json();
+}
+
 // Helper functions to replace axiosClient usage
 export async function get(path, options = {}) {
-    const data = await getJson(path, options);
+    // Check if we should skip token (for public endpoints)
+    const skipAuth = options.skipAuth || false;
+    
+    if (skipAuth) {
+        // Public API call without token
+        const data = await getJson(path, options);
+        return { data };
+    }
+    
+    // Use request() function which handles token automatically
+    const data = await request(path, { method: 'GET', ...options });
     return { data }; // Mimic axios response structure
 }
 
@@ -58,8 +88,25 @@ async function request(path, { method = 'GET', body } = {}) {
     const isJson = res.headers.get('content-type')?.includes('application/json');
     const data = isJson ? await res.json() : await res.text();
     if (!res.ok) {
-        const message = (isJson && data?.message) || res.statusText || 'Request failed';
-        throw new Error(message);
+        // Extract error message from various possible structures
+        let message = res.statusText || 'Request failed';
+        
+        if (isJson && data) {
+            // Try different possible error message fields
+            message = data?.message || 
+                     data?.error || 
+                     data?.errorMessage ||
+                     data?.data?.message ||
+                     (typeof data === 'string' ? data : message);
+        } else if (!isJson && typeof data === 'string') {
+            message = data;
+        }
+        
+        // If message contains database constraint errors, preserve the full message
+        const error = new Error(message);
+        error.status = res.status;
+        error.response = data;
+        throw error;
     }
     return data;
 }

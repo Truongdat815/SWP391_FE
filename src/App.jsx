@@ -30,14 +30,20 @@ import QuanLyNhanVien from './pages/dealerManager/QuanLyNhanVien'
 import QuanLyCongNo from './pages/dealerManager/QuanLyCongNo'
 import DealerManagerInventory from './pages/dealerManager/InventoryManagement'
 import DealerManagerSettings from './pages/dealerManager/DealerManagerSettings'
+import DealerManagerOrders from './pages/dealerManager/OrderManagement'
+import PromotionManagement from './pages/dealerManager/PromotionManagement'
 
 // Dealer Staff Sub Pages
 import QuoteOrderManagement from './pages/dealerStaff/QuoteOrderManagement'
 import ViewOrders from './pages/dealerStaff/ViewOrders'
-import CreateContract from './pages/dealerStaff/CreateContract'
 import CreateOrder from './pages/dealerStaff/CreateOrder'
+import AddOrderDetails from './pages/dealerStaff/AddOrderDetails'
+import OrderSummary from './pages/dealerStaff/OrderSummary'
 import AddCustomer from './pages/dealerStaff/AddCustomer'
 import CustomerManagement from './pages/dealerStaff/CustomerManagement'
+import ContractManagement from './pages/dealerStaff/ContractManagement'
+import ViewContracts from './pages/dealerStaff/ViewContracts'
+import OrderManagement from './pages/dealerStaff/OrderManagement'
 import Inventory from './pages/dealerStaff/Inventory'
 import TestDriveSchedule from './pages/dealerStaff/TestDriveSchedule'
 import PaymentManagement from './pages/dealerStaff/PaymentManagement'
@@ -64,7 +70,7 @@ import { PageTransition } from './components/Animated'
 function AnimatedRoutes() {
   const location = useLocation();
   return (
-    <AnimatePresence mode="wait">
+    <AnimatePresence initial={false}>
       <Routes location={location} key={location.pathname}>
           {/* Public Routes with Header and Footer */}
           <Route path="/" element={<PageTransition><Home /></PageTransition>} />
@@ -121,12 +127,18 @@ function AnimatedRoutes() {
               <DealerStaffLayout />
             </ProtectedRoute>
           }>
-            <Route index element={<Navigate to="/dealer-staff/create-order" replace />} />
-            <Route path="create-order" element={<CreateOrder />} />
+            <Route index element={<Navigate to="/dealer-staff/order-management" replace />} />
+            <Route path="order-management" element={<OrderManagement />} />
+            {/* Legacy routes - redirect to new combined pages */}
+            <Route path="create-order" element={<Navigate to="/dealer-staff/order-management" replace />} />
+            <Route path="view-orders" element={<Navigate to="/dealer-staff/order-management?tab=view" replace />} />
+            <Route path="view-contracts" element={<Navigate to="/dealer-staff/contract-management?tab=view" replace />} />
+            <Route path="add-order-details/:orderId" element={<AddOrderDetails />} />
+            <Route path="order-summary/:orderId" element={<OrderSummary />} />
             <Route path="quote-order-management" element={<QuoteOrderManagement />} />
-            <Route path="view-orders" element={<ViewOrders />} />
             <Route path="add-customer" element={<AddCustomer />} />
             <Route path="customer-management" element={<CustomerManagement />} />
+            <Route path="contract-management" element={<ContractManagement />} />
             <Route path="test-drive-schedule" element={<TestDriveSchedule />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="payment-management" element={<PaymentManagement />} />
@@ -145,6 +157,8 @@ function AnimatedRoutes() {
           }>
             <Route index element={<Navigate to="/dealer-manager/inventory" replace />} />
             <Route path="inventory" element={<DealerManagerInventory />} />
+            <Route path="orders" element={<DealerManagerOrders />} />
+            <Route path="promotion-management" element={<PromotionManagement />} />
             <Route path="tao-bao-cao" element={<TaoBaoCao />} />
             <Route path="bao-cao-doanh-so" element={<BaoCaoDoanhSo />} />
             <Route path="quan-ly-nhan-vien" element={<QuanLyNhanVien />} />

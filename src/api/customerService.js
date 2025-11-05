@@ -5,7 +5,14 @@ const getToken = () => localStorage.getItem('access_token');
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();
     const url = `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
-    const headers = { 'Content-Type': 'application/json' };
+    const headers = {};
+    
+    // Only set Content-Type for requests with body (POST, PUT, PATCH)
+    // DELETE requests typically don't have body, so don't set Content-Type
+    if (body) {
+        headers['Content-Type'] = 'application/json';
+    }
+    
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
     const res = await fetch(url, {
@@ -24,7 +31,7 @@ async function request(path, { method = 'GET', body } = {}) {
 }
 
 export async function createCustomer(customer) {
-    return request('/api/customers/create', { method: 'POST', body: customer });
+    return request('/api/customers/create', { method: 'POST', body: { customerId: 0, ...customer } });
 }
 
 export async function updateCustomer({ customerId, ...customer }) {
@@ -39,6 +46,28 @@ export async function getAllCustomers() {
     return request('/api/customers/all', { method: 'GET' });
 }
 
+export async function getCustomersByStore(storeId) {
+    return request(`/api/customers/store/${encodeURIComponent(storeId)}`, { method: 'GET' });
+}
+
 export async function deleteCustomer(customerId) {
-    return request(`/api/customers/delete/${encodeURIComponent(customerId)}`, { method: 'DELETE' });
+    // Ensure customerId is a valid number or string
+    if (customerId === null || customerId === undefined) {
+        throw new Error('Customer ID is required');
+    }
+    const id = typeof customerId === 'number' ? customerId : parseInt(customerId);
+    if (isNaN(id)) {
+        throw new Error('Invalid customer ID');
+    }
+    // Backend endpoint: /api/customers/delete/{customerId}
+    try {
+        return await request(`/api/customers/delete/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    } catch (error) {
+        // Check if error is related to foreign key constraint
+        const errorMessage = error.message || error.toString();
+        if (errorMessage.includes('REFERENCE constraint') || errorMessage.includes('FK') || errorMessage.includes('contracts')) {
+            throw new Error('Không thể xóa khách hàng này vì có đơn hàng đã được tạo hợp đồng. Vui lòng xóa hoặc hủy các hợp đồng liên quan trước khi xóa khách hàng.');
+        }
+        throw error;
+    }
 }

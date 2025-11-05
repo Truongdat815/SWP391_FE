@@ -1,4 +1,5 @@
 import React from 'react';
+import Tooltip from './Tooltip';
 
 const baseClasses = 'inline-flex items-center justify-center rounded-xl font-semibold transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]';
 
@@ -20,14 +21,27 @@ export default function Button({
   variant = 'primary',
   size = 'md',
   className = '',
+  tooltip,
+  tooltipPlacement = 'top',
   ...props
 }) {
   const classes = `${baseClasses} ${variants[variant] || variants.primary} ${sizes[size] || sizes.md} ${className}`;
-  return (
+  
+  const button = (
     <button className={classes} {...props}>
       {children}
     </button>
   );
+
+  if (tooltip) {
+    return (
+      <Tooltip content={tooltip} placement={tooltipPlacement}>
+        {button}
+      </Tooltip>
+    );
+  }
+
+  return button;
 }
 
 

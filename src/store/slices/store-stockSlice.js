@@ -153,9 +153,9 @@ const storeStockSlice = createSlice({
             })
             .addCase(createStoreStockThunk.fulfilled, (state, action) => {
                 state.status = 'succeeded';
-                const newItem = action.payload?.data || action.payload;
-                if (newItem) {
-                    state.items.push(newItem);
+                // Service already extracts data.data, so payload is the data object
+                if (action.payload) {
+                    state.items.push(action.payload);
                 }
                 state.error = null;
             })

@@ -8,6 +8,8 @@ async function request(path, { method = 'GET', body } = {}) {
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
+    console.log(`🌐 API Request: ${method} ${url}`, body ? { body } : '');
+
     const res = await fetch(url, {
         method,
         headers,
@@ -17,8 +19,11 @@ async function request(path, { method = 'GET', body } = {}) {
     const isJson = res.headers.get('content-type')?.includes('application/json');
     const data = isJson ? await res.json() : await res.text();
     
+    console.log(`📥 API Response: ${method} ${url}`, { status: res.status, data });
+    
     if (!res.ok) {
         const message = (isJson && data?.message) || res.statusText || 'Request failed';
+        console.error(`❌ API Error: ${method} ${url}`, { status: res.status, message, data });
         throw new Error(message);
     }
     return data;
@@ -62,5 +67,32 @@ export async function updateOrderStatus(orderId, status) {
 
 // Delete order
 export async function deleteOrder(orderId) {
-    return request(`/api/orders/${orderId}`, { method: 'DELETE' });
+    return request(`/api/orders/delete/${orderId}`, { method: 'DELETE' });
+}
+
+// Get orders by status (draft, confirmed)
+export async function getOrdersByStatus(status) {
+    return request(`/api/orders/status/${status}`, { method: 'GET' });
+}
+
+// Get orders by date range
+export async function getOrdersByDateRange(startDate, endDate) {
+    // Format: /api/orders/date-range?startDate=2024-01-01&endDate=2024-12-31
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    return request(`/api/orders/date-range?${params.toString()}`, { method: 'GET' });
+}
+
+// Get orders by customer
+export async function getOrdersByCustomer(customerId) {
+    return request(`/api/orders/customer/${customerId}`, { method: 'GET' });
+}
+
+// Confirm order (DRAFT → CONFIRMED)
+export async function confirmOrder(orderId) {
+    return request(`/api/orders/${orderId}/confirm`, {
+        method: 'PUT',
+        body: { orderId: orderId }
+    });
 }

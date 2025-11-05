@@ -3,6 +3,8 @@ import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getModelImage, getModelPoster, formatPrice, formatNumber } from '../../utils/modelHelpers';
 import logo from '../../assets/images/logo.png';
+import Tooltip from '@/components/ui/Tooltip';
+import { get } from '@/api/client';
 
 function CarDetail() {
   const { modelId } = useParams();
@@ -21,21 +23,45 @@ function CarDetail() {
         setLoading(true)
         setError(null)
         
-        const response = await fetch('/api/models/all')
-        
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`)
+        // Try with token first, if fails with 401, try without token (public endpoint)
+        let res;
+        try {
+            res = await get('/api/models/all');
+        } catch (err) {
+            // If 401, try as public endpoint
+            if (err.message && err.message.includes('401')) {
+                console.log('🔓 Trying as public endpoint (no token)...');
+                res = await get('/api/models/all', { skipAuth: true });
+            } else {
+                throw err;
+            }
         }
         
-        const result = await response.json()
-        const data = result.data || result
+        // Handle different response structures
+        let data = null;
+        if (res?.data?.data && Array.isArray(res.data.data)) {
+            data = res.data.data;
+        } else if (res?.data && Array.isArray(res.data)) {
+            data = res.data;
+        } else if (Array.isArray(res)) {
+            data = res;
+        } else {
+            data = res?.data || res || [];
+        }
         
-        const foundModel = data.find(m => m.modelId === parseInt(modelId))
-        setCurrentModel(foundModel)
+        const foundModel = Array.isArray(data) 
+          ? data.find(m => m.modelId === parseInt(modelId))
+          : null;
+        
+        if (foundModel) {
+          setCurrentModel(foundModel);
+        } else {
+          throw new Error(`Không tìm thấy xe với ID: ${modelId}`);
+        }
         
       } catch (error) {
         console.error('Error fetching models:', error)
-        setError(error.message)
+        setError(error.message || 'Không thể tải thông tin xe')
       } finally {
         setLoading(false)
       }
@@ -182,26 +208,30 @@ function CarDetail() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <div className="absolute bottom-6 left-6 right-6">
                       <div className="flex space-x-3">
-                        <button
-                          onClick={() => setSelectedImage('main')}
-                          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                            selectedImage === 'main' 
-                              ? 'bg-white text-emerald-600 shadow-lg' 
-                              : 'bg-white/80 text-gray-600 hover:bg-white'
-                          }`}
-                        >
-                          Hình chính
-                        </button>
-                        <button
-                          onClick={() => setSelectedImage('poster')}
-                          className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                            selectedImage === 'poster' 
-                              ? 'bg-white text-emerald-600 shadow-lg' 
-                              : 'bg-white/80 text-gray-600 hover:bg-white'
-                          }`}
-                        >
-                          Poster
-                        </button>
+                        <Tooltip content="Xem hình ảnh chính của xe" placement="top">
+                          <button
+                            onClick={() => setSelectedImage('main')}
+                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                              selectedImage === 'main' 
+                                ? 'bg-white text-emerald-600 shadow-lg' 
+                                : 'bg-white/80 text-gray-600 hover:bg-white'
+                            }`}
+                          >
+                            Hình chính
+                          </button>
+                        </Tooltip>
+                        <Tooltip content="Xem poster quảng cáo của xe" placement="top">
+                          <button
+                            onClick={() => setSelectedImage('poster')}
+                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                              selectedImage === 'poster' 
+                                ? 'bg-white text-emerald-600 shadow-lg' 
+                                : 'bg-white/80 text-gray-600 hover:bg-white'
+                            }`}
+                          >
+                            Poster
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                   </div>

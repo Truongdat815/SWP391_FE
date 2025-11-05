@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { get } from '@/api/client';
+import { get, fetchExternalApi } from '@/api/client'; // Thêm fetchExternalApi
 import { useDispatch, useSelector } from 'react-redux';
 import { 
   getAllStoresThunk, 
@@ -8,6 +8,7 @@ import {
   deleteStoreThunk,
   getStoresByStatusThunk
 } from '@store/slices/storeSlice';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // Skeleton Loading Component
 const TableSkeleton = () => (
@@ -46,6 +47,16 @@ function StoreManagement() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [storeToDelete, setStoreToDelete] = useState(null);
 
+  // State cho dependent dropdowns
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [selectedProvinceCode, setSelectedProvinceCode] = useState(null);
+  const [selectedDistrictCode, setSelectedDistrictCode] = useState(null);
+  const [selectedWardCode, setSelectedWardCode] = useState(null);
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [detailAddress, setDetailAddress] = useState(''); // Địa chỉ chi tiết (số nhà, tên đường)
+
   useEffect(() => {
     if (storesStatus === 'idle') {
       dispatch(getAllStoresThunk());
@@ -57,6 +68,34 @@ function StoreManagement() {
     get('/api/stores/all')
       .then((res) => setStoresApi(Array.isArray(res?.data?.data) ? res.data.data : []))
       .catch((err) => console.error('Lỗi lấy danh sách store:', err));
+  }, []);
+
+  // Fetch provinces từ API bên thứ 3 - sử dụng depth=3 để có đầy đủ wards
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      setLoadingProvinces(true);
+      try {
+        // Sử dụng depth=3 để lấy đầy đủ provinces -> districts -> wards
+        // Fetch 1 lần duy nhất để tránh phải fetch wards từng district sau này
+        const data = await fetchExternalApi('https://provinces.open-api.vn/api/v1/?depth=3');
+        console.log('Provinces data loaded:', data?.length, 'provinces');
+        setProvinces(data || []);
+      } catch (error) {
+        console.error('Lỗi khi tải danh sách tỉnh/thành phố với depth=3, thử depth=2:', error);
+        // Fallback: nếu depth=3 fail, thử depth=2
+        try {
+          const fallbackData = await fetchExternalApi('https://provinces.open-api.vn/api/v1/?depth=2');
+          setProvinces(fallbackData || []);
+        } catch (fallbackError) {
+          console.error('Lỗi fallback depth=2:', fallbackError);
+          setProvinces([]);
+        }
+      } finally {
+        setLoadingProvinces(false);
+      }
+    };
+    
+    fetchProvinces();
   }, []);
 
   const allStoresList = (stores && stores.length) ? stores : storesApi;
@@ -112,6 +151,165 @@ function StoreManagement() {
       ...prev,
       [name]: value
     }));
+  };
+
+  // Handler khi chọn tỉnh/thành phố
+  const handleProvinceChange = async (e) => {
+    const provinceCode = e.target.value;
+    setSelectedProvinceCode(provinceCode);
+    setSelectedDistrictCode(null);
+    setSelectedWardCode(null);
+    setDistricts([]);
+    setWards([]);
+
+    if (provinceCode) {
+      const selectedProvince = provinces.find(p => p.code.toString() === provinceCode);
+      if (selectedProvince && selectedProvince.districts) {
+        setDistricts(selectedProvince.districts || []);
+      }
+      
+      // Cập nhật provinceName trong formData
+      setFormData(prev => ({
+        ...prev,
+        provinceName: selectedProvince ? selectedProvince.name : ''
+      }));
+
+      // Cập nhật địa chỉ sau khi state được cập nhật
+      setTimeout(() => updateAddress(), 100);
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        provinceName: ''
+      }));
+      setTimeout(() => updateAddress(), 100);
+    }
+  };
+
+  // Handler khi chọn quận/huyện
+  const handleDistrictChange = async (e) => {
+    const districtCode = e.target.value;
+    setSelectedDistrictCode(districtCode);
+    setSelectedWardCode(null);
+    setWards([]);
+
+    if (districtCode) {
+      const selectedDistrict = districts.find(d => d.code.toString() === districtCode);
+      if (selectedDistrict) {
+        // Nếu districts có wards sẵn, sử dụng luôn
+        if (selectedDistrict.wards && Array.isArray(selectedDistrict.wards) && selectedDistrict.wards.length > 0) {
+          console.log('Sử dụng wards có sẵn:', selectedDistrict.wards);
+          setWards(selectedDistrict.wards);
+        } else {
+          // Nếu không có wards, fetch từ API
+          console.log('Fetching wards cho district:', districtCode);
+          try {
+            // Thử endpoint 1: /api/wards?district_code=...
+            try {
+              const wardsData = await fetchExternalApi(`https://provinces.open-api.vn/api/wards?district_code=${districtCode}`);
+              console.log('Wards data từ /api/wards:', wardsData);
+              
+              if (wardsData) {
+                // Nếu là array trực tiếp
+                if (Array.isArray(wardsData) && wardsData.length > 0) {
+                  setWards(wardsData);
+                  return;
+                }
+                // Nếu có data property
+                if (wardsData.data && Array.isArray(wardsData.data) && wardsData.data.length > 0) {
+                  setWards(wardsData.data);
+                  return;
+                }
+              }
+            } catch (wardError) {
+              console.log('Endpoint /api/wards không thành công, thử endpoint khác:', wardError);
+            }
+
+            // Thử endpoint 2: /api/d/{districtCode}
+            try {
+              const districtData = await fetchExternalApi(`https://provinces.open-api.vn/api/d/${districtCode}`);
+              console.log('District data từ /api/d:', districtData);
+              
+              if (districtData) {
+                // Case 1: Response là district object có wards property
+                if (districtData.wards && Array.isArray(districtData.wards) && districtData.wards.length > 0) {
+                  setWards(districtData.wards);
+                  return;
+                } 
+                // Case 2: Response là array trực tiếp
+                else if (Array.isArray(districtData) && districtData.length > 0) {
+                  setWards(districtData);
+                  return;
+                }
+                // Case 3: Response có nested structure với data property
+                else if (districtData.data && Array.isArray(districtData.data) && districtData.data.length > 0) {
+                  setWards(districtData.data);
+                  return;
+                }
+              }
+            } catch (districtError) {
+              console.log('Endpoint /api/d không thành công:', districtError);
+            }
+
+            // Nếu cả 2 endpoint đều fail, log warning
+            console.warn('Không thể fetch wards từ bất kỳ endpoint nào cho district:', districtCode);
+            setWards([]);
+          } catch (error) {
+            console.error('Lỗi khi tải danh sách phường/xã:', error);
+            setWards([]);
+          }
+        }
+      }
+      
+      // Cập nhật địa chỉ
+      setTimeout(() => updateAddress(), 100); // Delay nhỏ để state được cập nhật
+    }
+  };
+
+  // Handler khi chọn phường/xã
+  const handleWardChange = (e) => {
+    const wardCode = e.target.value;
+    setSelectedWardCode(wardCode);
+    
+    // Cập nhật địa chỉ sau khi state được cập nhật
+    setTimeout(() => updateAddress(), 100);
+  };
+
+  // Function để cập nhật địa chỉ đầy đủ
+  const updateAddress = (newDetailAddress = null) => {
+    const currentDetail = newDetailAddress !== null ? newDetailAddress : detailAddress;
+    const provinceName = provinces.find(p => p.code.toString() === selectedProvinceCode)?.name || '';
+    const districtName = districts.find(d => d.code.toString() === selectedDistrictCode)?.name || '';
+    const wardName = wards.find(w => w.code.toString() === selectedWardCode)?.name || '';
+
+    let fullAddress = '';
+    
+    if (wardName && districtName && provinceName) {
+      fullAddress = currentDetail 
+        ? `${currentDetail}, ${wardName}, ${districtName}, ${provinceName}`
+        : `${wardName}, ${districtName}, ${provinceName}`;
+    } else if (districtName && provinceName) {
+      fullAddress = currentDetail 
+        ? `${currentDetail}, ${districtName}, ${provinceName}`
+        : `${districtName}, ${provinceName}`;
+    } else if (provinceName) {
+      fullAddress = currentDetail 
+        ? `${currentDetail}, ${provinceName}`
+        : provinceName;
+    } else {
+      fullAddress = currentDetail || '';
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      address: fullAddress
+    }));
+  };
+
+  // Handler khi thay đổi địa chỉ chi tiết (số nhà, tên đường)
+  const handleDetailAddressChange = (e) => {
+    const value = e.target.value;
+    setDetailAddress(value);
+    updateAddress(value);
   };
 
   const handleSubmit = async (e) => {
@@ -195,6 +393,13 @@ function StoreManagement() {
         contractEndDate: '',
         createdBy: ''
       });
+      // Reset dependent dropdowns
+      setSelectedProvinceCode(null);
+      setSelectedDistrictCode(null);
+      setSelectedWardCode(null);
+      setDistricts([]);
+      setWards([]);
+      setDetailAddress('');
       setShowAddModal(false);
       setShowEditModal(false);
       setEditingStore(null);
@@ -231,6 +436,56 @@ function StoreManagement() {
     });
     setShowEditModal(true);
   };
+
+  // Khi edit store, load lại districts và wards dựa trên provinceName
+  useEffect(() => {
+    if (editingStore && showEditModal && provinces.length > 0 && editingStore.provinceName) {
+      // Tìm tỉnh/thành phố từ provinceName
+      const province = provinces.find(p => p.name === editingStore.provinceName);
+      if (province) {
+        setSelectedProvinceCode(province.code.toString());
+        setDistricts(province.districts || []);
+        
+        // Parse địa chỉ để tìm quận/huyện và phường/xã (nếu có)
+        // Địa chỉ thường có format: "số nhà, tên đường, phường/xã, quận/huyện, tỉnh/thành phố"
+        const addressParts = (editingStore.address || '').split(',').map(s => s.trim());
+        const provinceIndex = addressParts.findIndex(part => part === editingStore.provinceName);
+        
+        if (provinceIndex > 0) {
+          // Có thể có quận/huyện ở index provinceIndex - 1
+          const possibleDistrict = addressParts[provinceIndex - 1];
+          const district = province.districts?.find(d => d.name === possibleDistrict);
+          if (district) {
+            setSelectedDistrictCode(district.code.toString());
+            if (district.wards) {
+              setWards(district.wards);
+              
+              // Có thể có phường/xã ở index provinceIndex - 2
+              if (provinceIndex > 1) {
+                const possibleWard = addressParts[provinceIndex - 2];
+                const ward = district.wards?.find(w => w.name === possibleWard);
+                if (ward) {
+                  setSelectedWardCode(ward.code.toString());
+                }
+              }
+            }
+          }
+          
+          // Địa chỉ chi tiết là phần trước quận/huyện hoặc phường/xã
+          if (provinceIndex > 1) {
+            const detailParts = addressParts.slice(0, provinceIndex - 1);
+            setDetailAddress(detailParts.join(', '));
+          } else if (provinceIndex > 0) {
+            const detailParts = addressParts.slice(0, provinceIndex - 1);
+            setDetailAddress(detailParts.join(', '));
+          }
+        } else {
+          // Không tìm thấy tỉnh trong địa chỉ, giữ nguyên địa chỉ
+          setDetailAddress(editingStore.address || '');
+        }
+      }
+    }
+  }, [editingStore, showEditModal, provinces]);
 
   const handleDelete = (store) => {
     setStoreToDelete(store);
@@ -269,6 +524,13 @@ function StoreManagement() {
       contractEndDate: '',
       createdBy: ''
     });
+    // Reset dependent dropdowns
+    setSelectedProvinceCode(null);
+    setSelectedDistrictCode(null);
+    setSelectedWardCode(null);
+    setDistricts([]);
+    setWards([]);
+    setDetailAddress('');
     setShowAddModal(false);
     setShowEditModal(false);
     setEditingStore(null);
@@ -345,7 +607,7 @@ function StoreManagement() {
           <tbody className="bg-white divide-y divide-gray-200">
             {storesList.map((store, index) => (
               <tr 
-                key={store.storeId}
+                key={store.storeId || `store-${index}-${store.storeName || 'unknown'}`}
                 className={`transition-all duration-200 hover:bg-blue-50 hover:shadow-sm cursor-pointer
                   ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
               >
@@ -404,36 +666,32 @@ function StoreManagement() {
                   <div className="flex items-center space-x-2">
                     <button 
                       onClick={() => handleEdit(store)}
-                      className="group relative p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                      className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                      title="Chỉnh sửa thông tin cửa hàng"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
-                      <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                        Chỉnh sửa
-                      </span>
                     </button>
                     
                     <button 
                       onClick={() => handleDelete(store)}
-                      className="group relative p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                      className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                      title="Xóa cửa hàng khỏi hệ thống"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
-                      <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                        Xóa
-                      </span>
                     </button>
                     
-                    <button className="group relative p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-md transition-all duration-200 transform hover:scale-105">
+                    <button 
+                      className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                      title="Xem chi tiết thông tin cửa hàng"
+                    >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                       </svg>
-                      <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                        Chi tiết
-                      </span>
                     </button>
                   </div>
                 </td>
@@ -574,13 +832,17 @@ function StoreManagement() {
         <button
           onClick={() => setShowAddModal(true)}
           className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center"
+          title="Thêm cửa hàng mới vào hệ thống"
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
           </svg>
           Thêm cửa hàng
         </button>
-        <button className="bg-white text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200 flex items-center">
+        <button 
+          className="bg-white text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200 flex items-center"
+          title="Xuất báo cáo danh sách cửa hàng ra file Excel"
+        >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
           </svg>
@@ -684,23 +946,42 @@ function StoreManagement() {
       </div>
 
       {/* Add/Edit Store Modal */}
-      {(showAddModal || showEditModal) && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm animate-fadeIn">
-          <div className="relative top-10 mx-auto p-5 border w-full max-w-3xl shadow-2xl rounded-xl bg-white animate-slideDown">
-            <div className="mt-3">
-              <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-                <h3 className="text-2xl font-bold text-gray-900">
-                  {editingStore ? '✏️ Chỉnh sửa cửa hàng' : '➕ Thêm cửa hàng mới'}
-                </h3>
-                <button
-                  onClick={handleCloseModal}
-                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
-                >
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+      <AnimatePresence>
+        {(showAddModal || showEditModal) && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={handleCloseModal}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-3xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+            >
+              <div className="mt-3">
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    {editingStore ? '✏️ Chỉnh sửa cửa hàng' : '➕ Thêm cửa hàng mới'}
+                  </h3>
+                  <button
+                    onClick={handleCloseModal}
+                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
+                  >
+                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               
               <form onSubmit={handleSubmit} className="space-y-4">
                 {errorMessage && (
@@ -719,29 +1000,97 @@ function StoreManagement() {
                 )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                  {/* Province Name */}
+                  {/* Province Name - Dependent Dropdown */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Tỉnh/Thành phố <span className="text-red-500">*</span>
                     </label>
+                    {loadingProvinces ? (
+                      <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 flex items-center">
+                        <svg className="animate-spin h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span className="text-sm text-gray-500">Đang tải danh sách tỉnh/thành phố...</span>
+                      </div>
+                    ) : (
+                      <select
+                        name="provinceName"
+                        value={selectedProvinceCode || ''}
+                        onChange={handleProvinceChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all bg-white"
+                        required
+                      >
+                        <option value="">Chọn tỉnh/thành phố</option>
+                        {provinces.map((province) => (
+                          <option key={province.code} value={province.code}>
+                            {province.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* District Name - Dependent Dropdown */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Quận/Huyện <span className="text-red-500">*</span>
+                    </label>
                     <select
-                      name="provinceName"
-                      value={formData.provinceName}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all"
+                      name="district"
+                      value={selectedDistrictCode || ''}
+                      onChange={handleDistrictChange}
+                      disabled={!selectedProvinceCode || districts.length === 0}
+                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all ${
+                        !selectedProvinceCode || districts.length === 0 
+                          ? 'bg-gray-100 cursor-not-allowed opacity-60' 
+                          : 'bg-white'
+                      }`}
                       required
                     >
-                      <option value="">Chọn tỉnh/thành phố</option>
-                      <option value="Hà Nội">Hà Nội</option>
-                      <option value="TP.HCM">TP.HCM</option>
-                      <option value="Đà Nẵng">Đà Nẵng</option>
-                      <option value="Hải Phòng">Hải Phòng</option>
-                      <option value="Cần Thơ">Cần Thơ</option>
-                      <option value="An Giang">An Giang</option>
-                      <option value="Bà Rịa - Vũng Tàu">Bà Rịa - Vũng Tàu</option>
-                      <option value="Bắc Giang">Bắc Giang</option>
-                      <option value="Bắc Kạn">Bắc Kạn</option>
-                      <option value="Bạc Liêu">Bạc Liêu</option>
+                      <option value="">
+                        {!selectedProvinceCode 
+                          ? 'Chọn tỉnh/thành phố trước' 
+                          : districts.length === 0 
+                          ? 'Không có quận/huyện'
+                          : 'Chọn quận/huyện'}
+                      </option>
+                      {districts.map((district) => (
+                        <option key={district.code} value={district.code}>
+                          {district.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Ward Name - Dependent Dropdown (Optional) */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Phường/Xã
+                    </label>
+                    <select
+                      name="ward"
+                      value={selectedWardCode || ''}
+                      onChange={handleWardChange}
+                      disabled={!selectedDistrictCode || wards.length === 0}
+                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all ${
+                        !selectedDistrictCode || wards.length === 0 
+                          ? 'bg-gray-100 cursor-not-allowed opacity-60' 
+                          : 'bg-white'
+                      }`}
+                    >
+                      <option value="">
+                        {!selectedDistrictCode 
+                          ? 'Chọn quận/huyện trước' 
+                          : wards.length === 0 
+                          ? 'Không có phường/xã'
+                          : 'Chọn phường/xã (tùy chọn)'}
+                      </option>
+                      {wards.map((ward) => (
+                        <option key={ward.code} value={ward.code}>
+                          {ward.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -793,21 +1142,41 @@ function StoreManagement() {
                     />
                   </div>
 
-                  {/* Address */}
+                  {/* Address Detail - Số nhà, tên đường */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Địa chỉ <span className="text-red-500">*</span>
+                      Địa chỉ chi tiết (Số nhà, tên đường) <span className="text-red-500">*</span>
                     </label>
-                    <textarea
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
-                      rows={3}
+                    <input
+                      type="text"
+                      name="detailAddress"
+                      value={detailAddress}
+                      onChange={handleDetailAddressChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all"
-                      placeholder="Nhập địa chỉ chi tiết"
+                      placeholder="Nhập số nhà, tên đường (ví dụ: 123 Đường ABC)"
                       required
                     />
+                    <p className="text-xs text-gray-500 mt-1.5">
+                      💡 Địa chỉ sẽ tự động bao gồm: [Số nhà, tên đường] + Phường/Xã + Quận/Huyện + Tỉnh/Thành phố
+                    </p>
                   </div>
+
+                  {/* Full Address Preview */}
+                  {formData.address && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Địa chỉ đầy đủ (tự động tạo)
+                      </label>
+                      <textarea
+                        name="address"
+                        value={formData.address}
+                        readOnly
+                        rows={2}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 shadow-sm"
+                        placeholder="Địa chỉ sẽ được tự động tạo từ các trường trên"
+                      />
+                    </div>
+                  )}
 
                   {/* Image Path */}
                   <div className="md:col-span-2">
@@ -893,16 +1262,20 @@ function StoreManagement() {
                 </div>
                 
                 <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
-                  <button
+                  <motion.button
                     type="button"
                     onClick={handleCloseModal}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
                   >
                     ❌ Hủy
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
                     type="submit"
                     disabled={isCreatingStore}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                   >
                     {isCreatingStore && (
@@ -912,24 +1285,44 @@ function StoreManagement() {
                       </svg>
                     )}
                     {isCreatingStore ? (editingStore ? '⏳ Đang cập nhật...' : '⏳ Đang tạo...') : (editingStore ? '✅ Cập nhật' : '✨ Tạo cửa hàng')}
-                  </button>
+                  </motion.button>
                 </div>
               </form>
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && storeToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm animate-fadeIn">
-          <div className="relative top-20 mx-auto p-6 border w-[480px] shadow-2xl rounded-xl bg-white animate-slideDown">
-            <div className="mt-3">
-              <div className="flex items-center justify-center w-16 h-16 mx-auto bg-gradient-to-br from-red-100 to-red-200 rounded-full mb-4 shadow-lg">
-                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-              </div>
+      <AnimatePresence>
+        {showDeleteModal && storeToDelete && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={cancelDelete}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-[480px] p-6 border shadow-2xl rounded-xl bg-white"
+            >
+              <div className="mt-3">
+                <div className="flex items-center justify-center w-16 h-16 mx-auto bg-gradient-to-br from-red-100 to-red-200 rounded-full mb-4 shadow-lg">
+                  <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
               
               <div className="text-center">
                 <h3 className="text-xl font-bold text-gray-900 mb-3">
@@ -995,27 +1388,32 @@ function StoreManagement() {
                 </div>
                 
                 <div className="flex justify-center space-x-3 mt-6">
-                  <button
+                  <motion.button
                     onClick={cancelDelete}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
                   >
                     Hủy
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
                     onClick={confirmDelete}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl flex items-center"
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
                     Xóa cửa hàng
-                  </button>
+                  </motion.button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -9,6 +9,7 @@ import {
 } from '@store/slices/modelColorSlice';
 import { getAllModelsThunk } from '@store/slices/modelSlice';
 import { getAllColorsThunk } from '@store/slices/colorSlice';
+import AnimatedSelect from '@/components/ui/AnimatedSelect';
 
 function ProductManagement() {
   const dispatch = useDispatch();
@@ -28,6 +29,7 @@ function ProductManagement() {
   const [formData, setFormData] = useState({
     modelId: '',
     colorId: '',
+    price: '',
     imagePath: '',
   });
 
@@ -45,7 +47,7 @@ function ProductManagement() {
   };
 
   const resetForm = () => {
-    setFormData({ modelId: '', colorId: '', imagePath: '' });
+    setFormData({ modelId: '', colorId: '', price: '', imagePath: '' });
     setEditingItem(null);
   };
 
@@ -59,6 +61,7 @@ function ProductManagement() {
     setFormData({
       modelId: item.modelId,
       colorId: item.colorId,
+      price: item.price || '',
       imagePath: item.imagePath || '',
     });
     setIsModalOpen(true);
@@ -68,22 +71,16 @@ function ProductManagement() {
     e.preventDefault();
 
     try {
-      // Get model and color details
-      const selectedModel = models.find(m => m.modelId === parseInt(formData.modelId, 10));
-      const selectedColor = colors.find(c => c.colorId === parseInt(formData.colorId, 10));
-
+      // Prepare payload according to new API: modelId, colorId, price, imagePath
       const payload = {
         modelId: parseInt(formData.modelId, 10),
-        modelName: selectedModel?.modelName || '',
         colorId: parseInt(formData.colorId, 10),
-        colorName: selectedColor?.colorName || '',
-        colorCode: selectedColor?.colorCode || '',
+        price: parseFloat(formData.price) || 0,
         imagePath: formData.imagePath.trim(),
       };
 
       if (editingItem) {
         // Update - use modelColorId
-        payload.modelColorId = editingItem.modelColorId;
         await dispatch(updateModelColorThunk({ id: editingItem.modelColorId, data: payload })).unwrap();
         showNotification('success', 'Cập nhật sản phẩm thành công!');
       } else {
@@ -239,6 +236,7 @@ function ProductManagement() {
               <button
                 onClick={handleOpenCreate}
                 className="group px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2"
+                title="Tạo tổ hợp sản phẩm mới từ mẫu xe và màu sắc"
               >
                 <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -274,56 +272,60 @@ function ProductManagement() {
             {/* Model Filter */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Dòng xe</label>
-              <select
+              <AnimatedSelect
                 value={filterModel}
                 onChange={(e) => setFilterModel(e.target.value)}
-                className="block w-full px-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50/50"
-              >
-                <option value="">Tất cả xe</option>
-                {models.map(model => (
-                  <option key={model.modelId} value={model.modelId}>
-                    {model.modelName}
-                  </option>
-                ))}
-              </select>
+                placeholder="Tất cả xe"
+                options={[
+                  { value: '', label: 'Tất cả xe' },
+                  ...models.map(model => ({
+                    value: model.modelId.toString(),
+                    label: model.modelName
+                  }))
+                ]}
+                className="block w-full"
+              />
             </div>
 
             {/* Color Filter */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Màu sắc</label>
-              <select
+              <AnimatedSelect
                 value={filterColor}
                 onChange={(e) => setFilterColor(e.target.value)}
-                className="block w-full px-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50/50"
-              >
-                <option value="">Tất cả màu</option>
-                {colors.map(color => (
-                  <option key={color.colorId} value={color.colorId}>
-                    {color.colorName}
-                  </option>
-                ))}
-              </select>
+                placeholder="Tất cả màu"
+                options={[
+                  { value: '', label: 'Tất cả màu' },
+                  ...colors.map(color => ({
+                    value: color.colorId.toString(),
+                    label: color.colorName
+                  }))
+                ]}
+                className="block w-full"
+              />
             </div>
 
             {/* Sort */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Sắp xếp</label>
-              <select
+              <AnimatedSelect
                 value={`${sortBy}-${sortOrder}`}
                 onChange={(e) => {
                   const [field, order] = e.target.value.split('-');
                   setSortBy(field);
                   setSortOrder(order);
                 }}
-                className="block w-full px-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50/50"
-              >
-                <option value="modelName-asc">Xe A-Z</option>
-                <option value="modelName-desc">Xe Z-A</option>
-                <option value="colorName-asc">Màu A-Z</option>
-                <option value="colorName-desc">Màu Z-A</option>
-                <option value="hasImage-desc">Có hình ảnh</option>
-                <option value="hasImage-asc">Chưa có hình ảnh</option>
-              </select>
+                placeholder="Sắp xếp"
+                options={[
+                  { value: 'modelName-asc', label: 'Xe A-Z' },
+                  { value: 'modelName-desc', label: 'Xe Z-A' },
+                  { value: 'colorName-asc', label: 'Màu A-Z' },
+                  { value: 'colorName-desc', label: 'Màu Z-A' },
+                  { value: 'hasImage-desc', label: 'Có hình ảnh' },
+                  { value: 'hasImage-asc', label: 'Chưa có hình ảnh' }
+                ]}
+                className="block w-full"
+              />
             </div>
 
             {/* View Mode Toggle */}
@@ -473,7 +475,7 @@ function ProductManagement() {
                               <div className="flex items-center justify-between p-3 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg">
                                 <div>
                                   <p className="text-xs text-gray-600">Giá bán</p>
-                                  <p className="text-lg font-bold text-emerald-600">${modelDetails.price?.toLocaleString()}</p>
+                                  <p className="text-lg font-bold text-emerald-600">{modelDetails.price?.toLocaleString('vi-VN')} VNĐ</p>
                                 </div>
                                 <div className="text-right">
                                   <p className="text-xs text-gray-600">Năm</p>
@@ -647,7 +649,7 @@ function ProductManagement() {
                                 {modelDetails ? (
                                   <div className="space-y-1">
                                     <div className="text-lg font-bold text-emerald-600">
-                                      ${modelDetails.price?.toLocaleString()}
+                                      {modelDetails.price?.toLocaleString('vi-VN')} VNĐ
                                     </div>
                                     <div className="text-sm text-gray-600">
                                       Năm {modelDetails.modelYear}
@@ -797,20 +799,20 @@ function ProductManagement() {
                         <label className="block text-sm font-semibold text-gray-700 mb-3">
                           Dòng xe <span className="text-red-500">*</span>
                         </label>
-                        <select
+                        <AnimatedSelect
                           value={formData.modelId}
                           onChange={(e) => setFormData({ ...formData, modelId: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
-                          required
+                          placeholder="Chọn dòng xe"
                           disabled={!!editingItem}
-                        >
-                          <option value="">Chọn dòng xe</option>
-                          {models.map(model => (
-                            <option key={model.modelId} value={model.modelId}>
-                              {model.modelName}
-                            </option>
-                          ))}
-                        </select>
+                          options={[
+                            { value: '', label: 'Chọn dòng xe' },
+                            ...models.map(model => ({
+                              value: model.modelId.toString(),
+                              label: model.modelName
+                            }))
+                          ]}
+                          className="w-full"
+                        />
                       </div>
 
                       {/* Color Select */}
@@ -818,20 +820,20 @@ function ProductManagement() {
                         <label className="block text-sm font-semibold text-gray-700 mb-3">
                           Màu sắc <span className="text-red-500">*</span>
                         </label>
-                        <select
+                        <AnimatedSelect
                           value={formData.colorId}
                           onChange={(e) => setFormData({ ...formData, colorId: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
-                          required
+                          placeholder="Chọn màu sắc"
                           disabled={!!editingItem}
-                        >
-                          <option value="">Chọn màu sắc</option>
-                          {colors.map(color => (
-                            <option key={color.colorId} value={color.colorId}>
-                              {color.colorName}
-                            </option>
-                          ))}
-                        </select>
+                          options={[
+                            { value: '', label: 'Chọn màu sắc' },
+                            ...colors.map(color => ({
+                              value: color.colorId.toString(),
+                              label: color.colorName
+                            }))
+                          ]}
+                          className="w-full"
+                        />
                       </div>
                     </div>
 
@@ -849,6 +851,34 @@ function ProductManagement() {
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  {/* Price Section */}
+                  <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-green-100 rounded-xl">
+                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <h4 className="text-lg font-semibold text-gray-800">Giá sản phẩm</h4>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-3">
+                        Giá (VNĐ) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200 placeholder-gray-400"
+                        placeholder="VD: 50000000"
+                        required
+                        min="0"
+                        step="1000"
+                      />
+                    </div>
                   </div>
 
                   {/* Image Section */}

@@ -4,6 +4,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getAllUsersThunk, createUserThunk, deleteUserThunk, updateUserThunk } from '@store/slices/userSlice';
 import { getAllStoresThunk } from '@store/slices/storeSlice';
 import { getAllRolesThunk, createRoleThunk, updateRoleThunk, deleteRoleThunk } from '@store/slices/roleSlice';
+import { motion, AnimatePresence } from 'framer-motion';
+import AnimatedSelect from '@/components/ui/AnimatedSelect';
 
 // Skeleton Loading Component
 const TableSkeleton = () => (
@@ -28,7 +30,12 @@ function UserManagement() {
   const usersStatus = useSelector((s) => s.users.status);
   const usersError = useSelector((s) => s.users.error);
   const isUsersFetching = usersStatus === 'loading';
-  const isCreatingUser = usersStatus === 'loading';
+  
+  // Track operation type để tách biệt loading states
+  const [operationType, setOperationType] = useState(null); // 'create', 'update', 'delete'
+  const isCreatingUser = usersStatus === 'loading' && operationType === 'create';
+  const isUpdatingUser = usersStatus === 'loading' && operationType === 'update';
+  const isDeletingUser = usersStatus === 'loading' && operationType === 'delete';
   
   const stores = useSelector((s) => s.stores.items);
   const storesStatus = useSelector((s) => s.stores.status);
@@ -47,15 +54,28 @@ function UserManagement() {
     }
   }, [dispatch, usersStatus]);
 
-  // Fallback fetch via api client for direct API usage
+  // Fallback fetch chỉ khi Redux thất bại hoặc không có data sau khi loaded
   useEffect(() => {
-    get('/api/users/all')
-      .then((res) => {
-        const userData = res?.data?.data || res?.data || [];
-        setUsersApi(Array.isArray(userData) ? userData : []);
-      })
-      .catch((err) => console.error('Lỗi lấy danh sách người dùng:', err));
-  }, []);
+    // Chỉ fetch fallback nếu Redux đã hoàn thành nhưng không có data hoặc có lỗi
+    if (usersStatus === 'succeeded' && (!users || users.length === 0)) {
+      console.log('Redux returned empty, trying fallback API...');
+      get('/api/users/all')
+        .then((res) => {
+          const userData = res?.data?.data || res?.data || [];
+          setUsersApi(Array.isArray(userData) ? userData : []);
+        })
+        .catch((err) => console.error('Lỗi lấy danh sách người dùng (fallback):', err));
+    } else if (usersStatus === 'failed') {
+      // Nếu Redux thất bại, thử fallback
+      console.log('Redux failed, trying fallback API...');
+      get('/api/users/all')
+        .then((res) => {
+          const userData = res?.data?.data || res?.data || [];
+          setUsersApi(Array.isArray(userData) ? userData : []);
+        })
+        .catch((err) => console.error('Lỗi lấy danh sách người dùng (fallback):', err));
+    }
+  }, [usersStatus, users]);
 
   const usersList = (users && users.length) ? users : usersApi;
 
@@ -136,13 +156,24 @@ function UserManagement() {
     }
   };
 
+  // Helper: Check if roleId requires a store
+  // roleId 1 = Admin, roleId 2 = EVM Staff -> NO store needed
+  // roleId 3 = Dealer Manager, roleId 4 = Dealer Staff -> store needed
+  const requiresStore = (roleId) => {
+    return roleId !== 1 && roleId !== 2;
+  };
+
+  // Helper: Check if roleId does NOT require a store
+  const doesNotRequireStore = (roleId) => {
+    return roleId === 1 || roleId === 2;
+  };
+
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     
-    // Nếu thay đổi role thành Admin hoặc EVM Staff, tự động clear storeId
+    // Nếu thay đổi role thành Admin (1) hoặc EVM Staff (2), tự động clear storeId
     if (name === 'roleId') {
-      const selectedRole = roles.find(r => r.roleId === value);
-      if (selectedRole && (selectedRole.roleName === 'Quản trị viên' || selectedRole.roleName === 'Admin' || selectedRole.roleName === 'Nhân viên hãng xe' || selectedRole.roleName === 'EVM Staff')) {
+      if (doesNotRequireStore(parseInt(value))) {
         setFormData(prev => ({
           ...prev,
           [name]: value,
@@ -161,16 +192,21 @@ function UserManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Set operation type để tracking loading state
+      setOperationType('create');
+      
       // Chuẩn bị dữ liệu submit
       const submitData = { ...formData };
       
-      // Nếu là Admin hoặc EVM Staff, không gửi storeId
-      const selectedRole = roles.find(r => r.roleId === formData.roleId);
-      if (selectedRole && (selectedRole.roleName === 'Quản trị viên' || selectedRole.roleName === 'Admin' || selectedRole.roleName === 'Nhân viên hãng xe' || selectedRole.roleName === 'EVM Staff')) {
+      // Nếu là Admin (1) hoặc EVM Staff (2), không gửi storeId
+      if (doesNotRequireStore(parseInt(formData.roleId))) {
         delete submitData.storeId;
       }
       
       await dispatch(createUserThunk(submitData)).unwrap();
+      
+      // Reset operation type sau khi hoàn thành
+      setOperationType(null);
       
       // Reset form
       setFormData({
@@ -191,18 +227,10 @@ function UserManagement() {
       // Refresh danh sách users
       await dispatch(getAllUsersThunk()).unwrap();
       
-      // Nếu dùng fallback API, cũng refresh luôn
-      try {
-        const res = await get('/api/users/all');
-        const userData = res?.data?.data || res?.data || [];
-        setUsersApi(Array.isArray(userData) ? userData : []);
-      } catch (err) {
-        console.error('Failed to refresh users fallback:', err);
-      }
-      
     } catch (error) {
       console.error('Failed to create user:', error);
       alert('Lỗi khi tạo người dùng: ' + error.message);
+      setOperationType(null); // Reset operation type khi có lỗi
     }
   };
 
@@ -214,9 +242,10 @@ function UserManagement() {
       phone: '',
       storeId: '',
       roleId: '',
-      status: 'active'
+      status: 'ACTIVE'
     });
     setShowAddModal(false);
+    setOperationType(null); // Reset operation type khi đóng modal
   };
 
   const handleDeleteClick = (user) => {
@@ -228,7 +257,11 @@ function UserManagement() {
     if (!userToDelete) return;
     
     try {
+      setOperationType('delete');
       await dispatch(deleteUserThunk(userToDelete.userId)).unwrap();
+      
+      // Reset operation type sau khi hoàn thành
+      setOperationType(null);
       setShowDeleteModal(false);
       setUserToDelete(null);
       
@@ -238,24 +271,17 @@ function UserManagement() {
       // Refresh danh sách users
       await dispatch(getAllUsersThunk()).unwrap();
       
-      // Nếu dùng fallback API, cũng refresh luôn
-      try {
-        const res = await get('/api/users/all');
-        const userData = res?.data?.data || res?.data || [];
-        setUsersApi(Array.isArray(userData) ? userData : []);
-      } catch (err) {
-        console.error('Failed to refresh users fallback:', err);
-      }
-      
     } catch (error) {
       console.error('Failed to delete user:', error);
       alert('Lỗi khi xóa người dùng: ' + error.message);
+      setOperationType(null); // Reset operation type khi có lỗi
     }
   };
 
   const handleDeleteCancel = () => {
     setShowDeleteModal(false);
     setUserToDelete(null);
+    setOperationType(null); // Reset operation type khi hủy
   };
 
   const handleEditClick = (user) => {
@@ -277,6 +303,8 @@ function UserManagement() {
     if (!userToEdit) return;
     
     try {
+      setOperationType('update');
+      
       const updateData = {
         userId: userToEdit.userId,
         ...formData
@@ -286,13 +314,15 @@ function UserManagement() {
         delete updateData.password;
       }
       
-      // Nếu là Admin hoặc EVM Staff, không gửi storeId
-      const selectedRole = roles.find(r => r.roleId === formData.roleId);
-      if (selectedRole && (selectedRole.roleName === 'Quản trị viên' || selectedRole.roleName === 'Admin' || selectedRole.roleName === 'Nhân viên hãng xe' || selectedRole.roleName === 'EVM Staff')) {
+      // Nếu là Admin (1) hoặc EVM Staff (2), không gửi storeId
+      if (doesNotRequireStore(parseInt(formData.roleId))) {
         delete updateData.storeId;
       }
       
       await dispatch(updateUserThunk(updateData)).unwrap();
+      
+      // Reset operation type sau khi hoàn thành
+      setOperationType(null);
       
       setFormData({
         fullName: '',
@@ -312,18 +342,10 @@ function UserManagement() {
       // Refresh danh sách users
       await dispatch(getAllUsersThunk()).unwrap();
       
-      // Nếu dùng fallback API, cũng refresh luôn
-      try {
-        const res = await get('/api/users/all');
-        const userData = res?.data?.data || res?.data || [];
-        setUsersApi(Array.isArray(userData) ? userData : []);
-      } catch (err) {
-        console.error('Failed to refresh users fallback:', err);
-      }
-      
     } catch (error) {
       console.error('Failed to update user:', error);
       alert('Lỗi khi cập nhật người dùng: ' + error.message);
+      setOperationType(null); // Reset operation type khi có lỗi
     }
   };
 
@@ -335,10 +357,11 @@ function UserManagement() {
       phone: '',
       storeId: '',
       roleId: '',
-      status: 'active'
+      status: 'ACTIVE'
     });
     setShowEditModal(false);
     setUserToEdit(null);
+    setOperationType(null); // Reset operation type khi hủy
   };
 
   const handleRoleInputChange = (e) => {
@@ -523,39 +546,33 @@ function UserManagement() {
                   <div className="flex items-center space-x-2">
                     <button 
                       onClick={() => handleEditClick(u)}
-                      className="group relative p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                      className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                      title="Chỉnh sửa thông tin người dùng"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
-                      <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                        Chỉnh sửa
-                      </span>
                     </button>
                     
                     <button 
                       onClick={() => handleViewDetail(u)}
-                      className="group relative p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                      className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                      title="Xem chi tiết thông tin người dùng"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                       </svg>
-                      <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                        Xem chi tiết
-                      </span>
                     </button>
                     
                     <button
                       onClick={() => handleDeleteClick(u)}
-                      className="group relative p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                      className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                      title="Xóa người dùng khỏi hệ thống"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
-                      <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                        Xóa người dùng
-                      </span>
                     </button>
                   </div>
                 </td>
@@ -622,13 +639,17 @@ function UserManagement() {
             <button
               onClick={() => setShowAddModal(true)}
               className="bg-gradient-to-r from-red-500 to-red-600 text-white px-5 py-2.5 rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center"
+              title="Tạo tài khoản người dùng mới trong hệ thống"
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
               </svg>
               Thêm người dùng
             </button>
-            <button className="bg-white text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200 flex items-center">
+            <button 
+              className="bg-white text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200 flex items-center"
+              title="Xuất báo cáo danh sách người dùng ra file Excel"
+            >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
@@ -738,14 +759,33 @@ function UserManagement() {
       </div>
 
       {/* Add User Modal */}
-      {showAddModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm animate-fadeIn">
-          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-2xl rounded-xl bg-white animate-slideDown">
-            <div className="mt-3">
-              <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-                <h3 className="text-2xl font-bold text-gray-900">➕ Thêm người dùng mới</h3>
-                <button
-                  onClick={handleCloseModal}
+      <AnimatePresence>
+        {showAddModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={handleCloseModal}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+            >
+              <div className="mt-3">
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                  <h3 className="text-2xl font-bold text-gray-900">➕ Thêm người dùng mới</h3>
+                  <button
+                    onClick={handleCloseModal}
                   className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
                 >
                   <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -775,19 +815,19 @@ function UserManagement() {
                   {/* Store Selection */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Cửa hàng {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') ? '' : <span className="text-red-500">*</span>}
+                      Cửa hàng {formData.roleId && doesNotRequireStore(parseInt(formData.roleId)) ? '' : <span className="text-red-500">*</span>}
                     </label>
                     <select
                       name="storeId"
                       value={formData.storeId}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      required={formData.roleId && !(roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')}
-                      disabled={isStoresFetching || (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff'))}
+                      required={formData.roleId && requiresStore(parseInt(formData.roleId))}
+                      disabled={isStoresFetching || (formData.roleId && doesNotRequireStore(parseInt(formData.roleId)))}
                     >
                       <option value="">
                         {isStoresFetching ? 'Đang tải cửa hàng...' : 
-                         (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
+                         (formData.roleId && doesNotRequireStore(parseInt(formData.roleId))) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
                       </option>
                       {stores.map((store) => (
                         <option key={store.storeId} value={store.storeId}>
@@ -795,7 +835,7 @@ function UserManagement() {
                         </option>
                       ))}
                     </select>
-                    {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') && (
+                    {formData.roleId && doesNotRequireStore(parseInt(formData.roleId)) && (
                       <p className="text-xs text-gray-500 mt-1.5">💡 Quản trị viên và Nhân viên hãng xe không thuộc về cửa hàng cụ thể</p>
                     )}
                   </div>
@@ -805,23 +845,21 @@ function UserManagement() {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Vai trò <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <AnimatedSelect
                       name="roleId"
                       value={formData.roleId}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      required
+                      placeholder={isRolesFetching ? 'Đang tải vai trò...' : 'Chọn vai trò'}
                       disabled={isRolesFetching}
-                    >
-                      <option value="">
-                        {isRolesFetching ? 'Đang tải vai trò...' : 'Chọn vai trò'}
-                      </option>
-                      {roles.map((role) => (
-                        <option key={role.roleId} value={role.roleId}>
-                          {role.roleName}
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: '', label: isRolesFetching ? 'Đang tải vai trò...' : 'Chọn vai trò' },
+                        ...roles.map(role => ({
+                          value: role.roleId.toString(),
+                          label: role.roleName
+                        }))
+                      ]}
+                      className="w-full"
+                    />
                   </div>
 
                   {/* Email */}
@@ -893,16 +931,20 @@ function UserManagement() {
                 </div>
                 
                 <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
-                  <button
+                  <motion.button
                     type="button"
                     onClick={handleCloseModal}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
                   >
                     ❌ Hủy
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
                     type="submit"
                     disabled={isCreatingUser}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                   >
                     {isCreatingUser && (
@@ -912,19 +954,39 @@ function UserManagement() {
                       </svg>
                     )}
                     {isCreatingUser ? '⏳ Đang tạo...' : '✨ Tạo tài khoản'}
-                  </button>
+                  </motion.button>
                 </div>
               </form>
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Edit User Modal - Similar structure to Add Modal */}
-      {showEditModal && userToEdit && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm animate-fadeIn">
-          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-2xl rounded-xl bg-white animate-slideDown">
-            <div className="mt-3">
+      <AnimatePresence>
+        {showEditModal && userToEdit && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={handleEditCancel}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+            >
+              <div className="mt-3">
               <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
                 <h3 className="text-2xl font-bold text-gray-900">✏️ Chỉnh sửa người dùng</h3>
                 <button
@@ -956,19 +1018,19 @@ function UserManagement() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Cửa hàng {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') ? '' : <span className="text-red-500">*</span>}
+                      Cửa hàng {formData.roleId && doesNotRequireStore(parseInt(formData.roleId)) ? '' : <span className="text-red-500">*</span>}
                     </label>
                     <select
                       name="storeId"
                       value={formData.storeId}
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      required={formData.roleId && !(roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')}
-                      disabled={isStoresFetching || (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff'))}
+                      required={formData.roleId && requiresStore(parseInt(formData.roleId))}
+                      disabled={isStoresFetching || (formData.roleId && doesNotRequireStore(parseInt(formData.roleId)))}
                     >
                       <option value="">
                         {isStoresFetching ? 'Đang tải cửa hàng...' : 
-                         (formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff')) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
+                         (formData.roleId && doesNotRequireStore(parseInt(formData.roleId))) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
                       </option>
                       {stores.map((store) => (
                         <option key={store.storeId} value={store.storeId}>
@@ -976,7 +1038,7 @@ function UserManagement() {
                         </option>
                       ))}
                     </select>
-                    {formData.roleId && (roles.find(r => r.roleId === formData.roleId)?.roleName === 'Quản trị viên' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Admin' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'Nhân viên hãng xe' || roles.find(r => r.roleId === formData.roleId)?.roleName === 'EVM Staff') && (
+                    {formData.roleId && doesNotRequireStore(parseInt(formData.roleId)) && (
                       <p className="text-xs text-gray-500 mt-1.5">💡 Quản trị viên và Nhân viên hãng xe không thuộc về cửa hàng cụ thể</p>
                     )}
                   </div>
@@ -985,23 +1047,21 @@ function UserManagement() {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Vai trò <span className="text-red-500">*</span>
                     </label>
-                    <select
+                    <AnimatedSelect
                       name="roleId"
                       value={formData.roleId}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      required
+                      placeholder={isRolesFetching ? 'Đang tải vai trò...' : 'Chọn vai trò'}
                       disabled={isRolesFetching}
-                    >
-                      <option value="">
-                        {isRolesFetching ? 'Đang tải vai trò...' : 'Chọn vai trò'}
-                      </option>
-                      {roles.map((role) => (
-                        <option key={role.roleId} value={role.roleId}>
-                          {role.roleName}
-                        </option>
-                      ))}
-                    </select>
+                      options={[
+                        { value: '', label: isRolesFetching ? 'Đang tải vai trò...' : 'Chọn vai trò' },
+                        ...roles.map(role => ({
+                          value: role.roleId.toString(),
+                          label: role.roleName
+                        }))
+                      ]}
+                      className="w-full"
+                    />
                   </div>
 
                   <div>
@@ -1070,43 +1130,67 @@ function UserManagement() {
                 </div>
                 
                 <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
-                  <button
+                  <motion.button
                     type="button"
                     onClick={handleEditCancel}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
                   >
                     Hủy
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
                     type="submit"
-                    disabled={isCreatingUser}
+                    disabled={isUpdatingUser}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                   >
-                    {isCreatingUser && (
+                    {isUpdatingUser && (
                       <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                     )}
-                    {isCreatingUser ? '⏳ Đang cập nhật...' : '✅ Cập nhật người dùng'}
-                  </button>
+                    {isUpdatingUser ? '⏳ Đang cập nhật...' : '✅ Cập nhật người dùng'}
+                  </motion.button>
                 </div>
               </form>
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Delete Confirmation Modal */}
-      {showDeleteModal && userToDelete && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm animate-fadeIn">
-          <div className="relative top-20 mx-auto p-6 border w-[480px] shadow-2xl rounded-xl bg-white animate-slideDown">
-            <div className="mt-3">
-              <div className="flex items-center justify-center w-16 h-16 mx-auto bg-gradient-to-br from-red-100 to-red-200 rounded-full mb-4 shadow-lg">
-                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                </svg>
-              </div>
+      <AnimatePresence>
+        {showDeleteModal && userToDelete && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={handleDeleteCancel}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-[480px] p-6 border shadow-2xl rounded-xl bg-white"
+            >
+              <div className="mt-3">
+                <div className="flex items-center justify-center w-16 h-16 mx-auto bg-gradient-to-br from-red-100 to-red-200 rounded-full mb-4 shadow-lg">
+                  <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
               
               <div className="text-center">
                 <h3 className="text-xl font-bold text-gray-900 mb-3">
@@ -1140,48 +1224,72 @@ function UserManagement() {
                 </div>
                 
                 <div className="flex justify-center space-x-3 mt-6">
-                  <button
+                  <motion.button
                     onClick={handleDeleteCancel}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
                   >
                     Hủy
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
                     onClick={handleDeleteConfirm}
-                    disabled={isCreatingUser}
+                    disabled={isDeletingUser}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                   >
-                    {isCreatingUser && (
+                    {isDeletingUser && (
                       <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                     )}
-                    {isCreatingUser ? 'Đang xóa...' : 'Xóa người dùng'}
-                  </button>
+                    {isDeletingUser ? 'Đang xóa...' : 'Xóa người dùng'}
+                  </motion.button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* User Detail Modal */}
-      {showDetailModal && userToView && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm animate-fadeIn">
-          <div className="relative top-10 mx-auto p-5 border w-full max-w-2xl shadow-2xl rounded-xl bg-white animate-slideDown">
-            <div className="mt-3">
-              <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-                <h3 className="text-2xl font-bold text-gray-900">👤 Chi tiết người dùng</h3>
-                <button
-                  onClick={handleCloseDetailModal}
-                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
-                >
-                  <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
+      <AnimatePresence>
+        {showDetailModal && userToView && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={handleCloseDetailModal}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+            >
+              <div className="mt-3">
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                  <h3 className="text-2xl font-bold text-gray-900">👤 Chi tiết người dùng</h3>
+                  <button
+                    onClick={handleCloseDetailModal}
+                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
+                  >
+                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
               
               <div className="space-y-6">
                 {/* User Avatar and Basic Info */}
@@ -1283,30 +1391,35 @@ function UserManagement() {
 
                 {/* Action Buttons */}
                 <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
-                  <button
+                  <motion.button
                     onClick={handleCloseDetailModal}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
                   >
                     Đóng
-                  </button>
-                  <button
+                  </motion.button>
+                  <motion.button
                     onClick={() => {
                       handleCloseDetailModal();
                       handleEditClick(userToView);
                     }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
                     className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center"
                   >
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                     </svg>
                     Chỉnh sửa
-                  </button>
+                  </motion.button>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

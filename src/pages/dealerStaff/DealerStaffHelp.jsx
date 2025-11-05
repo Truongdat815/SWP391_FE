@@ -82,7 +82,7 @@ const DealerStaffHelp = ({ onBack }) => {
   );
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-4 space-y-4">
       {onBack && (
         <button
           onClick={onBack}
@@ -94,16 +94,16 @@ const DealerStaffHelp = ({ onBack }) => {
           Quay lại
         </button>
       )}
-      <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-2xl p-6 sm:p-8 shadow-sm">
+      <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-2xl p-4 sm:p-6 shadow-sm">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Trợ giúp bán hàng</h1>
         <p className="text-gray-600 mt-1">Hướng dẫn và hỗ trợ cho nhân viên bán hàng</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         <div className="lg:col-span-2 space-y-6">
           {/* Tabs */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
-            <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 mb-6">
+          <div className="bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
+            <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 mb-4">
               <button
                 onClick={() => setActiveTab('faq')}
                 className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition ${
@@ -241,7 +241,7 @@ const DealerStaffHelp = ({ onBack }) => {
           </div>
 
           {/* Các bước khắc phục nhanh */}
-          <section className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6">
+          <section className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Các bước khắc phục nhanh</h2>
             <ul className="space-y-3 text-gray-700">
               <li className="flex items-start gap-3">
@@ -264,7 +264,7 @@ const DealerStaffHelp = ({ onBack }) => {
           </section>
         </div>
 
-        <aside className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 space-y-4">
+        <aside className="bg-white rounded-2xl shadow-sm border border-gray-200 p-4 space-y-3">
           <h3 className="font-semibold text-gray-900">Liên hệ hỗ trợ</h3>
           <div className="space-y-3">
             <div className="flex items-center gap-3">

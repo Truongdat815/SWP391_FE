@@ -20,7 +20,9 @@ async function request(path, { method = 'GET', body } = {}) {
         const message = (isJson && data?.message) || res.statusText || 'Request failed';
         throw new Error(message);
     }
-    return data;
+    
+    // Handle wrapper format {code, message, data}
+    return data?.data !== undefined ? data.data : data;
 }
 
 // Create appointment
@@ -40,12 +42,42 @@ export async function getAppointmentById(appointmentId) {
 
 // Update appointment
 export async function updateAppointment(appointmentId, appointment) {
-    return request(`/api/appointments/${encodeURIComponent(appointmentId)}`, { method: 'PUT', body: appointment });
+    return request(`/api/appointments/update/${encodeURIComponent(appointmentId)}`, { method: 'PUT', body: appointment });
 }
 
 // Delete appointment
 export async function deleteAppointment(appointmentId) {
     return request(`/api/appointments/${encodeURIComponent(appointmentId)}`, { method: 'DELETE' });
+}
+
+// Get appointments by store
+export async function getAppointmentsByStore(storeId) {
+    return request(`/api/appointments/store/${encodeURIComponent(storeId)}`, { method: 'GET' });
+}
+
+// Get appointments by status
+export async function getAppointmentsByStatus(status) {
+    return request(`/api/appointments/status/${encodeURIComponent(status)}`, { method: 'GET' });
+}
+
+// Get appointments by staff
+export async function getAppointmentsByStaff(staffId) {
+    return request(`/api/appointments/staff/${encodeURIComponent(staffId)}`, { method: 'GET' });
+}
+
+// Get appointments by model
+export async function getAppointmentsByModel(modelId) {
+    return request(`/api/appointments/model/${encodeURIComponent(modelId)}`, { method: 'GET' });
+}
+
+// Get appointments by customer
+export async function getAppointmentsByCustomer(customerId) {
+    return request(`/api/appointments/customer/${encodeURIComponent(customerId)}`, { method: 'GET' });
+}
+
+// Update appointment status
+export async function updateAppointmentStatus(appointmentId, status) {
+    return request(`/api/appointments/${encodeURIComponent(appointmentId)}/status`, { method: 'PATCH', body: { status } });
 }
 
 

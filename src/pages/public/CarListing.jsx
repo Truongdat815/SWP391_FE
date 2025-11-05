@@ -6,9 +6,42 @@ function CarListing() {
   const [models, setModels] = useState([])
 
   useEffect(() => {
-    get('/api/models/all')
-      .then(res => setModels(res.data.data))
-      .catch(err => console.error('Lỗi lấy danh sách model:', err))
+    const fetchModels = async () => {
+      try {
+        // Try with token first, if fails with 401, try without token (public endpoint)
+        let res;
+        try {
+            res = await get('/api/models/all');
+        } catch (err) {
+            // If 401, try as public endpoint
+            if (err.message && err.message.includes('401')) {
+                console.log('🔓 Trying as public endpoint (no token)...');
+                res = await get('/api/models/all', { skipAuth: true });
+            } else {
+                throw err;
+            }
+        }
+        
+        // Handle different response structures
+        let modelsData = null;
+        if (res?.data?.data && Array.isArray(res.data.data)) {
+            modelsData = res.data.data;
+        } else if (res?.data && Array.isArray(res.data)) {
+            modelsData = res.data;
+        } else if (Array.isArray(res)) {
+            modelsData = res;
+        } else {
+            modelsData = [];
+        }
+        
+        setModels(modelsData);
+      } catch (err) {
+        console.error('Lỗi lấy danh sách model:', err);
+        setModels([]);
+      }
+    };
+    
+    fetchModels();
   }, [])
 
   return (
