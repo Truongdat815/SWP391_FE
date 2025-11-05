@@ -95,6 +95,19 @@ export async function getAllContracts() {
     });
 }
 
+// Get contract by order ID (check if order has contract)
+export async function getContractByOrderId(orderId) {
+    try {
+        const contracts = await getAllContracts();
+        const contractsList = contracts?.data || contracts || [];
+        const contract = contractsList.find(c => String(c.orderId) === String(orderId));
+        return contract || null;
+    } catch (error) {
+        console.error('Error checking contract for order:', error);
+        return null;
+    }
+}
+
 // Upload signed contract file (API: POST /api/contracts/{contractId}/upload-signed)
 export async function uploadSignedContract(contractId, file) {
     const token = getToken();

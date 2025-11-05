@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { get } from '@/api/client';
+import { get, fetchExternalApi } from '@/api/client';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAllCustomersThunk, createCustomerThunk, deleteCustomerThunk, updateCustomerThunk } from '@store/slices/customerSlice';
 import { fetchOrdersByCustomer } from '@store/slices/orderSlice';
+import { useAuth } from '../../contexts/AuthContext';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import Tooltip from '@/components/ui/Tooltip';
@@ -12,6 +13,7 @@ import Tooltip from '@/components/ui/Tooltip';
 function CustomerManagement() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const customers = useSelector((s) => s.customers.items);
   const customersStatus = useSelector((s) => s.customers.status);
   const customersError = useSelector((s) => s.customers.error);
@@ -23,6 +25,7 @@ function CustomerManagement() {
   const sortDropdownRef = useRef(null);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
 
+  // Fetch all customers (filter by store will be done in frontend)
   useEffect(() => {
     if (customersStatus === 'idle') {
       dispatch(getAllCustomersThunk());
@@ -56,7 +59,11 @@ function CustomerManagement() {
     }
   }, [customersStatus, customers.length]);
 
-  const customersList = (customers && customers.length) ? customers : customersApi;
+  // Filter customers by store for dealer-staff
+  const allCustomers = (customers && customers.length) ? customers : customersApi;
+  const customersList = user?.storeId 
+    ? allCustomers.filter(customer => customer.storeId === user.storeId || String(customer.storeId) === String(user.storeId))
+    : allCustomers;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
@@ -68,6 +75,33 @@ function CustomerManagement() {
       setShowAddModal(true);
     }
   }, [location]);
+
+  // Fetch provinces từ API bên thứ 3 - sử dụng depth=3 để có đầy đủ wards
+  useEffect(() => {
+    const fetchProvinces = async () => {
+      setLoadingProvinces(true);
+      try {
+        // Sử dụng depth=3 để lấy đầy đủ provinces -> districts -> wards
+        const data = await fetchExternalApi('https://provinces.open-api.vn/api/v1/?depth=3');
+        console.log('Provinces data loaded:', data?.length, 'provinces');
+        setProvinces(data || []);
+      } catch (error) {
+        console.error('Lỗi khi tải danh sách tỉnh/thành phố với depth=3, thử depth=2:', error);
+        // Fallback: nếu depth=3 fail, thử depth=2
+        try {
+          const fallbackData = await fetchExternalApi('https://provinces.open-api.vn/api/v1/?depth=2');
+          setProvinces(fallbackData || []);
+        } catch (fallbackError) {
+          console.error('Lỗi fallback depth=2:', fallbackError);
+          setProvinces([]);
+        }
+      } finally {
+        setLoadingProvinces(false);
+      }
+    };
+    
+    fetchProvinces();
+  }, []);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [customerToDelete, setCustomerToDelete] = useState(null);
@@ -77,6 +111,16 @@ function CustomerManagement() {
   const [showOrdersModal, setShowOrdersModal] = useState(false);
   const [customerOrders, setCustomerOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  
+  // State cho dependent dropdowns
+  const [provinces, setProvinces] = useState([]);
+  const [districts, setDistricts] = useState([]);
+  const [wards, setWards] = useState([]);
+  const [selectedProvinceCode, setSelectedProvinceCode] = useState(null);
+  const [selectedDistrictCode, setSelectedDistrictCode] = useState(null);
+  const [selectedWardCode, setSelectedWardCode] = useState(null);
+  const [loadingProvinces, setLoadingProvinces] = useState(false);
+  const [detailAddress, setDetailAddress] = useState(''); // Địa chỉ chi tiết (số nhà, tên đường)
   
   const [formData, setFormData] = useState({
     fullName: '',
@@ -94,17 +138,188 @@ function CustomerManagement() {
     }));
   };
 
+  // Handler khi chọn tỉnh/thành phố
+  const handleProvinceChange = async (e) => {
+    const provinceCode = e.target.value;
+    setSelectedProvinceCode(provinceCode);
+    setSelectedDistrictCode(null);
+    setSelectedWardCode(null);
+    setDistricts([]);
+    setWards([]);
+
+    if (provinceCode) {
+      const selectedProvince = provinces.find(p => p.code.toString() === provinceCode);
+      if (selectedProvince && selectedProvince.districts) {
+        setDistricts(selectedProvince.districts || []);
+      }
+      
+      // Cập nhật địa chỉ sau khi state được cập nhật
+      setTimeout(() => updateAddress(), 100);
+    } else {
+      setTimeout(() => updateAddress(), 100);
+    }
+  };
+
+  // Handler khi chọn quận/huyện
+  const handleDistrictChange = async (e) => {
+    const districtCode = e.target.value;
+    setSelectedDistrictCode(districtCode);
+    setSelectedWardCode(null);
+    setWards([]);
+
+    if (districtCode) {
+      const selectedDistrict = districts.find(d => d.code.toString() === districtCode);
+      if (selectedDistrict) {
+        // Nếu districts có wards sẵn, sử dụng luôn
+        if (selectedDistrict.wards && Array.isArray(selectedDistrict.wards) && selectedDistrict.wards.length > 0) {
+          setWards(selectedDistrict.wards);
+        } else {
+          // Nếu không có wards, fetch từ API
+          try {
+            // Thử endpoint 1: /api/wards?district_code=...
+            try {
+              const wardsData = await fetchExternalApi(`https://provinces.open-api.vn/api/wards?district_code=${districtCode}`);
+              
+              if (wardsData) {
+                // Nếu là array trực tiếp
+                if (Array.isArray(wardsData) && wardsData.length > 0) {
+                  setWards(wardsData);
+                  return;
+                }
+                // Nếu có data property
+                if (wardsData.data && Array.isArray(wardsData.data) && wardsData.data.length > 0) {
+                  setWards(wardsData.data);
+                  return;
+                }
+              }
+            } catch (wardError) {
+              console.log('Endpoint /api/wards không thành công, thử endpoint khác:', wardError);
+            }
+
+            // Thử endpoint 2: /api/d/{districtCode}
+            try {
+              const districtData = await fetchExternalApi(`https://provinces.open-api.vn/api/d/${districtCode}`);
+              
+              if (districtData) {
+                // Case 1: Response là district object có wards property
+                if (districtData.wards && Array.isArray(districtData.wards) && districtData.wards.length > 0) {
+                  setWards(districtData.wards);
+                  return;
+                } 
+                // Case 2: Response là array trực tiếp
+                else if (Array.isArray(districtData) && districtData.length > 0) {
+                  setWards(districtData);
+                  return;
+                }
+                // Case 3: Response có nested structure với data property
+                else if (districtData.data && Array.isArray(districtData.data) && districtData.data.length > 0) {
+                  setWards(districtData.data);
+                  return;
+                }
+              }
+            } catch (districtError) {
+              console.log('Endpoint /api/d không thành công:', districtError);
+            }
+
+            // Nếu cả 2 endpoint đều fail, log warning
+            console.warn('Không thể fetch wards từ bất kỳ endpoint nào cho district:', districtCode);
+            setWards([]);
+          } catch (error) {
+            console.error('Lỗi khi tải danh sách phường/xã:', error);
+            setWards([]);
+          }
+        }
+      }
+      
+      // Cập nhật địa chỉ
+      setTimeout(() => updateAddress(), 100);
+    }
+  };
+
+  // Handler khi chọn phường/xã
+  const handleWardChange = (e) => {
+    const wardCode = e.target.value;
+    setSelectedWardCode(wardCode);
+    
+    // Cập nhật địa chỉ sau khi state được cập nhật
+    setTimeout(() => updateAddress(), 100);
+  };
+
+  // Function để cập nhật địa chỉ đầy đủ
+  const updateAddress = (newDetailAddress = null) => {
+    const currentDetail = newDetailAddress !== null ? newDetailAddress : detailAddress;
+    const provinceName = provinces.find(p => p.code.toString() === selectedProvinceCode)?.name || '';
+    const districtName = districts.find(d => d.code.toString() === selectedDistrictCode)?.name || '';
+    const wardName = wards.find(w => w.code.toString() === selectedWardCode)?.name || '';
+
+    let fullAddress = '';
+    
+    if (wardName && districtName && provinceName) {
+      fullAddress = currentDetail 
+        ? `${currentDetail}, ${wardName}, ${districtName}, ${provinceName}`
+        : `${wardName}, ${districtName}, ${provinceName}`;
+    } else if (districtName && provinceName) {
+      fullAddress = currentDetail 
+        ? `${currentDetail}, ${districtName}, ${provinceName}`
+        : `${districtName}, ${provinceName}`;
+    } else if (provinceName) {
+      fullAddress = currentDetail 
+        ? `${currentDetail}, ${provinceName}`
+        : provinceName;
+    } else {
+      fullAddress = currentDetail || '';
+    }
+
+    setFormData(prev => ({
+      ...prev,
+      address: fullAddress
+    }));
+  };
+
+  // Handler khi thay đổi địa chỉ chi tiết (số nhà, tên đường)
+  const handleDetailAddressChange = (e) => {
+    const value = e.target.value;
+    setDetailAddress(value);
+    updateAddress(value);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const result = await dispatch(createCustomerThunk(formData)).unwrap();
-      const newCustomer = result.data || result;
+      // Chuẩn bị dữ liệu customer với storeId của user hiện tại
+      const customerData = {
+        ...formData,
+        // Đảm bảo storeId được gửi lên backend (nếu user có storeId)
+        ...(user?.storeId && { storeId: user.storeId })
+      };
       
-      // Navigate to create order page with pre-selected customer
-      navigate('/dealer-staff/create-order', {
-        state: { selectedCustomer: newCustomer }
-      });
+      console.log('📤 Creating customer with data:', customerData);
       
+      // Tạo customer mới
+      const result = await dispatch(createCustomerThunk(customerData)).unwrap();
+      
+      // Extract customer data từ response (xử lý nhiều format có thể có)
+      let newCustomer = null;
+      if (result?.data) {
+        newCustomer = result.data;
+      } else if (result?.customer) {
+        newCustomer = result.customer;
+      } else if (result && typeof result === 'object' && result.customerId) {
+        newCustomer = result;
+      } else {
+        newCustomer = result;
+      }
+      
+      console.log('✅ Customer created successfully:', newCustomer);
+      
+      // Đợi một chút để đảm bảo Redux state đã được cập nhật
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // ✅ Refresh danh sách khách hàng sau khi tạo thành công
+      // Điều này đảm bảo danh sách được sync với server
+      await dispatch(getAllCustomersThunk()).unwrap();
+      
+      // Reset form
       setFormData({
         fullName: '',
         address: '',
@@ -112,9 +327,27 @@ function CustomerManagement() {
         phone: '',
         identificationNumber: ''
       });
+      setDetailAddress('');
+      setSelectedProvinceCode(null);
+      setSelectedDistrictCode(null);
+      setSelectedWardCode(null);
+      setDistricts([]);
+      setWards([]);
       setShowAddModal(false);
+      
+      // Navigate to create order page with pre-selected customer (nếu có customer data)
+      if (newCustomer && newCustomer.customerId) {
+        navigate('/dealer-staff/create-order', {
+          state: { selectedCustomer: newCustomer }
+        });
+      } else {
+        // Nếu không có customer data, chỉ đóng modal và ở lại trang customer management
+        console.warn('⚠️ Customer created but no customer data returned');
+      }
     } catch (error) {
-      console.error('Failed to create customer:', error);
+      console.error('❌ Failed to create customer:', error);
+      // Hiển thị thông báo lỗi cho user
+      alert('Không thể tạo khách hàng: ' + (error.message || error || 'Lỗi không xác định'));
     }
   };
 
@@ -126,6 +359,12 @@ function CustomerManagement() {
       phone: '',
       identificationNumber: ''
     });
+    setDetailAddress('');
+    setSelectedProvinceCode(null);
+    setSelectedDistrictCode(null);
+    setSelectedWardCode(null);
+    setDistricts([]);
+    setWards([]);
     setShowAddModal(false);
   };
 
@@ -138,12 +377,45 @@ function CustomerManagement() {
     if (!customerToDelete) return;
     
     try {
-      await dispatch(deleteCustomerThunk(customerToDelete.customerId)).unwrap();
+      const customerId = customerToDelete.customerId;
+      if (!customerId) {
+        console.error('Customer ID is missing');
+        alert('Không thể xóa khách hàng: Thiếu thông tin ID');
+        return;
+      }
+      
+      await dispatch(deleteCustomerThunk(customerId)).unwrap();
       setShowDeleteModal(false);
       setCustomerToDelete(null);
       dispatch(getAllCustomersThunk());
     } catch (error) {
       console.error('Failed to delete customer:', error);
+      
+      // Extract error message
+      let errorMessage = 'Không thể xóa khách hàng';
+      
+      if (error?.payload) {
+        // Error from Redux thunk
+        errorMessage = error.payload;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
+      
+      // Check for specific constraint errors
+      const errorStr = errorMessage.toString().toLowerCase();
+      if (errorStr.includes('reference constraint') || 
+          errorStr.includes('fk') || 
+          errorStr.includes('contracts') ||
+          errorStr.includes('hợp đồng')) {
+        errorMessage = 'Không thể xóa khách hàng này vì có đơn hàng đã được tạo hợp đồng. Vui lòng xóa hoặc hủy các hợp đồng liên quan trước khi xóa khách hàng.';
+      } else if (errorStr.includes('foreign key') || errorStr.includes('constraint')) {
+        errorMessage = 'Không thể xóa khách hàng này vì có dữ liệu liên quan (đơn hàng, hợp đồng, v.v.). Vui lòng xóa các dữ liệu liên quan trước.';
+      }
+      
+      // Show user-friendly alert
+      alert(`Lỗi khi xóa khách hàng:\n\n${errorMessage}`);
     }
   };
 
@@ -183,6 +455,12 @@ function CustomerManagement() {
         phone: '',
         identificationNumber: ''
       });
+      setDetailAddress('');
+      setSelectedProvinceCode(null);
+      setSelectedDistrictCode(null);
+      setSelectedWardCode(null);
+      setDistricts([]);
+      setWards([]);
       setShowEditModal(false);
       setCustomerToEdit(null);
       
@@ -200,6 +478,12 @@ function CustomerManagement() {
       phone: '',
       identificationNumber: ''
     });
+    setDetailAddress('');
+    setSelectedProvinceCode(null);
+    setSelectedDistrictCode(null);
+    setSelectedWardCode(null);
+    setDistricts([]);
+    setWards([]);
     setShowEditModal(false);
     setCustomerToEdit(null);
   };
@@ -677,21 +961,135 @@ function CustomerManagement() {
                     />
                   </div>
 
-                  {/* Address */}
+                  {/* Province Name - Dependent Dropdown */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Địa chỉ <span className="text-red-500">*</span>
+                      Tỉnh/Thành phố <span className="text-red-500">*</span>
+                    </label>
+                    {loadingProvinces ? (
+                      <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 flex items-center">
+                        <svg className="animate-spin h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span className="text-sm text-gray-500">Đang tải danh sách tỉnh/thành phố...</span>
+                      </div>
+                    ) : (
+                      <select
+                        name="provinceName"
+                        value={selectedProvinceCode || ''}
+                        onChange={handleProvinceChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
+                        required
+                      >
+                        <option value="">Chọn tỉnh/thành phố</option>
+                        {provinces.map((province) => (
+                          <option key={province.code} value={province.code}>
+                            {province.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* District Name - Dependent Dropdown */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Quận/Huyện <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="district"
+                      value={selectedDistrictCode || ''}
+                      onChange={handleDistrictChange}
+                      disabled={!selectedProvinceCode || districts.length === 0}
+                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all ${
+                        !selectedProvinceCode || districts.length === 0 
+                          ? 'bg-gray-100 cursor-not-allowed opacity-60' 
+                          : 'bg-white'
+                      }`}
+                      required
+                    >
+                      <option value="">
+                        {!selectedProvinceCode 
+                          ? 'Chọn tỉnh/thành phố trước' 
+                          : districts.length === 0 
+                          ? 'Không có quận/huyện'
+                          : 'Chọn quận/huyện'}
+                      </option>
+                      {districts.map((district) => (
+                        <option key={district.code} value={district.code}>
+                          {district.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Ward Name - Dependent Dropdown (Optional) */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Phường/Xã
+                    </label>
+                    <select
+                      name="ward"
+                      value={selectedWardCode || ''}
+                      onChange={handleWardChange}
+                      disabled={!selectedDistrictCode || wards.length === 0}
+                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all ${
+                        !selectedDistrictCode || wards.length === 0 
+                          ? 'bg-gray-100 cursor-not-allowed opacity-60' 
+                          : 'bg-white'
+                      }`}
+                    >
+                      <option value="">
+                        {!selectedDistrictCode 
+                          ? 'Chọn quận/huyện trước' 
+                          : wards.length === 0 
+                          ? 'Không có phường/xã'
+                          : 'Chọn phường/xã (tùy chọn)'}
+                      </option>
+                      {wards.map((ward) => (
+                        <option key={ward.code} value={ward.code}>
+                          {ward.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Address Detail - Số nhà, tên đường */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Địa chỉ chi tiết (Số nhà, tên đường) <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
+                      name="detailAddress"
+                      value={detailAddress}
+                      onChange={handleDetailAddressChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      placeholder="Nhập địa chỉ"
+                      placeholder="Nhập số nhà, tên đường (ví dụ: 123 Đường ABC)"
                       required
                     />
+                    <p className="text-xs text-gray-500 mt-1.5">
+                      💡 Địa chỉ sẽ tự động bao gồm: [Số nhà, tên đường] + Phường/Xã + Quận/Huyện + Tỉnh/Thành phố
+                    </p>
                   </div>
+
+                  {/* Full Address Preview */}
+                  {formData.address && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Địa chỉ đầy đủ (tự động tạo)
+                      </label>
+                      <textarea
+                        name="address"
+                        value={formData.address}
+                        readOnly
+                        rows={2}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 shadow-sm"
+                        placeholder="Địa chỉ sẽ được tự động tạo từ các trường trên"
+                      />
+                    </div>
+                  )}
 
                   {/* Identification Number */}
                   <div>
@@ -826,20 +1224,135 @@ function CustomerManagement() {
                     />
                   </div>
 
+                  {/* Province Name - Dependent Dropdown */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Địa chỉ <span className="text-red-500">*</span>
+                      Tỉnh/Thành phố <span className="text-red-500">*</span>
+                    </label>
+                    {loadingProvinces ? (
+                      <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 flex items-center">
+                        <svg className="animate-spin h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        <span className="text-sm text-gray-500">Đang tải danh sách tỉnh/thành phố...</span>
+                      </div>
+                    ) : (
+                      <select
+                        name="provinceName"
+                        value={selectedProvinceCode || ''}
+                        onChange={handleProvinceChange}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
+                        required
+                      >
+                        <option value="">Chọn tỉnh/thành phố</option>
+                        {provinces.map((province) => (
+                          <option key={province.code} value={province.code}>
+                            {province.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  {/* District Name - Dependent Dropdown */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Quận/Huyện <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      name="district"
+                      value={selectedDistrictCode || ''}
+                      onChange={handleDistrictChange}
+                      disabled={!selectedProvinceCode || districts.length === 0}
+                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all ${
+                        !selectedProvinceCode || districts.length === 0 
+                          ? 'bg-gray-100 cursor-not-allowed opacity-60' 
+                          : 'bg-white'
+                      }`}
+                      required
+                    >
+                      <option value="">
+                        {!selectedProvinceCode 
+                          ? 'Chọn tỉnh/thành phố trước' 
+                          : districts.length === 0 
+                          ? 'Không có quận/huyện'
+                          : 'Chọn quận/huyện'}
+                      </option>
+                      {districts.map((district) => (
+                        <option key={district.code} value={district.code}>
+                          {district.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Ward Name - Dependent Dropdown (Optional) */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Phường/Xã
+                    </label>
+                    <select
+                      name="ward"
+                      value={selectedWardCode || ''}
+                      onChange={handleWardChange}
+                      disabled={!selectedDistrictCode || wards.length === 0}
+                      className={`w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all ${
+                        !selectedDistrictCode || wards.length === 0 
+                          ? 'bg-gray-100 cursor-not-allowed opacity-60' 
+                          : 'bg-white'
+                      }`}
+                    >
+                      <option value="">
+                        {!selectedDistrictCode 
+                          ? 'Chọn quận/huyện trước' 
+                          : wards.length === 0 
+                          ? 'Không có phường/xã'
+                          : 'Chọn phường/xã (tùy chọn)'}
+                      </option>
+                      {wards.map((ward) => (
+                        <option key={ward.code} value={ward.code}>
+                          {ward.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Address Detail - Số nhà, tên đường */}
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">
+                      Địa chỉ chi tiết (Số nhà, tên đường) <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
-                      name="address"
-                      value={formData.address}
-                      onChange={handleInputChange}
+                      name="detailAddress"
+                      value={detailAddress}
+                      onChange={handleDetailAddressChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      placeholder="Nhập địa chỉ"
+                      placeholder="Nhập số nhà, tên đường (ví dụ: 123 Đường ABC)"
                       required
                     />
+                    <p className="text-xs text-gray-500 mt-1.5">
+                      💡 Địa chỉ sẽ tự động bao gồm: [Số nhà, tên đường] + Phường/Xã + Quận/Huyện + Tỉnh/Thành phố
+                    </p>
                   </div>
+
+                  {/* Full Address Preview */}
+                  {formData.address && (
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Địa chỉ đầy đủ (tự động tạo)
+                      </label>
+                      <textarea
+                        name="address"
+                        value={formData.address}
+                        readOnly
+                        rows={2}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 shadow-sm"
+                        placeholder="Địa chỉ sẽ được tự động tạo từ các trường trên"
+                      />
+                    </div>
+                  )}
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">

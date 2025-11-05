@@ -338,9 +338,15 @@ function ViewContracts() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {contract.signedContractFileUrl || contract.contractFileUrl ? (
-                        <CheckCircle className="h-5 w-5 text-green-500" />
+                        <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Đã upload
+                        </span>
                       ) : (
-                        <span className="text-gray-400">Chưa có</span>
+                        <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Chưa upload
+                        </span>
                       )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -349,7 +355,7 @@ function ViewContracts() {
                           href={contract.signedContractFileUrl || contract.contractFileUrl} 
                           target="_blank" 
                           rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-900 transition-colors underline"
+                          className="text-blue-600 hover:text-blue-900 transition-colors underline font-medium"
                         >
                           Xem hợp đồng đã ký
                         </a>

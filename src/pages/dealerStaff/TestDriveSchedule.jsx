@@ -81,12 +81,17 @@ function TestDriveSchedule({ onBack }) {
     }
   }, [dispatch, filterStatus, filterModelId, filterCustomerId, user?.storeId]);
 
-  // Filter customers by search term
-  const filteredCustomers = (customers || []).filter(customer =>
-    customer.fullName?.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
-    customer.phone?.includes(customerSearchTerm) ||
-    customer.email?.toLowerCase().includes(customerSearchTerm.toLowerCase())
-  );
+  // Filter customers by store and search term
+  const filteredCustomers = (customers || []).filter(customer => {
+    // Filter by store for dealer-staff
+    const matchesStore = !user?.storeId || customer.storeId === user.storeId || String(customer.storeId) === String(user.storeId);
+    // Filter by search term
+    const matchesSearch = !customerSearchTerm ||
+      customer.fullName?.toLowerCase().includes(customerSearchTerm.toLowerCase()) ||
+      customer.phone?.includes(customerSearchTerm) ||
+      customer.email?.toLowerCase().includes(customerSearchTerm.toLowerCase());
+    return matchesStore && matchesSearch;
+  });
 
   // Filter appointments by selected date (local filter)
   const filteredAppointments = appointments.filter(apt => {

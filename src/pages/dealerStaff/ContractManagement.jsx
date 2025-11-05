@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { 
   fetchOrdersByStatus
 } from '../../store/slices/orderSlice';
 import { 
-  createContractFromOrderThunk
+  createContractFromOrderThunk,
+  fetchAllContractsThunk
 } from '../../store/slices/contractSlice';
 import { 
   Search, 
@@ -15,21 +17,28 @@ import {
   CheckCircle,
   AlertCircle,
   FileText,
-  ShoppingCart
+  ShoppingCart,
+  List,
+  Upload,
+  X
 } from 'lucide-react';
 import Tooltip from '@/components/ui/Tooltip';
+import ViewContracts from './ViewContracts';
 
 function ContractManagement() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [activeTab, setActiveTab] = useState('create'); // 'create' | 'view'
   
   const { orders, loading } = useSelector((state) => state.orders);
-  const { loading: contractLoading } = useSelector((state) => state.contracts);
+  const { contracts, loading: contractLoading } = useSelector((state) => state.contracts);
   
   const [searchTerm, setSearchTerm] = useState('');
   const [successMessage, setSuccessMessage] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
   const [creatingContractForOrder, setCreatingContractForOrder] = useState(null);
+  const [selectedOrderIdForContract, setSelectedOrderIdForContract] = useState(null);
   const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
   const sortOrders = (arr, mode = 'newest') => {
     const getTime = (o) => new Date(o.orderDate || 0).getTime();
@@ -49,10 +58,58 @@ function ContractManagement() {
     }
   };
 
-  // Load confirmed orders on mount
+  // Load confirmed orders and contracts on mount
   useEffect(() => {
     dispatch(fetchOrdersByStatus('CONFIRMED'));
+    dispatch(fetchAllContractsThunk());
   }, [dispatch]);
+
+  // Check if we should switch to view tab from navigation state
+  // Also handle orderId from ViewOrders navigation
+  useEffect(() => {
+    if (location.state?.tab === 'view') {
+      setActiveTab('view');
+      // Clear the state to prevent re-triggering
+      window.history.replaceState({}, document.title);
+    }
+    
+    // Nếu có orderId từ navigation state (từ ViewOrders), tự động chọn đơn hàng đó
+    if (location.state?.orderId && location.state?.tab === 'create') {
+      setActiveTab('create');
+      const orderId = location.state.orderId;
+      
+      // Tìm đơn hàng trong danh sách
+      const targetOrder = orders?.find(order => 
+        String(order.orderId) === String(orderId)
+      );
+      
+      if (targetOrder) {
+        // Highlight đơn hàng được chọn
+        setSelectedOrderIdForContract(orderId);
+        
+        // Scroll to the order after a short delay to ensure DOM is updated
+        setTimeout(() => {
+          const element = document.getElementById(`order-row-${orderId}`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 300);
+      }
+      
+      // Clear the state to prevent re-triggering
+      window.history.replaceState({}, document.title);
+    }
+  }, [location, orders]);
+
+  // Create map of orderId -> contract for quick lookup
+  const ordersWithContracts = {};
+  if (contracts && contracts.length > 0) {
+    contracts.forEach(contract => {
+      if (contract.orderId) {
+        ordersWithContracts[contract.orderId] = contract;
+      }
+    });
+  }
 
   // Filter orders by search
   const filteredOrders = sortOrders(
@@ -66,15 +123,31 @@ function ContractManagement() {
 
   // Handlers
   const handleViewOrder = (order) => {
-    // Navigate to order details or open modal
-    navigate(`/dealer-staff/view-orders`);
+    // Navigate to order management page with view tab
+    navigate(`/dealer-staff/order-management`, { state: { tab: 'view' } });
   };
 
   const handleCreateContract = async (order) => {
     if (!order) return;
 
+    // Validation: Check if order already has contract
+    const existingContract = ordersWithContracts[order.orderId];
+    if (existingContract) {
+      setErrorMessage(`Đơn hàng này đã có hợp đồng (${existingContract.contractCode || `#${existingContract.contractId}`}). Vui lòng xem hợp đồng hiện tại.`);
+      setTimeout(() => setErrorMessage(null), 5000);
+      return;
+    }
+
+    // Validation: Check if order is CONFIRMED
+    if (order.status?.toUpperCase() !== 'CONFIRMED') {
+      setErrorMessage('Chỉ có thể tạo hợp đồng cho đơn hàng đã xác nhận (CONFIRMED).');
+      setTimeout(() => setErrorMessage(null), 5000);
+      return;
+    }
+
     try {
       setCreatingContractForOrder(order.orderId);
+      setErrorMessage(null);
       
       // Call API to create contract
       const result = await dispatch(createContractFromOrderThunk(order.orderId)).unwrap();
@@ -84,29 +157,29 @@ function ContractManagement() {
       // Extract contractId from result
       const contractId = result.contractId || result.data?.contractId;
       
-      // Show success message
-      setSuccessMessage(`Đã tạo hợp đồng thành công cho đơn ${order.orderCode}!`);
+      // Refresh contracts list
+      await dispatch(fetchAllContractsThunk());
       
-      // Navigate to view contracts page after short delay
+      // Show success message
+      setSuccessMessage(`Đã tạo hợp đồng thành công cho đơn ${order.orderCode || order.orderId}!`);
+      
+      // Switch to view contracts tab after short delay
       setTimeout(() => {
-        navigate('/dealer-staff/view-contracts', {
-          state: {
-            message: `Đã tạo hợp đồng thành công cho đơn ${order.orderCode}!`,
-            contractId: contractId
-          }
-        });
+        setActiveTab('view');
+        setSuccessMessage(null);
       }, 1500);
       
     } catch (error) {
       console.error('Error creating contract:', error);
       setErrorMessage('Không thể tạo hợp đồng: ' + (error.message || error));
-      setTimeout(() => setErrorMessage(null), 3000);
+      setTimeout(() => setErrorMessage(null), 5000);
     } finally {
       setCreatingContractForOrder(null);
     }
   };
 
-  return (
+  // Create Contract Tab Content
+  const CreateContractTab = () => (
     <div className="max-w-7xl mx-auto">
       {/* Success/Error Messages */}
       {successMessage && (
@@ -120,6 +193,35 @@ function ContractManagement() {
         <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
           <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
           <span className="text-red-700">{errorMessage}</span>
+        </div>
+      )}
+
+      {/* Thông báo khi được navigate từ ViewOrders */}
+      {location.state?.orderId && location.state?.orderData && (
+        <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-start">
+          <FileText className="h-5 w-5 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="font-semibold text-blue-900 mb-1">Đang tạo hợp đồng cho đơn hàng</h4>
+            <p className="text-sm text-blue-800">
+              Đơn hàng: <strong>{location.state.orderData.orderCode || `ORD-${location.state.orderId}`}</strong>
+              {location.state.orderData.customerName && (
+                <> - Khách hàng: <strong>{location.state.orderData.customerName}</strong></>
+              )}
+            </p>
+            <p className="text-xs text-blue-700 mt-2">
+              Đơn hàng đã được highlight bên dưới. Vui lòng kiểm tra thông tin và nhấn "Tạo hợp đồng" để tiếp tục.
+            </p>
+          </div>
+          <button
+            onClick={() => {
+              setSelectedOrderIdForContract(null);
+              window.history.replaceState({}, document.title);
+            }}
+            className="text-blue-600 hover:text-blue-800 transition-colors"
+            title="Đóng thông báo"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
 
@@ -196,6 +298,9 @@ function ContractManagement() {
                     Trạng thái
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Hợp đồng
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Tổng thanh toán
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -205,7 +310,15 @@ function ContractManagement() {
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredOrders.map((order) => (
-                  <tr key={order.orderId} className="hover:bg-gray-50">
+                  <tr 
+                    key={order.orderId} 
+                    id={`order-row-${order.orderId}`}
+                    className={`hover:bg-gray-50 transition-colors ${
+                      selectedOrderIdForContract === order.orderId 
+                        ? 'bg-blue-50 border-l-4 border-blue-500 shadow-sm' 
+                        : ''
+                    }`}
+                  >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                       {order.orderCode || `ORD-${order.orderId}`}
                     </td>
@@ -224,6 +337,25 @@ function ContractManagement() {
                         Đã xác nhận
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {(() => {
+                        const contract = ordersWithContracts[order.orderId];
+                        if (contract) {
+                          return (
+                            <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Đã có
+                            </span>
+                          );
+                        } else {
+                          return (
+                            <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                              Chưa có
+                            </span>
+                          );
+                        }
+                      })()}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                       {(order.totalPayment || 0).toLocaleString('vi-VN')} VNĐ
                     </td>
@@ -238,19 +370,37 @@ function ContractManagement() {
                           </button>
                         </Tooltip>
                         
-                        <Tooltip content="Tạo hợp đồng" placement="top">
-                          <button
-                            onClick={() => handleCreateContract(order)}
-                            disabled={creatingContractForOrder === order.orderId}
-                            className="text-blue-600 hover:text-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {creatingContractForOrder === order.orderId ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <FilePlus className="h-4 w-4" />
-                            )}
-                          </button>
-                        </Tooltip>
+                        {(() => {
+                          const hasContract = ordersWithContracts[order.orderId];
+                          if (hasContract) {
+                            return (
+                              <Tooltip content="Đơn hàng đã có hợp đồng" placement="top">
+                                <button
+                                  onClick={() => setActiveTab('view')}
+                                  className="text-green-600 hover:text-green-900 transition-colors"
+                                >
+                                  <CheckCircle className="h-4 w-4" />
+                                </button>
+                              </Tooltip>
+                            );
+                          } else {
+                            return (
+                              <Tooltip content="Tạo hợp đồng" placement="top">
+                                <button
+                                  onClick={() => handleCreateContract(order)}
+                                  disabled={creatingContractForOrder === order.orderId}
+                                  className="text-blue-600 hover:text-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                  {creatingContractForOrder === order.orderId ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <FilePlus className="h-4 w-4" />
+                                  )}
+                                </button>
+                              </Tooltip>
+                            );
+                          }
+                        })()}
                       </div>
                     </td>
                   </tr>
@@ -260,6 +410,53 @@ function ContractManagement() {
           </div>
         )}
       </div>
+    </div>
+  );
+
+  return (
+    <div className="max-w-7xl mx-auto">
+      {/* Tabs */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
+        <div className="flex space-x-2 border-b border-gray-200 pb-2">
+          <motion.button
+            onClick={() => setActiveTab('create')}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className={`flex items-center px-6 py-3 font-medium rounded-lg transition-all ${
+              activeTab === 'create'
+                ? 'text-emerald-600 bg-emerald-50 border-b-2 border-emerald-600'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <FilePlus className={`h-5 w-5 mr-2 ${activeTab === 'create' ? 'text-emerald-600' : 'text-gray-500'}`} />
+            Tạo hợp đồng
+          </motion.button>
+          
+          <motion.button
+            onClick={() => setActiveTab('view')}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className={`flex items-center px-6 py-3 font-medium rounded-lg transition-all ${
+              activeTab === 'view'
+                ? 'text-emerald-600 bg-emerald-50 border-b-2 border-emerald-600'
+                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+            }`}
+          >
+            <List className={`h-5 w-5 mr-2 ${activeTab === 'view' ? 'text-emerald-600' : 'text-gray-500'}`} />
+            Danh sách hợp đồng
+          </motion.button>
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      <motion.div
+        key={activeTab}
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        {activeTab === 'create' ? <CreateContractTab /> : <ViewContracts />}
+      </motion.div>
     </div>
   );
 }

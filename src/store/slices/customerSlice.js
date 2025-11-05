@@ -60,10 +60,38 @@ export const deleteCustomerThunk = createAsyncThunk(
     'customers/delete',
     async (customerId, { rejectWithValue }) => {
         try {
+            console.log('Deleting customer with ID:', customerId, 'Type:', typeof customerId);
             await customerService.deleteCustomer(customerId);
+            console.log('Customer deleted successfully');
             return customerId;
         } catch (err) {
-            return rejectWithValue(err.message || 'Failed to delete customer');
+            console.error('Error deleting customer:', err);
+            
+            // Extract error message from various possible structures
+            let errorMessage = 'Không thể xóa khách hàng';
+            
+            if (err?.message) {
+                errorMessage = err.message;
+            } else if (typeof err === 'string') {
+                errorMessage = err;
+            } else if (err?.error) {
+                errorMessage = err.error;
+            } else if (err?.response?.data?.message) {
+                errorMessage = err.response.data.message;
+            }
+            
+            // Check for constraint errors and provide user-friendly message
+            const errorStr = errorMessage.toString().toLowerCase();
+            if (errorStr.includes('reference constraint') || 
+                errorStr.includes('fk') || 
+                errorStr.includes('contracts') ||
+                errorStr.includes('hợp đồng')) {
+                errorMessage = 'Không thể xóa khách hàng này vì có đơn hàng đã được tạo hợp đồng. Vui lòng xóa hoặc hủy các hợp đồng liên quan trước khi xóa khách hàng.';
+            } else if (errorStr.includes('foreign key') || errorStr.includes('constraint')) {
+                errorMessage = 'Không thể xóa khách hàng này vì có dữ liệu liên quan (đơn hàng, hợp đồng, v.v.). Vui lòng xóa các dữ liệu liên quan trước.';
+            }
+            
+            return rejectWithValue(errorMessage);
         }
     }
 );
@@ -91,29 +119,45 @@ const customerSlice = createSlice({
             })
             .addCase(createCustomerThunk.fulfilled, (state, action) => {
                 state.status = 'succeeded';
+                state.error = null;
+                
                 // Extract customer data from response structure { code, message, data }
-                const customer = action.payload?.data || action.payload;
+                // Try multiple possible response structures
+                let customer = null;
                 
-                console.log('createCustomerThunk.fulfilled - Customer to add:', customer);
-                console.log('createCustomerThunk.fulfilled - Current state.items:', state.items);
-                
-                if (customer) {
-                    // Kiểm tra xem customer đã tồn tại chưa
-                    const exists = state.items.some(c => c.customerId === customer.customerId);
-                    if (!exists) {
-                        state.items.push(customer);
-                        console.log('Customer added to state. New count:', state.items.length);
-                    } else {
-                        console.log('Customer already exists in state, updating...');
-                        state.items = state.items.map(c => 
-                            c.customerId === customer.customerId ? customer : c
-                        );
-                    }
-                } else {
-                    console.warn('No customer data to add to state');
+                if (action.payload?.data) {
+                    customer = action.payload.data;
+                } else if (action.payload?.customer) {
+                    customer = action.payload.customer;
+                } else if (action.payload && typeof action.payload === 'object' && action.payload.customerId) {
+                    customer = action.payload;
+                } else if (action.payload) {
+                    customer = action.payload;
                 }
                 
-                console.log('Final state.items after create:', state.items.length);
+                console.log('createCustomerThunk.fulfilled - Full payload:', action.payload);
+                console.log('createCustomerThunk.fulfilled - Extracted customer:', customer);
+                console.log('createCustomerThunk.fulfilled - Current state.items count:', state.items.length);
+                
+                if (customer && customer.customerId) {
+                    // Kiểm tra xem customer đã tồn tại chưa
+                    const existingIndex = state.items.findIndex(c => c.customerId === customer.customerId);
+                    if (existingIndex === -1) {
+                        // Thêm customer mới vào đầu danh sách
+                        state.items.unshift(customer);
+                        console.log('✅ Customer added to state. New count:', state.items.length);
+                    } else {
+                        // Cập nhật customer đã tồn tại
+                        console.log('Customer already exists in state, updating...');
+                        state.items[existingIndex] = customer;
+                    }
+                } else {
+                    console.warn('⚠️ No valid customer data to add to state. Payload:', action.payload);
+                    // Nếu không có customer data, vẫn đánh dấu thành công nhưng không thêm vào state
+                    // getAllCustomersThunk sẽ được gọi sau đó để refresh danh sách
+                }
+                
+                console.log('Final state.items count after create:', state.items.length);
             })
             .addCase(createCustomerThunk.rejected, (state, action) => {
                 state.status = 'failed';
@@ -153,6 +197,7 @@ const customerSlice = createSlice({
             })
             .addCase(getAllCustomersThunk.fulfilled, (state, action) => {
                 state.status = 'succeeded';
+                state.error = null;
                 const payload = action.payload;
                 
                 // Debug log để kiểm tra response structure
@@ -191,40 +236,44 @@ const customerSlice = createSlice({
                     console.log('First customer storeId:', normalized[0].storeId, 'type:', typeof normalized[0].storeId);
                 }
                 
-                // SỬA LẠI LOGIC: Khi reload, state.items reset về [], nên cần set trực tiếp
-                // Chỉ merge nếu có customers hiện có (không phải reload)
-                if (normalized.length === 0 && state.items.length > 0) {
-                    // API trả về rỗng nhưng state có data (sau khi tạo mới, API chưa cập nhật)
-                    console.log('⚠️ API returned empty, keeping existing customers:', state.items.length);
-                    return;
-                }
+                // ✅ CẢI THIỆN LOGIC: Luôn merge để không mất customers vừa tạo
+                // Tạo một Map để lưu customers theo customerId (ưu tiên API data vì nó là source of truth từ server)
+                const customersMap = new Map();
+                const previousStateCount = state.items.length;
                 
-                if (normalized.length > 0) {
-                    // Có data từ API - set trực tiếp (bao gồm cả khi reload)
-                    if (state.items.length > 0) {
-                        // Merge để tránh mất customers vừa tạo (nếu có)
-                        const existingIds = new Set(state.items.map(c => c.customerId));
-                        const newCustomers = normalized.filter(c => !existingIds.has(c.customerId));
-                        
-                        if (newCustomers.length > 0) {
-                            console.log('Merging: API returned', normalized.length, 'customers, adding', newCustomers.length, 'new ones');
-                            state.items = [...normalized, ...newCustomers];
-                        } else {
-                            // Không có customers mới, chỉ cập nhật từ API
-                            console.log('Updating customers from API:', normalized.length);
-                            state.items = normalized;
-                        }
-                    } else {
-                        // State rỗng (reload) - set trực tiếp từ API
-                        console.log('✅ Setting customers from API (reload):', normalized.length);
-                        state.items = normalized;
+                // Thêm customers từ API vào Map (ưu tiên cao nhất - data từ server)
+                normalized.forEach(customer => {
+                    if (customer && customer.customerId) {
+                        customersMap.set(customer.customerId, customer);
                     }
-                } else {
-                    // API trả về rỗng và state cũng rỗng
-                    state.items = [];
-                    console.log('⚠️ No customers from API');
-                }
+                });
                 
+                // Thêm customers từ state hiện tại vào Map nếu chưa có trong API response
+                // Điều này giữ lại customers vừa tạo mà API có thể chưa trả về kịp
+                let keptFromState = 0;
+                state.items.forEach(customer => {
+                    if (customer && customer.customerId && !customersMap.has(customer.customerId)) {
+                        // Chỉ giữ lại customers có customerId hợp lệ (đã được server tạo)
+                        // Nếu customerId là số dương, nghĩa là đã được lưu vào database
+                        const customerId = customer.customerId;
+                        if (typeof customerId === 'number' && customerId > 0) {
+                            customersMap.set(customerId, customer);
+                            keptFromState++;
+                            console.log('🔄 Keeping customer from state (not in API yet):', customerId, customer.fullName);
+                        }
+                    }
+                });
+                
+                // Chuyển Map về array và sort theo customerId giảm dần (mới nhất ở đầu)
+                const mergedCustomers = Array.from(customersMap.values());
+                mergedCustomers.sort((a, b) => (b.customerId || 0) - (a.customerId || 0));
+                
+                state.items = mergedCustomers;
+                
+                console.log('✅ Merged customers: API=', normalized.length, 
+                           ', From previous state=', previousStateCount,
+                           ', Kept from state=', keptFromState,
+                           ', Final total=', mergedCustomers.length);
                 console.log('Final customers count in state:', state.items.length);
             })
             .addCase(getAllCustomersThunk.rejected, (state, action) => {
@@ -267,9 +316,10 @@ const customerSlice = createSlice({
                 state.items = normalized;
             })
             .addCase(getCustomersByStoreThunk.rejected, (state, action) => {
-                state.status = 'failed';
-                state.error = action.payload;
-                console.error('Failed to fetch customers by store:', action.payload);
+                // Silently handle error - this thunk is deprecated, filtering is done in frontend
+                // Don't set error state to avoid UI issues
+                state.status = 'succeeded';
+                state.error = null;
             })
 
             .addCase(deleteCustomerThunk.pending, (state) => {
