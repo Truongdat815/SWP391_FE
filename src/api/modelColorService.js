@@ -45,10 +45,12 @@ export async function getModelColorsByColorId(colorId) {
 
 // Create new model-color combination
 export async function createModelColor(data) {
-    return request('/api/model-colors', { 
+    const response = await request('/api/model-colors', { 
         method: 'POST', 
         body: data 
     });
+    // Backend returns { code, message, data: { ... } }
+    return response?.data || response;
 }
 
 // Update model-color combination

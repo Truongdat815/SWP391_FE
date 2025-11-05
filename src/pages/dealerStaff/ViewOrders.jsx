@@ -11,7 +11,6 @@ import {
 } from '../../store/slices/orderSlice';
 import { fetchAllContractsThunk, createContractFromOrderThunk } from '../../store/slices/contractSlice';
 import { getOrderById } from '../../api/orderService';
-import Tooltip from '@/components/ui/Tooltip';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -231,6 +230,30 @@ function ViewOrders() {
     }
   };
 
+  // Format order code to ORD-01, ORD-02, ...
+  const formatOrderCode = (orderCode, orderId) => {
+    if (orderCode) {
+      // If orderCode already has format, extract number or use as is
+      const match = orderCode.match(/ORD-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        return `ORD-${String(num).padStart(2, '0')}`;
+      }
+      // Try to extract number from orderCode
+      const numMatch = orderCode.match(/(\d+)/);
+      if (numMatch) {
+        const num = parseInt(numMatch[1], 10);
+        return `ORD-${String(num).padStart(2, '0')}`;
+      }
+    }
+    // Fallback to orderId
+    if (orderId) {
+      const num = parseInt(orderId, 10);
+      return `ORD-${String(num).padStart(2, '0')}`;
+    }
+    return orderCode || 'N/A';
+  };
+
   const handleViewDetails = async (order) => {
     setSelectedOrder(order);
     setShowModal(true);
@@ -253,8 +276,20 @@ function ViewOrders() {
         console.log('ℹ️ Order has no products yet');
         setSelectedOrderDetails([]);
       } else {
+        // Filter duplicates by modelId and colorId combination
+        // Use a Map to track unique combinations and keep the first occurrence
+        const uniqueDetailsMap = new Map();
+        orderDetails.forEach((detail) => {
+          const key = `${detail.modelId}-${detail.colorId}`;
+          if (!uniqueDetailsMap.has(key)) {
+            uniqueDetailsMap.set(key, detail);
+          }
+        });
+        
+        const uniqueDetails = Array.from(uniqueDetailsMap.values());
         console.log('✅ Found product details in order:', orderDetails);
-        setSelectedOrderDetails(orderDetails);
+        console.log('✅ Filtered unique details:', uniqueDetails);
+        setSelectedOrderDetails(uniqueDetails);
       }
     } catch (error) {
       console.error('⚠️ Error loading order:', error);
@@ -296,7 +331,15 @@ function ViewOrders() {
     });
   };
 
-  const handleDeleteOrder = async (orderId) => {
+  const handleDeleteOrder = async (orderId, orderStatus) => {
+    // Chỉ cho phép xóa đơn hàng có trạng thái NHÁP hoặc ĐÃ XÁC NHẬN
+    const status = orderStatus?.toUpperCase();
+    if (status !== 'DRAFT' && status !== 'CONFIRMED') {
+      setErrorMessage('Chỉ có thể xóa đơn hàng có trạng thái "Nháp" hoặc "Đã xác nhận"');
+      setTimeout(() => setErrorMessage(null), 3000);
+      return;
+    }
+    
     if (!window.confirm('Bạn có chắc muốn xóa đơn hàng này? Thao tác này không thể hoàn tác!')) {
       return;
     }
@@ -330,8 +373,17 @@ function ViewOrders() {
     }
     
     try {
-      await dispatch(confirmOrderThunk(orderId)).unwrap();
-      setSuccessMessage('Đã xác nhận đơn hàng thành công!');
+      const confirmResponse = await dispatch(confirmOrderThunk(orderId)).unwrap();
+      console.log('✅ Order confirmed successfully:', confirmResponse);
+      
+      // Extract response data
+      const confirmData = confirmResponse.data || confirmResponse;
+      
+      // Build success message with order info
+      const orderCode = confirmData.orderCode || `#${confirmData.orderId || orderId}`;
+      const status = confirmData.status || 'CONFIRMED';
+      
+      setSuccessMessage(`Đã xác nhận đơn hàng ${orderCode} thành công! Trạng thái: ${status}`);
       
       // Refresh orders list
       if (startDate && endDate) {
@@ -342,11 +394,11 @@ function ViewOrders() {
         dispatch(fetchOrders());
       }
       
-      setTimeout(() => setSuccessMessage(null), 3000);
+      setTimeout(() => setSuccessMessage(null), 5000);
     } catch (error) {
       console.error('Error confirming order:', error);
-      setErrorMessage('Không thể xác nhận đơn hàng: ' + error);
-      setTimeout(() => setErrorMessage(null), 3000);
+      setErrorMessage('Không thể xác nhận đơn hàng: ' + (error.message || error));
+      setTimeout(() => setErrorMessage(null), 5000);
     }
   };
 
@@ -767,7 +819,7 @@ function ViewOrders() {
                 {filteredOrders.map((order) => (
                   <tr key={order.orderId} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {order.orderCode || `ORD-${order.orderId}`}
+                      {formatOrderCode(order.orderCode, order.orderId)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{order.customerName || 'N/A'}</div>
@@ -786,15 +838,14 @@ function ViewOrders() {
                         const contract = ordersWithContracts[order.orderId];
                         if (contract) {
                           return (
-                            <Tooltip content="Xem hợp đồng" placement="top">
-                              <button
-                                onClick={() => navigate('/dealer-staff/contract-management', { state: { tab: 'view' } })}
-                                className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 hover:bg-green-200 transition-colors"
-                              >
-                                <CheckCircle className="h-3 w-3 mr-1" />
-                                Đã có
-                              </button>
-                            </Tooltip>
+                            <button
+                              onClick={() => navigate('/dealer-staff/contract-management', { state: { tab: 'view' } })}
+                              className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 hover:bg-green-200 transition-colors"
+                              title="Xem hợp đồng"
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Đã có
+                            </button>
                           );
                         } else if (order.status?.toUpperCase() === 'CONFIRMED') {
                           return (
@@ -816,43 +867,53 @@ function ViewOrders() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex flex-wrap gap-2">
-                        <Tooltip content="Xem thông tin chi tiết đơn hàng và hợp đồng" placement="top">
+                        <button
+                          onClick={() => handleViewDetails(order)}
+                          className="text-emerald-600 hover:text-emerald-900 transition-colors flex items-center"
+                        >
+                          <Eye className="h-4 w-4 mr-1" />
+                          Chi tiết
+                        </button>
+                        
+                        {/* Nút Xác nhận đơn hàng - chỉ hiện khi đơn hàng DRAFT */}
+                        {order.status?.toUpperCase() === 'DRAFT' && (
                           <button
-                            onClick={() => handleViewDetails(order)}
-                            className="text-emerald-600 hover:text-emerald-900 transition-colors flex items-center"
+                            onClick={() => handleConfirmOrder(order.orderId)}
+                            className="text-blue-600 hover:text-blue-900 transition-colors flex items-center"
                           >
-                            <Eye className="h-4 w-4 mr-1" />
-                            Chi tiết
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Xác nhận
                           </button>
-                        </Tooltip>
+                        )}
                         
                         {/* Nút Tạo hợp đồng - chỉ hiện khi đơn hàng CONFIRMED và chưa có hợp đồng */}
                         {order.status?.toUpperCase() === 'CONFIRMED' && !ordersWithContracts[order.orderId] && (
-                          <Tooltip content="Tạo hợp đồng cho đơn hàng này" placement="top">
-                            <button
-                              onClick={() => navigate('/dealer-staff/contract-management', { 
-                                state: { 
-                                  tab: 'create',
-                                  orderId: order.orderId,
-                                  orderData: order // Truyền thêm orderData để có thể hiển thị thông tin
-                                } 
-                              })}
-                              className="text-blue-600 hover:text-blue-900 transition-colors flex items-center"
-                            >
-                              <FileText className="h-4 w-4 mr-1" />
-                              Tạo hợp đồng
-                            </button>
-                          </Tooltip>
+                          <button
+                            onClick={() => navigate('/dealer-staff/contract-management', { 
+                              state: { 
+                                tab: 'create',
+                                orderId: order.orderId,
+                                orderData: order // Truyền thêm orderData để có thể hiển thị thông tin
+                              } 
+                            })}
+                            className="text-blue-600 hover:text-blue-900 transition-colors flex items-center"
+                          >
+                            <FileText className="h-4 w-4 mr-1" />
+                            Tạo hợp đồng
+                          </button>
                         )}
                         
-                        <button
-                          onClick={() => handleDeleteOrder(order.orderId)}
-                          className="text-red-600 hover:text-red-900 transition-colors flex items-center"
-                          title="Xóa đơn hàng"
-                        >
-                          <Trash2 className="h-4 w-4 mr-1" />
-                          Xóa
-                        </button>
+                        {/* Nút Xóa đơn hàng - chỉ hiện khi đơn hàng có trạng thái DRAFT hoặc CONFIRMED */}
+                        {(order.status?.toUpperCase() === 'DRAFT' || order.status?.toUpperCase() === 'CONFIRMED') && (
+                          <button
+                            onClick={() => handleDeleteOrder(order.orderId, order.status)}
+                            className="text-red-600 hover:text-red-900 transition-colors flex items-center"
+                            title="Xóa đơn hàng"
+                          >
+                            <Trash2 className="h-4 w-4 mr-1" />
+                            Xóa
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -898,7 +959,7 @@ function ViewOrders() {
                   <div className="flex items-center space-x-4 text-sm text-gray-600">
                     <span className="flex items-center">
                       <Tag className="h-4 w-4 mr-1" />
-                      Mã: <span className="font-semibold ml-1">{selectedOrder.orderCode || `ORD-${selectedOrder.orderId}`}</span>
+                      Mã: <span className="font-semibold ml-1">{formatOrderCode(selectedOrder.orderCode, selectedOrder.orderId)}</span>
                     </span>
                     <span className="flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
@@ -995,7 +1056,7 @@ function ViewOrders() {
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-emerald-700">Thuế VAT:</span>
+                        <span className="text-xs text-emerald-700">Phí dịch vụ và biển số:</span>
                         <span className="text-sm font-semibold text-orange-600">
                           +{(selectedOrder.totalTaxPrice || 0).toLocaleString('vi-VN')}đ
                         </span>
@@ -1052,9 +1113,6 @@ function ViewOrders() {
                             <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
                               Phí biển số
                             </th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
-                              VAT
-                            </th>
                             {selectedOrderDetails.some(item => item.promotionName) && (
                               <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
                                 Khuyến mãi
@@ -1098,9 +1156,6 @@ function ViewOrders() {
                               </td>
                               <td className="px-6 py-4 text-right text-sm text-gray-600">
                                 {(item.licensePlateFee || 0).toLocaleString('vi-VN')}đ
-                              </td>
-                              <td className="px-6 py-4 text-right text-sm text-orange-600 font-semibold">
-                                +{(item.vatAmount || 0).toLocaleString('vi-VN')}đ
                               </td>
                               {selectedOrderDetails.some(i => i.promotionName) && (
                                 <td className="px-6 py-4 text-right text-xs">
@@ -1288,14 +1343,6 @@ function ViewOrders() {
                       className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
                     >
                       Đóng
-                    </motion.button>
-                    <motion.button
-                      onClick={() => window.print()}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-lg"
-                    >
-                      In đơn hàng
                     </motion.button>
                   </div>
                 </div>

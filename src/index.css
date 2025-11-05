@@ -98,3 +98,195 @@ html {
 ::-webkit-scrollbar-thumb:hover {
   background: #a8a8a8;
 }
+
+/* Print styles for order invoice */
+@media print {
+  @page {
+    size: A4;
+    margin: 0.5cm;
+  }
+  
+  /* Hide specific elements that should not print */
+  .print\:hidden,
+  button,
+  nav,
+  header,
+  footer,
+  aside {
+    display: none !important;
+  }
+  
+  /* Show only the invoice */
+  #order-invoice {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 0.5cm !important;
+    margin: 0 !important;
+    background: white !important;
+    box-shadow: none !important;
+    border: none !important;
+    page-break-after: always;
+  }
+  
+  /* Ensure all content inside invoice is visible */
+  #order-invoice,
+  #order-invoice * {
+    visibility: visible !important;
+    display: block !important;
+  }
+  
+  /* Restore table display */
+  #order-invoice table,
+  #order-invoice thead,
+  #order-invoice tbody,
+  #order-invoice tr,
+  #order-invoice th,
+  #order-invoice td {
+    display: table !important;
+    visibility: visible !important;
+  }
+  
+  #order-invoice thead {
+    display: table-header-group !important;
+  }
+  
+  #order-invoice tbody {
+    display: table-row-group !important;
+  }
+  
+  #order-invoice tr {
+    display: table-row !important;
+  }
+  
+  #order-invoice th,
+  #order-invoice td {
+    display: table-cell !important;
+  }
+  
+  /* Restore inline elements */
+  #order-invoice span,
+  #order-invoice p,
+  #order-invoice div,
+  #order-invoice img {
+    display: inline-block !important;
+    visibility: visible !important;
+  }
+  
+  /* Ensure flex containers work */
+  #order-invoice .flex {
+    display: flex !important;
+  }
+  
+  #order-invoice .grid {
+    display: grid !important;
+  }
+  
+  /* Remove borders and shadows when printing */
+  #order-invoice {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+  
+  /* Ensure table borders print correctly */
+  #order-invoice table {
+    border-collapse: collapse !important;
+    width: 100% !important;
+    font-size: 10pt !important;
+    margin: 0 !important;
+  }
+  
+  #order-invoice table th,
+  #order-invoice table td {
+    border: 1px solid #000 !important;
+    padding: 4px 3px !important;
+  }
+  
+  /* Prevent page breaks inside table rows */
+  #order-invoice tr {
+    page-break-inside: avoid;
+    page-break-after: auto;
+  }
+  
+  /* Adjust font sizes for print */
+  #order-invoice {
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+  }
+  
+  #order-invoice h1 {
+    font-size: 18pt !important;
+    margin: 0.3cm 0 !important;
+    display: block !important;
+  }
+  
+  #order-invoice h2 {
+    font-size: 14pt !important;
+    margin: 0.2cm 0 !important;
+    display: block !important;
+  }
+  
+  #order-invoice h3 {
+    font-size: 12pt !important;
+    margin: 0.2cm 0 !important;
+    display: block !important;
+  }
+  
+  #order-invoice p {
+    margin: 0.1cm 0 !important;
+    display: block !important;
+  }
+  
+  /* Ensure images print */
+  #order-invoice img {
+    max-width: 100%;
+    height: auto;
+    max-height: 3cm;
+    display: block !important;
+  }
+  
+  /* Remove background colors but keep structure */
+  #order-invoice {
+    background: white !important;
+  }
+  
+  #order-invoice * {
+    color: black !important;
+  }
+  
+  /* Make important numbers bold */
+  #order-invoice .font-bold,
+  #order-invoice .font-semibold {
+    font-weight: bold !important;
+  }
+  
+  /* Ensure spacing is compact for print */
+  #order-invoice .mb-6 {
+    margin-bottom: 0.4cm !important;
+  }
+  
+  #order-invoice .mb-3 {
+    margin-bottom: 0.3cm !important;
+  }
+  
+  #order-invoice .mb-2 {
+    margin-bottom: 0.2cm !important;
+  }
+  
+  #order-invoice .mt-8 {
+    margin-top: 0.5cm !important;
+  }
+  
+  #order-invoice .mt-6 {
+    margin-top: 0.4cm !important;
+  }
+  
+  #order-invoice .pt-4 {
+    padding-top: 0.3cm !important;
+  }
+  
+  #order-invoice .pb-4 {
+    padding-bottom: 0.3cm !important;
+  }
+}

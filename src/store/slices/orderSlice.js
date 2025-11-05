@@ -320,11 +320,30 @@ const orderSlice = createSlice({
       })
       .addCase(confirmOrderThunk.fulfilled, (state, action) => {
         state.loading = false;
+        // Extract data from response
         const confirmedOrder = action.payload?.data || action.payload;
+        
         // Update order in state if it exists
-        const index = state.orders.findIndex(o => o.orderId === confirmedOrder.orderId);
-        if (index !== -1) {
-          state.orders[index] = confirmedOrder;
+        if (confirmedOrder && confirmedOrder.orderId) {
+          const index = state.orders.findIndex(o => 
+            String(o.orderId) === String(confirmedOrder.orderId)
+          );
+          if (index !== -1) {
+            // Update existing order with new data from response
+            state.orders[index] = {
+              ...state.orders[index],
+              ...confirmedOrder,
+              status: confirmedOrder.status || 'CONFIRMED',
+              getOrderDetailsResponses: confirmedOrder.getOrderDetailsResponses || [],
+              totalPrice: confirmedOrder.totalPrice || 0,
+              totalTaxPrice: confirmedOrder.totalTaxPrice || 0,
+              totalPromotionAmount: confirmedOrder.totalPromotionAmount || 0,
+              totalPayment: confirmedOrder.totalPayment || 0
+            };
+          } else {
+            // Add new order if not found
+            state.orders.push(confirmedOrder);
+          }
         }
         state.success = 'Đơn hàng đã được xác nhận!';
       })

@@ -213,27 +213,48 @@ const customerSlice = createSlice({
                 // Xử lý nhiều cấu trúc response có thể có
                 let normalized = [];
                 
-                if (Array.isArray(payload?.data)) {
+                if (!payload) {
+                    console.warn('⚠️ getAllCustomersThunk: payload is null/undefined');
+                } else if (Array.isArray(payload?.data)) {
                     // Cấu trúc: { data: [...] }
                     normalized = payload.data;
+                    console.log('✅ Using payload.data (array)');
                 } else if (Array.isArray(payload?.data?.data)) {
                     // Cấu trúc: { data: { data: [...] } }
                     normalized = payload.data.data;
+                    console.log('✅ Using payload.data.data (array)');
                 } else if (Array.isArray(payload)) {
                     // Cấu trúc: [...] (trực tiếp là array)
                     normalized = payload;
+                    console.log('✅ Using payload directly (array)');
                 } else if (payload?.data && typeof payload.data === 'object') {
                     // Có thể là object chứa array bên trong
                     const dataValues = Object.values(payload.data);
                     if (dataValues.length > 0 && Array.isArray(dataValues[0])) {
                         normalized = dataValues[0];
+                        console.log('✅ Using Object.values(payload.data)[0] (array)');
+                    } else {
+                        console.warn('⚠️ payload.data exists but no array found in values');
+                        console.warn('payload.data keys:', Object.keys(payload.data));
                     }
+                } else {
+                    console.warn('⚠️ Unexpected payload structure:', payload);
+                    console.warn('Payload keys:', payload ? Object.keys(payload) : 'N/A');
+                }
+                
+                // ✅ Đảm bảo normalized là array
+                if (!Array.isArray(normalized)) {
+                    console.error('❌ normalized is not an array:', normalized);
+                    normalized = [];
                 }
                 
                 console.log('Normalized customers from API:', normalized.length);
                 if (normalized.length > 0) {
                     console.log('First customer sample:', normalized[0]);
                     console.log('First customer storeId:', normalized[0].storeId, 'type:', typeof normalized[0].storeId);
+                } else if (payload) {
+                    console.warn('⚠️ No customers found in normalized response');
+                    console.warn('Payload structure:', JSON.stringify(payload, null, 2));
                 }
                 
                 // ✅ CẢI THIỆN LOGIC: Luôn merge để không mất customers vừa tạo

@@ -16,7 +16,6 @@ import {
   createTransactionThunk,
 } from '../../store/slices/inventoryTransactionSlice';
 import { showError, showSuccess, showWarning } from '../../store/slices/snackbarSlice';
-import Tooltip from '@/components/ui/Tooltip';
 
 function InventoryManagement() {
   const dispatch = useDispatch();
@@ -83,9 +82,13 @@ function InventoryManagement() {
     dispatch(getAllModelsThunk());
   }, [dispatch]);
 
-  // Tính tổng giá tự động
+  // Tính tổng giá tự động - lấy từ model-color thay vì model
   const selectedModel = models.find(m => String(m.modelId) === String(createData.modelId));
-  const unitPrice = selectedModel?.price || 0;
+  const selectedModelColor = modelColors.find(mc => 
+    String(mc.modelId) === String(createData.modelId) && 
+    String(mc.colorId) === String(createData.colorId)
+  );
+  const unitPrice = selectedModelColor?.price || 0;
   const totalPrice = unitPrice * (parseInt(createData.quantity) || 0);
   
   // Lọc màu sắc theo model đã chọn
@@ -336,15 +339,11 @@ function InventoryManagement() {
     }
 
     try {
+      // Prepare payload according to new API: modelId, colorId, priceOfStore, quantity
       const payload = {
-        stockId: 0,
-        storeId: parseInt(createData.storeId),
-        storeName: createData.storeName,
         modelId: parseInt(createData.modelId),
-        modelName: createData.modelName,
         colorId: parseInt(createData.colorId),
-        colorName: createData.colorName,
-        priceOfStore: unitPrice, // Sử dụng giá từ model
+        priceOfStore: unitPrice || 0, // Sử dụng giá từ model-color
         quantity: parseInt(createData.quantity)
       };
       

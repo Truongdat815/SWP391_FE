@@ -803,9 +803,7 @@ const BaseLayout = ({
               <h2 className="text-2xl font-bold text-gray-900">
                 {currentMenu?.name || defaultTitle}
               </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                {location.pathname === basePath ? defaultSubtitle : 'Quản lý và thao tác'}
-              </p>
+             
             </div>
             {/* Real-time Clock & User Profile */}
             <div className="flex items-center gap-3">

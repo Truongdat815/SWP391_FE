@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { 
   uploadSignedContractThunk,
   fetchAllContractsThunk
@@ -26,13 +26,14 @@ import {
   ShoppingBag,
   UserCircle,
   Receipt,
-  Tag
+  Tag,
+  CreditCard
 } from 'lucide-react';
-import Tooltip from '@/components/ui/Tooltip';
 
 function ViewContracts() {
   const dispatch = useDispatch();
   const location = useLocation();
+  const navigate = useNavigate();
   
   const { contracts, loading } = useSelector((state) => state.contracts);
   
@@ -63,6 +64,54 @@ function ViewContracts() {
       window.history.replaceState({}, document.title);
     }
   }, [location]);
+
+  // Format order code to ORD-01, ORD-02, ...
+  const formatOrderCode = (orderCode, orderId) => {
+    if (orderCode) {
+      // If orderCode already has format, extract number or use as is
+      const match = orderCode.match(/ORD-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        return `ORD-${String(num).padStart(2, '0')}`;
+      }
+      // Try to extract number from orderCode
+      const numMatch = orderCode.match(/(\d+)/);
+      if (numMatch) {
+        const num = parseInt(numMatch[1], 10);
+        return `ORD-${String(num).padStart(2, '0')}`;
+      }
+    }
+    // Fallback to orderId
+    if (orderId) {
+      const num = parseInt(orderId, 10);
+      return `ORD-${String(num).padStart(2, '0')}`;
+    }
+    return orderCode || 'N/A';
+  };
+
+  // Format contract code to CTR-01, CTR-02, ...
+  const formatContractCode = (contractCode, contractId) => {
+    if (contractCode) {
+      // If contractCode already has format, extract number or use as is
+      const match = contractCode.match(/CTR-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        return `CTR-${String(num).padStart(2, '0')}`;
+      }
+      // Try to extract number from contractCode
+      const numMatch = contractCode.match(/(\d+)/);
+      if (numMatch) {
+        const num = parseInt(numMatch[1], 10);
+        return `CTR-${String(num).padStart(2, '0')}`;
+      }
+    }
+    // Fallback to contractId
+    if (contractId) {
+      const num = parseInt(contractId, 10);
+      return `CTR-${String(num).padStart(2, '0')}`;
+    }
+    return contractCode || 'N/A';
+  };
 
   // Filter contracts by search
   const filteredContracts = (contracts || []).filter(contract => 
@@ -179,6 +228,9 @@ function ViewContracts() {
       handleCloseModal();
       setSuccessMessage('Upload hợp đồng đã ký thành công!');
       
+      // Refresh contracts list
+      dispatch(fetchAllContractsThunk());
+      
       // Clear success message after delay
       setTimeout(() => {
         setSuccessMessage(null);
@@ -192,6 +244,14 @@ function ViewContracts() {
       setUploadingContract(null);
     }
   };
+
+  // Handle payment click - navigate to PaymentManagement
+  const handlePaymentClick = (contract) => {
+    navigate('/dealer-staff/payment-management', {
+      state: { contractId: contract.contractId }
+    });
+  };
+
 
   const getStatusColor = (status) => {
     const upperStatus = status?.toUpperCase();
@@ -286,13 +346,7 @@ function ViewContracts() {
                     Mã đơn hàng
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Khách hàng
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Ngày tạo
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Trạng thái
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Tổng thanh toán
@@ -312,26 +366,18 @@ function ViewContracts() {
                 {filteredContracts.map((contract) => (
                   <tr key={contract.contractId} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {contract.contractCode || `#${contract.contractId}`}
+                      {formatContractCode(contract.contractCode, contract.contractId)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <button
                         onClick={() => handleViewOrder(contract)}
                         className="text-blue-600 hover:text-blue-900 hover:underline transition-colors font-medium"
                       >
-                        {contract.orderCode || `ORD-${contract.orderId}`}
+                        {formatOrderCode(contract.orderCode, contract.orderId)}
                       </button>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">{contract.customerName || 'N/A'}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {contract.contractDate ? new Date(contract.contractDate).toLocaleDateString('vi-VN') : 'N/A'}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(contract.status)}`}>
-                        {getStatusText(contract.status)}
-                      </span>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                       {(contract.totalPayment || 0).toLocaleString('vi-VN')} VNĐ
@@ -365,18 +411,18 @@ function ViewContracts() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex gap-2">
-                        <Tooltip content="Xem hợp đồng" placement="top">
-                          <button
-                            onClick={() => handleViewContract(contract)}
-                            className="text-emerald-600 hover:text-emerald-900 transition-colors"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                        </Tooltip>
+                        <button
+                          onClick={() => handleViewContract(contract)}
+                          className="text-emerald-600 hover:text-emerald-900 transition-colors"
+                          title="Xem hợp đồng"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
                         
-                        <Tooltip content="Upload hợp đồng đã ký" placement="top">
+                        {!(contract.signedContractFileUrl || contract.contractFileUrl) ? (
                           <button
                             onClick={() => handleUploadClick(contract)}
+                            title="Upload hợp đồng đã ký"
                             disabled={uploadingContract === contract.contractId}
                             className="text-blue-600 hover:text-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
@@ -386,7 +432,15 @@ function ViewContracts() {
                               <Upload className="h-4 w-4" />
                             )}
                           </button>
-                        </Tooltip>
+                        ) : (
+                          <button
+                            onClick={() => handlePaymentClick(contract)}
+                            title="Thanh toán"
+                            className="text-green-600 hover:text-green-900 transition-colors"
+                          >
+                            <CreditCard className="h-4 w-4" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -693,6 +747,7 @@ function ViewContracts() {
           </motion.div>
         )}
       </AnimatePresence>
+
     </div>
   );
 }

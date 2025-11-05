@@ -9,7 +9,6 @@ import {
 } from '@store/slices/modelColorSlice';
 import { getAllModelsThunk } from '@store/slices/modelSlice';
 import { getAllColorsThunk } from '@store/slices/colorSlice';
-import Tooltip from '@/components/ui/Tooltip';
 import AnimatedSelect from '@/components/ui/AnimatedSelect';
 
 function ProductManagement() {
@@ -30,6 +29,7 @@ function ProductManagement() {
   const [formData, setFormData] = useState({
     modelId: '',
     colorId: '',
+    price: '',
     imagePath: '',
   });
 
@@ -47,7 +47,7 @@ function ProductManagement() {
   };
 
   const resetForm = () => {
-    setFormData({ modelId: '', colorId: '', imagePath: '' });
+    setFormData({ modelId: '', colorId: '', price: '', imagePath: '' });
     setEditingItem(null);
   };
 
@@ -61,6 +61,7 @@ function ProductManagement() {
     setFormData({
       modelId: item.modelId,
       colorId: item.colorId,
+      price: item.price || '',
       imagePath: item.imagePath || '',
     });
     setIsModalOpen(true);
@@ -70,22 +71,16 @@ function ProductManagement() {
     e.preventDefault();
 
     try {
-      // Get model and color details
-      const selectedModel = models.find(m => m.modelId === parseInt(formData.modelId, 10));
-      const selectedColor = colors.find(c => c.colorId === parseInt(formData.colorId, 10));
-
+      // Prepare payload according to new API: modelId, colorId, price, imagePath
       const payload = {
         modelId: parseInt(formData.modelId, 10),
-        modelName: selectedModel?.modelName || '',
         colorId: parseInt(formData.colorId, 10),
-        colorName: selectedColor?.colorName || '',
-        colorCode: selectedColor?.colorCode || '',
+        price: parseFloat(formData.price) || 0,
         imagePath: formData.imagePath.trim(),
       };
 
       if (editingItem) {
         // Update - use modelColorId
-        payload.modelColorId = editingItem.modelColorId;
         await dispatch(updateModelColorThunk({ id: editingItem.modelColorId, data: payload })).unwrap();
         showNotification('success', 'Cập nhật sản phẩm thành công!');
       } else {
@@ -238,17 +233,16 @@ function ProductManagement() {
                   <p className="text-gray-600 mt-1">Quản lý tổ hợp xe điện và màu sắc</p>
                 </div>
               </div>
-              <Tooltip content="Tạo tổ hợp sản phẩm mới từ mẫu xe và màu sắc" placement="bottom">
-                <button
-                  onClick={handleOpenCreate}
-                  className="group px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2"
-                >
-                  <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                  </svg>
-                  Thêm sản phẩm mới
-                </button>
-              </Tooltip>
+              <button
+                onClick={handleOpenCreate}
+                className="group px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2"
+                title="Tạo tổ hợp sản phẩm mới từ mẫu xe và màu sắc"
+              >
+                <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+                Thêm sản phẩm mới
+              </button>
             </div>
           </div>
         </div>
@@ -857,6 +851,34 @@ function ProductManagement() {
                         </div>
                       </div>
                     )}
+                  </div>
+
+                  {/* Price Section */}
+                  <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
+                    <div className="flex items-center gap-3 mb-6">
+                      <div className="p-2 bg-green-100 rounded-xl">
+                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                      </div>
+                      <h4 className="text-lg font-semibold text-gray-800">Giá sản phẩm</h4>
+                    </div>
+                    
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-3">
+                        Giá (VNĐ) <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.price}
+                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200 placeholder-gray-400"
+                        placeholder="VD: 50000000"
+                        required
+                        min="0"
+                        step="1000"
+                      />
+                    </div>
                   </div>
 
                   {/* Image Section */}
