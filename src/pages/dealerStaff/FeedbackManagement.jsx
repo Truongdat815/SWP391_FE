@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { getAllFeedbacks, updateFeedbackStatus, createFeedback, updateFeedback } from '@/api/feedbackService';
-import { getFeedbackDetailsByFeedbackId, createFeedbackDetail, updateFeedbackDetail } from '@/api/feedbackDetailService';
-import { getAllOrders } from '@/api/orderService';
+import { getAllFeedbacks, updateFeedbackStatus, createFeedback, updateFeedback, deleteFeedback } from '@/api/feedbackService';
+import { getFeedbackDetailsByFeedbackId, createFeedbackDetail, updateFeedbackDetail, mapCategoryFromBackend } from '@/api/feedbackDetailService';
+import { getAllOrders, getOrdersByCustomer, getOrderById } from '@/api/orderService';
+import { getAllCustomers } from '@/api/customerService';
+import { getAllContracts } from '@/api/contractService';
 
 function FeedbackManagement({ onBack }) {
   const [feedbacks, setFeedbacks] = useState([]);
@@ -21,16 +23,22 @@ function FeedbackManagement({ onBack }) {
   });
 
   const [createForm, setCreateForm] = useState({
+    phoneNumber: '',
     orderId: '',
     customerName: '',
+    customerId: '',
     category: 'service',
     rating: 5,
     content: '',
-    status: 'DRAFT'
+    status: 'PENDING'
   });
 
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const [searchingCustomer, setSearchingCustomer] = useState(false);
+  const [searchResults, setSearchResults] = useState([]); // Danh sách kết quả tìm kiếm: {customer, orders: []}
+  const [showSearchResults, setShowSearchResults] = useState(false);
+  const [contracts, setContracts] = useState([]); // Danh sách hợp đồng để check order có contract
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -38,45 +46,286 @@ function FeedbackManagement({ onBack }) {
       if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target)) {
         setShowSortDropdown(false);
       }
+      // Close search results when clicking outside
+      if (showSearchResults && !event.target.closest('[data-search-results]')) {
+        setShowSearchResults(false);
+      }
     };
-    if (showSortDropdown) {
+    if (showSortDropdown || showSearchResults) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showSortDropdown]);
+  }, [showSortDropdown, showSearchResults]);
 
-  // Fetch orders when opening create/edit form
-  useEffect(() => {
-    const fetchOrders = async () => {
-      if (showCreateForm || showEditForm) {
-        try {
-          setLoadingOrders(true);
-          console.log('🔄 [FeedbackManagement] Đang tải danh sách đơn hàng...');
-          const response = await getAllOrders();
-          
-          // Handle different response structures
-          let ordersData = [];
-          if (Array.isArray(response)) {
-            ordersData = response;
-          } else if (response?.data && Array.isArray(response.data)) {
-            ordersData = response.data;
-          } else if (response?.data?.data && Array.isArray(response.data.data)) {
-            ordersData = response.data.data;
-          }
-          
-          console.log('✅ [FeedbackManagement] Đã tải danh sách đơn hàng:', ordersData.length);
-          setOrders(ordersData);
-        } catch (err) {
-          console.error('❌ [FeedbackManagement] Lỗi khi tải danh sách đơn hàng:', err);
-          setOrders([]);
-        } finally {
-          setLoadingOrders(false);
-        }
+  // Search customer by phone number - tìm tất cả customers và orders
+  const handlePhoneNumberSearch = async (phoneNumber) => {
+    if (!phoneNumber || phoneNumber.trim() === '') {
+      setSearchResults([]);
+      setShowSearchResults(false);
+      setOrders([]);
+      setCreateForm(prev => ({
+        ...prev,
+        customerName: '',
+        customerId: '',
+        orderId: ''
+      }));
+      return;
+    }
+
+    try {
+      setSearchingCustomer(true);
+      setLoadingOrders(true);
+      
+      console.log('🔄 [FeedbackManagement] Đang tìm khách hàng với số điện thoại:', phoneNumber);
+      
+      // Get all customers and filter by phone
+      const customersResponse = await getAllCustomers();
+      let customersData = [];
+      
+      if (Array.isArray(customersResponse)) {
+        customersData = customersResponse;
+      } else if (customersResponse?.data && Array.isArray(customersResponse.data)) {
+        customersData = customersResponse.data;
+      } else if (customersResponse?.data?.data && Array.isArray(customersResponse.data.data)) {
+        customersData = customersResponse.data.data;
       }
-    };
+      
+      // Normalize phone number for comparison (remove spaces, dashes, etc.)
+      const normalizePhone = (phone) => {
+        if (!phone) return '';
+        return phone.replace(/[\s\-\(\)]/g, '');
+      };
+      
+      const normalizedSearch = normalizePhone(phoneNumber);
+      
+      // Find ALL customers matching phone number
+      const matchingCustomers = customersData.filter(c => {
+        const customerPhone = c.phone || c.phoneNumber || c.phone_number || '';
+        return normalizePhone(customerPhone).includes(normalizedSearch) || 
+               normalizedSearch.includes(normalizePhone(customerPhone));
+      });
+      
+      if (matchingCustomers.length > 0) {
+        console.log('✅ [FeedbackManagement] Tìm thấy', matchingCustomers.length, 'khách hàng');
+        
+        // Get orders for each customer
+        const results = await Promise.all(
+          matchingCustomers.map(async (customer) => {
+            const customerId = customer.customerId || customer.id || customer.customer_id;
+            const customerName = customer.fullName || customer.customerName || customer.customer_name || customer.name || 'N/A';
+            const customerPhone = customer.phone || customer.phoneNumber || customer.phone_number || '';
+            
+            let ordersData = [];
+            try {
+              const ordersResponse = await getOrdersByCustomer(customerId);
+              
+              if (Array.isArray(ordersResponse)) {
+                ordersData = ordersResponse;
+              } else if (ordersResponse?.data && Array.isArray(ordersResponse.data)) {
+                ordersData = ordersResponse.data;
+              } else if (ordersResponse?.data?.data && Array.isArray(ordersResponse.data.data)) {
+                ordersData = ordersResponse.data.data;
+              }
+              
+              // Filter orders to only include those with contracts
+              // First, wait for contracts to be loaded if not already loaded
+              let contractsData = contracts;
+              if (contractsData.length === 0) {
+                try {
+                  const contractsResponse = await getAllContracts();
+                  if (Array.isArray(contractsResponse)) {
+                    contractsData = contractsResponse;
+                  } else if (contractsResponse?.data && Array.isArray(contractsResponse.data)) {
+                    contractsData = contractsResponse.data;
+                  } else if (contractsResponse?.data?.data && Array.isArray(contractsResponse.data.data)) {
+                    contractsData = contractsResponse.data.data;
+                  }
+                } catch (err) {
+                  console.warn('⚠️ [FeedbackManagement] Không thể tải hợp đồng:', err);
+                }
+              }
+              
+              // Filter orders that have contracts
+              const ordersWithContracts = ordersData.filter(order => {
+                const orderId = order.orderId || order.id || order.order_id;
+                if (!orderId) return false;
+                const hasContract = contractsData.some(contract => {
+                  const contractOrderId = contract.orderId || contract.order_id;
+                  return contractOrderId && parseInt(contractOrderId) === parseInt(orderId);
+                });
+                return hasContract;
+              });
+              
+              console.log(`📋 [FeedbackManagement] Tổng số đơn hàng: ${ordersData.length}, Đơn hàng có hợp đồng: ${ordersWithContracts.length}`);
+              
+              // Filter orders that have been paid (partially or fully)
+              const ordersWithPayment = ordersWithContracts.filter(order => {
+                const totalPayment = order.totalPayment || order.total_payment || order.paidAmount || order.paid_amount || 0;
+                // Order must have at least some payment (totalPayment > 0)
+                return totalPayment > 0;
+              });
+              
+              console.log(`💰 [FeedbackManagement] Đơn hàng có hợp đồng: ${ordersWithContracts.length}, Đơn hàng đã thanh toán: ${ordersWithPayment.length}`);
+              
+              // Get order details for each order to get model and quantity
+              const ordersWithDetails = await Promise.all(
+                ordersWithPayment.map(async (order) => {
+                  const orderId = order.orderId || order.id || order.order_id;
+                  
+                  let orderDetails = [];
+                  try {
+                    // Try getting order by ID first (contains getOrderDetailsResponses)
+                    const orderResponse = await getOrderById(orderId);
+                    const fullOrder = orderResponse?.data || orderResponse;
+                    
+                    // Backend returns product details in 'getOrderDetailsResponses' array
+                    orderDetails = fullOrder?.getOrderDetailsResponses || [];
+                    
+                    // If not found, try direct API
+                    if (!orderDetails || orderDetails.length === 0) {
+                      console.log('⚠️ [FeedbackManagement] Không tìm thấy getOrderDetailsResponses, thử cách khác...');
+                      // Check if order already has details
+                      orderDetails = order.orderDetails || order.getOrderDetailsResponses || [];
+                    }
+                  } catch (err) {
+                    console.warn('⚠️ [FeedbackManagement] Không thể lấy order details cho order:', orderId, err);
+                    // Fallback: check if order already has details
+                    orderDetails = order.orderDetails || order.getOrderDetailsResponses || [];
+                  }
+                  
+                  // Aggregate model names and total quantity
+                  const modelNames = [];
+                  let totalQuantity = 0;
+                  
+                  orderDetails.forEach(detail => {
+                    // Try multiple possible paths for model name
+                    const modelName = detail.modelName || 
+                                    detail.model?.modelName ||
+                                    detail.storeStock?.model?.modelName ||
+                                    detail.modelColor?.model?.modelName ||
+                                    detail.vehicleModel || 
+                                    detail.vehicle_model ||
+                                    detail.productName ||
+                                    'N/A';
+                    const quantity = detail.quantity || 0;
+                    
+                    // Only add unique model names
+                    if (modelName && modelName !== 'N/A' && !modelNames.includes(modelName)) {
+                      modelNames.push(modelName);
+                    }
+                    totalQuantity += quantity;
+                  });
+                  
+                  console.log('📦 [FeedbackManagement] Order details processed:', {
+                    orderId,
+                    orderDetailsCount: orderDetails.length,
+                    modelNames,
+                    totalQuantity,
+                    sampleDetail: orderDetails[0],
+                    orderKeys: Object.keys(order)
+                  });
+                  
+                  return {
+                    ...order,
+                    orderId: orderId,
+                    orderCode: order.orderCode || order.order_code || `HD-${orderId}`,
+                    orderDate: order.createdAt || order.created_at || order.createdDate || order.orderDate || order.date || '',
+                    modelNames: modelNames.length > 0 ? modelNames : ['N/A'],
+                    totalQuantity: totalQuantity > 0 ? totalQuantity : 0,
+                    orderDetails: orderDetails
+                  };
+                })
+              );
+              
+              ordersData = ordersWithDetails;
+            } catch (err) {
+              console.warn('⚠️ [FeedbackManagement] Không thể lấy đơn hàng của khách hàng:', customerId, err);
+              ordersData = [];
+            }
+            
+            return {
+              customer: {
+                id: customerId,
+                name: customerName,
+                phone: customerPhone
+              },
+              orders: ordersData
+            };
+          })
+        );
+        
+        // Flatten results: chỉ hiển thị những customer có đơn hàng (đã có hợp đồng)
+        const flatResults = [];
+        results.forEach(result => {
+          // Chỉ thêm vào danh sách nếu customer có ít nhất 1 đơn hàng
+          if (result.orders && result.orders.length > 0) {
+            result.orders.forEach(order => {
+              flatResults.push({
+                customer: result.customer,
+                order: order
+              });
+            });
+          }
+          // Bỏ qua customer không có đơn hàng - không hiển thị
+        });
+        
+        setSearchResults(flatResults);
+        setShowSearchResults(true);
+        
+        console.log('✅ [FeedbackManagement] Đã tải', flatResults.length, 'kết quả tìm kiếm');
+      } else {
+        console.warn('⚠️ [FeedbackManagement] Không tìm thấy khách hàng với số điện thoại:', phoneNumber);
+        setSearchResults([]);
+        setShowSearchResults(false);
+        setOrders([]);
+        setCreateForm(prev => ({
+          ...prev,
+          customerName: '',
+          customerId: '',
+          orderId: ''
+        }));
+      }
+    } catch (err) {
+      console.error('❌ [FeedbackManagement] Lỗi khi tìm khách hàng:', err);
+      setSearchResults([]);
+      setShowSearchResults(false);
+      setOrders([]);
+      setCreateForm(prev => ({
+        ...prev,
+        customerName: '',
+        customerId: '',
+        orderId: ''
+      }));
+    } finally {
+      setSearchingCustomer(false);
+      setLoadingOrders(false);
+    }
+  };
+
+  // Handle selection from search results
+  const handleSelectSearchResult = (result) => {
+    const { customer, order } = result;
     
-    fetchOrders();
-  }, [showCreateForm, showEditForm]);
+    if (order) {
+      setCreateForm(prev => ({
+        ...prev,
+        customerId: customer.id.toString(),
+        customerName: customer.name,
+        orderId: order.orderId.toString()
+      }));
+      setOrders([order]);
+    } else {
+      setCreateForm(prev => ({
+        ...prev,
+        customerId: customer.id.toString(),
+        customerName: customer.name,
+        orderId: ''
+      }));
+      setOrders([]);
+    }
+    
+    setShowSearchResults(false);
+  };
 
   // Handle order selection
   const handleOrderSelect = (orderId) => {
@@ -117,6 +366,43 @@ function FeedbackManagement({ onBack }) {
       console.warn('⚠️ [FeedbackManagement] Không tìm thấy đơn hàng với ID:', orderId);
       alert('Không tìm thấy đơn hàng được chọn!');
     }
+  };
+
+  // Load contracts on mount
+  useEffect(() => {
+    const fetchContracts = async () => {
+      try {
+        console.log('🔄 [FeedbackManagement] Đang tải danh sách hợp đồng...');
+        const contractsResponse = await getAllContracts();
+        
+        let contractsData = [];
+        if (Array.isArray(contractsResponse)) {
+          contractsData = contractsResponse;
+        } else if (contractsResponse?.data && Array.isArray(contractsResponse.data)) {
+          contractsData = contractsResponse.data;
+        } else if (contractsResponse?.data?.data && Array.isArray(contractsResponse.data.data)) {
+          contractsData = contractsResponse.data.data;
+        }
+        
+        setContracts(contractsData);
+        console.log('✅ [FeedbackManagement] Đã tải', contractsData.length, 'hợp đồng');
+      } catch (err) {
+        console.error('❌ [FeedbackManagement] Lỗi khi tải hợp đồng:', err);
+        setContracts([]);
+      }
+    };
+    
+    fetchContracts();
+  }, []);
+
+  // Helper function to check if order has contract
+  const orderHasContract = (orderId) => {
+    if (!orderId || !contracts || contracts.length === 0) return false;
+    const orderIdNum = parseInt(orderId);
+    return contracts.some(contract => {
+      const contractOrderId = contract.orderId || contract.order_id;
+      return contractOrderId && parseInt(contractOrderId) === orderIdNum;
+    });
   };
 
   // Load feedbacks from API
@@ -211,14 +497,69 @@ function FeedbackManagement({ onBack }) {
               console.log(`ℹ️ [FeedbackManagement] Không có feedback detail cho feedback ${index + 1}:`, err.message);
             }
             
+            // Map backend category to frontend category
+            const backendCategory = feedbackDetail?.category || feedback.category;
+            const frontendCategory = mapCategoryFromBackend(backendCategory);
+            
+            // Get vehicle model from order details via API call
+            let vehicleModel = 'N/A';
+            const orderId = feedback.orderId || feedback.order_id;
+            if (orderId) {
+              try {
+                console.log(`🔄 [FeedbackManagement] Đang gọi API getOrderById(${orderId}) để lấy vehicle model...`);
+                const orderResponse = await getOrderById(orderId);
+                console.log(`📥 [FeedbackManagement] API Response getOrderById(${orderId}):`, orderResponse);
+                
+                const fullOrder = orderResponse?.data || orderResponse;
+                console.log(`📦 [FeedbackManagement] Full order object:`, fullOrder);
+                console.log(`📦 [FeedbackManagement] Order keys:`, fullOrder ? Object.keys(fullOrder) : []);
+                
+                // Try multiple possible paths for order details
+                const orderDetails = fullOrder?.getOrderDetailsResponses || 
+                                   fullOrder?.orderDetails ||
+                                   fullOrder?.details ||
+                                   [];
+                
+                console.log(`📦 [FeedbackManagement] Order details found:`, orderDetails.length, orderDetails);
+                
+                if (orderDetails.length > 0) {
+                  const modelNames = [];
+                  orderDetails.forEach((detail, idx) => {
+                    console.log(`📦 [FeedbackManagement] Processing detail ${idx + 1}:`, detail);
+                    console.log(`📦 [FeedbackManagement] Detail keys:`, detail ? Object.keys(detail) : []);
+                    
+                    const modelName = detail.modelName || 
+                                    detail.model?.modelName ||
+                                    detail.storeStock?.model?.modelName ||
+                                    detail.modelColor?.model?.modelName ||
+                                    detail.vehicleModel ||
+                                    detail.vehicle_model ||
+                                    'N/A';
+                    
+                    console.log(`📦 [FeedbackManagement] Extracted modelName:`, modelName);
+                    
+                    if (modelName && modelName !== 'N/A' && !modelNames.includes(modelName)) {
+                      modelNames.push(modelName);
+                    }
+                  });
+                  vehicleModel = modelNames.length > 0 ? modelNames.join(', ') : 'N/A';
+                  console.log(`✅ [FeedbackManagement] Final vehicleModel for order ${orderId}:`, vehicleModel);
+                } else {
+                  console.warn(`⚠️ [FeedbackManagement] Order ${orderId} không có order details`);
+                }
+              } catch (err) {
+                console.error(`❌ [FeedbackManagement] Lỗi khi gọi API getOrderById(${orderId}):`, err);
+              }
+            }
+            
             const mapped = {
               id: feedback.feedbackId || feedback.id || feedback.feedback_id,
               feedbackId: feedback.feedbackId || feedback.id || feedback.feedback_id,
               customerName: feedback.customerName || feedback.customer_name || 'N/A',
               orderNumber: feedback.orderId ? `HD-${feedback.orderId}` : feedback.orderNumber || 'N/A',
               orderId: feedback.orderId || feedback.order_id,
-              vehicleModel: feedback.vehicleModel || feedback.vehicle_model || 'N/A',
-              category: (feedbackDetail?.category || feedback.category || 'service').toLowerCase(),
+              vehicleModel: vehicleModel,
+              category: frontendCategory,
               rating: feedbackDetail?.rating || feedback.rating || 0,
               content: feedbackDetail?.content || feedback.content || 'Không có nội dung',
               status: (feedback.status || 'pending').toLowerCase(),
@@ -232,18 +573,47 @@ function FeedbackManagement({ onBack }) {
           })
         );
         
+        // Filter: chỉ hiển thị feedback có rating > 0, content không rỗng, có status, và không phải draft
+        const filteredFeedbacks = mappedFeedbacks.filter(feedback => {
+          const hasRating = feedback.rating && feedback.rating > 0;
+          const hasContent = feedback.content && feedback.content.trim() !== '' && feedback.content !== 'Không có nội dung';
+          const hasStatus = feedback.status && feedback.status.trim() !== '';
+          const statusLower = feedback.status?.toLowerCase() || '';
+          const isNotDraft = statusLower !== 'draft';
+          
+          const passesFilter = hasRating && hasContent && hasStatus && isNotDraft;
+          
+          // Debug log for filtered feedbacks
+          if (!passesFilter) {
+            console.log('⚠️ [FeedbackManagement] Feedback bị filter bỏ:', {
+              feedbackId: feedback.feedbackId || feedback.id,
+              hasRating,
+              rating: feedback.rating,
+              hasContent,
+              content: feedback.content?.substring(0, 50),
+              hasStatus,
+              status: feedback.status,
+              isNotDraft,
+              statusLower
+            });
+          }
+          
+          return passesFilter;
+        });
+        
         // Sort by newest first (default)
-        mappedFeedbacks.sort((a, b) => {
+        filteredFeedbacks.sort((a, b) => {
           const dateA = new Date(a.createdAt);
           const dateB = new Date(b.createdAt);
           return dateB - dateA; // Newest first
         });
         
-        console.log('✅ [FeedbackManagement] Final mapped feedbacks:', mappedFeedbacks);
-        console.log('✅ [FeedbackManagement] Tổng số feedbacks:', mappedFeedbacks.length);
+        console.log('✅ [FeedbackManagement] Final filtered feedbacks:', filteredFeedbacks);
+        console.log('✅ [FeedbackManagement] Tổng số feedbacks sau filter:', filteredFeedbacks.length);
+        console.log('📊 [FeedbackManagement] Tổng số feedbacks trước filter:', mappedFeedbacks.length);
         
         if (isMounted) {
-          setFeedbacks(mappedFeedbacks);
+          setFeedbacks(filteredFeedbacks);
         }
       } catch (err) {
         console.error('❌ [FeedbackManagement] Lỗi khi tải feedbacks:', err);
@@ -318,8 +688,7 @@ function FeedbackManagement({ onBack }) {
   const getStatusColor = (status) => {
     const normalizedStatus = status?.toLowerCase();
     switch (normalizedStatus) {
-      case 'pending':
-      case 'draft': return 'bg-yellow-100 text-yellow-800';
+      case 'pending': return 'bg-yellow-100 text-yellow-800';
       case 'in_progress':
       case 'inprogress': return 'bg-blue-100 text-blue-800';
       case 'resolved': return 'bg-green-100 text-green-800';
@@ -331,7 +700,6 @@ function FeedbackManagement({ onBack }) {
     const normalizedStatus = status?.toLowerCase();
     switch (normalizedStatus) {
       case 'pending': return 'Chờ xử lý';
-      case 'draft': return 'Bản nháp';
       case 'in_progress':
       case 'inprogress': return 'Đang xử lý';
       case 'resolved': return 'Đã giải quyết';
@@ -340,7 +708,10 @@ function FeedbackManagement({ onBack }) {
   };
 
   const getCategoryText = (category) => {
-    const normalizedCategory = category?.toLowerCase();
+    // Map to frontend category first if it's a backend enum
+    const frontendCategory = mapCategoryFromBackend(category);
+    const normalizedCategory = frontendCategory?.toLowerCase();
+    
     switch (normalizedCategory) {
       case 'service': return 'Dịch vụ';
       case 'product': return 'Sản phẩm';
@@ -350,7 +721,10 @@ function FeedbackManagement({ onBack }) {
   };
 
   const getCategoryColor = (category) => {
-    const normalizedCategory = category?.toLowerCase();
+    // Map to frontend category first if it's a backend enum
+    const frontendCategory = mapCategoryFromBackend(category);
+    const normalizedCategory = frontendCategory?.toLowerCase();
+    
     switch (normalizedCategory) {
       case 'service': return 'bg-blue-100 text-blue-800';
       case 'product': return 'bg-green-100 text-green-800';
@@ -425,13 +799,18 @@ function FeedbackManagement({ onBack }) {
     e.preventDefault();
     try {
       // Validation
+      if (!createForm.phoneNumber || createForm.phoneNumber.trim() === '') {
+        alert('Vui lòng nhập số điện thoại!');
+        return;
+      }
+      
       if (!createForm.orderId || createForm.orderId === '') {
         alert('Vui lòng chọn đơn hàng!');
         return;
       }
       
       if (!createForm.customerName || createForm.customerName === '') {
-        alert('Vui lòng chọn đơn hàng để tự động điền tên khách hàng!');
+        alert('Không tìm thấy thông tin khách hàng!');
         return;
       }
       
@@ -441,15 +820,117 @@ function FeedbackManagement({ onBack }) {
         return;
       }
       
+      // Check if order has contract
+      if (!orderHasContract(orderIdInt)) {
+        alert('Đơn hàng này chưa có hợp đồng. Vui lòng tạo hợp đồng trước khi tạo phản hồi!');
+        return;
+      }
+      
+      // Check if order has been paid (partially or fully)
+      let orderData = null;
+      try {
+        const orderResponse = await getOrderById(orderIdInt);
+        orderData = orderResponse?.data || orderResponse;
+        
+        // Get payment information
+        const totalPayment = orderData?.totalPayment || orderData?.total_payment || orderData?.paidAmount || orderData?.paid_amount || 0;
+        const totalPrice = orderData?.totalPrice || orderData?.total_price || orderData?.totalAmount || orderData?.total_amount || 0;
+        
+        console.log('💰 [FeedbackManagement] Payment check:', {
+          orderId: orderIdInt,
+          totalPayment,
+          totalPrice,
+          orderData: Object.keys(orderData || {})
+        });
+        
+        // Check if order has been paid (at least partially)
+        if (totalPayment <= 0) {
+          alert('Đơn hàng này chưa được thanh toán. Vui lòng thanh toán ít nhất một phần trước khi tạo phản hồi!');
+          return;
+        }
+        
+        // If totalPrice is available, check if payment is at least partial
+        if (totalPrice > 0 && totalPayment < totalPrice) {
+          // Partial payment - allowed
+          console.log('✅ [FeedbackManagement] Đơn hàng đã thanh toán một phần:', {
+            totalPayment,
+            totalPrice,
+            percentage: ((totalPayment / totalPrice) * 100).toFixed(2) + '%'
+          });
+        } else if (totalPrice > 0 && totalPayment >= totalPrice) {
+          // Full payment - allowed
+          console.log('✅ [FeedbackManagement] Đơn hàng đã thanh toán toàn bộ');
+        } else {
+          // totalPrice not available, but totalPayment > 0 - assume it's paid
+          console.log('✅ [FeedbackManagement] Đơn hàng đã có thanh toán (không có thông tin tổng giá)');
+        }
+      } catch (orderErr) {
+        console.error('❌ [FeedbackManagement] Lỗi khi kiểm tra thông tin đơn hàng:', orderErr);
+        alert('Không thể kiểm tra thông tin thanh toán của đơn hàng. Vui lòng thử lại.');
+        return;
+      }
+      
+      // Check if feedback already exists for this order
+      let existingFeedback = null;
+      try {
+        const allFeedbacksResponse = await getAllFeedbacks();
+        let allFeedbacksData = [];
+        
+        if (Array.isArray(allFeedbacksResponse)) {
+          allFeedbacksData = allFeedbacksResponse;
+        } else if (allFeedbacksResponse?.data && Array.isArray(allFeedbacksResponse.data)) {
+          allFeedbacksData = allFeedbacksResponse.data;
+        } else if (allFeedbacksResponse?.data?.data && Array.isArray(allFeedbacksResponse.data.data)) {
+          allFeedbacksData = allFeedbacksResponse.data.data;
+        }
+        
+        existingFeedback = allFeedbacksData.find(f => {
+          const fOrderId = f.orderId || f.order_id;
+          return fOrderId && parseInt(fOrderId) === orderIdInt;
+        });
+        
+        if (existingFeedback) {
+          const existingFeedbackId = existingFeedback.feedbackId || existingFeedback.id || existingFeedback.feedback_id;
+          const confirmUpdate = window.confirm(
+            `Đơn hàng này đã có phản hồi (ID: ${existingFeedbackId}).\n\n` +
+            `Bạn có muốn cập nhật phản hồi hiện tại thay vì tạo mới không?\n\n` +
+            `Nhấn "OK" để cập nhật, "Cancel" để hủy.`
+          );
+          
+          if (confirmUpdate) {
+            // Update existing feedback instead
+            await handleUpdateExistingFeedback(existingFeedbackId, orderIdInt);
+            return;
+          } else {
+            alert('Đã hủy. Vui lòng chọn đơn hàng khác hoặc cập nhật phản hồi hiện có.');
+            return;
+          }
+        }
+      } catch (checkErr) {
+        console.warn('⚠️ [FeedbackManagement] Không thể kiểm tra feedback tồn tại:', checkErr);
+        // Continue with creation if check fails
+      }
+      
       console.log('🔄 [FeedbackManagement] Đang tạo feedback:', createForm);
       console.log('🔄 [FeedbackManagement] OrderId (parsed):', orderIdInt);
       
       // Create feedback first
-      const feedbackResponse = await createFeedback({
-        orderId: orderIdInt,
-        customerName: createForm.customerName,
-        status: createForm.status
-      });
+      let feedbackResponse;
+      try {
+        feedbackResponse = await createFeedback({
+          orderId: orderIdInt,
+          customerName: createForm.customerName,
+          status: createForm.status
+        });
+      } catch (createErr) {
+        // Check if it's a duplicate key error
+        const errorMessage = createErr.message || '';
+        if (errorMessage.includes('duplicate key') || errorMessage.includes('UKhmlh8kxpicstcu589yif47wah')) {
+          alert('Đơn hàng này đã có phản hồi. Vui lòng cập nhật phản hồi hiện có hoặc chọn đơn hàng khác.');
+          return;
+        }
+        throw createErr; // Re-throw if it's a different error
+      }
       
       console.log('📥 [FeedbackManagement] Create feedback response:', feedbackResponse);
       
@@ -467,35 +948,178 @@ function FeedbackManagement({ onBack }) {
       
       // Create feedback detail
       try {
-        await createFeedbackDetail({
+        const detailResponse = await createFeedbackDetail({
           feedbackId: feedbackId,
-          category: createForm.category.toUpperCase(),
+          category: createForm.category, // Map to backend enum will be done in service
           rating: createForm.rating,
           content: createForm.content
         });
         
-        console.log('✅ [FeedbackManagement] Đã tạo feedback detail');
+        console.log('✅ [FeedbackManagement] Đã tạo feedback detail:', detailResponse);
       } catch (detailErr) {
         console.error('❌ [FeedbackManagement] Lỗi khi tạo feedback detail:', detailErr);
-        // Nếu feedback đã được tạo nhưng detail fail, vẫn hiển thị success
-        // vì có thể tạo detail sau
+        // Nếu feedback detail fail, vẫn cho phép tạo feedback nhưng cảnh báo
+        alert('Đã tạo feedback nhưng không thể tạo chi tiết. Vui lòng kiểm tra và tạo lại chi tiết sau.');
       }
       
       // Close form and reset
       setShowCreateForm(false);
+      setOrders([]);
+      setSearchResults([]);
+      setShowSearchResults(false);
       setCreateForm({
+        phoneNumber: '',
         orderId: '',
         customerName: '',
+        customerId: '',
         category: 'service',
         rating: 5,
         content: '',
-        status: 'DRAFT'
+        status: 'PENDING'
       });
       
       alert('Tạo phản hồi thành công!');
       
-      // Refresh feedbacks list by reloading the page
-      window.location.reload();
+      // Refresh feedbacks list by fetching again instead of reloading
+      // This ensures we get the latest data
+      try {
+        setLoading(true);
+        const response = await getAllFeedbacks();
+        
+        // Handle different response structures
+        let feedbacksData = [];
+        if (Array.isArray(response)) {
+          feedbacksData = response;
+        } else if (response?.data && Array.isArray(response.data)) {
+          feedbacksData = response.data;
+        } else if (response?.data?.data && Array.isArray(response.data.data)) {
+          feedbacksData = response.data.data;
+        }
+        
+        // Map API response to component format
+        const mappedFeedbacks = await Promise.all(
+          feedbacksData.map(async (feedback, index) => {
+            // Try to get feedback details for content, rating, category
+            let feedbackDetail = null;
+            try {
+              const feedbackId = feedback.feedbackId || feedback.id || feedback.feedback_id;
+              if (feedbackId) {
+                const detailResponse = await getFeedbackDetailsByFeedbackId(feedbackId);
+                const details = detailResponse?.data || detailResponse;
+                if (Array.isArray(details) && details.length > 0) {
+                  feedbackDetail = details[0];
+                } else if (details && !Array.isArray(details)) {
+                  feedbackDetail = details;
+                }
+              }
+            } catch (err) {
+              console.log(`ℹ️ [FeedbackManagement] Không có feedback detail cho feedback ${index + 1}:`, err.message);
+            }
+            
+            // Map backend category to frontend category
+            const backendCategory = feedbackDetail?.category || feedback.category;
+            const frontendCategory = mapCategoryFromBackend(backendCategory);
+            
+            // Get vehicle model from order details via API call
+            let vehicleModel = 'N/A';
+            const orderId = feedback.orderId || feedback.order_id;
+            if (orderId) {
+              try {
+                const orderResponse = await getOrderById(orderId);
+                const fullOrder = orderResponse?.data || orderResponse;
+                const orderDetails = fullOrder?.getOrderDetailsResponses || 
+                                   fullOrder?.orderDetails ||
+                                   fullOrder?.details ||
+                                   [];
+                
+                if (orderDetails.length > 0) {
+                  const modelNames = [];
+                  orderDetails.forEach((detail) => {
+                    const modelName = detail.modelName || 
+                                    detail.model?.modelName ||
+                                    detail.storeStock?.model?.modelName ||
+                                    detail.modelColor?.model?.modelName ||
+                                    detail.vehicleModel ||
+                                    detail.vehicle_model ||
+                                    'N/A';
+                    
+                    if (modelName && modelName !== 'N/A' && !modelNames.includes(modelName)) {
+                      modelNames.push(modelName);
+                    }
+                  });
+                  vehicleModel = modelNames.length > 0 ? modelNames.join(', ') : 'N/A';
+                }
+              } catch (err) {
+                console.error(`❌ [FeedbackManagement] Lỗi khi gọi API getOrderById(${orderId}):`, err);
+              }
+            }
+            
+            const mapped = {
+              id: feedback.feedbackId || feedback.id || feedback.feedback_id,
+              feedbackId: feedback.feedbackId || feedback.id || feedback.feedback_id,
+              customerName: feedback.customerName || feedback.customer_name || 'N/A',
+              orderNumber: feedback.orderId ? `HD-${feedback.orderId}` : feedback.orderNumber || 'N/A',
+              orderId: feedback.orderId || feedback.order_id,
+              vehicleModel: vehicleModel,
+              category: frontendCategory,
+              rating: feedbackDetail?.rating || feedback.rating || 0,
+              content: feedbackDetail?.content || feedback.content || 'Không có nội dung',
+              status: (feedback.status || 'pending').toLowerCase(),
+              createdAt: feedback.createdAt || feedback.created_at || feedback.createdDate || new Date().toISOString().split('T')[0],
+              resolvedAt: feedback.resolvedAt || feedback.resolved_at || feedback.resolvedDate || null,
+              feedbackDetailId: feedbackDetail?.feedbackDetailId || feedbackDetail?.id || null
+            };
+            
+            return mapped;
+          })
+        );
+        
+        // Filter: chỉ hiển thị feedback có rating > 0, content không rỗng, có status, và không phải draft
+        const filteredFeedbacks = mappedFeedbacks.filter(feedback => {
+          const hasRating = feedback.rating && feedback.rating > 0;
+          const hasContent = feedback.content && feedback.content.trim() !== '' && feedback.content !== 'Không có nội dung';
+          const hasStatus = feedback.status && feedback.status.trim() !== '';
+          const statusLower = feedback.status?.toLowerCase() || '';
+          const isNotDraft = statusLower !== 'draft';
+          
+          const passesFilter = hasRating && hasContent && hasStatus && isNotDraft;
+          
+          // Debug log for filtered feedbacks
+          if (!passesFilter) {
+            console.log('⚠️ [FeedbackManagement] Feedback bị filter bỏ (refresh):', {
+              feedbackId: feedback.feedbackId || feedback.id,
+              hasRating,
+              rating: feedback.rating,
+              hasContent,
+              content: feedback.content?.substring(0, 50),
+              hasStatus,
+              status: feedback.status,
+              isNotDraft,
+              statusLower
+            });
+          }
+          
+          return passesFilter;
+        });
+        
+        // Sort by newest first (default)
+        filteredFeedbacks.sort((a, b) => {
+          const dateA = new Date(a.createdAt);
+          const dateB = new Date(b.createdAt);
+          return dateB - dateA; // Newest first
+        });
+        
+        console.log('📊 [FeedbackManagement] Refresh - Tổng số feedbacks trước filter:', mappedFeedbacks.length);
+        console.log('📊 [FeedbackManagement] Refresh - Tổng số feedbacks sau filter:', filteredFeedbacks.length);
+        
+        setFeedbacks(filteredFeedbacks);
+        setLoading(false);
+        console.log('✅ [FeedbackManagement] Đã refresh danh sách feedback sau khi tạo mới');
+      } catch (refreshErr) {
+        console.error('❌ [FeedbackManagement] Lỗi khi refresh feedbacks:', refreshErr);
+        // Fallback to reload if refresh fails
+        window.location.reload();
+      }
     } catch (err) {
       console.error('❌ [FeedbackManagement] Lỗi khi tạo feedback:', err);
       console.error('❌ [FeedbackManagement] Error details:', {
@@ -517,17 +1141,227 @@ function FeedbackManagement({ onBack }) {
     }
   };
 
+  // Handle updating existing feedback when duplicate is detected
+  const handleUpdateExistingFeedback = async (existingFeedbackId, orderIdInt) => {
+    try {
+      console.log('🔄 [FeedbackManagement] Đang cập nhật feedback hiện có:', existingFeedbackId);
+      
+      // Update feedback
+      await updateFeedback(existingFeedbackId, {
+        orderId: orderIdInt,
+        customerName: createForm.customerName,
+        status: createForm.status
+      });
+      
+      // Get existing feedback detail if any
+      let existingFeedbackDetail = null;
+      try {
+        const detailResponse = await getFeedbackDetailsByFeedbackId(existingFeedbackId);
+        const details = detailResponse?.data || detailResponse;
+        if (Array.isArray(details) && details.length > 0) {
+          existingFeedbackDetail = details[0];
+        } else if (details && !Array.isArray(details)) {
+          existingFeedbackDetail = details;
+        }
+      } catch (err) {
+        console.log('ℹ️ [FeedbackManagement] Không có feedback detail hiện có:', err.message);
+      }
+      
+      // Update or create feedback detail
+      if (existingFeedbackDetail && existingFeedbackDetail.feedbackDetailId) {
+        // Update existing detail
+        await updateFeedbackDetail(existingFeedbackDetail.feedbackDetailId, {
+          category: createForm.category,
+          rating: createForm.rating,
+          content: createForm.content
+        });
+        console.log('✅ [FeedbackManagement] Đã cập nhật feedback detail');
+      } else {
+        // Create new detail
+        await createFeedbackDetail({
+          feedbackId: existingFeedbackId,
+          category: createForm.category,
+          rating: createForm.rating,
+          content: createForm.content
+        });
+        console.log('✅ [FeedbackManagement] Đã tạo feedback detail mới');
+      }
+      
+      // Close form and reset
+      setShowCreateForm(false);
+      setOrders([]);
+      setSearchResults([]);
+      setShowSearchResults(false);
+      setCreateForm({
+        phoneNumber: '',
+        orderId: '',
+        customerName: '',
+        customerId: '',
+        category: 'service',
+        rating: 5,
+        content: '',
+        status: 'PENDING'
+      });
+      
+      alert('Đã cập nhật phản hồi thành công!');
+      
+      // Refresh feedbacks list
+      try {
+        setLoading(true);
+        const response = await getAllFeedbacks();
+        
+        let feedbacksData = [];
+        if (Array.isArray(response)) {
+          feedbacksData = response;
+        } else if (response?.data && Array.isArray(response.data)) {
+          feedbacksData = response.data;
+        } else if (response?.data?.data && Array.isArray(response.data.data)) {
+          feedbacksData = response.data.data;
+        }
+        
+        const mappedFeedbacks = await Promise.all(
+          feedbacksData.map(async (feedback, index) => {
+            let feedbackDetail = null;
+            try {
+              const feedbackId = feedback.feedbackId || feedback.id || feedback.feedback_id;
+              if (feedbackId) {
+                const detailResponse = await getFeedbackDetailsByFeedbackId(feedbackId);
+                const details = detailResponse?.data || detailResponse;
+                if (Array.isArray(details) && details.length > 0) {
+                  feedbackDetail = details[0];
+                } else if (details && !Array.isArray(details)) {
+                  feedbackDetail = details;
+                }
+              }
+            } catch (err) {
+              console.log(`ℹ️ [FeedbackManagement] Không có feedback detail cho feedback ${index + 1}:`, err.message);
+            }
+            
+            const backendCategory = feedbackDetail?.category || feedback.category;
+            const frontendCategory = mapCategoryFromBackend(backendCategory);
+            
+            let vehicleModel = 'N/A';
+            const orderId = feedback.orderId || feedback.order_id;
+            if (orderId) {
+              try {
+                const orderResponse = await getOrderById(orderId);
+                const fullOrder = orderResponse?.data || orderResponse;
+                const orderDetails = fullOrder?.getOrderDetailsResponses || 
+                                   fullOrder?.orderDetails ||
+                                   fullOrder?.details ||
+                                   [];
+                
+                if (orderDetails.length > 0) {
+                  const modelNames = [];
+                  orderDetails.forEach((detail) => {
+                    const modelName = detail.modelName || 
+                                    detail.model?.modelName ||
+                                    detail.storeStock?.model?.modelName ||
+                                    detail.modelColor?.model?.modelName ||
+                                    detail.vehicleModel ||
+                                    detail.vehicle_model ||
+                                    'N/A';
+                    
+                    if (modelName && modelName !== 'N/A' && !modelNames.includes(modelName)) {
+                      modelNames.push(modelName);
+                    }
+                  });
+                  vehicleModel = modelNames.length > 0 ? modelNames.join(', ') : 'N/A';
+                }
+              } catch (err) {
+                console.error(`❌ [FeedbackManagement] Lỗi khi gọi API getOrderById(${orderId}):`, err);
+              }
+            }
+            
+            const mapped = {
+              id: feedback.feedbackId || feedback.id || feedback.feedback_id,
+              feedbackId: feedback.feedbackId || feedback.id || feedback.feedback_id,
+              customerName: feedback.customerName || feedback.customer_name || 'N/A',
+              orderNumber: feedback.orderId ? `HD-${feedback.orderId}` : feedback.orderNumber || 'N/A',
+              orderId: feedback.orderId || feedback.order_id,
+              vehicleModel: vehicleModel,
+              category: frontendCategory,
+              rating: feedbackDetail?.rating || feedback.rating || 0,
+              content: feedbackDetail?.content || feedback.content || 'Không có nội dung',
+              status: (feedback.status || 'pending').toLowerCase(),
+              createdAt: feedback.createdAt || feedback.created_at || feedback.createdDate || new Date().toISOString().split('T')[0],
+              resolvedAt: feedback.resolvedAt || feedback.resolved_at || feedback.resolvedDate || null,
+              feedbackDetailId: feedbackDetail?.feedbackDetailId || feedbackDetail?.id || null
+            };
+            
+            return mapped;
+          })
+        );
+        
+        const filteredFeedbacks = mappedFeedbacks.filter(feedback => {
+          const hasRating = feedback.rating && feedback.rating > 0;
+          const hasContent = feedback.content && feedback.content.trim() !== '' && feedback.content !== 'Không có nội dung';
+          const hasStatus = feedback.status && feedback.status.trim() !== '';
+          const statusLower = feedback.status?.toLowerCase() || '';
+          const isNotDraft = statusLower !== 'draft';
+          
+          return hasRating && hasContent && hasStatus && isNotDraft;
+        });
+        
+        filteredFeedbacks.sort((a, b) => {
+          const dateA = new Date(a.createdAt);
+          const dateB = new Date(b.createdAt);
+          return dateB - dateA;
+        });
+        
+        setFeedbacks(filteredFeedbacks);
+        setLoading(false);
+        console.log('✅ [FeedbackManagement] Đã refresh danh sách feedback sau khi cập nhật');
+      } catch (refreshErr) {
+        console.error('❌ [FeedbackManagement] Lỗi khi refresh feedbacks:', refreshErr);
+        window.location.reload();
+      }
+    } catch (err) {
+      console.error('❌ [FeedbackManagement] Lỗi khi cập nhật feedback hiện có:', err);
+      alert('Lỗi khi cập nhật phản hồi: ' + (err.message || 'Vui lòng thử lại'));
+    }
+  };
+
   const handleEditFeedback = (feedback) => {
     setSelectedFeedback(feedback);
+    // Map backend category to frontend category for form
+    const frontendCategory = mapCategoryFromBackend(feedback.category) || 'service';
+    
     setCreateForm({
       orderId: feedback.orderId?.toString() || '',
       customerName: feedback.customerName || '',
-      category: feedback.category || 'service',
+      category: frontendCategory,
       rating: feedback.rating || 5,
       content: feedback.content || '',
-      status: feedback.status?.toUpperCase() || 'DRAFT'
+      status: feedback.status?.toUpperCase() || 'PENDING'
     });
     setShowEditForm(true);
+  };
+
+  const handleDeleteFeedback = async (feedbackId) => {
+    if (!feedbackId) return;
+    
+    const confirmDelete = window.confirm('Bạn có chắc chắn muốn xóa phản hồi này? Hành động này không thể hoàn tác.');
+    
+    if (!confirmDelete) return;
+    
+    try {
+      console.log('🔄 [FeedbackManagement] Đang xóa feedback:', feedbackId);
+      
+      await deleteFeedback(feedbackId);
+      
+      console.log('✅ [FeedbackManagement] Đã xóa feedback thành công');
+      
+      // Remove from local state
+      setFeedbacks(prevFeedbacks => prevFeedbacks.filter(f => 
+        (f.feedbackId || f.id) !== feedbackId
+      ));
+      
+      alert('Xóa phản hồi thành công!');
+    } catch (err) {
+      console.error('❌ [FeedbackManagement] Lỗi khi xóa feedback:', err);
+      alert('Lỗi khi xóa phản hồi: ' + (err.message || 'Vui lòng thử lại'));
+    }
   };
 
   const handleUpdateFeedback = async (e) => {
@@ -713,7 +1547,7 @@ function FeedbackManagement({ onBack }) {
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Chờ xử lý</p>
                 <p className="text-2xl font-bold text-gray-900">
-                  {sortedFeedbacks.filter(f => f.status === 'pending' || f.status === 'draft').length}
+                  {sortedFeedbacks.filter(f => f.status === 'pending').length}
                 </p>
               </div>
             </div>
@@ -768,12 +1602,42 @@ function FeedbackManagement({ onBack }) {
 
         {/* Create Feedback Modal */}
         {showCreateForm && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowCreateForm(false)}>
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => {
+            setShowCreateForm(false);
+            setOrders([]);
+            setSearchResults([]);
+            setShowSearchResults(false);
+            setCreateForm({
+              phoneNumber: '',
+              orderId: '',
+              customerName: '',
+              customerId: '',
+              category: 'service',
+              rating: 5,
+              content: '',
+              status: 'PENDING'
+            });
+          }}>
             <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Tạo phản hồi mới</h3>
                 <button
-                  onClick={() => setShowCreateForm(false)}
+                  onClick={() => {
+                    setShowCreateForm(false);
+                    setOrders([]);
+                    setSearchResults([]);
+                    setShowSearchResults(false);
+                    setCreateForm({
+                      phoneNumber: '',
+                      orderId: '',
+                      customerName: '',
+                      customerId: '',
+                      category: 'service',
+                      rating: 5,
+                      content: '',
+                      status: 'PENDING'
+                    });
+                  }}
                   className="text-gray-400 hover:text-gray-600"
                 >
                   <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -783,37 +1647,149 @@ function FeedbackManagement({ onBack }) {
               </div>
               <form onSubmit={handleCreateFeedback} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Mã đơn hàng *</label>
-                  {loadingOrders ? (
-                    <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 flex items-center">
-                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-emerald-600 mr-2"></div>
-                      <span className="text-sm text-gray-500">Đang tải...</span>
-                    </div>
-                  ) : (
-                    <select
-                      value={createForm.orderId}
-                      onChange={(e) => handleOrderSelect(e.target.value)}
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Số điện thoại *</label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      value={createForm.phoneNumber}
+                      onChange={(e) => {
+                        const phone = e.target.value;
+                        setCreateForm(prev => ({ ...prev, phoneNumber: phone }));
+                        // Debounce search
+                        clearTimeout(window.phoneSearchTimeout);
+                        window.phoneSearchTimeout = setTimeout(() => {
+                          handlePhoneNumberSearch(phone);
+                        }, 500);
+                      }}
+                      onFocus={() => {
+                        if (searchResults.length > 0) {
+                          setShowSearchResults(true);
+                        }
+                      }}
+                      placeholder="Nhập số điện thoại để tìm khách hàng..."
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                       required
-                    >
-                      <option value="">-- Chọn đơn hàng --</option>
-                      {orders.map((order) => {
-                        const orderId = order.orderId || order.id || order.order_id;
-                        const orderCode = order.orderCode || order.order_code || `HD-${orderId}`;
-                        const customerName = order.customerName || 
-                                            order.customer?.fullName || 
-                                            order.customer?.customerName || 
-                                            order.customer?.name ||
-                                            'N/A';
+                      data-search-results
+                    />
+                    {searchingCustomer && (
+                      <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-emerald-600"></div>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Search Results Dropdown */}
+                  {showSearchResults && searchResults.length > 0 && (
+                    <div data-search-results className="mt-2 border border-gray-300 rounded-lg bg-white shadow-lg max-h-60 overflow-y-auto z-50">
+                      {searchResults.map((result, index) => {
+                        const { customer, order } = result;
+                        const formatDate = (dateString) => {
+                          if (!dateString) return 'N/A';
+                          try {
+                            const date = new Date(dateString);
+                            return date.toLocaleDateString('vi-VN', {
+                              year: 'numeric',
+                              month: '2-digit',
+                              day: '2-digit'
+                            });
+                          } catch {
+                            return dateString;
+                          }
+                        };
+                        
                         return (
-                          <option key={orderId} value={orderId}>
-                            {orderCode} - {customerName}
-                          </option>
+                          <button
+                            key={index}
+                            type="button"
+                            onClick={() => handleSelectSearchResult(result)}
+                            className="w-full text-left px-4 py-3 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-gray-900">{customer.phone}</span>
+                                  <span className="text-gray-600">-</span>
+                                  <span className="text-gray-700">{customer.name}</span>
+                                </div>
+                                {order && (
+                                  <div className="mt-1 flex flex-col gap-1 text-sm text-gray-600">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">
+                                        {order.modelNames && order.modelNames.length > 0 
+                                          ? order.modelNames.join(', ') 
+                                          : 'N/A'}
+                                      </span>
+                                      {order.totalQuantity > 0 && (
+                                        <>
+                                          <span>•</span>
+                                          <span>Số lượng: {order.totalQuantity}</span>
+                                        </>
+                                      )}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {formatDate(order.orderDate)}
+                                    </div>
+                                  </div>
+                                )}
+                                {!order && (
+                                  <div className="mt-1 text-sm text-gray-500 italic">
+                                    Chưa có đơn hàng
+                                  </div>
+                                )}
+                              </div>
+                              <svg className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                              </svg>
+                            </div>
+                          </button>
                         );
                       })}
-                    </select>
+                    </div>
+                  )}
+                  
+                  {showSearchResults && searchResults.length === 0 && !searchingCustomer && (
+                    <div className="mt-2 text-sm text-gray-500 text-center py-2">
+                      Không tìm thấy khách hàng hoặc đơn hàng nào
+                    </div>
+                  )}
+                  
+                  {createForm.customerName && !showSearchResults && (
+                    <p className="mt-1 text-sm text-gray-600">
+                      Khách hàng: <span className="font-semibold">{createForm.customerName}</span>
+                    </p>
                   )}
                 </div>
+                
+                {orders.length > 0 && createForm.orderId && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Mã đơn hàng *</label>
+                    {loadingOrders ? (
+                      <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 flex items-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-emerald-600 mr-2"></div>
+                        <span className="text-sm text-gray-500">Đang tải...</span>
+                      </div>
+                    ) : (
+                      <select
+                        value={createForm.orderId}
+                        onChange={(e) => handleOrderSelect(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        required
+                      >
+                        <option value="">-- Chọn đơn hàng --</option>
+                        {orders.map((order) => {
+                          const orderId = order.orderId || order.id || order.order_id;
+                          const orderCode = order.orderCode || order.order_code || `HD-${orderId}`;
+                          return (
+                            <option key={orderId} value={orderId}>
+                              {orderCode}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    )}
+                  </div>
+                )}
+                
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Danh mục *</label>
                   <select
@@ -858,9 +1834,9 @@ function FeedbackManagement({ onBack }) {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     required
                   >
-                    <option value="DRAFT">Bản nháp</option>
                     <option value="PENDING">Chờ xử lý</option>
                     <option value="IN_PROGRESS">Đang xử lý</option>
+                    <option value="RESOLVED">Đã giải quyết</option>
                   </select>
                 </div>
                 <div className="flex justify-end space-x-4">
@@ -975,7 +1951,6 @@ function FeedbackManagement({ onBack }) {
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                     required
                   >
-                    <option value="DRAFT">Bản nháp</option>
                     <option value="PENDING">Chờ xử lý</option>
                     <option value="IN_PROGRESS">Đang xử lý</option>
                     <option value="RESOLVED">Đã giải quyết</option>
@@ -1124,7 +2099,7 @@ function FeedbackManagement({ onBack }) {
                         )}
                       </div>
                       <div className="flex items-center space-x-2 ml-4">
-                        {(feedback.status === 'pending' || feedback.status === 'draft') && (
+                        {feedback.status === 'pending' && (
                           <button
                             onClick={() => handleUpdateStatus(feedback.feedbackId || feedback.id, 'in_progress')}
                             className="px-3 py-1 text-sm bg-emerald-100 text-emerald-800 rounded-lg hover:bg-emerald-200 transition-colors"
@@ -1147,6 +2122,15 @@ function FeedbackManagement({ onBack }) {
                         >
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteFeedback(feedback.feedbackId || feedback.id)}
+                          className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                          title="Xóa phản hồi"
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
                       </div>

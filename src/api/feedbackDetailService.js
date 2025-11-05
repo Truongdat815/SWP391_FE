@@ -30,11 +30,47 @@ async function request(path, { method = 'GET', body } = {}) {
     return data;
 }
 
+// Map frontend category to backend enum
+// Frontend: 'service', 'product', 'complaint'
+// Backend: 'CUSTOMER_SERVICE', 'PRODUCT_QUALITY', 'OTHERS', 'DELIVERY_SERVICE', 'WEBSITE_EXPERIENCE'
+export const mapCategoryToBackend = (frontendCategory) => {
+    const normalized = frontendCategory?.toLowerCase();
+    switch (normalized) {
+        case 'service':
+            return 'CUSTOMER_SERVICE';
+        case 'product':
+            return 'PRODUCT_QUALITY';
+        case 'complaint':
+            return 'OTHERS';
+        default:
+            return 'OTHERS';
+    }
+};
+
+// Map backend enum to frontend category
+export const mapCategoryFromBackend = (backendCategory) => {
+    if (!backendCategory) return 'service';
+    
+    const normalized = backendCategory?.toLowerCase();
+    switch (normalized) {
+        case 'customer_service':
+        case 'delivery_service':
+            return 'service';
+        case 'product_quality':
+            return 'product';
+        case 'website_experience':
+        case 'others':
+            return 'complaint';
+        default:
+            return 'service';
+    }
+};
+
 // Create feedback detail
 export async function createFeedbackDetail(feedbackDetailData) {
     const payload = {
         feedbackId: feedbackDetailData.feedbackId,
-        category: feedbackDetailData.category, // "SERVICE", "PRODUCT", "COMPLAINT"
+        category: mapCategoryToBackend(feedbackDetailData.category), // Map to backend enum
         rating: feedbackDetailData.rating || 0,
         content: feedbackDetailData.content
     };
@@ -64,9 +100,14 @@ export async function getFeedbackDetailsByFeedbackId(feedbackId) {
 
 // Update feedback detail
 export async function updateFeedbackDetail(feedbackDetailId, feedbackDetailData) {
+    const payload = {
+        ...feedbackDetailData,
+        category: mapCategoryToBackend(feedbackDetailData.category) // Map to backend enum
+    };
+    
     return request(`/api/feedback-details/update/${feedbackDetailId}`, {
         method: 'PUT',
-        body: feedbackDetailData
+        body: payload
     });
 }
 
