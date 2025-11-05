@@ -198,8 +198,10 @@ export const formatNumber = (value) => {
 };
 
 // Demo data cho 7 mẫu xe
+// Format theo API mới: modelId, modelName, modelYear, batteryCapacity, range, powerHp, torqueNm, acceleration, seatingCapacity, bodyType, description
 export const DEMO_MODELS_DATA = [
   {
+    modelId: 0,
     modelName: "Electra Nano",
     modelYear: 2025,
     batteryCapacity: 22,
@@ -208,11 +210,11 @@ export const DEMO_MODELS_DATA = [
     torqueNm: 105,
     acceleration: 13.5,
     seatingCapacity: 2,
-    price: 18000,
     bodyType: "COUPE", // Micro-Car -> COUPE
     description: "Chiếc xe điện đô thị siêu nhỏ gọn, lý tưởng cho việc di chuyển hàng ngày. Tối ưu hóa sự tiện lợi và dễ dàng đỗ xe trong không gian chật hẹp. Sử dụng công nghệ pin LFP bền bỉ."
   },
   {
+    modelId: 0,
     modelName: "Electra UrbanPulse",
     modelYear: 2025,
     batteryCapacity: 60,
@@ -221,11 +223,11 @@ export const DEMO_MODELS_DATA = [
     torqueNm: 280,
     acceleration: 8.2,
     seatingCapacity: 5,
-    price: 32000,
     bodyType: "HATCHBACK", // Compact Hatchback -> HATCHBACK
     description: "Hatchback điện năng động, thiết kế trẻ trung. Cung cấp tầm hoạt động tốt và trang bị công nghệ V2L (Vehicle-to-Load), hoàn hảo cho người trẻ và gia đình nhỏ."
   },
   {
+    modelId: 0,
     modelName: "Electra CityLink",
     modelYear: 2026,
     batteryCapacity: 75,
@@ -234,11 +236,11 @@ export const DEMO_MODELS_DATA = [
     torqueNm: 350,
     acceleration: 6.8,
     seatingCapacity: 5,
-    price: 45000,
     bodyType: "SEDAN", // Compact Sedan -> SEDAN
     description: "Sedan cỡ nhỏ thanh lịch với hiệu quả khí động học cao. Mang lại trải nghiệm lái êm ái cùng các tính năng ADAS Cấp độ 2 tiên tiến và tùy chọn hệ dẫn động AWD."
   },
   {
+    modelId: 0,
     modelName: "Electra Ascent",
     modelYear: 2026,
     batteryCapacity: 80,
@@ -247,11 +249,11 @@ export const DEMO_MODELS_DATA = [
     torqueNm: 420,
     acceleration: 6.2,
     seatingCapacity: 5,
-    price: 55000,
     bodyType: "CROSSOVER", // Compact Crossover -> CROSSOVER
     description: "Crossover linh hoạt với gầm cao và cabin rộng rãi hơn. Thiết kế hiện đại, phù hợp cho cả đô thị và những chuyến đi dã ngoại cuối tuần. Tích hợp Camera 360 độ."
   },
   {
+    modelId: 0,
     modelName: "Electra GrandTour",
     modelYear: 2027,
     batteryCapacity: 110,
@@ -260,11 +262,11 @@ export const DEMO_MODELS_DATA = [
     torqueNm: 700,
     acceleration: 4.1,
     seatingCapacity: 4,
-    price: 95000,
     bodyType: "SEDAN", // Luxury Sedan (GT) -> SEDAN
     description: "Sedan hạng sang cao cấp sử dụng kiến trúc 800V và Pin lớn. Thiết kế tập trung vào hiệu suất và sự tinh tế. Nội thất bọc da Nappa và công nghệ AR HUD."
   },
   {
+    modelId: 0,
     modelName: "Electra Summit",
     modelYear: 2027,
     batteryCapacity: 120,
@@ -273,11 +275,11 @@ export const DEMO_MODELS_DATA = [
     torqueNm: 850,
     acceleration: 4.8,
     seatingCapacity: 6,
-    price: 110000,
     bodyType: "SUV", // Luxury Full-Size SUV -> SUV
     description: "SUV cỡ lớn hạng sang, dẫn động AWD tiêu chuẩn, cung cấp không gian rộng rãi và sự thoải mái tối đa cho 6 người. Sử dụng hệ thống treo khí nén và kiến trúc 800V."
   },
   {
+    modelId: 0,
     modelName: "Electra Voyager",
     modelYear: 2026,
     batteryCapacity: 100,
@@ -286,7 +288,6 @@ export const DEMO_MODELS_DATA = [
     torqueNm: 500,
     acceleration: 7.5,
     seatingCapacity: 7,
-    price: 75000,
     bodyType: "VAN", // Luxury MPV/Van -> VAN
     description: "Xe MPV 7 chỗ hạng sang, tối ưu không gian và tiện nghi cho hành khách. Trang bị cửa trượt điện và ghế VIP giữa có đệm chân. Lý tưởng cho gia đình lớn và dịch vụ cao cấp."
   }
@@ -321,9 +322,7 @@ export const validateModelData = (modelData) => {
     errors.push('Năm sản xuất phải từ 2020 đến 2030');
   }
   
-  if (!modelData.price || modelData.price <= 0) {
-    errors.push('Giá bán phải lớn hơn 0');
-  }
+  // Price validation removed - price is now managed at model-color level
   
   if (!modelData.bodyType) {
     errors.push('Kiểu dáng xe là bắt buộc');

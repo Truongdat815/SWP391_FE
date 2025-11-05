@@ -22,7 +22,6 @@ import {
   Upload,
   X
 } from 'lucide-react';
-import Tooltip from '@/components/ui/Tooltip';
 import ViewContracts from './ViewContracts';
 
 function ContractManagement() {
@@ -111,12 +110,41 @@ function ContractManagement() {
     });
   }
 
-  // Filter orders by search
+  // Format order code to ORD-01, ORD-02, ...
+  const formatOrderCode = (orderCode, orderId) => {
+    if (orderCode) {
+      // If orderCode already has format, extract number or use as is
+      const match = orderCode.match(/ORD-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        return `ORD-${String(num).padStart(2, '0')}`;
+      }
+      // Try to extract number from orderCode
+      const numMatch = orderCode.match(/(\d+)/);
+      if (numMatch) {
+        const num = parseInt(numMatch[1], 10);
+        return `ORD-${String(num).padStart(2, '0')}`;
+      }
+    }
+    // Fallback to orderId
+    if (orderId) {
+      const num = parseInt(orderId, 10);
+      return `ORD-${String(num).padStart(2, '0')}`;
+    }
+    return orderCode || 'N/A';
+  };
+
+  // Filter orders by search and ensure only CONFIRMED orders without contracts are shown
   const filteredOrders = sortOrders(
     (orders || []).filter(order => 
-      order.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      // Only show CONFIRMED orders
+      order.status?.toUpperCase() === 'CONFIRMED' &&
+      // Exclude orders that already have contracts
+      !ordersWithContracts[order.orderId] &&
+      // Filter by search term
+      (order.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.customerPhone?.toLowerCase().includes(searchTerm.toLowerCase())
+      order.customerPhone?.toLowerCase().includes(searchTerm.toLowerCase()))
     ),
     sortMode
   );
@@ -274,8 +302,8 @@ function ContractManagement() {
         ) : filteredOrders.length === 0 ? (
           <div className="text-center py-4">
             <ShoppingCart className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">Không có đơn hàng nào đã xác nhận</p>
-            <p className="text-gray-400 text-sm mt-2">Các đơn hàng đã xác nhận sẽ xuất hiện ở đây</p>
+            <p className="text-gray-500 text-lg">Không có đơn hàng nào cần tạo hợp đồng</p>
+            
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -320,7 +348,7 @@ function ContractManagement() {
                     }`}
                   >
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {order.orderCode || `ORD-${order.orderId}`}
+                      {formatOrderCode(order.orderCode, order.orderId)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{order.customerName || 'N/A'}</div>
@@ -361,43 +389,40 @@ function ContractManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex gap-2">
-                        <Tooltip content="Xem chi tiết đơn hàng" placement="top">
-                          <button
-                            onClick={() => handleViewOrder(order)}
-                            className="text-emerald-600 hover:text-emerald-900 transition-colors"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </button>
-                        </Tooltip>
+                        <button
+                          onClick={() => handleViewOrder(order)}
+                          className="text-emerald-600 hover:text-emerald-900 transition-colors"
+                          title="Xem chi tiết đơn hàng"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
                         
                         {(() => {
                           const hasContract = ordersWithContracts[order.orderId];
                           if (hasContract) {
                             return (
-                              <Tooltip content="Đơn hàng đã có hợp đồng" placement="top">
-                                <button
-                                  onClick={() => setActiveTab('view')}
-                                  className="text-green-600 hover:text-green-900 transition-colors"
-                                >
-                                  <CheckCircle className="h-4 w-4" />
-                                </button>
-                              </Tooltip>
+                              <button
+                                onClick={() => setActiveTab('view')}
+                                className="text-green-600 hover:text-green-900 transition-colors"
+                                title="Đơn hàng đã có hợp đồng"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </button>
                             );
                           } else {
                             return (
-                              <Tooltip content="Tạo hợp đồng" placement="top">
-                                <button
-                                  onClick={() => handleCreateContract(order)}
-                                  disabled={creatingContractForOrder === order.orderId}
-                                  className="text-blue-600 hover:text-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
-                                  {creatingContractForOrder === order.orderId ? (
+                              <button
+                                onClick={() => handleCreateContract(order)}
+                                disabled={creatingContractForOrder === order.orderId}
+                                className="text-blue-600 hover:text-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Tạo hợp đồng"
+                              >
+                                {creatingContractForOrder === order.orderId ? (
                                     <Loader2 className="h-4 w-4 animate-spin" />
                                   ) : (
                                     <FilePlus className="h-4 w-4" />
                                   )}
                                 </button>
-                              </Tooltip>
                             );
                           }
                         })()}

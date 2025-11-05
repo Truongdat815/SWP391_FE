@@ -7,7 +7,6 @@ import { fetchOrdersByCustomer } from '@store/slices/orderSlice';
 import { useAuth } from '../../contexts/AuthContext';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
-import Tooltip from '@/components/ui/Tooltip';
 
 
 function CustomerManagement() {
@@ -53,17 +52,49 @@ function CustomerManagement() {
   useEffect(() => {
     // Only fetch if Redux customers list is empty after initial load
     if (customersStatus === 'succeeded' && customers.length === 0) {
+      console.log('🔄 Fallback: Fetching customers directly from API...');
       get('/api/customers/all')
-        .then((res) => setCustomersApi(Array.isArray(res?.data?.data) ? res.data.data : []))
-        .catch((err) => console.error('Lỗi lấy danh sách khách hàng:', err));
+        .then((res) => {
+          console.log('📥 Fallback API response:', res);
+          // ✅ Xử lý nhiều cấu trúc response
+          let customersData = [];
+          
+          if (Array.isArray(res?.data?.data)) {
+            customersData = res.data.data;
+          } else if (Array.isArray(res?.data)) {
+            customersData = res.data;
+          } else if (Array.isArray(res)) {
+            customersData = res;
+          } else if (res?.data && typeof res.data === 'object') {
+            const dataValues = Object.values(res.data);
+            if (dataValues.length > 0 && Array.isArray(dataValues[0])) {
+              customersData = dataValues[0];
+            }
+          }
+          
+          console.log('✅ Fallback: Extracted customers:', customersData.length);
+          setCustomersApi(customersData);
+        })
+        .catch((err) => {
+          console.error('❌ Fallback: Lỗi lấy danh sách khách hàng:', err);
+          setCustomersApi([]);
+        });
     }
   }, [customersStatus, customers.length]);
 
-  // Filter customers by store for dealer-staff
-  const allCustomers = (customers && customers.length) ? customers : customersApi;
-  const customersList = user?.storeId 
-    ? allCustomers.filter(customer => customer.storeId === user.storeId || String(customer.storeId) === String(user.storeId))
-    : allCustomers;
+  // Backend đã filter theo storeId, chỉ cần lấy danh sách từ API
+  // ✅ Đảm bảo customers và customersApi là array
+  const customersArray = Array.isArray(customers) ? customers : [];
+  const customersApiArray = Array.isArray(customersApi) ? customersApi : [];
+  
+  // ✅ Ưu tiên Redux customers, fallback về API customers
+  const finalCustomersList = customersArray.length > 0 ? customersArray : customersApiArray;
+  
+  // ✅ Debug log để kiểm tra
+  console.log('🔍 CustomerManagement Debug:');
+  console.log('- Redux customers:', customersArray.length);
+  console.log('- API customers:', customersApiArray.length);
+  console.log('- finalCustomersList:', finalCustomersList.length);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
@@ -550,7 +581,7 @@ function CustomerManagement() {
 
   // Hàm lọc khách hàng theo search term
   const getFilteredCustomers = () => {
-    return customersList.filter(customer => {
+    return finalCustomersList.filter(customer => {
       const matchesSearch = !searchTerm || 
         (customer.fullName && customer.fullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (customer.email && customer.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -609,17 +640,16 @@ function CustomerManagement() {
             </p>
           </div>
           <div className="flex space-x-3">
-            <Tooltip content="Thêm khách hàng mới vào hệ thống" placement="bottom">
-              <button
-                onClick={() => setShowAddModal(true)}
-                className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center"
-              >
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
-                Thêm khách hàng
-              </button>
-            </Tooltip>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center"
+              title="Thêm khách hàng mới vào hệ thống"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Thêm khách hàng
+            </button>
             {/* Custom Dropdown */}
             <div className="relative" ref={sortDropdownRef}>
               <button
@@ -682,14 +712,15 @@ function CustomerManagement() {
                 )}
               </AnimatePresence>
             </div>
-            <Tooltip content="Xuất danh sách khách hàng ra file Excel" placement="bottom">
-              <button className="bg-white text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200 flex items-center">
-                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                Xuất báo cáo
-              </button>
-            </Tooltip>
+            <button 
+              className="bg-white text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200 flex items-center"
+              title="Xuất danh sách khách hàng ra file Excel"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Xuất báo cáo
+            </button>
           </div>
         </div>
       </div>

@@ -92,6 +92,7 @@ export async function getOrdersByCustomer(customerId) {
 // Confirm order (DRAFT → CONFIRMED)
 export async function confirmOrder(orderId) {
     return request(`/api/orders/${orderId}/confirm`, {
-        method: 'POST'
+        method: 'PUT',
+        body: { orderId: orderId }
     });
 }

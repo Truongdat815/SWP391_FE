@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useLocation } from 'react-router-dom';
 import { 
   fetchAllContractsThunk 
 } from '../../store/slices/contractSlice';
@@ -21,6 +22,7 @@ import {
 
 function PaymentManagement() {
   const dispatch = useDispatch();
+  const location = useLocation();
   const { contracts, loading } = useSelector((state) => state.contracts);
   
   const [successMessage, setSuccessMessage] = useState(null);
@@ -35,11 +37,55 @@ function PaymentManagement() {
   const [expandedContracts, setExpandedContracts] = useState(new Set());
   const [paymentHistories, setPaymentHistories] = useState({});
   const [loadingHistories, setLoadingHistories] = useState(new Set());
+  const [highlightedContractId, setHighlightedContractId] = useState(null);
 
   // Fetch contracts on mount
   useEffect(() => {
     dispatch(fetchAllContractsThunk());
   }, [dispatch]);
+
+  // Handle contractId from navigation state
+  useEffect(() => {
+    if (location.state?.contractId) {
+      const contractId = location.state.contractId;
+      setHighlightedContractId(contractId);
+      
+      // Scroll to the contract after a short delay to ensure DOM is updated
+      setTimeout(() => {
+        const element = document.getElementById(`contract-row-${contractId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 300);
+      
+      // Clear the state to prevent re-triggering
+      window.history.replaceState({}, document.title);
+    }
+  }, [location]);
+
+  // Format contract code to CTR-01, CTR-02, ...
+  const formatContractCode = (contractCode, contractId) => {
+    if (contractCode) {
+      // If contractCode already has format, extract number or use as is
+      const match = contractCode.match(/CTR-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        return `CTR-${String(num).padStart(2, '0')}`;
+      }
+      // Try to extract number from contractCode
+      const numMatch = contractCode.match(/(\d+)/);
+      if (numMatch) {
+        const num = parseInt(numMatch[1], 10);
+        return `CTR-${String(num).padStart(2, '0')}`;
+      }
+    }
+    // Fallback to contractId
+    if (contractId) {
+      const num = parseInt(contractId, 10);
+      return `CTR-${String(num).padStart(2, '0')}`;
+    }
+    return contractCode || 'N/A';
+  };
 
   // Filter contracts that have signed contract file uploaded
   const contractsWithSignedImage = (contracts || []).filter(
@@ -213,44 +259,7 @@ function PaymentManagement() {
           </div>
         </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="bg-emerald-50 rounded-lg p-4">
-            <div className="flex items-center">
-              <div className="p-3 bg-emerald-100 rounded-lg">
-                <DollarSign className="h-6 w-6 text-emerald-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Tổng doanh thu</p>
-                <p className="text-2xl font-bold text-gray-900">{totalRevenue.toLocaleString('vi-VN')} VNĐ</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-yellow-50 rounded-lg p-4">
-            <div className="flex items-center">
-              <div className="p-3 bg-yellow-100 rounded-lg">
-                <AlertCircle className="h-6 w-6 text-yellow-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Công nợ</p>
-                <p className="text-2xl font-bold text-gray-900">{pendingAmount.toLocaleString('vi-VN')} VNĐ</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-blue-50 rounded-lg p-4">
-            <div className="flex items-center">
-              <div className="p-3 bg-blue-100 rounded-lg">
-                <CreditCard className="h-6 w-6 text-blue-600" />
-              </div>
-              <div className="ml-4">
-                <p className="text-sm font-medium text-gray-600">Tổng hợp đồng</p>
-                <p className="text-2xl font-bold text-gray-900">{contractsWithSignedImage.length}</p>
-              </div>
-            </div>
-          </div>
-        </div>
+        
       </div>
 
       {/* Contracts Table */}
@@ -273,9 +282,6 @@ function PaymentManagement() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Mã hợp đồng
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Khách hàng
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Tổng thanh toán
@@ -305,12 +311,16 @@ function PaymentManagement() {
 
                   return (
                     <React.Fragment key={contract.contractId}>
-                      <tr className="hover:bg-gray-50">
+                      <tr 
+                        id={`contract-row-${contract.contractId}`}
+                        className={`hover:bg-gray-50 transition-colors ${
+                          highlightedContractId === contract.contractId 
+                            ? 'bg-blue-50 border-l-4 border-blue-500 shadow-sm' 
+                            : ''
+                        }`}
+                      >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {contract.contractCode || `#${contract.contractId}`}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {contract.customerName || 'N/A'}
+                          {formatContractCode(contract.contractCode, contract.contractId)}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                           {total.toLocaleString('vi-VN')} VNĐ
@@ -359,7 +369,7 @@ function PaymentManagement() {
                       </tr>
                       {isExpanded && (
                         <tr>
-                          <td colSpan="7" className="px-6 py-4 bg-gray-50">
+                          <td colSpan="6" className="px-6 py-4 bg-gray-50">
                             {isLoadingHistory ? (
                               <div className="flex items-center justify-center py-4">
                                 <Loader2 className="h-5 w-5 animate-spin text-emerald-600 mr-2" />
@@ -467,8 +477,8 @@ function PaymentManagement() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Hợp đồng</label>
-                <p className="text-sm text-gray-600">
-                  {selectedContract.contractCode || `#${selectedContract.contractId}`} - {selectedContract.customerName}
+                <p className="text-sm text-gray-600 font-medium">
+                  {formatContractCode(selectedContract.contractCode, selectedContract.contractId)}
                 </p>
               </div>
               

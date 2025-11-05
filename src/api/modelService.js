@@ -39,7 +39,9 @@ export async function getModelById(modelId) {
 }
 
 export async function createModel(model) {
-    return request('/api/models/create', { method: 'POST', body: model });
+    const response = await request('/api/models/create', { method: 'POST', body: model });
+    // Backend returns { code, message, data: { ... } }
+    return response?.data || response;
 }
 
 export async function updateModel(modelData) {

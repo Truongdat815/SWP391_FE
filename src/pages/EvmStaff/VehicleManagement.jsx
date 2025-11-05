@@ -107,22 +107,24 @@ function VehicleManagement() {
     e.preventDefault();
     
     try {
+      // Prepare payload according to new API: modelId, modelName, modelYear, batteryCapacity, 
+      // range, powerHp, torqueNm, acceleration, seatingCapacity, bodyType, description
       const payload = {
-        ...formData,
+        modelId: editingModel ? editingModel.modelId : 0,
         modelName: formData.modelName.trim(),
-        description: formData.description.trim(),
-        batteryCapacity: parseFloat(formData.batteryCapacity),
-        range: parseFloat(formData.range),
-        powerHp: parseFloat(formData.powerHp),
-        torqueNm: parseFloat(formData.torqueNm),
-        acceleration: parseFloat(formData.acceleration),
-        seatingCapacity: parseInt(formData.seatingCapacity),
-        price: parseFloat(formData.price),
         modelYear: parseInt(formData.modelYear),
+        batteryCapacity: parseFloat(formData.batteryCapacity) || 0,
+        range: parseFloat(formData.range) || 0,
+        powerHp: parseFloat(formData.powerHp) || 0,
+        torqueNm: parseFloat(formData.torqueNm) || 0,
+        acceleration: parseFloat(formData.acceleration) || 0,
+        seatingCapacity: parseInt(formData.seatingCapacity) || 0,
+        bodyType: formData.bodyType,
+        description: formData.description.trim(),
       };
 
       if (editingModel) {
-        await dispatch(updateModelThunk({ ...payload, modelId: editingModel.modelId })).unwrap();
+        await dispatch(updateModelThunk(payload)).unwrap();
         showNotification('success', 'Cập nhật xe thành công!');
       } else {
         await dispatch(createModelThunk(payload)).unwrap();

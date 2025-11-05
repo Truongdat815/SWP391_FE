@@ -8,7 +8,6 @@ import {
 import { 
   fetchOrderDetailsByOrderId 
 } from '../../store/slices/orderDetailSlice';
-import Tooltip from '@/components/ui/Tooltip';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -365,17 +364,16 @@ function OrderManagement() {
               <thead className="bg-gray-50">
                 <tr>
                   <th className="px-4 py-3 text-left">
-                    <Tooltip content="Chọn/Bỏ chọn tất cả" placement="top">
-                      <div className="flex items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length}
-                          onChange={handleSelectAll}
-                          className="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
-                        />
-                        <span className="text-xs font-medium text-gray-600">Tất cả</span>
-                      </div>
-                    </Tooltip>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length}
+                        onChange={handleSelectAll}
+                        className="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
+                        title="Chọn/Bỏ chọn tất cả"
+                      />
+                      <span className="text-xs font-medium text-gray-600">Tất cả</span>
+                    </div>
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Mã đơn hàng
@@ -431,22 +429,20 @@ function OrderManagement() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-3">
-                        <Tooltip content="Xem chi tiết đơn hàng" placement="top">
-                          <button
-                            onClick={() => handleViewDetails(order)}
-                            className="text-emerald-600 hover:text-emerald-900 transition-colors"
-                          >
-                            <Eye className="h-5 w-5" />
-                          </button>
-                        </Tooltip>
-                        <Tooltip content="Xóa đơn hàng (Manager)" placement="top">
-                          <button
-                            onClick={() => handleDeleteOrder(order.orderId)}
+                        <button
+                          onClick={() => handleViewDetails(order)}
+                          className="text-emerald-600 hover:text-emerald-900 transition-colors"
+                          title="Xem chi tiết đơn hàng"
+                        >
+                          <Eye className="h-5 w-5" />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteOrder(order.orderId)}
+                          title="Xóa đơn hàng (Manager)"
                             className="text-red-600 hover:text-red-900 transition-colors"
                           >
                             <Trash2 className="h-5 w-5" />
                           </button>
-                        </Tooltip>
                       </div>
                     </td>
                   </tr>
