@@ -38,6 +38,8 @@ function InventoryManagement() {
     storeName: '',
     modelId: '',
     modelName: '',
+    colorId: '',
+    colorName: '',
     quantity: ''
   });
 
@@ -85,6 +87,12 @@ function InventoryManagement() {
   const selectedModel = models.find(m => String(m.modelId) === String(createData.modelId));
   const unitPrice = selectedModel?.price || 0;
   const totalPrice = unitPrice * (parseInt(createData.quantity) || 0);
+  
+  // Lọc màu sắc theo model đã chọn
+  const availableColors = useMemo(() => {
+    if (!createData.modelId) return [];
+    return modelColors.filter(mc => String(mc.modelId) === String(createData.modelId));
+  }, [modelColors, createData.modelId]);
 
   const myStoreId = user?.storeId;
 
@@ -307,6 +315,8 @@ function InventoryManagement() {
       storeName: user?.storeName || '',
       modelId: '',
       modelName: '',
+      colorId: '',
+      colorName: '',
       quantity: ''
     });
     setCreateModal(true);
@@ -315,8 +325,8 @@ function InventoryManagement() {
   const handleSubmitCreate = async (e) => {
     e.preventDefault();
     
-    if (!createData.modelId || !createData.quantity || parseInt(createData.quantity) <= 0) {
-      dispatch(showWarning({ message: 'Vui lòng chọn model và nhập số lượng hợp lệ!' }));
+    if (!createData.modelId || !createData.colorId || !createData.quantity || parseInt(createData.quantity) <= 0) {
+      dispatch(showWarning({ message: 'Vui lòng chọn model, màu sắc và nhập số lượng hợp lệ!' }));
       return;
     }
 
@@ -326,28 +336,20 @@ function InventoryManagement() {
     }
 
     try {
-      // Lấy màu mặc định từ model_colors (hoặc màu đầu tiên)
-      const modelColor = modelColors.find(mc => String(mc.modelId) === String(createData.modelId));
-      
-      if (!modelColor) {
-        dispatch(showError({ message: 'Model này chưa có màu sắc được cấu hình. Vui lòng liên hệ EVM.' }));
-        return;
-      }
-
       const payload = {
         stockId: 0,
         storeId: parseInt(createData.storeId),
         storeName: createData.storeName,
         modelId: parseInt(createData.modelId),
         modelName: createData.modelName,
-        colorId: parseInt(modelColor.colorId),
-        colorName: modelColor.colorName,
+        colorId: parseInt(createData.colorId),
+        colorName: createData.colorName,
         priceOfStore: unitPrice, // Sử dụng giá từ model
         quantity: parseInt(createData.quantity)
       };
       
       await dispatch(createStoreStockThunk(payload)).unwrap();
-      dispatch(showSuccess({ message: `Đã thêm ${createData.quantity} xe ${createData.modelName} vào kho. Tổng giá: ${totalPrice.toLocaleString('vi-VN')} VNĐ` }));
+      dispatch(showSuccess({ message: `Đã thêm ${createData.quantity} xe ${createData.modelName} (${createData.colorName}) vào kho. Tổng giá: ${totalPrice.toLocaleString('vi-VN')} VNĐ` }));
       setCreateModal(false);
       dispatch(getAllStoreStocksThunk());
     } catch (error) {
@@ -899,11 +901,13 @@ function InventoryManagement() {
               </button>
             </div>
             <form onSubmit={handleSubmitCreate} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4">
                 <div>
                   <label className="block text-sm text-gray-700 mb-1">Cửa hàng</label>
                   <input type="text" value={`${createData.storeName || ''} (#${createData.storeId || ''})`} disabled className="w-full border rounded px-3 py-2 bg-gray-50" />
                 </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm text-gray-700 mb-1">Chọn Model xe <span className="text-red-500">*</span></label>
                   <select
@@ -914,7 +918,9 @@ function InventoryManagement() {
                       setCreateData({
                         ...createData,
                         modelId: modelId,
-                        modelName: model?.modelName || ''
+                        modelName: model?.modelName || '',
+                        colorId: '', // Reset màu khi đổi model
+                        colorName: ''
                       });
                     }}
                     className={`w-full border rounded px-3 py-2 ${
@@ -968,6 +974,72 @@ function InventoryManagement() {
                   )}
                 </div>
                 <div>
+                  <label className="block text-sm text-gray-700 mb-1">Chọn Màu sắc <span className="text-red-500">*</span></label>
+                  <select
+                    value={createData.colorId}
+                    onChange={(e) => {
+                      const colorId = e.target.value;
+                      const color = availableColors.find(c => String(c.colorId) === colorId);
+                      setCreateData({
+                        ...createData,
+                        colorId: colorId,
+                        colorName: color?.colorName || ''
+                      });
+                    }}
+                    className={`w-full border rounded px-3 py-2 ${
+                      modelColorsStatus === 'loading' ? 'bg-gray-50 cursor-wait' : 
+                      modelColorsStatus === 'failed' ? 'border-red-300' : 
+                      !createData.modelId ? 'bg-gray-50 cursor-not-allowed' :
+                      'bg-white'
+                    }`}
+                    required
+                    disabled={modelColorsStatus === 'loading' || !createData.modelId}
+                  >
+                    <option value="">
+                      {!createData.modelId
+                        ? '-- Chọn model trước --'
+                        : modelColorsStatus === 'loading'
+                        ? '⏳ Đang tải màu sắc...'
+                        : modelColorsStatus === 'failed'
+                        ? '❌ Lỗi tải dữ liệu'
+                        : availableColors.length === 0
+                        ? '⚠️ Model này chưa có màu sắc'
+                        : '-- Chọn màu sắc --'
+                      }
+                    </option>
+                    {modelColorsStatus === 'succeeded' && availableColors.length > 0 && availableColors.map(color => (
+                      <option key={color.colorId} value={color.colorId}>
+                        {color.colorName}
+                      </option>
+                    ))}
+                  </select>
+                  {modelColorsStatus === 'loading' && createData.modelId && (
+                    <p className="text-xs text-blue-600 mt-1 flex items-center gap-1">
+                      <svg className="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Đang tải danh sách màu sắc...
+                    </p>
+                  )}
+                  {modelColorsStatus === 'failed' && modelColorsError && createData.modelId && (
+                    <p className="text-xs text-red-600 mt-1 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      {modelColorsError} - Vui lòng thử lại sau
+                    </p>
+                  )}
+                  {modelColorsStatus === 'succeeded' && createData.modelId && availableColors.length === 0 && (
+                    <p className="text-xs text-yellow-600 mt-1 flex items-center gap-1">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                      Model này chưa có màu sắc được cấu hình. Vui lòng liên hệ EVM.
+                    </p>
+                  )}
+                </div>
+                <div>
                   <label className="block text-sm text-gray-700 mb-1">Số lượng cần nhập <span className="text-red-500">*</span></label>
                   <motion.input
                     type="number"
@@ -983,7 +1055,7 @@ function InventoryManagement() {
               </div>
 
               {/* Hiển thị thông tin giá tự động */}
-              {selectedModel && createData.quantity && parseInt(createData.quantity) > 0 && (
+              {selectedModel && createData.colorName && createData.quantity && parseInt(createData.quantity) > 0 && (
                 <motion.div 
                   className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-4 border border-blue-200"
                   initial={{ opacity: 0, y: -10 }}
@@ -996,10 +1068,17 @@ function InventoryManagement() {
                     </svg>
                     Thông tin giá tự động
                   </h4>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     <div>
                       <label className="block text-xs text-gray-600 mb-1">Model</label>
                       <p className="text-sm font-medium text-gray-900">{selectedModel.modelName}</p>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-gray-600 mb-1">Màu sắc</label>
+                      <div className="flex items-center">
+                        <div className={`w-3 h-3 rounded-full mr-2 ${getColorPreview(createData.colorName)}`}></div>
+                        <p className="text-sm font-medium text-gray-900">{createData.colorName}</p>
+                      </div>
                     </div>
                     <div>
                       <label className="block text-xs text-gray-600 mb-1">Giá đơn vị</label>

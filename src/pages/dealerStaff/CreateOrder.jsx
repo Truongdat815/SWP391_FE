@@ -1,12 +1,15 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { getAllCustomersThunk } from '../../store/slices/customerSlice';
 import { getAllModelsThunk } from '../../store/slices/modelSlice';
 import { getAllColorsThunk } from '../../store/slices/colorSlice';
+import { getAllModelColorsThunk } from '../../store/slices/modelColorSlice';
+import { getAllStoreStocksThunk } from '../../store/slices/store-stockSlice';
 import { fetchPromotions } from '../../store/slices/promotionSlice';
 import { createNewOrder, confirmOrderThunk } from '../../store/slices/orderSlice';
-import { validateOrderDetailThunk, clearValidationResult } from '../../store/slices/orderDetailSlice';
+import { clearValidationResult } from '../../store/slices/orderDetailSlice';
 import { createOrderDetailsInBatch } from '../../api/order-detailService';
 import { 
   Users, 
@@ -31,14 +34,16 @@ import AnimatedSelect from '@/components/ui/AnimatedSelect';
 function CreateOrder({ onBack }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { getStoreId, user } = useAuth();
   
   // Redux state
   const { items: customers, loading: customersLoading } = useSelector((state) => state.customers);
   const { items: models, loading: modelsLoading } = useSelector((state) => state.models);
   const { items: colors, status: colorsStatus } = useSelector((state) => state.colors);
+  const { items: modelColors } = useSelector((state) => state.modelColors);
+  const { items: storeStocks, status: storeStocksStatus } = useSelector((state) => state.storeStocks);
   const { promotions, loading: promotionsLoading } = useSelector((state) => state.promotions);
   const { loading: orderLoading } = useSelector((state) => state.orders);
-  const { loading: orderDetailLoading, validationResult } = useSelector((state) => state.orderDetails);
   
   // Wizard state
   const [currentStep, setCurrentStep] = useState(1);
@@ -58,14 +63,40 @@ function CreateOrder({ onBack }) {
   const [selectedItems, setSelectedItems] = useState([]);
   const [isValidating, setIsValidating] = useState(false);
   const [currentValidation, setCurrentValidation] = useState(null);
+  const [stockInfo, setStockInfo] = useState(null); // Stock info for model+color (without quantity)
+  
+  // Debounce timer ref
+  const validationTimerRef = useRef(null);
 
   // Load initial data
   useEffect(() => {
     dispatch(getAllCustomersThunk());
     dispatch(getAllModelsThunk());
     dispatch(getAllColorsThunk());
+    dispatch(getAllModelColorsThunk());
+    dispatch(getAllStoreStocksThunk());
     dispatch(fetchPromotions());
   }, [dispatch]);
+  
+  // Filter store stocks by current user's storeId
+  const currentStoreId = getStoreId();
+  const filteredStoreStocks = useMemo(() => {
+    if (!currentStoreId || !storeStocks || storeStocks.length === 0) {
+      return [];
+    }
+    
+    // Filter store-stocks by current storeId with flexible comparison
+    return storeStocks.filter(stock => {
+      const storeIdStr = String(stock.storeId);
+      const storeIdNum = Number(stock.storeId);
+      const currentStoreIdStr = String(currentStoreId);
+      const currentStoreIdNum = Number(currentStoreId);
+      
+      return storeIdStr === currentStoreIdStr ||
+             storeIdNum === currentStoreIdNum ||
+             stock.storeId == currentStoreId; // Loose equality
+    });
+  }, [storeStocks, currentStoreId]);
 
   // Filter customers
   const filteredCustomers = (customers || []).filter(customer =>
@@ -76,10 +107,46 @@ function CreateOrder({ onBack }) {
 
   // Get colors filtered by selected model
   const getFilteredColors = () => {
-    if (!formData.modelId || !colors) return [];
-    // In real app, you might filter colors by model from model-color associations
-    // For now, return all colors
-    return colors;
+    if (!formData.modelId || !colors || !modelColors) return [];
+    
+    // Get all colorIds associated with the selected modelId
+    const modelColorIds = modelColors
+      .filter(mc => String(mc.modelId) === String(formData.modelId))
+      .map(mc => mc.colorId);
+    
+    // Filter colors that match the modelColorIds
+    return colors.filter(color => 
+      modelColorIds.some(mcColorId => String(color.colorId) === String(mcColorId))
+    );
+  };
+
+  // Get promotions filtered by selected model
+  const getFilteredPromotions = () => {
+    if (!formData.modelId || !promotions) return [];
+    
+    // Filter promotions that apply to this model (modelId matches or modelId = 0 for all models)
+    return promotions.filter(promo => 
+      String(promo.modelId) === String(formData.modelId) || 
+      promo.modelId === 0 // 0 = apply to all models
+    );
+  };
+
+  // Get stock info for current model+color (without quantity validation)
+  const getStockInfo = () => {
+    if (!formData.modelId || !formData.colorId || !storeStocks || storeStocks.length === 0) {
+      return null;
+    }
+
+    const currentStoreId = getStoreId();
+    if (!currentStoreId) return null;
+
+    const matchingStock = storeStocks.find(stock => 
+      String(stock.modelId) === String(formData.modelId) &&
+      String(stock.colorId) === String(formData.colorId) &&
+      String(stock.storeId) === String(currentStoreId)
+    );
+
+    return matchingStock || null;
   };
 
   // Get model name
@@ -111,11 +178,17 @@ function CreateOrder({ onBack }) {
   // Step 2: Handle form input change
   const handleFormChange = (e) => {
     const { name, value } = e.target;
+    
     setFormData(prev => ({
       ...prev,
       [name]: name === 'promotionId' || name === 'modelId' || name === 'colorId' || name === 'quantity' 
         ? parseInt(value) || 0 
-        : value
+        : value,
+      // Reset colorId and promotionId when modelId changes
+      ...(name === 'modelId' && String(prev.modelId) !== String(value) ? { 
+        colorId: '', 
+        promotionId: 0 
+      } : {})
     }));
     
     // Clear validation when form changes
@@ -125,9 +198,9 @@ function CreateOrder({ onBack }) {
     }
   };
 
-  // Step 2: Validate order detail
-  const handleValidate = async () => {
-    // Validation
+  // Step 2: Validate order detail (frontend validation from store-stocks)
+  const handleValidate = useCallback(() => {
+    // Basic validation
     if (!formData.modelId) {
       setError('Vui lòng chọn model xe');
       return;
@@ -145,30 +218,138 @@ function CreateOrder({ onBack }) {
       setError(null);
       setIsValidating(true);
       
-      const validationData = {
-        modelId: formData.modelId,
-        colorId: formData.colorId,
-        quantity: formData.quantity,
-        promotionId: formData.promotionId
-      };
+      // Check if store-stocks data is loaded
+      if (storeStocksStatus === 'loading') {
+        setError('Đang tải dữ liệu tồn kho, vui lòng đợi...');
+        setIsValidating(false);
+        return;
+      }
 
-      const result = await dispatch(validateOrderDetailThunk(validationData)).unwrap();
+      if (storeStocksStatus === 'failed' || !filteredStoreStocks || filteredStoreStocks.length === 0) {
+        setError('Không thể tải dữ liệu tồn kho. Vui lòng thử lại.');
+        setIsValidating(false);
+        return;
+      }
+
+      // Get current user's storeId
+      const currentStoreId = getStoreId();
+      
+      if (!currentStoreId) {
+        setError('Không xác định được cửa hàng. Vui lòng đăng nhập lại.');
+        setIsValidating(false);
+        return;
+      }
+
+      // Find matching store-stock from filtered store-stocks
+      // filteredStoreStocks already contains only stocks from current store
+      const matchingStock = filteredStoreStocks.find(stock => 
+        String(stock.modelId) === String(formData.modelId) &&
+        String(stock.colorId) === String(formData.colorId)
+      );
+      
+      if (!matchingStock) {
+        setError('Sản phẩm này không có trong kho của cửa hàng. Vui lòng chọn sản phẩm khác.');
+        setCurrentValidation(null);
+        setIsValidating(false);
+        return;
+      }
+      
+      // Check quantity availability
+      if (matchingStock.quantity < formData.quantity) {
+        setError(`Số lượng tồn kho không đủ. Hiện có: ${matchingStock.quantity} xe. Vui lòng giảm số lượng hoặc chọn sản phẩm khác.`);
+        setCurrentValidation(null);
+        setIsValidating(false);
+        return;
+      }
+
+      // Validate model-color combination exists
+      const modelColorExists = modelColors.some(mc => 
+        String(mc.modelId) === String(formData.modelId) &&
+        String(mc.colorId) === String(formData.colorId)
+      );
+
+      if (!modelColorExists) {
+        setError('Sự kết hợp model và màu sắc này không hợp lệ.');
+        setCurrentValidation(null);
+        setIsValidating(false);
+        return;
+      }
+
+      // Get promotion info
+      const promotion = formData.promotionId > 0 
+        ? promotions.find(p => p.promotionId === formData.promotionId)
+        : null;
       
       // Store validation result
       setCurrentValidation({
-        ...validationData,
-        modelName: result.data?.modelName || getModelName(formData.modelId),
-        colorName: result.data?.colorName || getColorName(formData.colorId),
-        promotionName: result.data?.promotionName || getPromotionName(formData.promotionId),
-        isValid: true
+        modelId: formData.modelId,
+        colorId: formData.colorId,
+        quantity: formData.quantity,
+        promotionId: formData.promotionId,
+        modelName: getModelName(formData.modelId),
+        colorName: getColorName(formData.colorId),
+        promotionName: promotion ? promotion.promotionName : 'Không áp dụng',
+        isValid: true,
+        stockId: matchingStock.stockId,
+        availableQuantity: matchingStock.quantity,
+        price: matchingStock.priceOfStore
       });
       
       setSuccess('Sản phẩm hợp lệ! Bạn có thể thêm vào đơn hàng.');
     } catch (err) {
-      setError(err || 'Không thể xác thực sản phẩm');
+      setError(err.message || 'Không thể xác thực sản phẩm');
       setCurrentValidation(null);
     } finally {
       setIsValidating(false);
+    }
+  }, [formData, filteredStoreStocks, storeStocksStatus, getStoreId, modelColors, promotions, getModelName, getColorName, dispatch]);
+
+  // Debounced validation function
+  const debouncedValidate = useCallback(() => {
+    // Clear existing timer
+    if (validationTimerRef.current) {
+      clearTimeout(validationTimerRef.current);
+    }
+
+    // Set new timer
+    validationTimerRef.current = setTimeout(() => {
+      handleValidate();
+    }, 500); // 500ms debounce
+  }, [handleValidate]);
+
+  // Auto-validate when color is selected (if model and quantity already set)
+  useEffect(() => {
+    if (formData.modelId && formData.colorId && formData.quantity > 0) {
+      debouncedValidate();
+    }
+    
+    // Cleanup timer on unmount
+    return () => {
+      if (validationTimerRef.current) {
+        clearTimeout(validationTimerRef.current);
+      }
+    };
+  }, [formData.modelId, formData.colorId, formData.quantity, debouncedValidate]);
+
+  // Update stock info when model and color are both selected
+  useEffect(() => {
+    if (formData.modelId && formData.colorId && filteredStoreStocks && filteredStoreStocks.length > 0) {
+      // Find matching stock from filtered store-stocks (already filtered by storeId)
+      const matchingStock = filteredStoreStocks.find(stock => 
+        String(stock.modelId) === String(formData.modelId) &&
+        String(stock.colorId) === String(formData.colorId)
+      );
+      
+      setStockInfo(matchingStock || null);
+    } else {
+      setStockInfo(null);
+    }
+  }, [formData.modelId, formData.colorId, filteredStoreStocks]);
+
+  // Handle quantity blur - auto validate
+  const handleQuantityBlur = () => {
+    if (formData.modelId && formData.colorId && formData.quantity > 0) {
+      handleValidate();
     }
   };
 
@@ -264,7 +445,7 @@ function CreateOrder({ onBack }) {
       
       // Navigate to orders list
       setTimeout(() => {
-        navigate('/dealer-staff/view-orders');
+        navigate('/dealer-staff/order-management', { state: { tab: 'view' } });
       }, 1500);
       
     } catch (error) {
@@ -328,7 +509,7 @@ function CreateOrder({ onBack }) {
       
       // Navigate to orders list
       setTimeout(() => {
-        navigate('/dealer-staff/view-orders');
+        navigate('/dealer-staff/order-management', { state: { tab: 'view' } });
       }, 1500);
       
     } catch (error) {
@@ -501,7 +682,7 @@ function CreateOrder({ onBack }) {
                   </label>
                   <AnimatedSelect
                     name="modelId"
-                    value={formData.modelId}
+                    value={formData.modelId ? formData.modelId.toString() : ''}
                     onChange={handleFormChange}
                     placeholder="-- Chọn model --"
                     options={[
@@ -522,7 +703,7 @@ function CreateOrder({ onBack }) {
                   </label>
                   <AnimatedSelect
                     name="colorId"
-                    value={formData.colorId}
+                    value={formData.colorId ? formData.colorId.toString() : ''}
                     onChange={handleFormChange}
                     placeholder="-- Chọn màu --"
                     disabled={!formData.modelId}
@@ -547,6 +728,7 @@ function CreateOrder({ onBack }) {
                     name="quantity"
                     value={formData.quantity}
                     onChange={handleFormChange}
+                    onBlur={handleQuantityBlur}
                     min="1"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   />
@@ -559,12 +741,13 @@ function CreateOrder({ onBack }) {
                   </label>
                   <AnimatedSelect
                     name="promotionId"
-                    value={formData.promotionId}
+                    value={formData.promotionId ? formData.promotionId.toString() : '0'}
                     onChange={handleFormChange}
                     placeholder="Không áp dụng"
+                    disabled={!formData.modelId}
                     options={[
                       { value: '0', label: 'Không áp dụng' },
-                      ...promotions.map(promo => ({
+                      ...getFilteredPromotions().map(promo => ({
                         value: promo.promotionId.toString(),
                         label: promo.promotionName
                       }))
@@ -573,6 +756,44 @@ function CreateOrder({ onBack }) {
                   />
                 </div>
               </div>
+
+              {/* Stock Info Display (when model+color selected, no quantity needed) */}
+              {formData.modelId && formData.colorId && !currentValidation && (
+                <>
+                  {stockInfo ? (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-3">
+                      <div className="flex items-start">
+                        <Package className="h-5 w-5 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-blue-900 mb-2">Thông tin tồn kho</h4>
+                          <div className="text-sm text-blue-800 space-y-1">
+                            <p><strong>Model:</strong> {getModelName(formData.modelId)}</p>
+                            <p><strong>Màu:</strong> {getColorName(formData.colorId)}</p>
+                            <p><strong>Tồn kho có sẵn:</strong> {stockInfo.quantity} xe</p>
+                            {stockInfo.priceOfStore && (
+                              <p><strong>Giá:</strong> {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(stockInfo.priceOfStore)}</p>
+                            )}
+                            <p className="text-xs mt-2 text-blue-700">Nhập số lượng và nhấn ra ngoài để kiểm tra</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ) : filteredStoreStocks && filteredStoreStocks.length === 0 && storeStocks && storeStocks.length > 0 && (
+                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+                      <div className="flex items-start">
+                        <AlertCircle className="h-5 w-5 text-yellow-600 mr-3 flex-shrink-0 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="font-semibold text-yellow-900 mb-2">Không có trong kho</h4>
+                          <div className="text-sm text-yellow-800">
+                            <p>Sản phẩm <strong>{getModelName(formData.modelId)} - {getColorName(formData.colorId)}</strong> không có trong kho của cửa hàng hiện tại.</p>
+                            <p className="text-xs mt-2">Vui lòng chọn sản phẩm khác hoặc liên hệ quản lý để nhập hàng.</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
 
               {/* Validation Result */}
               {currentValidation && currentValidation.isValid && (
@@ -585,6 +806,10 @@ function CreateOrder({ onBack }) {
                         <p><strong>Model:</strong> {currentValidation.modelName}</p>
                         <p><strong>Màu:</strong> {currentValidation.colorName}</p>
                         <p><strong>Số lượng:</strong> {currentValidation.quantity}</p>
+                        <p><strong>Tồn kho có sẵn:</strong> {currentValidation.availableQuantity} xe</p>
+                        {currentValidation.price && (
+                          <p><strong>Giá:</strong> {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(currentValidation.price)}</p>
+                        )}
                         <p><strong>Khuyến mãi:</strong> {currentValidation.promotionName}</p>
                       </div>
                     </div>
@@ -595,30 +820,21 @@ function CreateOrder({ onBack }) {
               {/* Action Buttons */}
               <div className="flex space-x-3">
                 <button
-                  onClick={handleValidate}
-                  disabled={isValidating || orderDetailLoading}
-                  className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                  onClick={handleAddItem}
+                  disabled={!currentValidation || !currentValidation.isValid || isValidating}
+                  className="w-full px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                 >
-                  {isValidating || orderDetailLoading ? (
+                  {isValidating ? (
                     <>
                       <Loader2 className="h-4 w-4 animate-spin mr-2" />
                       Đang kiểm tra...
                     </>
                   ) : (
                     <>
-                      <CheckSquare className="h-4 w-4 mr-2" />
-                      Kiểm tra sản phẩm
+                      <Plus className="h-4 w-4 mr-2" />
+                      Thêm vào đơn
                     </>
                   )}
-                </button>
-                
-                <button
-                  onClick={handleAddItem}
-                  disabled={!currentValidation || !currentValidation.isValid}
-                  className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Thêm vào đơn
                 </button>
               </div>
             </div>

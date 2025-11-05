@@ -9,6 +9,7 @@ import {
   deleteOrderById,
   confirmOrderThunk
 } from '../../store/slices/orderSlice';
+import { fetchAllContractsThunk, createContractFromOrderThunk } from '../../store/slices/contractSlice';
 import { getOrderById } from '../../api/orderService';
 import Tooltip from '@/components/ui/Tooltip';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -34,7 +35,8 @@ import {
   Receipt,
   Tag,
   CreditCard,
-  Plus
+  Plus,
+  FileText
 } from 'lucide-react';
 
 function ViewOrders() {
@@ -45,6 +47,7 @@ function ViewOrders() {
   // Redux state
   const { orders: reduxOrders, loading, error } = useSelector((state) => state.orders);
   const { selectedOrderDetails: reduxOrderDetails, loading: detailsLoading } = useSelector((state) => state.orderDetails);
+  const { contracts } = useSelector((state) => state.contracts);
   
   // Local state
   const [orders, setOrders] = useState([]);
@@ -60,6 +63,8 @@ function ViewOrders() {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [successMessage, setSuccessMessage] = useState(null);
   const [errorMessage, setErrorMessage] = useState(null);
+  const [ordersWithContracts, setOrdersWithContracts] = useState({}); // Map orderId -> contract
+  const [creatingContract, setCreatingContract] = useState(null);
   // Thêm state và hàm sort
   const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
@@ -100,6 +105,24 @@ function ViewOrders() {
       window.history.replaceState({}, document.title);
     }
   }, [location, dispatch]);
+
+  // Fetch contracts on mount
+  useEffect(() => {
+    dispatch(fetchAllContractsThunk());
+  }, [dispatch]);
+
+  // Map contracts to orders
+  useEffect(() => {
+    if (contracts && contracts.length > 0) {
+      const contractMap = {};
+      contracts.forEach(contract => {
+        if (contract.orderId) {
+          contractMap[contract.orderId] = contract;
+        }
+      });
+      setOrdersWithContracts(contractMap);
+    }
+  }, [contracts]);
 
   // Fetch orders from API based on filters (server-side filtering)
   useEffect(() => {
@@ -146,10 +169,12 @@ function ViewOrders() {
     
     let filtered = Array.isArray(orders) ? [...orders] : [];
     
-    // Only show DRAFT and CONFIRMED orders
+    // Show all orders except CANCELLED (including orders that have been converted to contracts)
+    // This ensures orders remain visible even after being converted to contracts
     filtered = filtered.filter(order => {
       const status = order.status?.toUpperCase();
-      return status === 'DRAFT' || status === 'CONFIRMED';
+      // Include all statuses except CANCELLED to show orders even after contract creation
+      return status !== 'CANCELLED';
     });
     
     console.log('📦 Filtered orders:', filtered);
@@ -325,9 +350,56 @@ function ViewOrders() {
     }
   };
 
-  const handleCreateContract = (order) => {
-    // Navigate to contract management page for creating contract
-    navigate('/dealer-staff/contract-management');
+  const handleCreateContract = async (order) => {
+    if (!order) return;
+    
+    // Check if order already has contract
+    const existingContract = ordersWithContracts[order.orderId];
+    if (existingContract) {
+      setErrorMessage(`Đơn hàng này đã có hợp đồng (${existingContract.contractCode || `#${existingContract.contractId}`}). Vui lòng xem hợp đồng hiện tại.`);
+      setTimeout(() => setErrorMessage(null), 5000);
+      return;
+    }
+
+    // Check if order is CONFIRMED
+    if (order.status?.toUpperCase() !== 'CONFIRMED') {
+      setErrorMessage('Chỉ có thể tạo hợp đồng cho đơn hàng đã xác nhận (CONFIRMED).');
+      setTimeout(() => setErrorMessage(null), 5000);
+      return;
+    }
+
+    try {
+      setCreatingContract(order.orderId);
+      setErrorMessage(null);
+      
+      // Create contract
+      const result = await dispatch(createContractFromOrderThunk(order.orderId)).unwrap();
+      
+      setSuccessMessage(`Đã tạo hợp đồng thành công cho đơn ${order.orderCode || order.orderId}!`);
+      
+      // Refresh contracts and orders
+      await dispatch(fetchAllContractsThunk());
+      if (startDate && endDate) {
+        dispatch(fetchOrdersByDateRange({ startDate, endDate }));
+      } else if (statusFilter !== 'all') {
+        dispatch(fetchOrdersByStatus(statusFilter));
+      } else {
+        dispatch(fetchOrders());
+      }
+      
+      // Close modal and navigate to contract management
+      setTimeout(() => {
+        setShowModal(false);
+        navigate('/dealer-staff/contract-management', { state: { tab: 'view' } });
+      }, 1500);
+      
+    } catch (error) {
+      console.error('Error creating contract:', error);
+      setErrorMessage('Không thể tạo hợp đồng: ' + (error.message || error));
+      setTimeout(() => setErrorMessage(null), 5000);
+    } finally {
+      setCreatingContract(null);
+    }
   };
 
   return (
@@ -681,6 +753,9 @@ function ViewOrders() {
                     Trạng thái
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Hợp đồng
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Tổng tiền
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -706,6 +781,36 @@ function ViewOrders() {
                         {getStatusText(order.status)}
                       </span>
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {(() => {
+                        const contract = ordersWithContracts[order.orderId];
+                        if (contract) {
+                          return (
+                            <Tooltip content="Xem hợp đồng" placement="top">
+                              <button
+                                onClick={() => navigate('/dealer-staff/contract-management', { state: { tab: 'view' } })}
+                                className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 hover:bg-green-200 transition-colors"
+                              >
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Đã có
+                              </button>
+                            </Tooltip>
+                          );
+                        } else if (order.status?.toUpperCase() === 'CONFIRMED') {
+                          return (
+                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                              Chưa có
+                            </span>
+                          );
+                        } else {
+                          return (
+                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-400">
+                              -
+                            </span>
+                          );
+                        }
+                      })()}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {(order.totalPayment || order.totalPrice || 0).toLocaleString('vi-VN')} VNĐ
                     </td>
@@ -720,6 +825,25 @@ function ViewOrders() {
                             Chi tiết
                           </button>
                         </Tooltip>
+                        
+                        {/* Nút Tạo hợp đồng - chỉ hiện khi đơn hàng CONFIRMED và chưa có hợp đồng */}
+                        {order.status?.toUpperCase() === 'CONFIRMED' && !ordersWithContracts[order.orderId] && (
+                          <Tooltip content="Tạo hợp đồng cho đơn hàng này" placement="top">
+                            <button
+                              onClick={() => navigate('/dealer-staff/contract-management', { 
+                                state: { 
+                                  tab: 'create',
+                                  orderId: order.orderId,
+                                  orderData: order // Truyền thêm orderData để có thể hiển thị thông tin
+                                } 
+                              })}
+                              className="text-blue-600 hover:text-blue-900 transition-colors flex items-center"
+                            >
+                              <FileText className="h-4 w-4 mr-1" />
+                              Tạo hợp đồng
+                            </button>
+                          </Tooltip>
+                        )}
                         
                         <button
                           onClick={() => handleDeleteOrder(order.orderId)}
@@ -1024,11 +1148,122 @@ function ViewOrders() {
                   )}
                 </div>
 
+                {/* Contract Section */}
+                {selectedOrder && (
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
+                    <div className="flex items-center space-x-2 mb-3">
+                      <Receipt className="h-5 w-5 text-purple-600" />
+                      <h4 className="font-bold text-purple-900">Thông tin hợp đồng</h4>
+                    </div>
+                    {(() => {
+                      const contract = ordersWithContracts[selectedOrder.orderId];
+                      if (contract) {
+                        return (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-purple-700">Trạng thái:</span>
+                              <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                                <CheckCircle className="h-3 w-3 mr-1" />
+                                Đã có hợp đồng
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-purple-700">Mã hợp đồng:</span>
+                              <span className="text-sm font-semibold text-purple-900">
+                                {contract.contractCode || `#${contract.contractId}`}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-purple-700">Đã upload chữ ký:</span>
+                              <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
+                                contract.signedContractFileUrl || contract.contractFileUrl
+                                  ? 'bg-green-100 text-green-800'
+                                  : 'bg-yellow-100 text-yellow-800'
+                              }`}>
+                                {contract.signedContractFileUrl || contract.contractFileUrl ? (
+                                  <>
+                                    <CheckCircle className="h-3 w-3 mr-1" />
+                                    Đã upload
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertCircle className="h-3 w-3 mr-1" />
+                                    Chưa upload
+                                  </>
+                                )}
+                              </span>
+                            </div>
+                            <motion.button
+                              onClick={() => {
+                                handleCloseModal();
+                                navigate('/dealer-staff/contract-management', { state: { tab: 'view' } });
+                              }}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              className="w-full mt-3 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center font-semibold"
+                            >
+                              <Receipt className="h-4 w-4 mr-2" />
+                              Xem hợp đồng
+                            </motion.button>
+                          </div>
+                        );
+                      } else if (selectedOrder.status?.toUpperCase() === 'CONFIRMED') {
+                        return (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-purple-700">Trạng thái:</span>
+                              <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                                Chưa có hợp đồng
+                              </span>
+                            </div>
+                            <p className="text-sm text-purple-700">
+                              Đơn hàng đã xác nhận. Bạn có thể tạo hợp đồng ngay bây giờ.
+                            </p>
+                            <motion.button
+                              onClick={() => handleCreateContract(selectedOrder)}
+                              disabled={creatingContract === selectedOrder.orderId}
+                              whileHover={{ scale: 1.02 }}
+                              whileTap={{ scale: 0.98 }}
+                              className="w-full mt-3 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold"
+                            >
+                              {creatingContract === selectedOrder.orderId ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                  Đang tạo...
+                                </>
+                              ) : (
+                                <>
+                                  <Plus className="h-4 w-4 mr-2" />
+                                  Tạo hợp đồng
+                                </>
+                              )}
+                            </motion.button>
+                          </div>
+                        );
+                      } else {
+                        return (
+                          <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                              <span className="text-sm text-purple-700">Trạng thái:</span>
+                              <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-400">
+                                Chưa thể tạo
+                              </span>
+                            </div>
+                            <p className="text-sm text-purple-600">
+                              Vui lòng xác nhận đơn hàng trước khi tạo hợp đồng.
+                            </p>
+                          </div>
+                        );
+                      }
+                    })()}
+                  </div>
+                )}
+
                 {/* Action Buttons */}
                 <div className="flex justify-between items-center pt-3 border-t border-gray-200">
                   {/* Status Actions - LEFT SIDE */}
                   <div className="flex gap-2">
-                    {selectedOrder.status?.toUpperCase() === 'DRAFT' && (
+                    {selectedOrder?.status?.toUpperCase() === 'DRAFT' && (
                       <motion.button
                         onClick={() => {
                           handleConfirmOrder(selectedOrder.orderId);

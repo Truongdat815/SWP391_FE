@@ -43,6 +43,7 @@ import AddCustomer from './pages/dealerStaff/AddCustomer'
 import CustomerManagement from './pages/dealerStaff/CustomerManagement'
 import ContractManagement from './pages/dealerStaff/ContractManagement'
 import ViewContracts from './pages/dealerStaff/ViewContracts'
+import OrderManagement from './pages/dealerStaff/OrderManagement'
 import Inventory from './pages/dealerStaff/Inventory'
 import TestDriveSchedule from './pages/dealerStaff/TestDriveSchedule'
 import PaymentManagement from './pages/dealerStaff/PaymentManagement'
@@ -126,16 +127,18 @@ function AnimatedRoutes() {
               <DealerStaffLayout />
             </ProtectedRoute>
           }>
-            <Route index element={<Navigate to="/dealer-staff/create-order" replace />} />
-            <Route path="create-order" element={<CreateOrder />} />
+            <Route index element={<Navigate to="/dealer-staff/order-management" replace />} />
+            <Route path="order-management" element={<OrderManagement />} />
+            {/* Legacy routes - redirect to new combined pages */}
+            <Route path="create-order" element={<Navigate to="/dealer-staff/order-management" replace />} />
+            <Route path="view-orders" element={<Navigate to="/dealer-staff/order-management?tab=view" replace />} />
+            <Route path="view-contracts" element={<Navigate to="/dealer-staff/contract-management?tab=view" replace />} />
             <Route path="add-order-details/:orderId" element={<AddOrderDetails />} />
             <Route path="order-summary/:orderId" element={<OrderSummary />} />
             <Route path="quote-order-management" element={<QuoteOrderManagement />} />
-            <Route path="view-orders" element={<ViewOrders />} />
             <Route path="add-customer" element={<AddCustomer />} />
             <Route path="customer-management" element={<CustomerManagement />} />
             <Route path="contract-management" element={<ContractManagement />} />
-            <Route path="view-contracts" element={<ViewContracts />} />
             <Route path="test-drive-schedule" element={<TestDriveSchedule />} />
             <Route path="inventory" element={<Inventory />} />
             <Route path="payment-management" element={<PaymentManagement />} />

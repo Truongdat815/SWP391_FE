@@ -88,8 +88,25 @@ async function request(path, { method = 'GET', body } = {}) {
     const isJson = res.headers.get('content-type')?.includes('application/json');
     const data = isJson ? await res.json() : await res.text();
     if (!res.ok) {
-        const message = (isJson && data?.message) || res.statusText || 'Request failed';
-        throw new Error(message);
+        // Extract error message from various possible structures
+        let message = res.statusText || 'Request failed';
+        
+        if (isJson && data) {
+            // Try different possible error message fields
+            message = data?.message || 
+                     data?.error || 
+                     data?.errorMessage ||
+                     data?.data?.message ||
+                     (typeof data === 'string' ? data : message);
+        } else if (!isJson && typeof data === 'string') {
+            message = data;
+        }
+        
+        // If message contains database constraint errors, preserve the full message
+        const error = new Error(message);
+        error.status = res.status;
+        error.response = data;
+        throw error;
     }
     return data;
 }
