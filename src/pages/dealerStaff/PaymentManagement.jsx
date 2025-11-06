@@ -38,11 +38,80 @@ function PaymentManagement() {
   const [paymentHistories, setPaymentHistories] = useState({});
   const [loadingHistories, setLoadingHistories] = useState(new Set());
   const [highlightedContractId, setHighlightedContractId] = useState(null);
+  const [pendingPaymentContracts, setPendingPaymentContracts] = useState(new Set());
+  const [pollingIntervals, setPollingIntervals] = useState(new Map());
 
   // Fetch contracts on mount
   useEffect(() => {
     dispatch(fetchAllContractsThunk());
   }, [dispatch]);
+
+  // Check for payment completion and update UI
+  useEffect(() => {
+    if (!contracts || contracts.length === 0) return;
+
+    // Check each pending payment contract to see if payment was completed
+    pendingPaymentContracts.forEach(contractId => {
+      const contract = contracts.find(c => c.contractId === contractId);
+      if (contract) {
+        const total = contract.totalPayment || 0;
+        const paid = contract.paidAmount || 0;
+        const remaining = total - paid;
+        
+        // If payment is completed (no remaining), stop polling and show success
+        if (remaining <= 0) {
+          // Stop polling for this contract
+          setPollingIntervals(prev => {
+            const next = new Map(prev);
+            const interval = next.get(contractId);
+            if (interval) {
+              clearInterval(interval);
+              next.delete(contractId);
+            }
+            return next;
+          });
+          
+          // Remove from pending list
+          setPendingPaymentContracts(prev => {
+            const next = new Set(prev);
+            next.delete(contractId);
+            return next;
+          });
+          
+          // Show success message
+          setSuccessMessage(`Thanh toán cho hợp đồng ${formatContractCode(contract.contractCode, contract.contractId)} đã hoàn tất thành công!`);
+          setTimeout(() => setSuccessMessage(null), 5000);
+          
+          // Refresh payment history if expanded
+          if (expandedContracts.has(contractId)) {
+            // Refresh payment history for this contract
+            setLoadingHistories(prev => new Set([...prev, contractId]));
+            getPaymentHistoryByContract(contractId)
+              .then(history => {
+                setPaymentHistories(prev => ({
+                  ...prev,
+                  [contractId]: history?.data || history || []
+                }));
+              })
+              .catch(error => {
+                console.error('Error refreshing payment history:', error);
+                setPaymentHistories(prev => ({
+                  ...prev,
+                  [contractId]: []
+                }));
+              })
+              .finally(() => {
+                setLoadingHistories(prev => {
+                  const next = new Set(prev);
+                  next.delete(contractId);
+                  return next;
+                });
+              });
+          }
+        }
+      }
+    });
+  }, [contracts, pendingPaymentContracts, expandedContracts]);
 
   // Handle contractId from navigation state
   useEffect(() => {
@@ -62,6 +131,47 @@ function PaymentManagement() {
       window.history.replaceState({}, document.title);
     }
   }, [location]);
+
+  // Polling mechanism to check payment status
+  useEffect(() => {
+    if (pendingPaymentContracts.size === 0) return;
+
+    const checkPaymentStatus = async () => {
+      try {
+        // Refresh contracts to get latest payment status
+        await dispatch(fetchAllContractsThunk());
+      } catch (error) {
+        console.error('Error checking payment status:', error);
+      }
+    };
+
+    // Check immediately, then every 5 seconds
+    checkPaymentStatus();
+    const interval = setInterval(checkPaymentStatus, 5000);
+
+    return () => clearInterval(interval);
+  }, [pendingPaymentContracts, dispatch]);
+
+  // Handle window focus - refresh when user returns from VNPay
+  useEffect(() => {
+    const handleFocus = () => {
+      if (pendingPaymentContracts.size > 0) {
+        // User returned from payment window, refresh contracts
+        dispatch(fetchAllContractsThunk());
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [pendingPaymentContracts, dispatch]);
+
+  // Cleanup polling intervals on unmount
+  useEffect(() => {
+    return () => {
+      pollingIntervals.forEach((interval) => clearInterval(interval));
+      setPollingIntervals(new Map());
+    };
+  }, []);
 
   // Format contract code to CTR-01, CTR-02, ...
   const formatContractCode = (contractCode, contractId) => {
@@ -129,26 +239,94 @@ function PaymentManagement() {
 
       // If payment method is VNPAY, open payment URL in new window
       if (paymentForm.paymentMethod === 'VNPAY' && response.data) {
-        window.open(response.data, '_blank');
-        setSuccessMessage('Đang chuyển hướng đến VNPay. Vui lòng hoàn tất thanh toán trên trang VNPay.');
+        const paymentWindow = window.open(response.data, '_blank');
+        
+        // Add contract to pending payments list for polling
+        setPendingPaymentContracts(prev => new Set([...prev, selectedContract.contractId]));
+        
+        // Start polling for this specific contract
+        const pollInterval = setInterval(async () => {
+          try {
+            await dispatch(fetchAllContractsThunk());
+            
+            // Check if payment is completed by comparing old and new paid amounts
+            // This will be checked in the next render cycle
+          } catch (error) {
+            console.error('Error polling payment status:', error);
+          }
+        }, 3000); // Poll every 3 seconds
+        
+        setPollingIntervals(prev => {
+          const next = new Map(prev);
+          next.set(selectedContract.contractId, pollInterval);
+          return next;
+        });
+        
+        // Auto-stop polling after 10 minutes (safety timeout)
+        setTimeout(() => {
+          setPollingIntervals(prev => {
+            const next = new Map(prev);
+            const interval = next.get(selectedContract.contractId);
+            if (interval) {
+              clearInterval(interval);
+              next.delete(selectedContract.contractId);
+            }
+            return next;
+          });
+          setPendingPaymentContracts(prev => {
+            const next = new Set(prev);
+            next.delete(selectedContract.contractId);
+            return next;
+          });
+        }, 600000); // 10 minutes
+        
+        // Monitor payment window - if closed, check payment status
+        const checkWindowClosed = setInterval(() => {
+          if (paymentWindow && paymentWindow.closed) {
+            clearInterval(checkWindowClosed);
+            // User closed payment window, refresh and stop polling after delay
+            setTimeout(() => {
+              dispatch(fetchAllContractsThunk());
+              // Stop polling for this contract after checking
+              setPollingIntervals(prev => {
+                const next = new Map(prev);
+                const interval = next.get(selectedContract.contractId);
+                if (interval) {
+                  clearInterval(interval);
+                  next.delete(selectedContract.contractId);
+                }
+                return next;
+              });
+              setPendingPaymentContracts(prev => {
+                const next = new Set(prev);
+                next.delete(selectedContract.contractId);
+                return next;
+              });
+            }, 2000);
+          }
+        }, 1000);
+        
+        setSuccessMessage('Đang chuyển hướng đến VNPay. Vui lòng hoàn tất thanh toán trên trang VNPay. Hệ thống sẽ tự động cập nhật sau khi thanh toán hoàn tất.');
       } else if (paymentForm.paymentMethod === 'CASH') {
         setSuccessMessage('Thanh toán tiền mặt đã được ghi nhận thành công!');
+        // Refresh immediately for cash payments
+        setTimeout(() => {
+          dispatch(fetchAllContractsThunk());
+        }, 500);
       } else {
         setSuccessMessage('Tạo thanh toán thành công!');
+        setTimeout(() => {
+          dispatch(fetchAllContractsThunk());
+        }, 500);
       }
 
       setShowPaymentModal(false);
       setSelectedContract(null);
-      
-      // Refresh contracts after payment
-      setTimeout(() => {
-        dispatch(fetchAllContractsThunk());
-      }, 1000);
 
       // Clear success message after delay
       setTimeout(() => {
         setSuccessMessage(null);
-      }, 5000);
+      }, 8000);
 
     } catch (error) {
       console.error('Error creating payment:', error);
@@ -308,6 +486,7 @@ function PaymentManagement() {
                   const isExpanded = expandedContracts.has(contract.contractId);
                   const history = paymentHistories[contract.contractId] || [];
                   const isLoadingHistory = loadingHistories.has(contract.contractId);
+                  const isPendingPayment = pendingPaymentContracts.has(contract.contractId);
 
                   return (
                     <React.Fragment key={contract.contractId}>
@@ -316,11 +495,21 @@ function PaymentManagement() {
                         className={`hover:bg-gray-50 transition-colors ${
                           highlightedContractId === contract.contractId 
                             ? 'bg-blue-50 border-l-4 border-blue-500 shadow-sm' 
+                            : isPendingPayment
+                            ? 'bg-yellow-50 border-l-4 border-yellow-400'
                             : ''
                         }`}
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {formatContractCode(contract.contractCode, contract.contractId)}
+                          <div className="flex items-center gap-2">
+                            {formatContractCode(contract.contractCode, contract.contractId)}
+                            {isPendingPayment && (
+                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 animate-pulse">
+                                <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                                Đang xử lý thanh toán
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                           {total.toLocaleString('vi-VN')} VNĐ
