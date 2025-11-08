@@ -23,19 +23,23 @@ import {
   X
 } from 'lucide-react';
 import ViewContracts from './ViewContracts';
+import Toast from '../../components/ui/Toast';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
 
 function ContractManagement() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  const { toast, success, showError, hideToast } = useToast();
+  const { confirm, showConfirm, hideConfirm } = useConfirm();
   const [activeTab, setActiveTab] = useState('create'); // 'create' | 'view'
   
   const { orders, loading } = useSelector((state) => state.orders);
   const { contracts, loading: contractLoading } = useSelector((state) => state.contracts);
   
   const [searchTerm, setSearchTerm] = useState('');
-  const [successMessage, setSuccessMessage] = useState(null);
-  const [errorMessage, setErrorMessage] = useState(null);
   const [creatingContractForOrder, setCreatingContractForOrder] = useState(null);
   const [selectedOrderIdForContract, setSelectedOrderIdForContract] = useState(null);
   const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
@@ -134,6 +138,30 @@ function ContractManagement() {
     return orderCode || 'N/A';
   };
 
+  // Format contract code to CTR-01, CTR-02, ...
+  const formatContractCode = (contractCode, contractId) => {
+    if (contractCode) {
+      // If contractCode already has format, extract number or use as is
+      const match = contractCode.match(/CTR-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        return `CTR-${String(num).padStart(2, '0')}`;
+      }
+      // Try to extract number from contractCode
+      const numMatch = contractCode.match(/(\d+)/);
+      if (numMatch) {
+        const num = parseInt(numMatch[1], 10);
+        return `CTR-${String(num).padStart(2, '0')}`;
+      }
+    }
+    // Fallback to contractId
+    if (contractId) {
+      const num = parseInt(contractId, 10);
+      return `CTR-${String(num).padStart(2, '0')}`;
+    }
+    return contractCode || 'N/A';
+  };
+
   // Filter orders by search and ensure only CONFIRMED orders without contracts are shown
   const filteredOrders = sortOrders(
     (orders || []).filter(order => 
@@ -161,46 +189,46 @@ function ContractManagement() {
     // Validation: Check if order already has contract
     const existingContract = ordersWithContracts[order.orderId];
     if (existingContract) {
-      setErrorMessage(`Đơn hàng này đã có hợp đồng (${existingContract.contractCode || `#${existingContract.contractId}`}). Vui lòng xem hợp đồng hiện tại.`);
-      setTimeout(() => setErrorMessage(null), 5000);
+      const formattedOrderCode = formatOrderCode(order.orderCode, order.orderId);
+      const formattedContractCode = formatContractCode(existingContract.contractCode, existingContract.contractId);
+      showError(`Đơn hàng ${formattedOrderCode} đã có hợp đồng ${formattedContractCode}. Vui lòng xem hợp đồng hiện tại.`);
       return;
     }
 
     // Validation: Check if order is CONFIRMED
     if (order.status?.toUpperCase() !== 'CONFIRMED') {
-      setErrorMessage('Chỉ có thể tạo hợp đồng cho đơn hàng đã xác nhận (CONFIRMED).');
-      setTimeout(() => setErrorMessage(null), 5000);
+      showError('Chỉ có thể tạo hợp đồng cho đơn hàng đã xác nhận (CONFIRMED).');
       return;
     }
 
     try {
       setCreatingContractForOrder(order.orderId);
-      setErrorMessage(null);
       
       // Call API to create contract
       const result = await dispatch(createContractFromOrderThunk(order.orderId)).unwrap();
       
       console.log('Contract created:', result);
       
-      // Extract contractId from result
+      // Extract contractId and contractCode from result
       const contractId = result.contractId || result.data?.contractId;
+      const contractCode = result.contractCode || result.data?.contractCode;
       
       // Refresh contracts list
       await dispatch(fetchAllContractsThunk());
       
-      // Show success message
-      setSuccessMessage(`Đã tạo hợp đồng thành công cho đơn ${order.orderCode || order.orderId}!`);
+      // Show success message with both order code and contract code
+      const formattedOrderCode = formatOrderCode(order.orderCode, order.orderId);
+      const formattedContractCode = formatContractCode(contractCode, contractId);
+      success(`Đã tạo hợp đồng ${formattedContractCode} thành công cho đơn hàng ${formattedOrderCode}!`);
       
       // Switch to view contracts tab after short delay
       setTimeout(() => {
         setActiveTab('view');
-        setSuccessMessage(null);
       }, 1500);
       
     } catch (error) {
       console.error('Error creating contract:', error);
-      setErrorMessage('Không thể tạo hợp đồng: ' + (error.message || error));
-      setTimeout(() => setErrorMessage(null), 5000);
+      showError('Không thể tạo hợp đồng: ' + (error.message || error));
     } finally {
       setCreatingContractForOrder(null);
     }
@@ -209,20 +237,6 @@ function ContractManagement() {
   // Create Contract Tab Content
   const CreateContractTab = () => (
     <div className="max-w-7xl mx-auto">
-      {/* Success/Error Messages */}
-      {successMessage && (
-        <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
-          <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
-          <span className="text-green-700">{successMessage}</span>
-        </div>
-      )}
-      
-      {errorMessage && (
-        <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
-          <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
-          <span className="text-red-700">{errorMessage}</span>
-        </div>
-      )}
 
       {/* Thông báo khi được navigate từ ViewOrders */}
       {location.state?.orderId && location.state?.orderData && (
@@ -439,7 +453,28 @@ function ContractManagement() {
   );
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div>
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
+
+      <div className="max-w-7xl mx-auto">
       {/* Tabs */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
         <div className="flex space-x-2 border-b border-gray-200 pb-2">
@@ -482,6 +517,7 @@ function ContractManagement() {
       >
         {activeTab === 'create' ? <CreateContractTab /> : <ViewContracts />}
       </motion.div>
+      </div>
     </div>
   );
 }

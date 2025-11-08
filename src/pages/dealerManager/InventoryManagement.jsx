@@ -2,6 +2,10 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
+import Toast from '../../components/ui/Toast';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
 import { 
   getAllStoreStocksThunk,
   updateStockQuantityThunk,
@@ -20,6 +24,8 @@ import { showError, showSuccess, showWarning } from '../../store/slices/snackbar
 function InventoryManagement() {
   const dispatch = useDispatch();
   const { user } = useAuth();
+  const { toast, success, showError: showToastError, hideToast } = useToast();
+  const { confirm, showConfirm, hideConfirm } = useConfirm();
 
   const storeStocks = useSelector((s) => s.storeStocks.items);
   const storeStocksStatus = useSelector((s) => s.storeStocks.status);
@@ -484,7 +490,28 @@ function InventoryManagement() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div>
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
+
+      <div className="max-w-7xl mx-auto">
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <div className="flex items-start justify-between mb-4">
           <motion.div
@@ -618,7 +645,7 @@ function InventoryManagement() {
                                     whileHover={{ scale: 1.05 }}
                                     whileTap={{ scale: 0.95 }}
                                     className="text-blue-600 hover:text-blue-700 hover:underline font-medium text-sm transition-colors"
-                                    title="Đặt xe từ EVM"
+                                    
                                   >
                                     Đặt xe
                                   </motion.button>
@@ -829,7 +856,7 @@ function InventoryManagement() {
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
                           className="px-2 py-1 bg-purple-600 text-white rounded text-xs hover:bg-purple-700 flex items-center gap-1"
-                          title="Gửi yêu cầu nhập hàng tới EVM"
+                          
                         >
                           <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
@@ -1639,6 +1666,7 @@ function InventoryManagement() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }

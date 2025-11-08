@@ -3,12 +3,17 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAllUsersThunk, createUserThunk, updateUserThunk, deleteUserThunk } from '../../store/slices/userSlice';
 import { getAllRolesThunk } from '../../store/slices/roleSlice';
-import { showError, showSuccess, showWarning } from '../../store/slices/snackbarSlice';
 import { motion, AnimatePresence } from 'framer-motion';
+import Toast from '../../components/ui/Toast';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
 
 function QuanLyNhanVien() {
   const dispatch = useDispatch();
   const { user } = useAuth();
+  const { toast, success, showError, hideToast } = useToast();
+  const { confirm, showConfirm, hideConfirm } = useConfirm();
 
   const users = useSelector((s) => s.users.items);
   const usersStatus = useSelector((s) => s.users.status);
@@ -84,7 +89,7 @@ function QuanLyNhanVien() {
     e.preventDefault();
     
     if (!dealerStaffRole) {
-      dispatch(showError({ message: 'Không tìm thấy role Dealer Staff' }));
+      showError('Không tìm thấy role Dealer Staff');
       return;
     }
 
@@ -103,7 +108,7 @@ function QuanLyNhanVien() {
       };
 
       await dispatch(createUserThunk(payload)).unwrap();
-      dispatch(showSuccess({ message: 'Đã thêm nhân viên thành công!' }));
+      success('Đã thêm nhân viên thành công!');
       setShowAddModal(false);
       setNewEmployee({
         username: '',
@@ -117,7 +122,7 @@ function QuanLyNhanVien() {
       });
       dispatch(getAllUsersThunk());
     } catch (error) {
-      dispatch(showError({ message: error?.message || 'Không thể thêm nhân viên' }));
+      showError(error?.message || 'Không thể thêm nhân viên');
     }
   };
 
@@ -139,31 +144,54 @@ function QuanLyNhanVien() {
         storeId: selectedEmployee.storeId
       })).unwrap();
       
-      dispatch(showSuccess({ message: 'Đã cập nhật nhân viên thành công!' }));
+      success('Đã cập nhật nhân viên thành công!');
       setShowEditModal(false);
       setSelectedEmployee(null);
       dispatch(getAllUsersThunk());
     } catch (error) {
-      dispatch(showError({ message: error?.message || 'Không thể cập nhật nhân viên' }));
+      showError(error?.message || 'Không thể cập nhật nhân viên');
     }
   };
 
   const handleDeleteEmployee = async (employee) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa nhân viên "${employee.fullName}"?`)) {
-      return;
-    }
+    const confirmed = await showConfirm({
+      message: `Bạn có chắc chắn muốn xóa nhân viên "${employee.fullName}"?`,
+      type: 'warning'
+    });
+    if (!confirmed) return;
 
     try {
       await dispatch(deleteUserThunk(employee.userId)).unwrap();
-      dispatch(showSuccess({ message: 'Đã xóa nhân viên thành công!' }));
+      success('Đã xóa nhân viên thành công!');
       dispatch(getAllUsersThunk());
     } catch (error) {
-      dispatch(showError({ message: error?.message || 'Không thể xóa nhân viên' }));
+      showError(error?.message || 'Không thể xóa nhân viên');
     }
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div>
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
+
+      <div className="max-w-7xl mx-auto">
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         {/* Header */}
         <div className="mb-6">
@@ -508,6 +536,7 @@ function QuanLyNhanVien() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }

@@ -18,10 +18,18 @@ import { getAllCustomersThunk } from '../../store/slices/customerSlice';
 import { getAllModelsThunk } from '../../store/slices/modelSlice';
 import { showSuccess, showError } from '../../store/slices/snackbarSlice';
 import AnimatedSelect from '@/components/ui/AnimatedSelect';
+import Toast from '../../components/ui/Toast';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
 
 function TestDriveSchedule({ onBack }) {
   const dispatch = useDispatch();
   const { user } = useAuth();
+  
+  // Modern UI hooks
+  const { toast, hideToast } = useToast();
+  const { confirm } = useConfirm();
 
   // Redux state
   const appointments = useSelector((state) => state.appointments.items);
@@ -339,6 +347,25 @@ function TestDriveSchedule({ onBack }) {
 
   return (
     <div className="max-w-7xl mx-auto">
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         {/* Header */}
         <div className="flex items-center justify-between mb-4">

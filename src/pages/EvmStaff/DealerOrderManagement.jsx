@@ -8,9 +8,16 @@ import {
 } from '../../store/slices/inventoryTransactionSlice';
 import { getAllStoreStocksThunk, updateStockQuantityThunk } from '../../store/slices/store-stockSlice';
 import { showError, showSuccess, showWarning } from '../../store/slices/snackbarSlice';
+import Toast from '../../components/ui/Toast';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
 
 function DealerOrderManagement() {
   const dispatch = useDispatch();
+  
+  const { toast, hideToast } = useToast();
+  const { confirm, showConfirm } = useConfirm();
 
   const transactions = useSelector((s) => s.inventoryTransactions.items);
   const storeStocks = useSelector((s) => s.storeStocks.items);
@@ -119,9 +126,11 @@ function DealerOrderManagement() {
   };
 
   const handleReject = async (order) => {
-    if (!window.confirm(`Bạn có chắc chắn muốn từ chối đơn hàng #${order.inventoryId || order.id}? Đơn hàng sẽ bị xóa và không được cập nhật vào kho.`)) {
-      return;
-    }
+    const confirmed = await showConfirm({
+      message: `Bạn có chắc chắn muốn từ chối đơn hàng #${order.inventoryId || order.id}? Đơn hàng sẽ bị xóa và không được cập nhật vào kho.`,
+      type: 'warning'
+    });
+    if (!confirmed) return;
 
     try {
       // Có thể update status thành REJECTED hoặc xóa luôn
@@ -135,9 +144,11 @@ function DealerOrderManagement() {
   };
 
   const handleComplete = async (order) => {
-    if (!window.confirm(`Xác nhận đơn hàng #${order.inventoryId || order.id} đã giao xong và cập nhật ${order.importQuantity} xe vào kho?`)) {
-      return;
-    }
+    const confirmed = await showConfirm({
+      message: `Xác nhận đơn hàng #${order.inventoryId || order.id} đã giao xong và cập nhật ${order.importQuantity} xe vào kho?`,
+      type: 'warning'
+    });
+    if (!confirmed) return;
 
     try {
       // Bước 1: Cập nhật số lượng trong store_stock
@@ -187,6 +198,23 @@ function DealerOrderManagement() {
 
   return (
     <div className="max-w-7xl mx-auto">
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
         <motion.div 
           className="mb-6"

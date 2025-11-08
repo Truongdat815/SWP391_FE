@@ -7,12 +7,18 @@ import { fetchOrdersByCustomer } from '@store/slices/orderSlice';
 import { useAuth } from '../../contexts/AuthContext';
 import { SkeletonTable } from '../../components/ui/Skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
+import Toast from '../../components/ui/Toast';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
 
 
 function CustomerManagement() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast, success, showError, hideToast } = useToast();
+  const { confirm, showConfirm, hideConfirm } = useConfirm();
   const customers = useSelector((s) => s.customers.items);
   const customersStatus = useSelector((s) => s.customers.status);
   const customersError = useSelector((s) => s.customers.error);
@@ -378,7 +384,7 @@ function CustomerManagement() {
     } catch (error) {
       console.error('❌ Failed to create customer:', error);
       // Hiển thị thông báo lỗi cho user
-      alert('Không thể tạo khách hàng: ' + (error.message || error || 'Lỗi không xác định'));
+      showError('Không thể tạo khách hàng: ' + (error.message || error || 'Lỗi không xác định'));
     }
   };
 
@@ -411,7 +417,7 @@ function CustomerManagement() {
       const customerId = customerToDelete.customerId;
       if (!customerId) {
         console.error('Customer ID is missing');
-        alert('Không thể xóa khách hàng: Thiếu thông tin ID');
+        showError('Không thể xóa khách hàng: Thiếu thông tin ID');
         return;
       }
       
@@ -446,7 +452,7 @@ function CustomerManagement() {
       }
       
       // Show user-friendly alert
-      alert(`Lỗi khi xóa khách hàng:\n\n${errorMessage}`);
+      showError(`Lỗi khi xóa khách hàng:\n\n${errorMessage}`);
     }
   };
 
@@ -624,7 +630,28 @@ function CustomerManagement() {
   const filteredCustomers = sortCustomers(getFilteredCustomers(), sortMode);
 
   return (
-    <div className="px-6 space-y-4">
+    <div>
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
+
+      <div className="px-6 space-y-4">
       {/* Header */}
       <div className="bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-lg border border-gray-100 p-4">
         <div className="flex justify-between items-center">
@@ -643,7 +670,7 @@ function CustomerManagement() {
             <button
               onClick={() => setShowAddModal(true)}
               className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center"
-              title="Thêm khách hàng mới vào hệ thống"
+              
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -714,7 +741,7 @@ function CustomerManagement() {
             </div>
             <button 
               className="bg-white text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200 flex items-center"
-              title="Xuất danh sách khách hàng ra file Excel"
+              
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -1814,6 +1841,7 @@ function CustomerManagement() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }

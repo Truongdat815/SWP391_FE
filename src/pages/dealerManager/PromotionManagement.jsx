@@ -28,11 +28,22 @@ import {
   DollarSign,
   Filter
 } from 'lucide-react';
+
+import Toast from '../../components/ui/Toast';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
+import StatusBadge from '../../components/ui/StatusBadge';
+import ModernButton from '../../components/ui/ModernButton';
+import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
+import EmptyState from '../../components/ui/EmptyState';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function PromotionManagement() {
   const dispatch = useDispatch();
   const { user } = useAuth();
+  const { toast, success: showSuccess, showError: showToastError, hideToast } = useToast();
+  const { confirm, showConfirm, hideConfirm } = useConfirm();
   const { promotions, loading, error, success } = useSelector((state) => state.promotions);
   
   // Get storeId from user context
@@ -287,7 +298,28 @@ function PromotionManagement() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-4">
+    <div>
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
+
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <div className="mb-4">
@@ -517,21 +549,21 @@ function PromotionManagement() {
                           <button
                             onClick={() => handleViewDetail(promotion)}
                             className="text-blue-600 hover:text-blue-900 transition-colors"
-                            title="Xem chi tiết"
+                            
                           >
                             <Eye className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleEditClick(promotion)}
                             className="text-emerald-600 hover:text-emerald-900 transition-colors"
-                            title="Chỉnh sửa"
+                            
                           >
                             <Edit className="h-5 w-5" />
                           </button>
                           <button
                             onClick={() => handleDeleteClick(promotion)}
                             className="text-red-600 hover:text-red-900 transition-colors"
-                            title="Xóa"
+                            
                           >
                             <Trash2 className="h-5 w-5" />
                           </button>
@@ -1077,6 +1109,7 @@ function PromotionManagement() {
           </motion.div>
         </div>
       )}
+      </div>
     </div>
   );
 }

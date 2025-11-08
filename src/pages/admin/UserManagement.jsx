@@ -6,6 +6,10 @@ import { getAllStoresThunk } from '@store/slices/storeSlice';
 import { getAllRolesThunk, createRoleThunk, updateRoleThunk, deleteRoleThunk } from '@store/slices/roleSlice';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedSelect from '@/components/ui/AnimatedSelect';
+import Toast from '@/components/ui/Toast';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/hooks/useToast';
+import { useConfirm } from '@/hooks/useConfirm';
 
 // Skeleton Loading Component
 const TableSkeleton = () => (
@@ -47,6 +51,9 @@ function UserManagement() {
   const rolesError = useSelector((s) => s.roles.error);
   const isRolesFetching = rolesStatus === 'loading';
   const [usersApi, setUsersApi] = useState([]);
+
+  const { toast, hideToast, success, error } = useToast();
+  const { confirm, showConfirm } = useConfirm();
 
   useEffect(() => {
     if (usersStatus === 'idle') {
@@ -198,6 +205,9 @@ function UserManagement() {
       // Chuẩn bị dữ liệu submit
       const submitData = { ...formData };
       
+      // Xóa status vì backend tự xử lý khi tạo user mới
+      delete submitData.status;
+      
       // Nếu là Admin (1) hoặc EVM Staff (2), không gửi storeId
       if (doesNotRequireStore(parseInt(formData.roleId))) {
         delete submitData.storeId;
@@ -227,9 +237,9 @@ function UserManagement() {
       // Refresh danh sách users
       await dispatch(getAllUsersThunk()).unwrap();
       
-    } catch (error) {
-      console.error('Failed to create user:', error);
-      alert('Lỗi khi tạo người dùng: ' + error.message);
+    } catch (err) {
+      console.error('Failed to create user:', err);
+      error('Lỗi khi tạo người dùng: ' + err.message);
       setOperationType(null); // Reset operation type khi có lỗi
     }
   };
@@ -271,9 +281,9 @@ function UserManagement() {
       // Refresh danh sách users
       await dispatch(getAllUsersThunk()).unwrap();
       
-    } catch (error) {
-      console.error('Failed to delete user:', error);
-      alert('Lỗi khi xóa người dùng: ' + error.message);
+    } catch (err) {
+      console.error('Failed to delete user:', err);
+      error('Lỗi khi xóa người dùng: ' + err.message);
       setOperationType(null); // Reset operation type khi có lỗi
     }
   };
@@ -342,9 +352,9 @@ function UserManagement() {
       // Refresh danh sách users
       await dispatch(getAllUsersThunk()).unwrap();
       
-    } catch (error) {
-      console.error('Failed to update user:', error);
-      alert('Lỗi khi cập nhật người dùng: ' + error.message);
+    } catch (err) {
+      console.error('Failed to update user:', err);
+      error('Lỗi khi cập nhật người dùng: ' + err.message);
       setOperationType(null); // Reset operation type khi có lỗi
     }
   };
@@ -547,7 +557,7 @@ function UserManagement() {
                     <button 
                       onClick={() => handleEditClick(u)}
                       className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
-                      title="Chỉnh sửa thông tin người dùng"
+                      
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -557,7 +567,7 @@ function UserManagement() {
                     <button 
                       onClick={() => handleViewDetail(u)}
                       className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
-                      title="Xem chi tiết thông tin người dùng"
+                      
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -568,7 +578,7 @@ function UserManagement() {
                     <button
                       onClick={() => handleDeleteClick(u)}
                       className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
-                      title="Xóa người dùng khỏi hệ thống"
+                      
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -621,6 +631,26 @@ function UserManagement() {
 
   return (
     <div className="px-6 space-y-6">
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
+      
       {/* Header */}
       <div className="bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-lg border border-gray-100 p-6">
         <div className="flex justify-between items-center">
@@ -639,7 +669,7 @@ function UserManagement() {
             <button
               onClick={() => setShowAddModal(true)}
               className="bg-gradient-to-r from-red-500 to-red-600 text-white px-5 py-2.5 rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center"
-              title="Tạo tài khoản người dùng mới trong hệ thống"
+              
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -648,7 +678,7 @@ function UserManagement() {
             </button>
             <button 
               className="bg-white text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200 flex items-center"
-              title="Xuất báo cáo danh sách người dùng ra file Excel"
+              
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -908,25 +938,6 @@ function UserManagement() {
                       placeholder="Nhập số điện thoại"
                       required
                     />
-                  </div>
-
-                  {/* Status Selection */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Trạng thái <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      required
-                    >
-                      <option value="ACTIVE">Hoạt động</option>
-                      <option value="INACTIVE">Không hoạt động</option>
-                      <option value="PENDING">Chờ duyệt</option>
-                      <option value="DISABLED">Vô hiệu hóa</option>
-                    </select>
                   </div>
                 </div>
                 

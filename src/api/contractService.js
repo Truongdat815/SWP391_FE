@@ -129,8 +129,29 @@ export async function uploadSignedContract(contractId, file) {
     const data = isJson ? await res.json() : await res.text();
     
     if (!res.ok) {
-        const message = (isJson && data?.message) || res.statusText || 'Upload failed';
-        throw new Error(message);
+        // Try to extract error message from different response formats
+        let message = 'Upload failed';
+        
+        if (isJson) {
+            // Check for nested error messages
+            message = data?.message || 
+                     data?.error || 
+                     data?.errorMessage || 
+                     (typeof data === 'string' ? data : JSON.stringify(data));
+        } else if (typeof data === 'string') {
+            message = data;
+        }
+        
+        // If no message found, use status text
+        if (!message || message === 'Upload failed') {
+            message = res.statusText || 'Upload failed';
+        }
+        
+        // Include full error details for debugging
+        const error = new Error(message);
+        error.status = res.status;
+        error.response = data;
+        throw error;
     }
     
     return data;

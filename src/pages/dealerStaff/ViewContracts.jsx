@@ -29,6 +29,16 @@ import {
   Tag,
   CreditCard
 } from 'lucide-react';
+import Toast from '../../components/ui/Toast';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
+import StatusBadge from '../../components/ui/StatusBadge';
+import { ModernCard, ModernCardHeader, ModernCardContent } from '../../components/ui/ModernCard';
+import ModernButton from '../../components/ui/ModernButton';
+import { ModernTable, ModernTableHead, ModernTableHeader, ModernTableBody, ModernTableRow, ModernTableCell } from '../../components/ui/ModernTable';
+import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
+import EmptyState from '../../components/ui/EmptyState';
 
 function ViewContracts() {
   const dispatch = useDispatch();
@@ -37,9 +47,11 @@ function ViewContracts() {
   
   const { contracts, loading } = useSelector((state) => state.contracts);
   
+  // Modern UI hooks
+  const { toast, success, error, hideToast } = useToast();
+  const { confirm, showConfirm } = useConfirm();
+  
   const [searchTerm, setSearchTerm] = useState('');
-  const [successMessage, setSuccessMessage] = useState(null);
-  const [errorMessage, setErrorMessage] = useState(null);
   const [uploadingContract, setUploadingContract] = useState(null);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [selectedContract, setSelectedContract] = useState(null);
@@ -57,13 +69,12 @@ function ViewContracts() {
   // Handle success message from navigation state
   useEffect(() => {
     if (location.state?.message) {
-      setSuccessMessage(location.state.message);
-      setTimeout(() => setSuccessMessage(null), 5000);
+      success(location.state.message);
       
       // Clear the location state
       window.history.replaceState({}, document.title);
     }
-  }, [location]);
+  }, [location, success]);
 
   // Format order code to ORD-01, ORD-02, ...
   const formatOrderCode = (orderCode, orderId) => {
@@ -138,10 +149,9 @@ function ViewContracts() {
       setTimeout(() => {
         URL.revokeObjectURL(blobUrl);
       }, 60000);
-    } catch (error) {
-      console.error('Error viewing contract:', error);
-      setErrorMessage('Không thể mở hợp đồng: ' + error.message);
-      setTimeout(() => setErrorMessage(null), 3000);
+    } catch (err) {
+      console.error('Error viewing contract:', err);
+      error('Không thể mở hợp đồng: ' + err.message);
     }
   };
 
@@ -171,10 +181,9 @@ function ViewContracts() {
       // Backend returns product details in 'getOrderDetailsResponses' array
       const details = order.getOrderDetailsResponses || [];
       setOrderDetails(details);
-    } catch (error) {
-      console.error('Error loading order:', error);
-      setErrorMessage('Không thể tải thông tin đơn hàng: ' + error.message);
-      setTimeout(() => setErrorMessage(null), 3000);
+    } catch (err) {
+      console.error('Error loading order:', err);
+      error('Không thể tải thông tin đơn hàng: ' + err.message);
     } finally {
       setLoadingOrderDetails(false);
     }
@@ -192,15 +201,13 @@ function ViewContracts() {
       // Validate file type
       const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
       if (!validTypes.includes(file.type)) {
-        setErrorMessage('Chỉ chấp nhận file ảnh (JPG, PNG) hoặc PDF');
-        setTimeout(() => setErrorMessage(null), 3000);
+        error('Chỉ chấp nhận file ảnh (JPG, PNG) hoặc PDF');
         return;
       }
       
       // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
-        setErrorMessage('Kích thước file không được vượt quá 10MB');
-        setTimeout(() => setErrorMessage(null), 3000);
+        error('Kích thước file không được vượt quá 10MB');
         return;
       }
       
@@ -210,8 +217,7 @@ function ViewContracts() {
 
   const handleUpload = async () => {
     if (!selectedFile || !selectedContract) {
-      setErrorMessage('Vui lòng chọn file để upload');
-      setTimeout(() => setErrorMessage(null), 3000);
+      error('Vui lòng chọn file để upload');
       return;
     }
 
@@ -226,20 +232,25 @@ function ViewContracts() {
       console.log('Upload result:', result);
       
       handleCloseModal();
-      setSuccessMessage('Upload hợp đồng đã ký thành công!');
+      success('Upload hợp đồng đã ký thành công!');
       
       // Refresh contracts list
       dispatch(fetchAllContractsThunk());
       
-      // Clear success message after delay
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 3000);
+    } catch (err) {
+      console.error('Error uploading contract:', err);
       
-    } catch (error) {
-      console.error('Error uploading contract:', error);
-      setErrorMessage('Không thể upload hợp đồng: ' + (error.message || error));
-      setTimeout(() => setErrorMessage(null), 3000);
+      // Check for CHECK constraint violation error
+      const errorMessage = err.message || err.toString() || '';
+      const errorLower = errorMessage.toLowerCase();
+      
+      if (errorLower.includes('check constraint') || 
+          errorLower.includes('ck__orders__status') ||
+          errorLower.includes('conflicted with the check constraint')) {
+        error('Lỗi: Backend đang cập nhật trạng thái đơn hàng với giá trị không hợp lệ. Vui lòng liên hệ quản trị viên để kiểm tra backend.');
+      } else {
+        error('Không thể upload hợp đồng: ' + errorMessage);
+      }
     } finally {
       setUploadingContract(null);
     }
@@ -252,18 +263,6 @@ function ViewContracts() {
     });
   };
 
-
-  const getStatusColor = (status) => {
-    const upperStatus = status?.toUpperCase();
-    switch (upperStatus) {
-      case 'DRAFT': return 'bg-gray-100 text-gray-800';
-      case 'PENDING': return 'bg-yellow-100 text-yellow-800';
-      case 'ACTIVE': return 'bg-blue-100 text-blue-800';
-      case 'COMPLETED': return 'bg-green-100 text-green-800';
-      case 'CANCELLED': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
 
   const getStatusText = (status) => {
     const upperStatus = status?.toUpperCase();
@@ -279,20 +278,25 @@ function ViewContracts() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Success/Error Messages */}
-      {successMessage && (
-        <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
-          <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
-          <span className="text-green-700">{successMessage}</span>
-        </div>
-      )}
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
       
-      {errorMessage && (
-        <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
-          <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
-          <span className="text-red-700">{errorMessage}</span>
-        </div>
-      )}
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
 
       {/* Header */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
@@ -349,6 +353,9 @@ function ViewContracts() {
                     Ngày tạo
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Trạng thái
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Tổng thanh toán
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -378,6 +385,9 @@ function ViewContracts() {
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {contract.contractDate ? new Date(contract.contractDate).toLocaleDateString('vi-VN') : 'N/A'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <StatusBadge status={contract.status || 'PENDING'} size="sm" />
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
                       {(contract.totalPayment || 0).toLocaleString('vi-VN')} VNĐ
@@ -414,7 +424,6 @@ function ViewContracts() {
                         <button
                           onClick={() => handleViewContract(contract)}
                           className="text-emerald-600 hover:text-emerald-900 transition-colors"
-                          title="Xem hợp đồng"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
@@ -422,7 +431,6 @@ function ViewContracts() {
                         {!(contract.signedContractFileUrl || contract.contractFileUrl) ? (
                           <button
                             onClick={() => handleUploadClick(contract)}
-                            title="Upload hợp đồng đã ký"
                             disabled={uploadingContract === contract.contractId}
                             className="text-blue-600 hover:text-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                           >
@@ -435,7 +443,6 @@ function ViewContracts() {
                         ) : (
                           <button
                             onClick={() => handlePaymentClick(contract)}
-                            title="Thanh toán"
                             className="text-green-600 hover:text-green-900 transition-colors"
                           >
                             <CreditCard className="h-4 w-4" />

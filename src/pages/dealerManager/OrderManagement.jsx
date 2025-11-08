@@ -21,7 +21,20 @@ import {
   FileText
 } from 'lucide-react';
 
+
+import Toast from '../../components/ui/Toast';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
+import StatusBadge from '../../components/ui/StatusBadge';
+import ModernButton from '../../components/ui/ModernButton';
+import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
+import EmptyState from '../../components/ui/EmptyState';
 function OrderManagement() {
+  // Modern UI hooks
+  const { toast, success, error: showError, hideToast } = useToast();
+  const { confirm, showConfirm } = useConfirm();
+  
   const dispatch = useDispatch();
   
   // Redux state
@@ -34,7 +47,6 @@ function OrderManagement() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showModal, setShowModal] = useState(false);
-  const [successMessage, setSuccessMessage] = useState('');
   
   // Bulk delete state
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
@@ -142,33 +154,35 @@ function OrderManagement() {
   const handleUpdateStatus = async (orderId, newStatus) => {
     try {
       await dispatch(updateOrderStatusById({ orderId, status: newStatus })).unwrap();
-      setSuccessMessage(`Đã cập nhật trạng thái đơn hàng thành "${getStatusText(newStatus)}"!`);
+      success(`Đã cập nhật trạng thái đơn hàng thành "${getStatusText(newStatus)}"!`);
       
       // Refresh orders list
       dispatch(fetchOrders());
       
-      setTimeout(() => setSuccessMessage(''), 3000);
+      setTimeout(() => success(''), 3000);
     } catch (error) {
       console.error('Error updating order status:', error);
     }
   };
 
   const handleDeleteOrder = async (orderId) => {
-    if (!window.confirm('Bạn có chắc chắn muốn xóa đơn hàng này? Hành động này không thể hoàn tác.')) {
-      return;
-    }
+    const confirmed = await showConfirm({
+      message: 'Bạn có chắc chắn muốn xóa đơn hàng này? Hành động này không thể hoàn tác.',
+      type: 'warning'
+    });
+    if (!confirmed) return;
     
     try {
       await dispatch(deleteOrderById(orderId)).unwrap();
-      setSuccessMessage('Đã xóa đơn hàng thành công!');
+      success('Đã xóa đơn hàng thành công!');
       
       // Refresh orders list
       dispatch(fetchOrders());
       
-      setTimeout(() => setSuccessMessage(''), 3000);
+      setTimeout(() => success(''), 3000);
     } catch (error) {
       console.error('Error deleting order:', error);
-      alert('Không thể xóa đơn hàng. Vui lòng thử lại.');
+      showError('Không thể xóa đơn hàng. Vui lòng thử lại.');
     }
   };
 
@@ -195,13 +209,15 @@ function OrderManagement() {
   // Bulk delete handler (parallel deletion for speed)
   const handleBulkDelete = async () => {
     if (selectedOrderIds.length === 0) {
-      alert('Vui lòng chọn ít nhất một đơn hàng để xóa.');
+      showError('Vui lòng chọn ít nhất một đơn hàng để xóa.');
       return;
     }
 
-    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${selectedOrderIds.length} đơn hàng đã chọn? Hành động này không thể hoàn tác.`)) {
-      return;
-    }
+    const confirmed = await showConfirm({
+      message: `Bạn có chắc chắn muốn xóa ${selectedOrderIds.length} đơn hàng đã chọn? Hành động này không thể hoàn tác.`,
+      type: 'warning'
+    });
+    if (!confirmed) return;
 
     setIsDeleting(true);
     setDeletingCount(selectedOrderIds.length);
@@ -229,15 +245,15 @@ function OrderManagement() {
 
     // Show result message
     if (failCount === 0) {
-      setSuccessMessage(`Đã xóa thành công ${successCount} đơn hàng!`);
+      success(`Đã xóa thành công ${successCount} đơn hàng!`);
     } else {
-      setSuccessMessage(`Đã xóa ${successCount} đơn hàng. ${failCount} đơn hàng không thể xóa.`);
+      success(`Đã xóa ${successCount} đơn hàng. ${failCount} đơn hàng không thể xóa.`);
     }
 
     // Refresh orders list only once at the end
     dispatch(fetchOrders());
 
-    setTimeout(() => setSuccessMessage(''), 4000);
+    setTimeout(() => success(''), 4000);
   };
 
   // Calculate total from order details
@@ -252,7 +268,28 @@ function OrderManagement() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div>
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
+
+<div className="max-w-7xl mx-auto">
       {/* Page Header */}
       <div className="mb-6">
         <h1 className="text-3xl font-bold text-gray-900 flex items-center">
@@ -262,13 +299,7 @@ function OrderManagement() {
         <p className="text-gray-600 mt-2">Quản lý và theo dõi tất cả đơn hàng của cửa hàng</p>
       </div>
 
-      {/* Success Message */}
-      {successMessage && (
-        <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
-          <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
-          <span className="text-green-700">{successMessage}</span>
-        </div>
-      )}
+      
 
       {/* Error Message */}
       {error && (
@@ -370,7 +401,7 @@ function OrderManagement() {
                         checked={filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length}
                         onChange={handleSelectAll}
                         className="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
-                        title="Chọn/Bỏ chọn tất cả"
+                        
                       />
                       <span className="text-xs font-medium text-gray-600">Tất cả</span>
                     </div>
@@ -432,13 +463,13 @@ function OrderManagement() {
                         <button
                           onClick={() => handleViewDetails(order)}
                           className="text-emerald-600 hover:text-emerald-900 transition-colors"
-                          title="Xem chi tiết đơn hàng"
+                          
                         >
                           <Eye className="h-5 w-5" />
                         </button>
                         <button
                           onClick={() => handleDeleteOrder(order.orderId)}
-                          title="Xóa đơn hàng (Manager)"
+                          
                             className="text-red-600 hover:text-red-900 transition-colors"
                           >
                             <Trash2 className="h-5 w-5" />
@@ -596,6 +627,7 @@ function OrderManagement() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }
