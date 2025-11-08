@@ -37,11 +37,23 @@ import {
   Plus,
   FileText
 } from 'lucide-react';
+import Toast from '../../components/ui/Toast';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
+import StatusBadge from '../../components/ui/StatusBadge';
+import ModernButton from '../../components/ui/ModernButton';
+import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
+import EmptyState from '../../components/ui/EmptyState';
 
 function ViewOrders() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Modern UI hooks
+  const { toast, success, error: showError, hideToast } = useToast();
+  const { confirm, showConfirm } = useConfirm();
   
   // Redux state
   const { orders: reduxOrders, loading, error } = useSelector((state) => state.orders);
@@ -60,8 +72,6 @@ function ViewOrders() {
   const [selectedOrderDetails, setSelectedOrderDetails] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [loadingDetails, setLoadingDetails] = useState(false);
-  const [successMessage, setSuccessMessage] = useState(null);
-  const [errorMessage, setErrorMessage] = useState(null);
   const [ordersWithContracts, setOrdersWithContracts] = useState({}); // Map orderId -> contract
   const [creatingContract, setCreatingContract] = useState(null);
   // Thêm state và hàm sort
@@ -89,8 +99,7 @@ function ViewOrders() {
   // Show success message from location state and reload orders
   useEffect(() => {
     if (location.state?.message) {
-      setSuccessMessage(location.state.message);
-      setTimeout(() => setSuccessMessage(null), 5000);
+      success(location.state.message);
       
       // If coming from create/edit order, force reload orders after short delay
       if (location.state?.newOrderId || location.state?.success) {
@@ -254,6 +263,30 @@ function ViewOrders() {
     return orderCode || 'N/A';
   };
 
+  // Format contract code to CTR-01, CTR-02, ...
+  const formatContractCode = (contractCode, contractId) => {
+    if (contractCode) {
+      // If contractCode already has format, extract number or use as is
+      const match = contractCode.match(/CTR-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        return `CTR-${String(num).padStart(2, '0')}`;
+      }
+      // Try to extract number from contractCode
+      const numMatch = contractCode.match(/(\d+)/);
+      if (numMatch) {
+        const num = parseInt(numMatch[1], 10);
+        return `CTR-${String(num).padStart(2, '0')}`;
+      }
+    }
+    // Fallback to contractId
+    if (contractId) {
+      const num = parseInt(contractId, 10);
+      return `CTR-${String(num).padStart(2, '0')}`;
+    }
+    return contractCode || 'N/A';
+  };
+
   const handleViewDetails = async (order) => {
     setSelectedOrder(order);
     setShowModal(true);
@@ -310,16 +343,13 @@ function ViewOrders() {
   const handleUpdateStatus = async (orderId, newStatus) => {
     try {
       await dispatch(updateOrderStatusById({ orderId, status: newStatus })).unwrap();
-      setSuccessMessage(`Đã cập nhật trạng thái đơn hàng thành "${getStatusText(newStatus)}"!`);
+      success(`Đã cập nhật trạng thái đơn hàng thành "${getStatusText(newStatus)}"!`);
       
       // Refresh orders list
       dispatch(fetchOrders());
-      
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (error) {
-      console.error('Error updating order status:', error);
-      setErrorMessage('Không thể cập nhật trạng thái đơn hàng');
-      setTimeout(() => setErrorMessage(null), 3000);
+    } catch (err) {
+      console.error('Error updating order status:', err);
+      showError('Không thể cập nhật trạng thái đơn hàng');
     }
   };
 
@@ -335,20 +365,25 @@ function ViewOrders() {
     // Chỉ cho phép xóa đơn hàng có trạng thái NHÁP hoặc ĐÃ XÁC NHẬN
     const status = orderStatus?.toUpperCase();
     if (status !== 'DRAFT' && status !== 'CONFIRMED') {
-      setErrorMessage('Chỉ có thể xóa đơn hàng có trạng thái "Nháp" hoặc "Đã xác nhận"');
-      setTimeout(() => setErrorMessage(null), 3000);
+      showError('Chỉ có thể xóa đơn hàng có trạng thái "Nháp" hoặc "Đã xác nhận"');
       return;
     }
     
-    if (!window.confirm('Bạn có chắc muốn xóa đơn hàng này? Thao tác này không thể hoàn tác!')) {
-      return;
-    }
+    const confirmed = await showConfirm({
+      title: 'Xác nhận xóa đơn hàng',
+      message: 'Bạn có chắc muốn xóa đơn hàng này? Thao tác này không thể hoàn tác!',
+      type: 'danger',
+      confirmText: 'Xóa',
+      cancelText: 'Hủy'
+    });
+    
+    if (!confirmed) return;
     
     try {
       // Dùng Redux thunk thay vì gọi trực tiếp API
       await dispatch(deleteOrderById(orderId)).unwrap();
       
-      setSuccessMessage('Đã xóa đơn hàng thành công!');
+      success('Đã xóa đơn hàng thành công!');
       
       // Refresh orders list từ server
       if (startDate && endDate) {
@@ -358,19 +393,22 @@ function ViewOrders() {
       } else {
         dispatch(fetchOrders());
       }
-      
-      setTimeout(() => setSuccessMessage(null), 3000);
-    } catch (error) {
-      console.error('Error deleting order:', error);
-      setErrorMessage('Không thể xóa đơn hàng: ' + error);
-      setTimeout(() => setErrorMessage(null), 3000);
+    } catch (err) {
+      console.error('Error deleting order:', err);
+      showError('Không thể xóa đơn hàng: ' + err);
     }
   };
 
   const handleConfirmOrder = async (orderId) => {
-    if (!window.confirm('Xác nhận đơn hàng này? Đơn hàng sẽ chuyển từ DRAFT sang CONFIRMED.')) {
-      return;
-    }
+    const confirmed = await showConfirm({
+      title: 'Xác nhận đơn hàng',
+      message: 'Xác nhận đơn hàng này? Đơn hàng sẽ chuyển từ DRAFT sang CONFIRMED.',
+      type: 'info',
+      confirmText: 'Xác nhận',
+      cancelText: 'Hủy'
+    });
+    
+    if (!confirmed) return;
     
     try {
       const confirmResponse = await dispatch(confirmOrderThunk(orderId)).unwrap();
@@ -383,7 +421,7 @@ function ViewOrders() {
       const orderCode = confirmData.orderCode || `#${confirmData.orderId || orderId}`;
       const status = confirmData.status || 'CONFIRMED';
       
-      setSuccessMessage(`Đã xác nhận đơn hàng ${orderCode} thành công! Trạng thái: ${status}`);
+      success(`Đã xác nhận đơn hàng ${orderCode} thành công! Trạng thái: ${status}`);
       
       // Refresh orders list
       if (startDate && endDate) {
@@ -393,12 +431,9 @@ function ViewOrders() {
       } else {
         dispatch(fetchOrders());
       }
-      
-      setTimeout(() => setSuccessMessage(null), 5000);
-    } catch (error) {
-      console.error('Error confirming order:', error);
-      setErrorMessage('Không thể xác nhận đơn hàng: ' + (error.message || error));
-      setTimeout(() => setErrorMessage(null), 5000);
+    } catch (err) {
+      console.error('Error confirming order:', err);
+      showError('Không thể xác nhận đơn hàng: ' + (err.message || err));
     }
   };
 
@@ -408,26 +443,30 @@ function ViewOrders() {
     // Check if order already has contract
     const existingContract = ordersWithContracts[order.orderId];
     if (existingContract) {
-      setErrorMessage(`Đơn hàng này đã có hợp đồng (${existingContract.contractCode || `#${existingContract.contractId}`}). Vui lòng xem hợp đồng hiện tại.`);
-      setTimeout(() => setErrorMessage(null), 5000);
+      const formattedOrderCode = formatOrderCode(order.orderCode, order.orderId);
+      const formattedContractCode = formatContractCode(existingContract.contractCode, existingContract.contractId);
+      showError(`Đơn hàng ${formattedOrderCode} đã có hợp đồng ${formattedContractCode}. Vui lòng xem hợp đồng hiện tại.`);
       return;
     }
-
+    
     // Check if order is CONFIRMED
     if (order.status?.toUpperCase() !== 'CONFIRMED') {
-      setErrorMessage('Chỉ có thể tạo hợp đồng cho đơn hàng đã xác nhận (CONFIRMED).');
-      setTimeout(() => setErrorMessage(null), 5000);
+      showError('Chỉ có thể tạo hợp đồng cho đơn hàng đã xác nhận (CONFIRMED).');
       return;
     }
 
     try {
       setCreatingContract(order.orderId);
-      setErrorMessage(null);
       
       // Create contract
       const result = await dispatch(createContractFromOrderThunk(order.orderId)).unwrap();
       
-      setSuccessMessage(`Đã tạo hợp đồng thành công cho đơn ${order.orderCode || order.orderId}!`);
+      // Show success message with both order code and contract code
+      const contractCode = result.contractCode || result.data?.contractCode;
+      const contractId = result.contractId || result.data?.contractId;
+      const formattedOrderCode = formatOrderCode(order.orderCode, order.orderId);
+      const formattedContractCode = formatContractCode(contractCode, contractId);
+      success(`Đã tạo hợp đồng ${formattedContractCode} thành công cho đơn hàng ${formattedOrderCode}!`);
       
       // Refresh contracts and orders
       await dispatch(fetchAllContractsThunk());
@@ -445,10 +484,9 @@ function ViewOrders() {
         navigate('/dealer-staff/contract-management', { state: { tab: 'view' } });
       }, 1500);
       
-    } catch (error) {
-      console.error('Error creating contract:', error);
-      setErrorMessage('Không thể tạo hợp đồng: ' + (error.message || error));
-      setTimeout(() => setErrorMessage(null), 5000);
+    } catch (err) {
+      console.error('Error creating contract:', err);
+      showError('Không thể tạo hợp đồng: ' + (err.message || err));
     } finally {
       setCreatingContract(null);
     }
@@ -456,21 +494,25 @@ function ViewOrders() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Success Message */}
-      {successMessage && (
-        <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
-          <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
-          <span className="text-green-700">{successMessage}</span>
-        </div>
-      )}
-
-      {/* Error Message */}
-      {(error || errorMessage) && (
-        <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
-          <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
-          <span className="text-red-700">{error || errorMessage}</span>
-        </div>
-      )}
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
 
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <div className="flex items-center justify-between mb-4">
@@ -841,7 +883,6 @@ function ViewOrders() {
                             <button
                               onClick={() => navigate('/dealer-staff/contract-management', { state: { tab: 'view' } })}
                               className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 hover:bg-green-200 transition-colors"
-                              title="Xem hợp đồng"
                             >
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Đã có
@@ -908,7 +949,6 @@ function ViewOrders() {
                           <button
                             onClick={() => handleDeleteOrder(order.orderId, order.status)}
                             className="text-red-600 hover:text-red-900 transition-colors flex items-center"
-                            title="Xóa đơn hàng"
                           >
                             <Trash2 className="h-4 w-4 mr-1" />
                             Xóa
@@ -1225,7 +1265,7 @@ function ViewOrders() {
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-purple-700">Mã hợp đồng:</span>
                               <span className="text-sm font-semibold text-purple-900">
-                                {contract.contractCode || `#${contract.contractId}`}
+                                {formatContractCode(contract.contractCode, contract.contractId)}
                               </span>
                             </div>
                             <div className="flex items-center justify-between">

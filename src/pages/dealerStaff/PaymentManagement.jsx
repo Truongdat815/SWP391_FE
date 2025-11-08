@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation } from 'react-router-dom';
 import { 
@@ -6,7 +6,9 @@ import {
 } from '../../store/slices/contractSlice';
 import { 
   createPayment,
-  getPaymentHistoryByContract 
+  getPaymentHistoryByContract,
+  getPaymentById,
+  getAllPayments
 } from '../../api/paymentService';
 import { 
   CheckCircle, 
@@ -20,13 +22,23 @@ import {
   X
 } from 'lucide-react';
 
+
+import Toast from '../../components/ui/Toast';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
+import StatusBadge from '../../components/ui/StatusBadge';
+import ModernButton from '../../components/ui/ModernButton';
+import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
+import EmptyState from '../../components/ui/EmptyState';
 function PaymentManagement() {
+  // Modern UI hooks
+  const { toast, success, error: showError, hideToast } = useToast();
+  const { confirm, showConfirm } = useConfirm();
+  
   const dispatch = useDispatch();
   const location = useLocation();
   const { contracts, loading } = useSelector((state) => state.contracts);
-  
-  const [successMessage, setSuccessMessage] = useState(null);
-  const [errorMessage, setErrorMessage] = useState(null);
   const [processingPayment, setProcessingPayment] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedContract, setSelectedContract] = useState(null);
@@ -40,11 +52,295 @@ function PaymentManagement() {
   const [highlightedContractId, setHighlightedContractId] = useState(null);
   const [pendingPaymentContracts, setPendingPaymentContracts] = useState(new Set());
   const [pollingIntervals, setPollingIntervals] = useState(new Map());
+  const [allPayments, setAllPayments] = useState([]);
+  const [loadingAllPayments, setLoadingAllPayments] = useState(false);
+  const [recentPaymentIds, setRecentPaymentIds] = useState(new Map()); // Store contractId -> paymentId mapping
+  const [showPaymentDetailModal, setShowPaymentDetailModal] = useState(false);
+  const [selectedPaymentDetail, setSelectedPaymentDetail] = useState(null);
+  const [loadingPaymentDetail, setLoadingPaymentDetail] = useState(false);
+
+  // Format contract code to CTR-01, CTR-02, ...
+  const formatContractCode = useCallback((contractCode, contractId) => {
+    if (contractCode) {
+      // If contractCode already has format, extract number or use as is
+      const match = contractCode.match(/CTR-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        return `CTR-${String(num).padStart(2, '0')}`;
+      }
+      // Try to extract number from contractCode
+      const numMatch = contractCode.match(/(\d+)/);
+      if (numMatch) {
+        const num = parseInt(numMatch[1], 10);
+        return `CTR-${String(num).padStart(2, '0')}`;
+      }
+    }
+    // Fallback to contractId
+    if (contractId) {
+      const num = parseInt(contractId, 10);
+      return `CTR-${String(num).padStart(2, '0')}`;
+    }
+    return contractCode || 'N/A';
+  }, []);
+
+  // Format order code to ORD-01, ORD-02, ...
+  const formatOrderCode = useCallback((orderCode, orderId) => {
+    if (orderCode) {
+      // If orderCode already has format, extract number or use as is
+      const match = orderCode.match(/ORD-(\d+)/i);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        return `ORD-${String(num).padStart(2, '0')}`;
+      }
+      // Try to extract number from orderCode
+      const numMatch = orderCode.match(/(\d+)/);
+      if (numMatch) {
+        const num = parseInt(numMatch[1], 10);
+        return `ORD-${String(num).padStart(2, '0')}`;
+      }
+    }
+    // Fallback to orderId
+    if (orderId) {
+      const num = parseInt(orderId, 10);
+      return `ORD-${String(num).padStart(2, '0')}`;
+    }
+    return orderCode || 'N/A';
+  }, []);
+
+  // Helper function to normalize contract codes for matching
+  const normalizeContractCode = useCallback((code) => {
+    if (!code) return '';
+    // Remove all non-digit characters and get just the number
+    const numMatch = code.toString().match(/(\d+)/);
+    if (numMatch) {
+      return numMatch[1];
+    }
+    return code.toString();
+  }, []);
+
+  // Helper function to check if payment matches contract
+  const paymentMatchesContract = useCallback((payment, contract, contractId) => {
+    if (!contract) return false;
+    
+    // Check by contractId
+    if (payment.contractId && payment.contractId === contractId) {
+      return true;
+    }
+    
+    // Check by contractCode - normalize both codes for comparison (use original values from API)
+    if (payment.contractCode) {
+      const paymentCodeNormalized = normalizeContractCode(payment.contractCode);
+      const contractCodeNormalized = normalizeContractCode(contract.contractCode);
+      
+      // Compare normalized codes or exact match
+      if (paymentCodeNormalized === contractCodeNormalized ||
+          payment.contractCode === contract.contractCode) {
+        return true;
+      }
+    }
+    
+    return false;
+  }, [normalizeContractCode]);
+
+  // Fetch latest payment details after payment completion
+  const fetchLatestPaymentDetails = useCallback(async (contractId, showModal = true) => {
+    try {
+      setLoadingPaymentDetail(true);
+      const contract = contracts?.find(c => c.contractId === contractId);
+      if (!contract) {
+        setLoadingPaymentDetail(false);
+        return;
+      }
+      
+      console.log('🔄 Fetching payment details for contract:', contractId);
+      
+      // Step 1: Use allPayments from state or fetch if not available
+      let allPaymentsData = allPayments;
+      if (!allPaymentsData || allPaymentsData.length === 0) {
+        console.log('📞 Calling GET /payment/all (not in state)');
+        const allPaymentsResponse = await getAllPayments();
+        allPaymentsData = allPaymentsResponse?.data || allPaymentsResponse || [];
+        setAllPayments(allPaymentsData);
+        console.log('✅ Received payments from /payment/all:', allPaymentsData.length);
+      } else {
+        console.log('✅ Using', allPaymentsData.length, 'payments from state');
+      }
+      
+      // Filter payments for this contract and sort by createdAt (newest first)
+      const contractPayments = allPaymentsData
+        .filter(payment => paymentMatchesContract(payment, contract, contractId))
+        .sort((a, b) => {
+          const dateA = new Date(a.createdAt || 0);
+          const dateB = new Date(b.createdAt || 0);
+          return dateB - dateA;
+        });
+      
+      console.log('🔍 Found', contractPayments.length, 'payments for contract');
+      
+      if (contractPayments.length > 0) {
+        const latestPayment = contractPayments[0];
+        console.log('💰 Latest payment:', latestPayment);
+        
+        // Store the payment ID for reference
+        setRecentPaymentIds(prev => {
+          const next = new Map(prev);
+          next.set(contractId, latestPayment.paymentId);
+          return next;
+        });
+        
+        // Step 2: Call /payment/{paymentId} to get detailed payment information
+        if (latestPayment.paymentId) {
+          try {
+            console.log(`📞 Calling GET /payment/${latestPayment.paymentId}`);
+            const paymentDetailsResponse = await getPaymentById(latestPayment.paymentId);
+            const detailedPayment = paymentDetailsResponse?.data || paymentDetailsResponse;
+            console.log('✅ Received payment details:', detailedPayment);
+            
+            // Store payment detail to show in modal
+            if (showModal && detailedPayment) {
+              setSelectedPaymentDetail(detailedPayment);
+              setShowPaymentDetailModal(true);
+            }
+            
+            // Always refresh payment history to include latest payment
+            try {
+              // Also refresh payment history by contract
+              const history = await getPaymentHistoryByContract(contractId);
+              const historyData = history?.data || history || [];
+              
+              // Merge and update payment history
+              setPaymentHistories(prev => {
+                const existing = prev[contractId] || [];
+                // Combine history data with detailed payment
+                const allPaymentsList = [...historyData];
+                
+                // Add detailed payment if not already in history
+                const exists = allPaymentsList.some(p => 
+                  p.paymentId === detailedPayment.paymentId || 
+                  p.paymentCode === detailedPayment.paymentCode
+                );
+                
+                if (!exists && detailedPayment) {
+                  allPaymentsList.unshift(detailedPayment);
+                }
+                
+                // Remove duplicates based on paymentId or paymentCode
+                const uniquePayments = allPaymentsList.reduce((acc, payment) => {
+                  const key = payment.paymentId || payment.paymentCode;
+                  if (!acc.find(p => (p.paymentId || p.paymentCode) === key)) {
+                    acc.push(payment);
+                  }
+                  return acc;
+                }, []);
+                
+                // Sort by createdAt (newest first)
+                uniquePayments.sort((a, b) => {
+                  const dateA = new Date(a.createdAt || 0);
+                  const dateB = new Date(b.createdAt || 0);
+                  return dateB - dateA;
+                });
+                
+                return {
+                  ...prev,
+                  [contractId]: uniquePayments
+                };
+              });
+            } catch (historyError) {
+              console.error('Error refreshing payment history:', historyError);
+            }
+          } catch (paymentDetailError) {
+            console.error('Error fetching payment details by ID:', paymentDetailError);
+            // Fallback: use the payment from getAllPayments
+            if (showModal && latestPayment) {
+              setSelectedPaymentDetail(latestPayment);
+              setShowPaymentDetailModal(true);
+            }
+            
+            // Fallback to just refreshing history by contract
+            try {
+              const history = await getPaymentHistoryByContract(contractId);
+              setPaymentHistories(prev => ({
+                ...prev,
+                [contractId]: history?.data || history || []
+              }));
+            } catch (historyError) {
+              console.error('Error fetching payment history:', historyError);
+            }
+          }
+        }
+      } else {
+        console.log('⚠️ No payments found for contract');
+      }
+    } catch (error) {
+      console.error('❌ Error fetching latest payment details:', error);
+      showError('Không thể lấy thông tin thanh toán: ' + (error.message || error));
+    } finally {
+      setLoadingPaymentDetail(false);
+    }
+  }, [contracts, expandedContracts, showError, allPayments, paymentMatchesContract]);
 
   // Fetch contracts on mount
   useEffect(() => {
     dispatch(fetchAllContractsThunk());
   }, [dispatch]);
+
+  // Fetch all payments on mount
+  useEffect(() => {
+    const fetchPayments = async () => {
+      try {
+        setLoadingAllPayments(true);
+        console.log('🔄 Fetching all payments on mount...');
+        const response = await getAllPayments();
+        const paymentsData = response?.data || response || [];
+        console.log('✅ Loaded', paymentsData.length, 'payments');
+        setAllPayments(paymentsData);
+      } catch (error) {
+        console.error('❌ Error fetching all payments:', error);
+        showError('Không thể tải danh sách thanh toán: ' + (error.message || error));
+      } finally {
+        setLoadingAllPayments(false);
+      }
+    };
+
+    fetchPayments();
+  }, [showError]);
+
+  // Auto-load payment histories when contracts and allPayments are ready
+  useEffect(() => {
+    if (!contracts || contracts.length === 0 || !allPayments || allPayments.length === 0) {
+      return;
+    }
+
+    // Only process contracts with signed images
+    const contractsWithSigned = contracts.filter(
+      c => c.signedContractFileUrl || c.contractFileUrl
+    );
+
+    // Load payment histories for all contracts with signed images
+    contractsWithSigned.forEach((contract) => {
+      // Only load if not already loaded
+      if (!paymentHistories[contract.contractId] || paymentHistories[contract.contractId].length === 0) {
+        const contractPayments = allPayments.filter(payment => 
+          paymentMatchesContract(payment, contract, contract.contractId)
+        );
+        
+        if (contractPayments.length > 0) {
+          // Sort by createdAt (newest first)
+          contractPayments.sort((a, b) => {
+            const dateA = new Date(a.createdAt || 0);
+            const dateB = new Date(b.createdAt || 0);
+            return dateB - dateA;
+          });
+          
+          console.log('🔄 Auto-loading', contractPayments.length, 'payments for contract:', contract.contractId);
+          setPaymentHistories(prev => ({
+            ...prev,
+            [contract.contractId]: contractPayments
+          }));
+        }
+      }
+    });
+  }, [contracts, allPayments, paymentMatchesContract]);
 
   // Check for payment completion and update UI
   useEffect(() => {
@@ -79,8 +375,11 @@ function PaymentManagement() {
           });
           
           // Show success message
-          setSuccessMessage(`Thanh toán cho hợp đồng ${formatContractCode(contract.contractCode, contract.contractId)} đã hoàn tất thành công!`);
-          setTimeout(() => setSuccessMessage(null), 5000);
+          success(`Thanh toán cho hợp đồng ${contract.contractCode || contractId} đã hoàn tất thành công!`);
+          
+          // Fetch latest payment details using /payment/all and /payment/{paymentId}
+          // Show modal with payment details
+          fetchLatestPaymentDetails(contractId, true);
           
           // Refresh payment history if expanded
           if (expandedContracts.has(contractId)) {
@@ -111,7 +410,7 @@ function PaymentManagement() {
         }
       }
     });
-  }, [contracts, pendingPaymentContracts, expandedContracts]);
+  }, [contracts, pendingPaymentContracts, expandedContracts, fetchLatestPaymentDetails, success]);
 
   // Handle contractId from navigation state
   useEffect(() => {
@@ -173,30 +472,6 @@ function PaymentManagement() {
     };
   }, []);
 
-  // Format contract code to CTR-01, CTR-02, ...
-  const formatContractCode = (contractCode, contractId) => {
-    if (contractCode) {
-      // If contractCode already has format, extract number or use as is
-      const match = contractCode.match(/CTR-(\d+)/i);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        return `CTR-${String(num).padStart(2, '0')}`;
-      }
-      // Try to extract number from contractCode
-      const numMatch = contractCode.match(/(\d+)/);
-      if (numMatch) {
-        const num = parseInt(numMatch[1], 10);
-        return `CTR-${String(num).padStart(2, '0')}`;
-      }
-    }
-    // Fallback to contractId
-    if (contractId) {
-      const num = parseInt(contractId, 10);
-      return `CTR-${String(num).padStart(2, '0')}`;
-    }
-    return contractCode || 'N/A';
-  };
-
   // Filter contracts that have signed contract file uploaded
   const contractsWithSignedImage = (contracts || []).filter(
     contract => contract.signedContractFileUrl || contract.contractFileUrl
@@ -229,7 +504,6 @@ function PaymentManagement() {
 
     try {
       setProcessingPayment(selectedContract.contractId);
-      setErrorMessage(null);
       
       const response = await createPayment(
         selectedContract.contractId,
@@ -237,12 +511,24 @@ function PaymentManagement() {
         paymentForm.paymentMethod
       );
 
+      // Store payment ID if available in response
+      if (response?.data?.paymentId || response?.paymentId) {
+        const paymentId = response?.data?.paymentId || response?.paymentId;
+        setRecentPaymentIds(prev => {
+          const next = new Map(prev);
+          next.set(selectedContract.contractId, paymentId);
+          return next;
+        });
+      }
+      
       // If payment method is VNPAY, open payment URL in new window
-      if (paymentForm.paymentMethod === 'VNPAY' && response.data) {
-        const paymentWindow = window.open(response.data, '_blank');
-        
-        // Add contract to pending payments list for polling
-        setPendingPaymentContracts(prev => new Set([...prev, selectedContract.contractId]));
+      if (paymentForm.paymentMethod === 'VNPAY' && (response.data || response)) {
+        const paymentUrl = typeof response.data === 'string' ? response.data : response.data?.paymentUrl || response.paymentUrl;
+        if (paymentUrl) {
+          const paymentWindow = window.open(paymentUrl, '_blank');
+          
+          // Add contract to pending payments list for polling
+          setPendingPaymentContracts(prev => new Set([...prev, selectedContract.contractId]));
         
         // Start polling for this specific contract
         const pollInterval = setInterval(async () => {
@@ -284,9 +570,11 @@ function PaymentManagement() {
         const checkWindowClosed = setInterval(() => {
           if (paymentWindow && paymentWindow.closed) {
             clearInterval(checkWindowClosed);
-            // User closed payment window, refresh and stop polling after delay
-            setTimeout(() => {
-              dispatch(fetchAllContractsThunk());
+            // User closed payment window, refresh and check payment status
+            setTimeout(async () => {
+              await dispatch(fetchAllContractsThunk());
+              // Fetch payment details using /payment/all and /payment/{paymentId}
+              await fetchLatestPaymentDetails(selectedContract.contractId, true);
               // Stop polling for this contract after checking
               setPollingIntervals(prev => {
                 const next = new Map(prev);
@@ -306,32 +594,33 @@ function PaymentManagement() {
           }
         }, 1000);
         
-        setSuccessMessage('Đang chuyển hướng đến VNPay. Vui lòng hoàn tất thanh toán trên trang VNPay. Hệ thống sẽ tự động cập nhật sau khi thanh toán hoàn tất.');
+          success('Đang chuyển hướng đến VNPay. Vui lòng hoàn tất thanh toán trên trang VNPay. Hệ thống sẽ tự động cập nhật sau khi thanh toán hoàn tất.');
+        } else {
+          showError('Không thể lấy URL thanh toán VNPay. Vui lòng thử lại.');
+        }
       } else if (paymentForm.paymentMethod === 'CASH') {
-        setSuccessMessage('Thanh toán tiền mặt đã được ghi nhận thành công!');
-        // Refresh immediately for cash payments
-        setTimeout(() => {
-          dispatch(fetchAllContractsThunk());
+        success('Thanh toán tiền mặt đã được ghi nhận thành công!');
+        // Refresh immediately for cash payments and fetch payment details
+        setTimeout(async () => {
+          await dispatch(fetchAllContractsThunk());
+          // Show payment details modal
+          await fetchLatestPaymentDetails(selectedContract.contractId, true);
         }, 500);
       } else {
-        setSuccessMessage('Tạo thanh toán thành công!');
-        setTimeout(() => {
-          dispatch(fetchAllContractsThunk());
+        success('Tạo thanh toán thành công!');
+        setTimeout(async () => {
+          await dispatch(fetchAllContractsThunk());
+          // Show payment details modal
+          await fetchLatestPaymentDetails(selectedContract.contractId, true);
         }, 500);
       }
 
       setShowPaymentModal(false);
       setSelectedContract(null);
 
-      // Clear success message after delay
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 8000);
-
     } catch (error) {
       console.error('Error creating payment:', error);
-      setErrorMessage('Không thể tạo thanh toán: ' + (error.message || error));
-      setTimeout(() => setErrorMessage(null), 5000);
+      showError('Không thể tạo thanh toán: ' + (error.message || error));
     } finally {
       setProcessingPayment(null);
     }
@@ -343,28 +632,77 @@ function PaymentManagement() {
       newExpanded.delete(contractId);
     } else {
       newExpanded.add(contractId);
+      
+      // Check if payment history is already loaded
+      if (paymentHistories[contractId] && paymentHistories[contractId].length > 0) {
+        setExpandedContracts(newExpanded);
+        return;
+      }
+      
       // Fetch payment history if not already loaded
-      if (!paymentHistories[contractId]) {
-        setLoadingHistories(prev => new Set([...prev, contractId]));
+      setLoadingHistories(prev => new Set([...prev, contractId]));
+      try {
+        const contract = contracts?.find(c => c.contractId === contractId);
+        let historyData = [];
+        
+        // First, try to use allPayments from state (already loaded on mount)
+        if (allPayments && allPayments.length > 0 && contract) {
+          console.log('📋 Using allPayments from state for contract:', contractId);
+          const contractPayments = allPayments.filter(payment => 
+            paymentMatchesContract(payment, contract, contractId)
+          );
+          historyData = contractPayments;
+          console.log('✅ Found', contractPayments.length, 'payments in allPayments');
+        }
+        
+        // Also try to get payment history by contract API (as backup/merge)
         try {
           const history = await getPaymentHistoryByContract(contractId);
-          setPaymentHistories(prev => ({
-            ...prev,
-            [contractId]: history?.data || history || []
-          }));
+          const historyDataFromAPI = history?.data || history || [];
+          
+          if (historyDataFromAPI.length > 0) {
+            console.log('📋 Also fetched', historyDataFromAPI.length, 'payments from API');
+            // Merge with existing data
+            const merged = [...historyData, ...historyDataFromAPI];
+            // Remove duplicates
+            const uniquePayments = merged.reduce((acc, payment) => {
+              const key = payment.paymentId || payment.paymentCode;
+              if (!acc.find(p => (p.paymentId || p.paymentCode) === key)) {
+                acc.push(payment);
+              }
+              return acc;
+            }, []);
+            historyData = uniquePayments;
+          }
         } catch (error) {
-          console.error('Error fetching payment history:', error);
-          setPaymentHistories(prev => ({
-            ...prev,
-            [contractId]: []
-          }));
-        } finally {
-          setLoadingHistories(prev => {
-            const next = new Set(prev);
-            next.delete(contractId);
-            return next;
-          });
+          console.error('Error fetching payment history by contract:', error);
+          // Continue with data from allPayments if available
         }
+        
+        // Sort by createdAt (newest first)
+        historyData.sort((a, b) => {
+          const dateA = new Date(a.createdAt || 0);
+          const dateB = new Date(b.createdAt || 0);
+          return dateB - dateA;
+        });
+        
+        console.log('💾 Saving', historyData.length, 'payments to state for contract:', contractId);
+        setPaymentHistories(prev => ({
+          ...prev,
+          [contractId]: historyData
+        }));
+      } catch (error) {
+        console.error('Error fetching payment history:', error);
+        setPaymentHistories(prev => ({
+          ...prev,
+          [contractId]: []
+        }));
+      } finally {
+        setLoadingHistories(prev => {
+          const next = new Set(prev);
+          next.delete(contractId);
+          return next;
+        });
       }
     }
     setExpandedContracts(newExpanded);
@@ -408,20 +746,25 @@ function PaymentManagement() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Success/Error Messages */}
-      {successMessage && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
-          <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
-          <span className="text-green-700">{successMessage}</span>
-        </div>
-      )}
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
       
-      {errorMessage && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
-          <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
-          <span className="text-red-700">{errorMessage}</span>
-        </div>
-      )}
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
 
       {/* Header */}
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
@@ -460,6 +803,9 @@ function PaymentManagement() {
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Mã hợp đồng
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Mã đơn hàng
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Tổng thanh toán
@@ -502,13 +848,20 @@ function PaymentManagement() {
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                           <div className="flex items-center gap-2">
-                            {formatContractCode(contract.contractCode, contract.contractId)}
+                            {contract.contractCode || 'N/A'}
                             {isPendingPayment && (
                               <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 animate-pulse">
                                 <Loader2 className="h-3 w-3 animate-spin mr-1" />
                                 Đang xử lý thanh toán
                               </span>
                             )}
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          <div className="flex flex-col">
+                            <span className="font-medium text-blue-600">
+                              {contract.orderCode || 'N/A'}
+                            </span>
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
@@ -558,7 +911,7 @@ function PaymentManagement() {
                       </tr>
                       {isExpanded && (
                         <tr>
-                          <td colSpan="6" className="px-6 py-4 bg-gray-50">
+                          <td colSpan="7" className="px-6 py-4 bg-gray-50">
                             {isLoadingHistory ? (
                               <div className="flex items-center justify-center py-4">
                                 <Loader2 className="h-5 w-5 animate-spin text-emerald-600 mr-2" />
@@ -575,6 +928,9 @@ function PaymentManagement() {
                                     <thead className="bg-gray-50">
                                       <tr>
                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                          Mã thanh toán
+                                        </th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                                           Ngày thanh toán
                                         </th>
                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
@@ -587,44 +943,79 @@ function PaymentManagement() {
                                           Số tiền
                                         </th>
                                         <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                          Còn lại
+                                        </th>
+                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
                                           Trạng thái
                                         </th>
                                       </tr>
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
-                                      {history.map((payment, idx) => (
-                                        <tr key={idx} className="hover:bg-gray-50">
-                                          <td className="px-4 py-2 text-sm text-gray-900">
-                                            {payment.paymentDate 
-                                              ? new Date(payment.paymentDate).toLocaleDateString('vi-VN')
-                                              : 'N/A'}
-                                          </td>
-                                          <td className="px-4 py-2 text-sm text-gray-900">
-                                            {getPaymentTypeText(payment.paymentType || payment.type)}
-                                          </td>
-                                          <td className="px-4 py-2 text-sm text-gray-900">
-                                            {getPaymentMethodText(payment.paymentMethod || payment.method)}
-                                          </td>
-                                          <td className="px-4 py-2 text-sm text-gray-900 font-medium">
-                                            {(payment.amount || payment.paymentAmount || 0).toLocaleString('vi-VN')} VNĐ
-                                          </td>
-                                          <td className="px-4 py-2 text-sm">
-                                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                                              payment.status === 'COMPLETED' || payment.status === 'SUCCESS' 
-                                                ? 'bg-green-100 text-green-800'
-                                                : payment.status === 'PENDING'
-                                                ? 'bg-yellow-100 text-yellow-800'
-                                                : 'bg-gray-100 text-gray-800'
-                                            }`}>
-                                              {payment.status === 'COMPLETED' || payment.status === 'SUCCESS' 
-                                                ? 'Hoàn thành'
-                                                : payment.status === 'PENDING'
-                                                ? 'Đang xử lý'
-                                                : payment.status || 'N/A'}
-                                            </span>
-                                          </td>
-                                        </tr>
-                                      ))}
+                                      {history.map((payment, idx) => {
+                                        const paymentDate = payment.paymentDate || payment.createdAt;
+                                        const amount = payment.amount || payment.paymentAmount || 0;
+                                        const remainPrice = payment.remainPrice !== undefined ? payment.remainPrice : null;
+                                        const paymentCode = payment.paymentCode || payment.code || `PAY-${payment.paymentId || idx + 1}`;
+                                        const status = payment.status || 'DRAFT';
+                                        
+                                        return (
+                                          <tr key={payment.paymentId || payment.paymentCode || idx} className="hover:bg-gray-50">
+                                            <td className="px-4 py-2 text-sm font-medium text-gray-900">
+                                              {paymentCode}
+                                            </td>
+                                            <td className="px-4 py-2 text-sm text-gray-900">
+                                              {paymentDate 
+                                                ? new Date(paymentDate).toLocaleString('vi-VN', {
+                                                    year: 'numeric',
+                                                    month: '2-digit',
+                                                    day: '2-digit',
+                                                    hour: '2-digit',
+                                                    minute: '2-digit'
+                                                  })
+                                                : 'N/A'}
+                                            </td>
+                                            <td className="px-4 py-2 text-sm text-gray-900">
+                                              {getPaymentTypeText(payment.paymentType || payment.type)}
+                                            </td>
+                                            <td className="px-4 py-2 text-sm text-gray-900">
+                                              {getPaymentMethodText(payment.paymentMethod || payment.method)}
+                                            </td>
+                                            <td className="px-4 py-2 text-sm text-gray-900 font-medium">
+                                              {amount.toLocaleString('vi-VN')} VNĐ
+                                            </td>
+                                            <td className="px-4 py-2 text-sm text-gray-900">
+                                              {remainPrice !== null 
+                                                ? `${remainPrice.toLocaleString('vi-VN')} VNĐ`
+                                                : '-'}
+                                            </td>
+                                            <td className="px-4 py-2 text-sm">
+                                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                                status === 'COMPLETED' || status === 'SUCCESS' || status === 'PAID'
+                                                  ? 'bg-green-100 text-green-800'
+                                                  : status === 'PENDING' || status === 'PROCESSING'
+                                                  ? 'bg-yellow-100 text-yellow-800'
+                                                  : status === 'DRAFT'
+                                                  ? 'bg-gray-100 text-gray-800'
+                                                  : status === 'FAILED' || status === 'CANCELLED'
+                                                  ? 'bg-red-100 text-red-800'
+                                                  : 'bg-gray-100 text-gray-800'
+                                              }`}>
+                                                {status === 'COMPLETED' || status === 'SUCCESS' || status === 'PAID'
+                                                  ? 'Hoàn thành'
+                                                  : status === 'PENDING' || status === 'PROCESSING'
+                                                  ? 'Đang xử lý'
+                                                  : status === 'DRAFT'
+                                                  ? 'Nháp'
+                                                  : status === 'FAILED'
+                                                  ? 'Thất bại'
+                                                  : status === 'CANCELLED'
+                                                  ? 'Đã hủy'
+                                                  : status || 'N/A'}
+                                              </span>
+                                            </td>
+                                          </tr>
+                                        );
+                                      })}
                                     </tbody>
                                   </table>
                                 </div>
@@ -646,6 +1037,214 @@ function PaymentManagement() {
         )}
       </div>
 
+      {/* Payment Detail Modal - Show after payment completion */}
+      {showPaymentDetailModal && selectedPaymentDetail && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between mb-6">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 flex items-center">
+                  <CheckCircle className="h-6 w-6 text-green-500 mr-2" />
+                  Thông tin thanh toán
+                </h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  Chi tiết giao dịch thanh toán
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setShowPaymentDetailModal(false);
+                  setSelectedPaymentDetail(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-6 w-6" />
+              </button>
+            </div>
+
+            {loadingPaymentDetail ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mr-3" />
+                <span className="text-gray-600">Đang tải thông tin thanh toán...</span>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Payment Status Badge */}
+                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="text-sm text-gray-500 mb-1">Trạng thái</p>
+                    <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${
+                      selectedPaymentDetail.status === 'COMPLETED' || selectedPaymentDetail.status === 'SUCCESS' || selectedPaymentDetail.status === 'PAID'
+                        ? 'bg-green-100 text-green-800'
+                        : selectedPaymentDetail.status === 'PENDING' || selectedPaymentDetail.status === 'PROCESSING'
+                        ? 'bg-yellow-100 text-yellow-800'
+                        : selectedPaymentDetail.status === 'DRAFT'
+                        ? 'bg-gray-100 text-gray-800'
+                        : selectedPaymentDetail.status === 'FAILED'
+                        ? 'bg-red-100 text-red-800'
+                        : selectedPaymentDetail.status === 'CANCELLED'
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {selectedPaymentDetail.status === 'COMPLETED' || selectedPaymentDetail.status === 'SUCCESS' || selectedPaymentDetail.status === 'PAID'
+                        ? 'Hoàn thành'
+                        : selectedPaymentDetail.status === 'PENDING' || selectedPaymentDetail.status === 'PROCESSING'
+                        ? 'Đang xử lý'
+                        : selectedPaymentDetail.status === 'DRAFT'
+                        ? 'Nháp'
+                        : selectedPaymentDetail.status === 'FAILED'
+                        ? 'Thất bại'
+                        : selectedPaymentDetail.status === 'CANCELLED'
+                        ? 'Đã hủy'
+                        : selectedPaymentDetail.status || 'N/A'}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm text-gray-500 mb-1">Số tiền</p>
+                    <p className="text-2xl font-bold text-emerald-600">
+                      {(selectedPaymentDetail.amount || 0).toLocaleString('vi-VN')} VNĐ
+                    </p>
+                  </div>
+                </div>
+
+                {/* Payment Details Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <p className="text-sm text-gray-500 mb-1">Mã thanh toán</p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {selectedPaymentDetail.paymentCode || `PAY-${selectedPaymentDetail.paymentId || 'N/A'}`}
+                    </p>
+                  </div>
+
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <p className="text-sm text-gray-500 mb-1">Mã hợp đồng</p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {selectedPaymentDetail.contractCode || 'N/A'}
+                    </p>
+                  </div>
+
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <p className="text-sm text-gray-500 mb-1">Mã đơn hàng</p>
+                    <p className="text-base font-semibold text-blue-600">
+                      {selectedPaymentDetail.orderCode || 'N/A'}
+                    </p>
+                  </div>
+
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <p className="text-sm text-gray-500 mb-1">Loại thanh toán</p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {getPaymentTypeText(selectedPaymentDetail.paymentType)}
+                    </p>
+                  </div>
+
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <p className="text-sm text-gray-500 mb-1">Phương thức thanh toán</p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {getPaymentMethodText(selectedPaymentDetail.paymentMethod)}
+                    </p>
+                  </div>
+
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <p className="text-sm text-gray-500 mb-1">Số tiền còn lại</p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {selectedPaymentDetail.remainPrice !== undefined && selectedPaymentDetail.remainPrice !== null
+                        ? `${selectedPaymentDetail.remainPrice.toLocaleString('vi-VN')} VNĐ`
+                        : '-'}
+                    </p>
+                  </div>
+
+                  <div className="bg-white border border-gray-200 rounded-lg p-4">
+                    <p className="text-sm text-gray-500 mb-1">Thời gian tạo</p>
+                    <p className="text-base font-semibold text-gray-900">
+                      {selectedPaymentDetail.createdAt
+                        ? new Date(selectedPaymentDetail.createdAt).toLocaleString('vi-VN', {
+                            year: 'numeric',
+                            month: '2-digit',
+                            day: '2-digit',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            second: '2-digit'
+                          })
+                        : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Payment Summary */}
+                <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-lg p-6">
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Tóm tắt thanh toán</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Mã thanh toán:</span>
+                      <span className="font-semibold text-gray-900">
+                        {selectedPaymentDetail.paymentCode || `PAY-${selectedPaymentDetail.paymentId || 'N/A'}`}
+                      </span>
+                    </div>
+                    {selectedPaymentDetail.orderCode && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Mã đơn hàng:</span>
+                        <span className="font-semibold text-blue-600">
+                          {selectedPaymentDetail.orderCode}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Mã hợp đồng:</span>
+                      <span className="font-semibold text-gray-900">
+                        {selectedPaymentDetail.contractCode || 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Số tiền:</span>
+                      <span className="font-bold text-emerald-600 text-lg">
+                        {(selectedPaymentDetail.amount || 0).toLocaleString('vi-VN')} VNĐ
+                      </span>
+                    </div>
+                    {selectedPaymentDetail.remainPrice !== undefined && selectedPaymentDetail.remainPrice !== null && (
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-600">Còn lại:</span>
+                        <span className="font-semibold text-gray-900">
+                          {selectedPaymentDetail.remainPrice.toLocaleString('vi-VN')} VNĐ
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-600">Trạng thái:</span>
+                      <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
+                        selectedPaymentDetail.status === 'COMPLETED' || selectedPaymentDetail.status === 'SUCCESS' || selectedPaymentDetail.status === 'PAID'
+                          ? 'bg-green-100 text-green-800'
+                          : selectedPaymentDetail.status === 'PENDING' || selectedPaymentDetail.status === 'PROCESSING'
+                          ? 'bg-yellow-100 text-yellow-800'
+                          : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {selectedPaymentDetail.status === 'COMPLETED' || selectedPaymentDetail.status === 'SUCCESS' || selectedPaymentDetail.status === 'PAID'
+                          ? 'Hoàn thành'
+                          : selectedPaymentDetail.status === 'PENDING' || selectedPaymentDetail.status === 'PROCESSING'
+                          ? 'Đang xử lý'
+                          : selectedPaymentDetail.status || 'N/A'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Close Button */}
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={() => {
+                  setShowPaymentDetailModal(false);
+                  setSelectedPaymentDetail(null);
+                }}
+                className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Payment Modal */}
       {showPaymentModal && selectedContract && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -665,9 +1264,16 @@ function PaymentManagement() {
             
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Hợp đồng</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mã hợp đồng</label>
                 <p className="text-sm text-gray-600 font-medium">
-                  {formatContractCode(selectedContract.contractCode, selectedContract.contractId)}
+                  {selectedContract.contractCode || 'N/A'}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mã đơn hàng</label>
+                <p className="text-sm text-blue-600 font-medium">
+                  {selectedContract.orderCode || 'N/A'}
                 </p>
               </div>
               

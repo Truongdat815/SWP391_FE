@@ -31,6 +31,15 @@ import {
   DollarSign,
   Receipt
 } from 'lucide-react';
+
+import Toast from '../../components/ui/Toast';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
+import StatusBadge from '../../components/ui/StatusBadge';
+import ModernButton from '../../components/ui/ModernButton';
+import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
+import EmptyState from '../../components/ui/EmptyState';
 import AnimatedSelect from '@/components/ui/AnimatedSelect';
 import logoImage from '@/assets/images/logo.png';
 
@@ -123,6 +132,8 @@ function CreateOrder({ onBack }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { getStoreId, user } = useAuth();
+  const { toast, success: showSuccess, showError: showToastError, hideToast } = useToast();
+  const { confirm, showConfirm, hideConfirm } = useConfirm();
   
   // Redux state
   const { items: customers, loading: customersLoading } = useSelector((state) => state.customers);
@@ -1291,7 +1302,28 @@ function CreateOrder({ onBack }) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div>
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
+
+      <div className="max-w-6xl mx-auto">
       {/* Error/Success Messages - Only show for step 1 and 3, step 2 shows below validation */}
       {currentStep !== 2 && error && (
         <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
@@ -1356,7 +1388,7 @@ function CreateOrder({ onBack }) {
               <button
                 onClick={() => navigate('/dealer-staff/customer-management?add=new')}
                 className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
-                title="Thêm khách hàng mới"
+                
               >
                 <UserPlus className="h-4 w-4 mr-2" />
                 Thêm mới
@@ -1906,6 +1938,7 @@ function CreateOrder({ onBack }) {
             Bước {currentStep} / 3
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

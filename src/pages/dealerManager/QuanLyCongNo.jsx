@@ -2,8 +2,14 @@ import { useState } from 'react';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { motion, AnimatePresence } from 'framer-motion';
+import Toast from '../../components/ui/Toast';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
 
 function QuanLyCongNo() {
+  const { toast, success, showError, hideToast } = useToast();
+  const { confirm, showConfirm, hideConfirm } = useConfirm();
   const [activeTab, setActiveTab] = useState('overview');
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -147,7 +153,7 @@ function QuanLyCongNo() {
       dueDate: '',
       description: ''
     });
-    alert('Công nợ đã được thêm thành công!');
+    success('Công nợ đã được thêm thành công!');
   };
 
   const handlePayment = (debt) => {
@@ -157,7 +163,7 @@ function QuanLyCongNo() {
 
   const handleSendReminder = (debtId) => {
     console.log('Sending reminder for debt:', debtId);
-    alert('Đã gửi thông báo nhắc nở đến khách hàng!');
+    success('Đã gửi thông báo nhắc nở đến khách hàng!');
   };
 
   const handleExportReport = async () => {
@@ -257,15 +263,36 @@ function QuanLyCongNo() {
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       saveAs(blob, fileName);
-      alert(`Đã xuất báo cáo thành công!\nFile: ${fileName}`);
+      success(`Đã xuất báo cáo thành công!\nFile: ${fileName}`);
     } catch (error) {
       console.error('Lỗi khi xuất báo cáo:', error);
-      alert('Có lỗi xảy ra khi xuất báo cáo. Vui lòng thử lại!');
+      showError('Có lỗi xảy ra khi xuất báo cáo. Vui lòng thử lại!');
     }
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div>
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
+
+      <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -838,6 +865,7 @@ function QuanLyCongNo() {
           </motion.div>
         )}
       </AnimatePresence>
+      </div>
     </div>
   );
 }

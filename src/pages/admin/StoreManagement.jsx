@@ -8,7 +8,12 @@ import {
   deleteStoreThunk,
   getStoresByStatusThunk
 } from '@store/slices/storeSlice';
+import { uploadStoreImage } from '@/api/storeService';
 import { motion, AnimatePresence } from 'framer-motion';
+import Toast from '@/components/ui/Toast';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/hooks/useToast';
+import { useConfirm } from '@/hooks/useConfirm';
 
 // Skeleton Loading Component
 const TableSkeleton = () => (
@@ -35,6 +40,9 @@ function StoreManagement() {
   const isStoresFetching = storesStatus === 'loading';
   const isCreatingStore = storesStatus === 'loading';
   const [storesApi, setStoresApi] = useState([]);
+
+  const { toast, hideToast, success, error } = useToast();
+  const { confirm, showConfirm } = useConfirm();
   
   const [activeTab, setActiveTab] = useState('stores');
   const [searchTerm, setSearchTerm] = useState('');
@@ -43,7 +51,6 @@ function StoreManagement() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingStore, setEditingStore] = useState(null);
-  const [errorMessage, setErrorMessage] = useState('');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [storeToDelete, setStoreToDelete] = useState(null);
 
@@ -56,6 +63,8 @@ function StoreManagement() {
   const [selectedWardCode, setSelectedWardCode] = useState(null);
   const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [detailAddress, setDetailAddress] = useState(''); // Địa chỉ chi tiết (số nhà, tên đường)
+  const [selectedImageFile, setSelectedImageFile] = useState(null); // File ảnh được chọn
+  const [imagePreview, setImagePreview] = useState(null); // Preview ảnh
 
   useEffect(() => {
     if (storesStatus === 'idle') {
@@ -123,7 +132,6 @@ function StoreManagement() {
     address: '',
     phone: '',
     status: 'ACTIVE',
-    imagePath: '',
     contractStartDate: '',
     contractEndDate: '',
     createdBy: ''
@@ -314,7 +322,6 @@ function StoreManagement() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setErrorMessage('');
     
     try {
       if (editingStore) {
@@ -323,7 +330,7 @@ function StoreManagement() {
             store.storeName === formData.storeName && store.storeId !== editingStore.storeId
           );
           if (nameExists) {
-            setErrorMessage('Tên cửa hàng đã tồn tại. Vui lòng chọn tên khác.');
+            error('Tên cửa hàng đã tồn tại. Vui lòng chọn tên khác.');
             return;
           }
         }
@@ -333,7 +340,7 @@ function StoreManagement() {
             store.phone === formData.phone && store.storeId !== editingStore.storeId
           );
           if (phoneExists) {
-            setErrorMessage('Số điện thoại đã tồn tại. Vui lòng chọn số khác.');
+            error('Số điện thoại đã tồn tại. Vui lòng chọn số khác.');
             return;
           }
         }
@@ -346,26 +353,40 @@ function StoreManagement() {
           provinceName: formData.provinceName,
           ownerName: formData.ownerName,
           status: formData.status,
-          imagePath: formData.imagePath?.trim() || null,
+          imagePath: null, // Không gửi imagePath trong update
           contractStartDate: formData.contractStartDate ? new Date(formData.contractStartDate).toISOString() : null,
           contractEndDate: formData.contractEndDate ? new Date(formData.contractEndDate).toISOString() : null
         };
         await dispatch(updateStoreThunk(updateData)).unwrap();
+        
+        // Upload ảnh mới nếu có
+        if (selectedImageFile) {
+          try {
+            await uploadStoreImage(editingStore.storeId, selectedImageFile);
+            success('Cập nhật cửa hàng và upload ảnh thành công!');
+          } catch (uploadErr) {
+            console.error('Failed to upload image:', uploadErr);
+            error('Cập nhật cửa hàng thành công nhưng upload ảnh thất bại. Vui lòng thử lại.');
+          }
+        } else {
+          success('Cập nhật cửa hàng thành công!');
+        }
       } else {
         // Check if store name already exists for new store
         const nameExists = storesList.some(store => store.storeName === formData.storeName);
         if (nameExists) {
-          setErrorMessage('Tên cửa hàng đã tồn tại. Vui lòng chọn tên khác.');
+          error('Tên cửa hàng đã tồn tại. Vui lòng chọn tên khác.');
           return;
         }
         
         // Check if phone number already exists for new store
         const phoneExists = storesList.some(store => store.phone === formData.phone);
         if (phoneExists) {
-          setErrorMessage('Số điện thoại đã tồn tại. Vui lòng chọn số khác.');
+          error('Số điện thoại đã tồn tại. Vui lòng chọn số khác.');
           return;
         }
         
+        // Tạo store trước (không có imagePath)
         const createData = {
           storeId: 0,
           storeName: formData.storeName,
@@ -374,13 +395,35 @@ function StoreManagement() {
           provinceName: formData.provinceName,
           ownerName: formData.ownerName,
           status: formData.status,
-          imagePath: formData.imagePath?.trim() || null,
+          imagePath: null, // Không gửi imagePath khi tạo mới
           contractStartDate: formData.contractStartDate ? new Date(formData.contractStartDate).toISOString() : null,
           contractEndDate: formData.contractEndDate ? new Date(formData.contractEndDate).toISOString() : null
         };
-        await dispatch(createStoreThunk(createData)).unwrap();
+        
+        const createdStore = await dispatch(createStoreThunk(createData)).unwrap();
+        
+        // Lấy storeId từ response
+        const storeId = createdStore?.data?.storeId || createdStore?.storeId;
+        
+        if (!storeId) {
+          throw new Error('Không nhận được storeId sau khi tạo cửa hàng');
+        }
+        
+        // Upload ảnh nếu có file được chọn
+        if (selectedImageFile) {
+          try {
+            await uploadStoreImage(storeId, selectedImageFile);
+            success('Tạo cửa hàng và upload ảnh thành công!');
+          } catch (uploadErr) {
+            console.error('Failed to upload image:', uploadErr);
+            error('Tạo cửa hàng thành công nhưng upload ảnh thất bại. Vui lòng thử lại.');
+          }
+        } else {
+          success('Tạo cửa hàng thành công!');
+        }
       }
       
+      // Reset form
       setFormData({
         storeName: '',
         provinceName: '',
@@ -388,7 +431,6 @@ function StoreManagement() {
         address: '',
         phone: '',
         status: 'ACTIVE',
-        imagePath: '',
         contractStartDate: '',
         contractEndDate: '',
         createdBy: ''
@@ -400,16 +442,17 @@ function StoreManagement() {
       setDistricts([]);
       setWards([]);
       setDetailAddress('');
+      setSelectedImageFile(null);
+      setImagePreview(null);
       setShowAddModal(false);
       setShowEditModal(false);
       setEditingStore(null);
-      setErrorMessage('');
       
       dispatch(getAllStoresThunk());
-    } catch (error) {
-      console.error('Failed to save store:', error);
-      const errorMsg = error.message || error.error || 'Có lỗi xảy ra khi lưu cửa hàng';
-      setErrorMessage(errorMsg);
+    } catch (err) {
+      console.error('Failed to save store:', err);
+      const errorMsg = err.message || err.error || 'Có lỗi xảy ra khi lưu cửa hàng';
+      error(errorMsg);
     }
   };
 
@@ -429,11 +472,15 @@ function StoreManagement() {
       address: store.address || '',
       phone: store.phone || '',
       status: store.status || 'ACTIVE',
-      imagePath: store.imagePath || '',
       contractStartDate: formatDateForInput(store.contractStartDate),
       contractEndDate: formatDateForInput(store.contractEndDate),
       createdBy: store.createdBy || ''
     });
+    
+    // Reset image file và preview khi edit
+    setSelectedImageFile(null);
+    setImagePreview(store.imagePath || null);
+    
     setShowEditModal(true);
   };
 
@@ -500,9 +547,9 @@ function StoreManagement() {
       dispatch(getAllStoresThunk());
       setShowDeleteModal(false);
       setStoreToDelete(null);
-    } catch (error) {
-      console.error('Failed to delete store:', error);
-      setErrorMessage('Không thể xóa cửa hàng. Vui lòng thử lại.');
+    } catch (err) {
+      console.error('Failed to delete store:', err);
+      error('Không thể xóa cửa hàng. Vui lòng thử lại.');
     }
   };
 
@@ -519,7 +566,6 @@ function StoreManagement() {
       address: '',
       phone: '',
       status: 'ACTIVE',
-      imagePath: '',
       contractStartDate: '',
       contractEndDate: '',
       createdBy: ''
@@ -531,10 +577,38 @@ function StoreManagement() {
     setDistricts([]);
     setWards([]);
     setDetailAddress('');
+    setSelectedImageFile(null);
+    setImagePreview(null);
     setShowAddModal(false);
     setShowEditModal(false);
     setEditingStore(null);
-    setErrorMessage('');
+  };
+  
+  // Handler cho file input
+  const handleImageFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        error('Vui lòng chọn file ảnh hợp lệ');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        error('Kích thước file không được vượt quá 5MB');
+        return;
+      }
+      
+      setSelectedImageFile(file);
+      
+      // Tạo preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSearch = () => {
@@ -667,7 +741,7 @@ function StoreManagement() {
                     <button 
                       onClick={() => handleEdit(store)}
                       className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
-                      title="Chỉnh sửa thông tin cửa hàng"
+                      
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -677,7 +751,7 @@ function StoreManagement() {
                     <button 
                       onClick={() => handleDelete(store)}
                       className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
-                      title="Xóa cửa hàng khỏi hệ thống"
+                      
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -686,7 +760,7 @@ function StoreManagement() {
                     
                     <button 
                       className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
-                      title="Xem chi tiết thông tin cửa hàng"
+                      
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -827,12 +901,31 @@ function StoreManagement() {
 
   return (
     <div className="px-6 space-y-6">
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
       {/* Action Buttons */}
       <div className="flex justify-end space-x-3">
         <button
           onClick={() => setShowAddModal(true)}
           className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center"
-          title="Thêm cửa hàng mới vào hệ thống"
+          
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -841,7 +934,7 @@ function StoreManagement() {
         </button>
         <button 
           className="bg-white text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200 flex items-center"
-          title="Xuất báo cáo danh sách cửa hàng ra file Excel"
+          
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -984,20 +1077,6 @@ function StoreManagement() {
                 </div>
               
               <form onSubmit={handleSubmit} className="space-y-4">
-                {errorMessage && (
-                  <div className="bg-red-50 border-l-4 border-red-500 rounded-lg p-4 animate-slideDown">
-                    <div className="flex">
-                      <div className="flex-shrink-0">
-                        <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                        </svg>
-                      </div>
-                      <div className="ml-3">
-                        <p className="text-sm font-medium text-red-800">{errorMessage}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
                   {/* Province Name - Dependent Dropdown */}
@@ -1178,28 +1257,30 @@ function StoreManagement() {
                     </div>
                   )}
 
-                  {/* Image Path */}
+                  {/* Image Upload */}
                   <div className="md:col-span-2">
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Đường dẫn hình ảnh cửa hàng
+                      Hình ảnh cửa hàng {!editingStore && <span className="text-gray-500 font-normal">(tùy chọn)</span>}
                     </label>
                     <div className="flex gap-4">
                       <div className="flex-1">
-                        <input
-                          type="url"
-                          name="imagePath"
-                          value={formData.imagePath}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all"
-                          placeholder="https://example.com/store-image.jpg"
-                        />
-                        <p className="text-xs text-gray-500 mt-1.5">💡 Nhập URL hình ảnh cửa hàng (tùy chọn)</p>
+                        <div className="relative">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleImageFileChange}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1.5">
+                          💡 Chọn file ảnh cửa hàng (JPG, PNG, GIF - tối đa 5MB). {editingStore ? 'Chọn ảnh mới để thay thế ảnh hiện tại.' : 'Ảnh sẽ được upload sau khi tạo cửa hàng thành công.'}
+                        </p>
                       </div>
-                      {formData.imagePath && (
+                      {(imagePreview || (editingStore && editingStore.imagePath)) && (
                         <div className="flex-shrink-0">
-                          <div className="w-24 h-24 border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50">
+                          <div className="w-32 h-32 border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50 shadow-md">
                             <img 
-                              src={formData.imagePath} 
+                              src={imagePreview || editingStore.imagePath} 
                               alt="Preview" 
                               className="w-full h-full object-cover"
                               onError={(e) => {
@@ -1207,7 +1288,21 @@ function StoreManagement() {
                               }}
                             />
                           </div>
-                          <p className="text-xs text-center text-gray-500 mt-1">Preview</p>
+                          <p className="text-xs text-center text-gray-500 mt-1">
+                            {imagePreview && selectedImageFile ? 'Ảnh mới' : 'Ảnh hiện tại'}
+                          </p>
+                          {imagePreview && selectedImageFile && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedImageFile(null);
+                                setImagePreview(editingStore?.imagePath || null);
+                              }}
+                              className="mt-1 text-xs text-red-600 hover:text-red-700 underline"
+                            >
+                              Hủy ảnh mới
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>

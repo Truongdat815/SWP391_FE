@@ -45,3 +45,17 @@ export async function getPaymentHistoryByContract(contractId) {
     });
 }
 
+// Get payment by ID (API: GET /api/payment/{paymentId})
+export async function getPaymentById(paymentId) {
+    return request(`/api/payment/${paymentId}`, {
+        method: 'GET'
+    });
+}
+
+// Get all payments (API: GET /api/payment/all)
+export async function getAllPayments() {
+    return request('/api/payment/all', {
+        method: 'GET'
+    });
+}
+

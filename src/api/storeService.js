@@ -46,3 +46,29 @@ export async function deleteStore(storeId) {
 export async function getStoresByStatus(status) {
     return request(`/api/stores/status/${encodeURIComponent(status)}`, { method: 'GET' });
 }
+
+export async function uploadStoreImage(storeId, file) {
+    const token = getToken();
+    const url = `${API_URL}/api/stores/${encodeURIComponent(storeId)}/upload-image`;
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    // Không set Content-Type, browser sẽ tự động set với boundary cho multipart/form-data
+    
+    const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: formData,
+    });
+    
+    const isJson = res.headers.get('content-type')?.includes('application/json');
+    const data = isJson ? await res.json() : await res.text();
+    if (!res.ok) {
+        const message = (isJson && data?.message) || res.statusText || 'Request failed';
+        throw new Error(message);
+    }
+    return data;
+}

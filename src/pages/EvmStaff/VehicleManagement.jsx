@@ -7,6 +7,10 @@ import {
   updateModelThunk,
   deleteModelThunk,
 } from '@store/slices/modelSlice';
+import Toast from '@/components/ui/Toast';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/hooks/useToast';
+import { useConfirm } from '@/hooks/useConfirm';
 
 // Prevent scroll wheel on number inputs
 const handleWheelOnNumberInput = (e) => {
@@ -28,6 +32,9 @@ const BODY_TYPES = [
 function VehicleManagement() {
   const dispatch = useDispatch();
   const { items: models, status } = useSelector((s) => s.models);
+
+  const { toast, hideToast, success, error } = useToast();
+  const { confirm, showConfirm } = useConfirm();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingModel, setEditingModel] = useState(null);
@@ -52,16 +59,9 @@ function VehicleManagement() {
     description: '',
   });
 
-  const [notification, setNotification] = useState({ show: false, type: '', message: '' });
-
   useEffect(() => {
     dispatch(getAllModelsThunk());
   }, [dispatch]);
-
-  const showNotification = (type, message) => {
-    setNotification({ show: true, type, message });
-    setTimeout(() => setNotification({ show: false, type: '', message: '' }), 3000);
-  };
 
   const resetForm = () => {
     setFormData({
@@ -125,10 +125,10 @@ function VehicleManagement() {
 
       if (editingModel) {
         await dispatch(updateModelThunk(payload)).unwrap();
-        showNotification('success', 'Cập nhật xe thành công!');
+        success('Cập nhật xe thành công!');
       } else {
         await dispatch(createModelThunk(payload)).unwrap();
-        showNotification('success', 'Tạo xe mới thành công!');
+        success('Tạo xe mới thành công!');
       }
       
       // ✅ Reload data to get latest from backend
@@ -137,21 +137,25 @@ function VehicleManagement() {
       setIsModalOpen(false);
       resetForm();
     } catch (err) {
-      showNotification('error', err?.message || 'Có lỗi xảy ra');
+      error(err?.message || 'Có lỗi xảy ra');
     }
   };
 
   const handleDelete = async (model) => {
-    if (!window.confirm(`Xóa "${model.modelName}"?`)) return;
+    const confirmed = await showConfirm({
+      message: `Xóa "${model.modelName}"?`,
+      type: 'warning'
+    });
+    if (!confirmed) return;
     
     try {
       await dispatch(deleteModelThunk(model.modelId)).unwrap();
-      showNotification('success', 'Đã xóa xe!');
+      success('Đã xóa xe!');
       
       // ✅ Reload data to ensure consistency
       await dispatch(getAllModelsThunk()).unwrap();
     } catch (err) {
-      showNotification('error', err?.message || 'Không thể xóa xe');
+      error(err?.message || 'Không thể xóa xe');
     }
   };
 
@@ -191,6 +195,25 @@ function VehicleManagement() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-green-50 p-4 lg:p-8">
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
       {/* CSS Styles */}
       <style>{`
         input[type="number"]::-webkit-inner-spin-button,
@@ -203,37 +226,6 @@ function VehicleManagement() {
           appearance: textfield;
         }
       `}</style>
-
-      {/* Notification */}
-      <AnimatePresence>
-        {notification.show && (
-          <motion.div
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className="fixed top-4 right-4 z-50"
-          >
-            <div className={`px-6 py-4 rounded-xl shadow-2xl backdrop-blur-lg ${
-              notification.type === 'success' 
-                ? 'bg-emerald-500 text-white' 
-                : 'bg-red-500 text-white'
-            }`}>
-              <div className="flex items-center gap-2">
-                {notification.type === 'success' ? (
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                )}
-                {notification.message}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       <div className="max-w-7xl mx-auto">
         {/* Modern Header */}

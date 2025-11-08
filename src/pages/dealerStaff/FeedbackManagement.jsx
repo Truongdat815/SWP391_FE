@@ -2,8 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { getAllFeedbacks, updateFeedbackStatus, createFeedback, updateFeedback } from '@/api/feedbackService';
 import { getFeedbackDetailsByFeedbackId, createFeedbackDetail, updateFeedbackDetail } from '@/api/feedbackDetailService';
 import { getAllOrders } from '@/api/orderService';
+import Toast from '../../components/ui/Toast';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
 
 function FeedbackManagement({ onBack }) {
+  const { toast, success, showError, hideToast } = useToast();
+  const { confirm, showConfirm, hideConfirm } = useConfirm();
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -115,7 +121,7 @@ function FeedbackManagement({ onBack }) {
       });
     } else {
       console.warn('⚠️ [FeedbackManagement] Không tìm thấy đơn hàng với ID:', orderId);
-      alert('Không tìm thấy đơn hàng được chọn!');
+      showError('Không tìm thấy đơn hàng được chọn!');
     }
   };
 
@@ -384,10 +390,10 @@ function FeedbackManagement({ onBack }) {
       setSelectedFeedback(null);
       setResolveForm({ resolution: '', notes: '' });
       
-      alert('Phản hồi đã được đánh dấu là đã giải quyết!');
+      success('Phản hồi đã được đánh dấu là đã giải quyết!');
     } catch (err) {
       console.error('Error resolving feedback:', err);
-      alert('Lỗi khi cập nhật trạng thái: ' + (err.message || 'Vui lòng thử lại'));
+      showError('Lỗi khi cập nhật trạng thái: ' + (err.message || 'Vui lòng thử lại'));
     }
   };
 
@@ -414,10 +420,10 @@ function FeedbackManagement({ onBack }) {
         return feedback;
       }));
       
-      alert(`Đã cập nhật trạng thái thành ${getStatusText(newStatus)}`);
+      success(`Đã cập nhật trạng thái thành ${getStatusText(newStatus)}`);
     } catch (err) {
       console.error('Error updating feedback status:', err);
-      alert('Lỗi khi cập nhật trạng thái: ' + (err.message || 'Vui lòng thử lại'));
+      showError('Lỗi khi cập nhật trạng thái: ' + (err.message || 'Vui lòng thử lại'));
     }
   };
 
@@ -426,18 +432,18 @@ function FeedbackManagement({ onBack }) {
     try {
       // Validation
       if (!createForm.orderId || createForm.orderId === '') {
-        alert('Vui lòng chọn đơn hàng!');
+        showError('Vui lòng chọn đơn hàng!');
         return;
       }
       
       if (!createForm.customerName || createForm.customerName === '') {
-        alert('Vui lòng chọn đơn hàng để tự động điền tên khách hàng!');
+        showError('Vui lòng chọn đơn hàng để tự động điền tên khách hàng!');
         return;
       }
       
       const orderIdInt = parseInt(createForm.orderId);
       if (isNaN(orderIdInt) || orderIdInt <= 0) {
-        alert('Mã đơn hàng không hợp lệ!');
+        showError('Mã đơn hàng không hợp lệ!');
         return;
       }
       
@@ -492,7 +498,7 @@ function FeedbackManagement({ onBack }) {
         status: 'DRAFT'
       });
       
-      alert('Tạo phản hồi thành công!');
+      success('Tạo phản hồi thành công!');
       
       // Refresh feedbacks list by reloading the page
       window.location.reload();
@@ -513,7 +519,7 @@ function FeedbackManagement({ onBack }) {
         errorMessage += '. Vui lòng thử lại hoặc kiểm tra console để biết thêm chi tiết.';
       }
       
-      alert(errorMessage);
+      showError(errorMessage);
     }
   };
 
@@ -537,18 +543,18 @@ function FeedbackManagement({ onBack }) {
     try {
       // Validation
       if (!createForm.orderId || createForm.orderId === '') {
-        alert('Vui lòng chọn đơn hàng!');
+        showError('Vui lòng chọn đơn hàng!');
         return;
       }
       
       if (!createForm.customerName || createForm.customerName === '') {
-        alert('Vui lòng chọn đơn hàng để tự động điền tên khách hàng!');
+        showError('Vui lòng chọn đơn hàng để tự động điền tên khách hàng!');
         return;
       }
       
       const orderIdInt = parseInt(createForm.orderId);
       if (isNaN(orderIdInt) || orderIdInt <= 0) {
-        alert('Mã đơn hàng không hợp lệ!');
+        showError('Mã đơn hàng không hợp lệ!');
         return;
       }
       
@@ -588,10 +594,10 @@ function FeedbackManagement({ onBack }) {
       
       setShowEditForm(false);
       setSelectedFeedback(null);
-      alert('Cập nhật phản hồi thành công!');
+      success('Cập nhật phản hồi thành công!');
     } catch (err) {
       console.error('❌ [FeedbackManagement] Lỗi khi cập nhật feedback:', err);
-      alert('Lỗi khi cập nhật phản hồi: ' + (err.message || 'Vui lòng thử lại'));
+      showError('Lỗi khi cập nhật phản hồi: ' + (err.message || 'Vui lòng thử lại'));
     }
   };
 
@@ -621,6 +627,25 @@ function FeedbackManagement({ onBack }) {
 
   return (
     <div className="max-w-6xl mx-auto">
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-2xl font-bold text-gray-900">Quản lý phản hồi & khiếu nại</h2>
@@ -1143,7 +1168,7 @@ function FeedbackManagement({ onBack }) {
                         <button 
                           onClick={() => handleEditFeedback(feedback)}
                           className="p-2 text-gray-400 hover:text-emerald-600 transition-colors"
-                          title="Chỉnh sửa"
+                          
                         >
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />

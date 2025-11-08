@@ -9,13 +9,21 @@ import {
 } from '@store/slices/modelColorSlice';
 import { getAllModelsThunk } from '@store/slices/modelSlice';
 import { getAllColorsThunk } from '@store/slices/colorSlice';
+import { uploadModelColorImage } from '@/api/modelColorService';
 import AnimatedSelect from '@/components/ui/AnimatedSelect';
+import Toast from '@/components/ui/Toast';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import { useToast } from '@/hooks/useToast';
+import { useConfirm } from '@/hooks/useConfirm';
 
 function ProductManagement() {
   const dispatch = useDispatch();
   const { items: modelColors, status } = useSelector((s) => s.modelColors);
   const { items: models } = useSelector((s) => s.models);
   const { items: colors } = useSelector((s) => s.colors);
+
+  const { toast, hideToast, success, error } = useToast();
+  const { confirm, showConfirm } = useConfirm();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -30,10 +38,9 @@ function ProductManagement() {
     modelId: '',
     colorId: '',
     price: '',
-    imagePath: '',
   });
-
-  const [notification, setNotification] = useState({ show: false, type: '', message: '' });
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
 
   useEffect(() => {
     dispatch(getAllModelColorsThunk());
@@ -41,13 +48,10 @@ function ProductManagement() {
     dispatch(getAllColorsThunk());
   }, [dispatch]);
 
-  const showNotification = (type, message) => {
-    setNotification({ show: true, type, message });
-    setTimeout(() => setNotification({ show: false, type: '', message: '' }), 3000);
-  };
-
   const resetForm = () => {
-    setFormData({ modelId: '', colorId: '', price: '', imagePath: '' });
+    setFormData({ modelId: '', colorId: '', price: '' });
+    setSelectedImageFile(null);
+    setImagePreview(null);
     setEditingItem(null);
   };
 
@@ -62,30 +66,117 @@ function ProductManagement() {
       modelId: item.modelId,
       colorId: item.colorId,
       price: item.price || '',
-      imagePath: item.imagePath || '',
     });
+    setSelectedImageFile(null);
+    setImagePreview(item.imagePath || null);
     setIsModalOpen(true);
+  };
+  
+  // Handler cho file input
+  const handleImageFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validate file type
+      if (!file.type.startsWith('image/')) {
+        error('Vui lòng chọn file ảnh hợp lệ');
+        return;
+      }
+      
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        error('Kích thước file không được vượt quá 5MB');
+        return;
+      }
+      
+      setSelectedImageFile(file);
+      
+      // Tạo preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
-      // Prepare payload according to new API: modelId, colorId, price, imagePath
-      const payload = {
-        modelId: parseInt(formData.modelId, 10),
-        colorId: parseInt(formData.colorId, 10),
-        price: parseFloat(formData.price) || 0,
-        imagePath: formData.imagePath.trim(),
-      };
+      const modelId = parseInt(formData.modelId, 10);
+      const colorId = parseInt(formData.colorId, 10);
+      const price = parseFloat(formData.price) || 0;
 
       if (editingItem) {
-        // Update - use modelColorId
+        // Update - không gửi imagePath, chỉ update price
+        const payload = {
+          modelId,
+          colorId,
+          price,
+          imagePath: null, // Không gửi imagePath trong update
+        };
+        
         await dispatch(updateModelColorThunk({ id: editingItem.modelColorId, data: payload })).unwrap();
-        showNotification('success', 'Cập nhật sản phẩm thành công!');
+        
+        // Upload ảnh mới nếu có
+        if (selectedImageFile) {
+          try {
+            await uploadModelColorImage(editingItem.modelId, editingItem.colorId, selectedImageFile);
+            success('Cập nhật sản phẩm và upload ảnh thành công!');
+          } catch (uploadErr) {
+            console.error('Failed to upload image:', uploadErr);
+            const errMsg = uploadErr?.message || uploadErr?.toString() || '';
+            const errLower = errMsg.toLowerCase();
+            
+            // Check for CHECK constraint or database errors
+            if (errLower.includes('check constraint') || 
+                errLower.includes('conflicted with') ||
+                errLower.includes('database')) {
+              error('Lỗi database: ' + errMsg + '. Vui lòng liên hệ quản trị viên.');
+            } else {
+              error('Cập nhật sản phẩm thành công nhưng upload ảnh thất bại: ' + errMsg);
+            }
+          }
+        } else {
+          success('Cập nhật sản phẩm thành công!');
+        }
       } else {
-        await dispatch(createModelColorThunk(payload)).unwrap();
-        showNotification('success', 'Tạo sản phẩm thành công!');
+        // Tạo model-color trước (không có imagePath)
+        const payload = {
+          modelId,
+          colorId,
+          price,
+          imagePath: null, // Không gửi imagePath khi tạo mới
+        };
+        
+        const createdModelColor = await dispatch(createModelColorThunk(payload)).unwrap();
+        
+        // Lấy modelId và colorId từ response hoặc formData
+        const createdModelId = createdModelColor?.modelId || modelId;
+        const createdColorId = createdModelColor?.colorId || colorId;
+        
+        // Upload ảnh nếu có file được chọn
+        if (selectedImageFile) {
+          try {
+            await uploadModelColorImage(createdModelId, createdColorId, selectedImageFile);
+            success('Tạo sản phẩm và upload ảnh thành công!');
+          } catch (uploadErr) {
+            console.error('Failed to upload image:', uploadErr);
+            const errMsg = uploadErr?.message || uploadErr?.toString() || '';
+            const errLower = errMsg.toLowerCase();
+            
+            // Check for CHECK constraint or database errors
+            if (errLower.includes('check constraint') || 
+                errLower.includes('conflicted with') ||
+                errLower.includes('database')) {
+              error('Lỗi database: ' + errMsg + '. Vui lòng liên hệ quản trị viên.');
+            } else {
+              error('Tạo sản phẩm thành công nhưng upload ảnh thất bại: ' + errMsg);
+            }
+          }
+        } else {
+          success('Tạo sản phẩm thành công!');
+        }
       }
 
       // Reload data
@@ -94,7 +185,7 @@ function ProductManagement() {
       setIsModalOpen(false);
       resetForm();
     } catch (err) {
-      showNotification('error', err?.message || 'Có lỗi xảy ra');
+      error(err?.message || 'Có lỗi xảy ra');
     }
   };
 
@@ -102,17 +193,21 @@ function ProductManagement() {
     const modelName = models.find(m => m.modelId === item.modelId)?.modelName || 'xe này';
     const colorName = colors.find(c => c.colorId === item.colorId)?.colorName || 'màu này';
 
-    if (!window.confirm(`Xóa sản phẩm "${modelName} - ${colorName}"?`)) return;
-
+    const confirmed = await showConfirm({
+      message: `Xóa sản phẩm "${modelName} - ${colorName}"?`,
+      type: 'warning'
+    });
+    if (!confirmed) return;
+    
     try {
       // Use modelColorId from item
       await dispatch(deleteModelColorThunk(item.modelColorId)).unwrap();
-      showNotification('success', 'Đã xóa sản phẩm!');
+      success('Đã xóa sản phẩm!');
 
       // Reload data
       await dispatch(getAllModelColorsThunk()).unwrap();
     } catch (err) {
-      showNotification('error', err?.message || 'Không thể xóa sản phẩm');
+      error(err?.message || 'Không thể xóa sản phẩm');
     }
   };
 
@@ -184,36 +279,25 @@ function ProductManagement() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8">
-      {/* Notification */}
-      <AnimatePresence>
-        {notification.show && (
-          <motion.div
-            initial={{ opacity: 0, y: -50 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -50 }}
-            className="fixed top-4 right-4 z-50"
-          >
-            <div className={`px-6 py-4 rounded-xl shadow-2xl backdrop-blur-lg ${
-              notification.type === 'success' 
-                ? 'bg-emerald-500 text-white' 
-                : 'bg-red-500 text-white'
-            }`}>
-              <div className="flex items-center gap-2">
-                {notification.type === 'success' ? (
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                  </svg>
-                ) : (
-                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                  </svg>
-                )}
-                {notification.message}
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Toast Notifications */}
+      <Toast 
+        show={toast.show} 
+        type={toast.type} 
+        message={toast.message} 
+        onClose={hideToast}
+      />
+      
+      {/* Confirm Dialog */}
+      <ConfirmDialog
+        show={confirm.show}
+        title={confirm.title}
+        message={confirm.message}
+        type={confirm.type}
+        confirmText={confirm.confirmText}
+        cancelText={confirm.cancelText}
+        onConfirm={confirm.onConfirm}
+        onCancel={confirm.onCancel}
+      />
 
       <div className="max-w-7xl mx-auto">
         {/* Modern Header */}
@@ -236,7 +320,7 @@ function ProductManagement() {
               <button
                 onClick={handleOpenCreate}
                 className="group px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2"
-                title="Tạo tổ hợp sản phẩm mới từ mẫu xe và màu sắc"
+                
               >
                 <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -371,7 +455,7 @@ function ProductManagement() {
                   setSortOrder('asc');
                 }}
                 className="w-full h-[48px] px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200 rounded-xl transition-all duration-200 flex items-center justify-center group"
-                title="Xóa bộ lọc"
+                
               >
                 <svg className="w-5 h-5 group-hover:rotate-180 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -892,38 +976,54 @@ function ProductManagement() {
                       <h4 className="text-lg font-semibold text-gray-800">Hình ảnh sản phẩm</h4>
                     </div>
                     
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-3">
-                        Đường dẫn hình ảnh <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        value={formData.imagePath}
-                        onChange={(e) => setFormData({ ...formData, imagePath: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200 placeholder-gray-400"
-                        placeholder="VD: https://example.com/image.jpg hoặc /images/car1.jpg"
-                        required
-                      />
-                    </div>
-
-                    {/* Image Preview */}
-                    {formData.imagePath && (
-                      <div className="mt-6">
+                    <div className="flex gap-4">
+                      <div className="flex-1">
                         <label className="block text-sm font-semibold text-gray-700 mb-3">
-                          Xem trước hình ảnh
+                          Chọn file ảnh {!editingItem && <span className="text-gray-500 font-normal">(tùy chọn)</span>}
                         </label>
-                        <div className="w-full h-64 bg-gradient-to-br from-gray-100 to-gray-200 rounded-2xl overflow-hidden border-2 border-gray-300 shadow-inner">
-                          <img
-                            src={formData.imagePath}
-                            alt="Preview"
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle"%3EInvalid Image%3C/text%3E%3C/svg%3E';
-                            }}
-                          />
-                        </div>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleImageFileChange}
+                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
+                        />
+                        <p className="text-xs text-gray-500 mt-2">
+                          💡 Chọn file ảnh sản phẩm (JPG, PNG, GIF - tối đa 5MB). {editingItem ? 'Chọn ảnh mới để thay thế ảnh hiện tại.' : 'Ảnh sẽ được upload sau khi tạo sản phẩm thành công.'}
+                        </p>
                       </div>
-                    )}
+                      {(imagePreview || (editingItem && editingItem.imagePath)) && (
+                        <div className="flex-shrink-0">
+                          <label className="block text-sm font-semibold text-gray-700 mb-3">
+                            Xem trước
+                          </label>
+                          <div className="w-40 h-40 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden border-2 border-gray-300 shadow-md">
+                            <img
+                              src={imagePreview || editingItem.imagePath}
+                              alt="Preview"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle"%3EInvalid Image%3C/text%3E%3C/svg%3E';
+                              }}
+                            />
+                          </div>
+                          <p className="text-xs text-center text-gray-500 mt-1">
+                            {imagePreview && selectedImageFile ? 'Ảnh mới' : 'Ảnh hiện tại'}
+                          </p>
+                          {imagePreview && selectedImageFile && editingItem && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedImageFile(null);
+                                setImagePreview(editingItem?.imagePath || null);
+                              }}
+                              className="mt-1 text-xs text-red-600 hover:text-red-700 underline w-full text-center"
+                            >
+                              Hủy ảnh mới
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 

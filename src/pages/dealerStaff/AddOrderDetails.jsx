@@ -19,12 +19,20 @@ import { createOrderDetailsInBatch } from '../../api/order-detailService';
 import { fetchActivePromotions } from '../../store/slices/promotionSlice';
 import { calculateDiscount } from '../../api/promotionService';
 import AnimatedSelect from '@/components/ui/AnimatedSelect';
+import Toast from '../../components/ui/Toast';
+import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../hooks/useToast';
+import { useConfirm } from '../../hooks/useConfirm';
 
 function AddOrderDetails() {
     const { orderId } = useParams();
     const location = useLocation();
     const navigate = useNavigate();
     const dispatch = useDispatch();
+    
+    // Modern UI hooks
+    const { toast, success, error: showError, hideToast } = useToast();
+    const { confirm, showConfirm } = useConfirm();
     
     // Get order info from navigation state
     const [orderInfo, setOrderInfo] = useState(location.state?.orderData || null);
@@ -34,8 +42,6 @@ function AddOrderDetails() {
     const [availableStock, setAvailableStock] = useState([]);
     const [orderDetails, setOrderDetails] = useState([]); // Array of details
     const [loading, setLoading] = useState(false);
-    const [error, setError] = useState(null);
-    const [success, setSuccess] = useState(null);
     
     // Get promotions from Redux
     const { activePromotions } = useSelector((state) => state.promotions);
@@ -73,9 +79,9 @@ function AddOrderDetails() {
             setOrderDetails([]);
             
             setLoading(false);
-        } catch (error) {
-            console.error('Error loading data:', error);
-            setError('Không thể tải dữ liệu kho xe. Vui lòng thử lại.');
+        } catch (err) {
+            console.error('Error loading data:', err);
+            showError('Không thể tải dữ liệu kho xe. Vui lòng thử lại.');
             setLoading(false);
         }
     };
@@ -120,12 +126,12 @@ function AddOrderDetails() {
     // Add product detail (can add multiple)
     const handleAddDetail = async () => {
         if (!selectedStock) {
-            setError('Vui lòng chọn xe');
+            showError('Vui lòng chọn xe');
             return;
         }
         
         if (quantity > selectedStock.quantity) {
-            setError(`Số lượng tồn kho không đủ. Chỉ còn ${selectedStock.quantity} xe.`);
+            showError(`Số lượng tồn kho không đủ. Chỉ còn ${selectedStock.quantity} xe.`);
             return;
         }
         
@@ -137,7 +143,7 @@ function AddOrderDetails() {
         const stockId = selectedStock.stockId || selectedStock.storeStockId || selectedStock.id;
         
         if (!stockId) {
-            setError('Không thể xác định ID của xe. Vui lòng thử lại.');
+            showError('Không thể xác định ID của xe. Vui lòng thử lại.');
             console.error('Stock ID not found in:', selectedStock);
             return;
         }
@@ -175,19 +181,20 @@ function AddOrderDetails() {
         
         // Add to local array
         setOrderDetails([...orderDetails, newDetail]);
-        setSuccess('✅ Đã thêm sản phẩm! Nhấn "Lưu đơn hàng" để hoàn tất.');
+        success('✅ Đã thêm sản phẩm! Nhấn "Lưu đơn hàng" để hoàn tất.');
         
         // Reset form
         resetForm();
-        
-        setTimeout(() => setSuccess(null), 3000);
     };
     
     // Remove a detail from local list
-    const handleRemoveDetail = (detailId) => {
-        if (!window.confirm('Bạn có chắc muốn xóa sản phẩm này?')) {
-            return;
-        }
+    const handleRemoveDetail = async (detailId) => {
+        const confirmed = await showConfirm({
+            message: 'Bạn có chắc muốn xóa sản phẩm này?',
+            type: 'warning'
+        });
+        
+        if (!confirmed) return;
         
         console.log('🗑️ Removing product from local list:', detailId);
         
@@ -195,20 +202,18 @@ function AddOrderDetails() {
         const updatedDetails = orderDetails.filter(d => d.orderDetailId !== detailId);
         setOrderDetails(updatedDetails);
         
-        setSuccess('Đã xóa sản phẩm!');
-        setTimeout(() => setSuccess(null), 3000);
+        success('Đã xóa sản phẩm!');
     };
     
     // Complete order - send all details to API at once
     const handleCompleteOrder = async () => {
         if (orderDetails.length === 0) {
-            setError('Vui lòng thêm ít nhất một sản phẩm vào đơn hàng');
+            showError('Vui lòng thêm ít nhất một sản phẩm vào đơn hàng');
             return;
         }
         
         try {
             setLoading(true);
-            setError(null);
             
             console.log('=== SAVING ORDER WITH ALL DETAILS ===');
             console.log('Order ID:', orderId);
@@ -231,7 +236,7 @@ function AddOrderDetails() {
             });
         } catch (error) {
             console.error('❌ Error saving order details:', error);
-            setError(error.message || 'Không thể lưu đơn hàng. Vui lòng thử lại.');
+            showError(error.message || 'Không thể lưu đơn hàng. Vui lòng thử lại.');
             setLoading(false);
         }
     };
@@ -259,19 +264,24 @@ function AddOrderDetails() {
     return (
         <div className="max-w-7xl mx-auto p-4">
             {/* Toast Notifications */}
-            {error && (
-                <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
-                    <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
-                    <span className="text-red-700">{error}</span>
-                </div>
-            )}
+            <Toast 
+                show={toast.show} 
+                type={toast.type} 
+                message={toast.message} 
+                onClose={hideToast}
+            />
             
-            {success && (
-                <div className="mb-2 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
-                    <CheckCircle className="h-5 w-5 text-green-500 mr-3" />
-                    <span className="text-green-700">{success}</span>
-                </div>
-            )}
+            {/* Confirm Dialog */}
+            <ConfirmDialog
+                show={confirm.show}
+                title={confirm.title}
+                message={confirm.message}
+                type={confirm.type}
+                confirmText={confirm.confirmText}
+                cancelText={confirm.cancelText}
+                onConfirm={confirm.onConfirm}
+                onCancel={confirm.onCancel}
+            />
             
             {/* Header - Order Info */}
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
@@ -551,7 +561,6 @@ function AddOrderDetails() {
                                                 <button 
                                                     onClick={() => handleRemoveDetail(detail.orderDetailId)}
                                                     className="text-red-600 hover:text-red-800 p-2 hover:bg-red-50 rounded transition-colors"
-                                                    title="Xóa sản phẩm"
                                                 >
                                                     <Trash2 className="h-5 w-5" />
                                                 </button>
