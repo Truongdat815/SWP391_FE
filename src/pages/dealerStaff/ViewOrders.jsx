@@ -239,53 +239,6 @@ function ViewOrders() {
     }
   };
 
-  // Format order code to ORD-01, ORD-02, ...
-  const formatOrderCode = (orderCode, orderId) => {
-    if (orderCode) {
-      // If orderCode already has format, extract number or use as is
-      const match = orderCode.match(/ORD-(\d+)/i);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        return `ORD-${String(num).padStart(2, '0')}`;
-      }
-      // Try to extract number from orderCode
-      const numMatch = orderCode.match(/(\d+)/);
-      if (numMatch) {
-        const num = parseInt(numMatch[1], 10);
-        return `ORD-${String(num).padStart(2, '0')}`;
-      }
-    }
-    // Fallback to orderId
-    if (orderId) {
-      const num = parseInt(orderId, 10);
-      return `ORD-${String(num).padStart(2, '0')}`;
-    }
-    return orderCode || 'N/A';
-  };
-
-  // Format contract code to CTR-01, CTR-02, ...
-  const formatContractCode = (contractCode, contractId) => {
-    if (contractCode) {
-      // If contractCode already has format, extract number or use as is
-      const match = contractCode.match(/CTR-(\d+)/i);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        return `CTR-${String(num).padStart(2, '0')}`;
-      }
-      // Try to extract number from contractCode
-      const numMatch = contractCode.match(/(\d+)/);
-      if (numMatch) {
-        const num = parseInt(numMatch[1], 10);
-        return `CTR-${String(num).padStart(2, '0')}`;
-      }
-    }
-    // Fallback to contractId
-    if (contractId) {
-      const num = parseInt(contractId, 10);
-      return `CTR-${String(num).padStart(2, '0')}`;
-    }
-    return contractCode || 'N/A';
-  };
 
   const handleViewDetails = async (order) => {
     setSelectedOrder(order);
@@ -443,9 +396,7 @@ function ViewOrders() {
     // Check if order already has contract
     const existingContract = ordersWithContracts[order.orderId];
     if (existingContract) {
-      const formattedOrderCode = formatOrderCode(order.orderCode, order.orderId);
-      const formattedContractCode = formatContractCode(existingContract.contractCode, existingContract.contractId);
-      showError(`Đơn hàng ${formattedOrderCode} đã có hợp đồng ${formattedContractCode}. Vui lòng xem hợp đồng hiện tại.`);
+      showError(`Đơn hàng ${order.orderCode || 'N/A'} đã có hợp đồng ${existingContract.contractCode || 'N/A'}. Vui lòng xem hợp đồng hiện tại.`);
       return;
     }
     
@@ -463,10 +414,7 @@ function ViewOrders() {
       
       // Show success message with both order code and contract code
       const contractCode = result.contractCode || result.data?.contractCode;
-      const contractId = result.contractId || result.data?.contractId;
-      const formattedOrderCode = formatOrderCode(order.orderCode, order.orderId);
-      const formattedContractCode = formatContractCode(contractCode, contractId);
-      success(`Đã tạo hợp đồng ${formattedContractCode} thành công cho đơn hàng ${formattedOrderCode}!`);
+      success(`Đã tạo hợp đồng ${contractCode || 'N/A'} thành công cho đơn hàng ${order.orderCode || 'N/A'}!`);
       
       // Refresh contracts and orders
       await dispatch(fetchAllContractsThunk());
@@ -478,10 +426,12 @@ function ViewOrders() {
         dispatch(fetchOrders());
       }
       
-      // Close modal and navigate to contract management
+      // Close modal if open and navigate to contract management
       setTimeout(() => {
-        setShowModal(false);
-        navigate('/dealer-staff/contract-management', { state: { tab: 'view' } });
+        if (showModal) {
+          setShowModal(false);
+        }
+        navigate('/dealer-staff/contract-management');
       }, 1500);
       
     } catch (err) {
@@ -861,7 +811,7 @@ function ViewOrders() {
                 {filteredOrders.map((order) => (
                   <tr key={order.orderId} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {formatOrderCode(order.orderCode, order.orderId)}
+                      {order.orderCode || 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{order.customerName || 'N/A'}</div>
@@ -881,7 +831,7 @@ function ViewOrders() {
                         if (contract) {
                           return (
                             <button
-                              onClick={() => navigate('/dealer-staff/contract-management', { state: { tab: 'view' } })}
+                              onClick={() => navigate('/dealer-staff/contract-management')}
                               className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 hover:bg-green-200 transition-colors"
                             >
                               <CheckCircle className="h-3 w-3 mr-1" />
@@ -930,17 +880,34 @@ function ViewOrders() {
                         {/* Nút Tạo hợp đồng - chỉ hiện khi đơn hàng CONFIRMED và chưa có hợp đồng */}
                         {order.status?.toUpperCase() === 'CONFIRMED' && !ordersWithContracts[order.orderId] && (
                           <button
-                            onClick={() => navigate('/dealer-staff/contract-management', { 
-                              state: { 
-                                tab: 'create',
-                                orderId: order.orderId,
-                                orderData: order // Truyền thêm orderData để có thể hiển thị thông tin
-                              } 
-                            })}
-                            className="text-blue-600 hover:text-blue-900 transition-colors flex items-center"
+                            onClick={() => handleCreateContract(order)}
+                            disabled={creatingContract === order.orderId}
+                            className="text-blue-600 hover:text-blue-900 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Tạo hợp đồng"
+                          >
+                            {creatingContract === order.orderId ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                Đang tạo...
+                              </>
+                            ) : (
+                              <>
+                                <FileText className="h-4 w-4 mr-1" />
+                                Tạo hợp đồng
+                              </>
+                            )}
+                          </button>
+                        )}
+                        
+                        {/* Nút Xem hợp đồng - khi đã có hợp đồng */}
+                        {order.status?.toUpperCase() === 'CONFIRMED' && ordersWithContracts[order.orderId] && (
+                          <button
+                            onClick={() => navigate('/dealer-staff/contract-management')}
+                            className="text-green-600 hover:text-green-900 transition-colors flex items-center"
+                            title="Xem hợp đồng"
                           >
                             <FileText className="h-4 w-4 mr-1" />
-                            Tạo hợp đồng
+                            Xem hợp đồng
                           </button>
                         )}
                         
@@ -999,7 +966,7 @@ function ViewOrders() {
                   <div className="flex items-center space-x-4 text-sm text-gray-600">
                     <span className="flex items-center">
                       <Tag className="h-4 w-4 mr-1" />
-                      Mã: <span className="font-semibold ml-1">{formatOrderCode(selectedOrder.orderCode, selectedOrder.orderId)}</span>
+                      Mã: <span className="font-semibold ml-1">{selectedOrder.orderCode || 'N/A'}</span>
                     </span>
                     <span className="flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
@@ -1265,7 +1232,7 @@ function ViewOrders() {
                             <div className="flex items-center justify-between">
                               <span className="text-sm text-purple-700">Mã hợp đồng:</span>
                               <span className="text-sm font-semibold text-purple-900">
-                                {formatContractCode(contract.contractCode, contract.contractId)}
+                                {contract.contractCode || 'N/A'}
                               </span>
                             </div>
                             <div className="flex items-center justify-between">
@@ -1291,7 +1258,7 @@ function ViewOrders() {
                             <motion.button
                               onClick={() => {
                                 handleCloseModal();
-                                navigate('/dealer-staff/contract-management', { state: { tab: 'view' } });
+                                navigate('/dealer-staff/contract-management');
                               }}
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}

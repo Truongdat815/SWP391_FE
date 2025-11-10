@@ -132,7 +132,7 @@ function AnimatedRoutes() {
             {/* Legacy routes - redirect to new combined pages */}
             <Route path="create-order" element={<Navigate to="/dealer-staff/order-management" replace />} />
             <Route path="view-orders" element={<Navigate to="/dealer-staff/order-management?tab=view" replace />} />
-            <Route path="view-contracts" element={<Navigate to="/dealer-staff/contract-management?tab=view" replace />} />
+            <Route path="view-contracts" element={<Navigate to="/dealer-staff/contract-management" replace />} />
             <Route path="add-order-details/:orderId" element={<AddOrderDetails />} />
             <Route path="order-summary/:orderId" element={<OrderSummary />} />
             <Route path="quote-order-management" element={<QuoteOrderManagement />} />

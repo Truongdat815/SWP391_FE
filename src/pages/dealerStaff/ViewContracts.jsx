@@ -76,53 +76,6 @@ function ViewContracts() {
     }
   }, [location, success]);
 
-  // Format order code to ORD-01, ORD-02, ...
-  const formatOrderCode = (orderCode, orderId) => {
-    if (orderCode) {
-      // If orderCode already has format, extract number or use as is
-      const match = orderCode.match(/ORD-(\d+)/i);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        return `ORD-${String(num).padStart(2, '0')}`;
-      }
-      // Try to extract number from orderCode
-      const numMatch = orderCode.match(/(\d+)/);
-      if (numMatch) {
-        const num = parseInt(numMatch[1], 10);
-        return `ORD-${String(num).padStart(2, '0')}`;
-      }
-    }
-    // Fallback to orderId
-    if (orderId) {
-      const num = parseInt(orderId, 10);
-      return `ORD-${String(num).padStart(2, '0')}`;
-    }
-    return orderCode || 'N/A';
-  };
-
-  // Format contract code to CTR-01, CTR-02, ...
-  const formatContractCode = (contractCode, contractId) => {
-    if (contractCode) {
-      // If contractCode already has format, extract number or use as is
-      const match = contractCode.match(/CTR-(\d+)/i);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        return `CTR-${String(num).padStart(2, '0')}`;
-      }
-      // Try to extract number from contractCode
-      const numMatch = contractCode.match(/(\d+)/);
-      if (numMatch) {
-        const num = parseInt(numMatch[1], 10);
-        return `CTR-${String(num).padStart(2, '0')}`;
-      }
-    }
-    // Fallback to contractId
-    if (contractId) {
-      const num = parseInt(contractId, 10);
-      return `CTR-${String(num).padStart(2, '0')}`;
-    }
-    return contractCode || 'N/A';
-  };
 
   // Filter contracts by search
   const filteredContracts = (contracts || []).filter(contract => 
@@ -373,14 +326,14 @@ function ViewContracts() {
                 {filteredContracts.map((contract) => (
                   <tr key={contract.contractId} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {formatContractCode(contract.contractCode, contract.contractId)}
+                      {contract.contractCode || 'N/A'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       <button
                         onClick={() => handleViewOrder(contract)}
                         className="text-blue-600 hover:text-blue-900 hover:underline transition-colors font-medium"
                       >
-                        {formatOrderCode(contract.orderCode, contract.orderId)}
+                        {contract.orderCode || 'N/A'}
                       </button>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -591,7 +544,7 @@ function ViewContracts() {
                   <div className="flex items-center space-x-4 text-sm text-gray-600">
                     <span className="flex items-center">
                       <Tag className="h-4 w-4 mr-1" />
-                      Mã: <span className="font-semibold ml-1">{selectedOrder.orderCode || `ORD-${selectedOrder.orderId}`}</span>
+                      Mã: <span className="font-semibold ml-1">{selectedOrder.orderCode || 'N/A'}</span>
                     </span>
                     <span className="flex items-center">
                       <Calendar className="h-4 w-4 mr-1" />
