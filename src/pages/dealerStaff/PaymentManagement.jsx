@@ -1,18 +1,14 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import { useLocation } from 'react-router-dom';
-import { 
-  fetchAllContractsThunk 
-} from '../../store/slices/contractSlice';
+import { useLocation, useSearchParams } from 'react-router-dom';
+import { getAllContracts } from '../../api/contractService';
 import { 
   createPayment,
-  getPaymentHistoryByContract,
   getPaymentById,
-  getAllPayments
+  getAllPayments,
+  filterPaymentsByContract
 } from '../../api/paymentService';
 import { 
   CheckCircle, 
-  AlertCircle, 
   Loader2,
   DollarSign,
   CreditCard,
@@ -22,23 +18,22 @@ import {
   X
 } from 'lucide-react';
 
-
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
-import StatusBadge from '../../components/ui/StatusBadge';
-import ModernButton from '../../components/ui/ModernButton';
-import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
-import EmptyState from '../../components/ui/EmptyState';
+
 function PaymentManagement() {
   // Modern UI hooks
   const { toast, success, error: showError, hideToast } = useToast();
   const { confirm, showConfirm } = useConfirm();
   
-  const dispatch = useDispatch();
   const location = useLocation();
-  const { contracts, loading } = useSelector((state) => state.contracts);
+  const [searchParams, setSearchParams] = useSearchParams();
+  
+  const [contracts, setContracts] = useState([]);
+  const [allPayments, setAllPayments] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [processingPayment, setProcessingPayment] = useState(null);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedContract, setSelectedContract] = useState(null);
@@ -50,367 +45,135 @@ function PaymentManagement() {
   const [paymentHistories, setPaymentHistories] = useState({});
   const [loadingHistories, setLoadingHistories] = useState(new Set());
   const [highlightedContractId, setHighlightedContractId] = useState(null);
-  const [pendingPaymentContracts, setPendingPaymentContracts] = useState(new Set());
-  const [pollingIntervals, setPollingIntervals] = useState(new Map());
-  const [allPayments, setAllPayments] = useState([]);
-  const [loadingAllPayments, setLoadingAllPayments] = useState(false);
-  const [recentPaymentIds, setRecentPaymentIds] = useState(new Map()); // Store contractId -> paymentId mapping
   const [showPaymentDetailModal, setShowPaymentDetailModal] = useState(false);
   const [selectedPaymentDetail, setSelectedPaymentDetail] = useState(null);
   const [loadingPaymentDetail, setLoadingPaymentDetail] = useState(false);
 
-  // Format contract code to CTR-01, CTR-02, ...
-  const formatContractCode = useCallback((contractCode, contractId) => {
-    if (contractCode) {
-      // If contractCode already has format, extract number or use as is
-      const match = contractCode.match(/CTR-(\d+)/i);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        return `CTR-${String(num).padStart(2, '0')}`;
-      }
-      // Try to extract number from contractCode
-      const numMatch = contractCode.match(/(\d+)/);
-      if (numMatch) {
-        const num = parseInt(numMatch[1], 10);
-        return `CTR-${String(num).padStart(2, '0')}`;
-      }
-    }
-    // Fallback to contractId
-    if (contractId) {
-      const num = parseInt(contractId, 10);
-      return `CTR-${String(num).padStart(2, '0')}`;
-    }
-    return contractCode || 'N/A';
-  }, []);
-
-  // Format order code to ORD-01, ORD-02, ...
-  const formatOrderCode = useCallback((orderCode, orderId) => {
-    if (orderCode) {
-      // If orderCode already has format, extract number or use as is
-      const match = orderCode.match(/ORD-(\d+)/i);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        return `ORD-${String(num).padStart(2, '0')}`;
-      }
-      // Try to extract number from orderCode
-      const numMatch = orderCode.match(/(\d+)/);
-      if (numMatch) {
-        const num = parseInt(numMatch[1], 10);
-        return `ORD-${String(num).padStart(2, '0')}`;
-      }
-    }
-    // Fallback to orderId
-    if (orderId) {
-      const num = parseInt(orderId, 10);
-      return `ORD-${String(num).padStart(2, '0')}`;
-    }
-    return orderCode || 'N/A';
-  }, []);
-
-  // Helper function to normalize contract codes for matching
-  const normalizeContractCode = useCallback((code) => {
-    if (!code) return '';
-    // Remove all non-digit characters and get just the number
-    const numMatch = code.toString().match(/(\d+)/);
-    if (numMatch) {
-      return numMatch[1];
-    }
-    return code.toString();
-  }, []);
-
-  // Helper function to check if payment matches contract
-  const paymentMatchesContract = useCallback((payment, contract, contractId) => {
-    if (!contract) return false;
-    
-    // Check by contractId
-    if (payment.contractId && payment.contractId === contractId) {
-      return true;
+  // Calculate paidAmount for a contract by summing completed payments
+  const calculatePaidAmount = useCallback((contract, payments) => {
+    if (!contract || !payments || payments.length === 0) {
+      return 0;
     }
     
-    // Check by contractCode - normalize both codes for comparison (use original values from API)
-    if (payment.contractCode) {
-      const paymentCodeNormalized = normalizeContractCode(payment.contractCode);
-      const contractCodeNormalized = normalizeContractCode(contract.contractCode);
-      
-      // Compare normalized codes or exact match
-      if (paymentCodeNormalized === contractCodeNormalized ||
-          payment.contractCode === contract.contractCode) {
-        return true;
-      }
-    }
+    const contractPayments = filterPaymentsByContract(
+      payments, 
+      contract.contractId, 
+      contract.contractCode
+    );
     
-    return false;
-  }, [normalizeContractCode]);
-
-  // Fetch latest payment details after payment completion
-  const fetchLatestPaymentDetails = useCallback(async (contractId, showModal = true) => {
-    try {
-      setLoadingPaymentDetail(true);
-      const contract = contracts?.find(c => c.contractId === contractId);
-      if (!contract) {
-        setLoadingPaymentDetail(false);
-        return;
-      }
-      
-      console.log('🔄 Fetching payment details for contract:', contractId);
-      
-      // Step 1: Use allPayments from state or fetch if not available
-      let allPaymentsData = allPayments;
-      if (!allPaymentsData || allPaymentsData.length === 0) {
-        console.log('📞 Calling GET /payment/all (not in state)');
-        const allPaymentsResponse = await getAllPayments();
-        allPaymentsData = allPaymentsResponse?.data || allPaymentsResponse || [];
-        setAllPayments(allPaymentsData);
-        console.log('✅ Received payments from /payment/all:', allPaymentsData.length);
-      } else {
-        console.log('✅ Using', allPaymentsData.length, 'payments from state');
-      }
-      
-      // Filter payments for this contract and sort by createdAt (newest first)
-      const contractPayments = allPaymentsData
-        .filter(payment => paymentMatchesContract(payment, contract, contractId))
-        .sort((a, b) => {
-          const dateA = new Date(a.createdAt || 0);
-          const dateB = new Date(b.createdAt || 0);
-          return dateB - dateA;
-        });
-      
-      console.log('🔍 Found', contractPayments.length, 'payments for contract');
-      
-      if (contractPayments.length > 0) {
-        const latestPayment = contractPayments[0];
-        console.log('💰 Latest payment:', latestPayment);
-        
-        // Store the payment ID for reference
-        setRecentPaymentIds(prev => {
-          const next = new Map(prev);
-          next.set(contractId, latestPayment.paymentId);
-          return next;
-        });
-        
-        // Step 2: Call /payment/{paymentId} to get detailed payment information
-        if (latestPayment.paymentId) {
-          try {
-            console.log(`📞 Calling GET /payment/${latestPayment.paymentId}`);
-            const paymentDetailsResponse = await getPaymentById(latestPayment.paymentId);
-            const detailedPayment = paymentDetailsResponse?.data || paymentDetailsResponse;
-            console.log('✅ Received payment details:', detailedPayment);
-            
-            // Store payment detail to show in modal
-            if (showModal && detailedPayment) {
-              setSelectedPaymentDetail(detailedPayment);
-              setShowPaymentDetailModal(true);
-            }
-            
-            // Always refresh payment history to include latest payment
-            try {
-              // Also refresh payment history by contract
-              const history = await getPaymentHistoryByContract(contractId);
-              const historyData = history?.data || history || [];
-              
-              // Merge and update payment history
-              setPaymentHistories(prev => {
-                const existing = prev[contractId] || [];
-                // Combine history data with detailed payment
-                const allPaymentsList = [...historyData];
-                
-                // Add detailed payment if not already in history
-                const exists = allPaymentsList.some(p => 
-                  p.paymentId === detailedPayment.paymentId || 
-                  p.paymentCode === detailedPayment.paymentCode
-                );
-                
-                if (!exists && detailedPayment) {
-                  allPaymentsList.unshift(detailedPayment);
-                }
-                
-                // Remove duplicates based on paymentId or paymentCode
-                const uniquePayments = allPaymentsList.reduce((acc, payment) => {
-                  const key = payment.paymentId || payment.paymentCode;
-                  if (!acc.find(p => (p.paymentId || p.paymentCode) === key)) {
-                    acc.push(payment);
-                  }
-                  return acc;
+    // Sum only completed payments
+    return contractPayments
+      .filter(payment => payment.status === 'COMPLETED' || payment.status === 'SUCCESS' || payment.status === 'PAID')
+      .reduce((sum, payment) => sum + (payment.amount || 0), 0);
                 }, []);
                 
-                // Sort by createdAt (newest first)
-                uniquePayments.sort((a, b) => {
-                  const dateA = new Date(a.createdAt || 0);
-                  const dateB = new Date(b.createdAt || 0);
-                  return dateB - dateA;
-                });
-                
-                return {
-                  ...prev,
-                  [contractId]: uniquePayments
-                };
-              });
-            } catch (historyError) {
-              console.error('Error refreshing payment history:', historyError);
-            }
-          } catch (paymentDetailError) {
-            console.error('Error fetching payment details by ID:', paymentDetailError);
-            // Fallback: use the payment from getAllPayments
-            if (showModal && latestPayment) {
-              setSelectedPaymentDetail(latestPayment);
-              setShowPaymentDetailModal(true);
-            }
-            
-            // Fallback to just refreshing history by contract
-            try {
-              const history = await getPaymentHistoryByContract(contractId);
-              setPaymentHistories(prev => ({
-                ...prev,
-                [contractId]: history?.data || history || []
-              }));
-            } catch (historyError) {
-              console.error('Error fetching payment history:', historyError);
-            }
+  // Calculate remaining amount
+  const calculateRemainingAmount = useCallback((contract, payments) => {
+    const total = contract.totalPayment || 0;
+    const paid = calculatePaidAmount(contract, payments);
+    return Math.max(0, total - paid);
+  }, [calculatePaidAmount]);
+
+  // Fetch contracts
+  const fetchContracts = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await getAllContracts();
+      const contractsData = Array.isArray(response) ? response : (response?.data || []);
+      setContracts(contractsData);
+    } catch (error) {
+      console.error('Error fetching contracts:', error);
+      showError('Không thể tải danh sách hợp đồng: ' + (error.message || error));
+    } finally {
+      setLoading(false);
+    }
+  }, [showError]);
+
+  // Fetch all payments
+  const fetchAllPayments = useCallback(async () => {
+    try {
+        const response = await getAllPayments();
+      const paymentsData = Array.isArray(response) ? response : (response?.data || []);
+        setAllPayments(paymentsData);
+      } catch (error) {
+      console.error('Error fetching payments:', error);
+        showError('Không thể tải danh sách thanh toán: ' + (error.message || error));
+      }
+  }, [showError]);
+
+  // Handle payment callback
+  const handlePaymentCallback = useCallback(async (paymentId, status, vnpResponseCode) => {
+    try {
+      setLoadingPaymentDetail(true);
+      
+      // If paymentId is provided, fetch payment details
+      if (paymentId) {
+        const paymentResponse = await getPaymentById(paymentId);
+        const paymentData = paymentResponse?.data || paymentResponse;
+        
+        if (paymentData) {
+          setSelectedPaymentDetail(paymentData);
+          setShowPaymentDetailModal(true);
+          
+          // Refresh contracts and payments
+          await fetchContracts();
+          await fetchAllPayments();
+          
+          // Show success message if payment completed
+          if (paymentData.status === 'COMPLETED' || paymentData.status === 'SUCCESS' || paymentData.status === 'PAID') {
+            success('Thanh toán đã hoàn tất thành công!');
+          } else if (paymentData.status === 'FAILED' || paymentData.status === 'CANCELLED') {
+            showError('Thanh toán đã bị hủy hoặc thất bại.');
           }
         }
-      } else {
-        console.log('⚠️ No payments found for contract');
+      } else if (vnpResponseCode === '00') {
+        // VNPay success response
+        success('Thanh toán đã hoàn tất thành công!');
+        await fetchContracts();
+        await fetchAllPayments();
+      } else if (vnpResponseCode) {
+        // VNPay error response
+        showError('Thanh toán đã bị hủy hoặc thất bại.');
+        await fetchContracts();
+        await fetchAllPayments();
       }
     } catch (error) {
-      console.error('❌ Error fetching latest payment details:', error);
-      showError('Không thể lấy thông tin thanh toán: ' + (error.message || error));
+      console.error('Error handling payment callback:', error);
+      showError('Không thể xử lý kết quả thanh toán: ' + (error.message || error));
     } finally {
       setLoadingPaymentDetail(false);
     }
-  }, [contracts, expandedContracts, showError, allPayments, paymentMatchesContract]);
+  }, [fetchContracts, fetchAllPayments, success, showError]);
 
-  // Fetch contracts on mount
+  // Fetch data on mount
   useEffect(() => {
-    dispatch(fetchAllContractsThunk());
-  }, [dispatch]);
+    fetchContracts();
+    fetchAllPayments();
+  }, [fetchContracts, fetchAllPayments]);
 
-  // Fetch all payments on mount
+  // Handle payment callback from VNPay
   useEffect(() => {
-    const fetchPayments = async () => {
-      try {
-        setLoadingAllPayments(true);
-        console.log('🔄 Fetching all payments on mount...');
-        const response = await getAllPayments();
-        const paymentsData = response?.data || response || [];
-        console.log('✅ Loaded', paymentsData.length, 'payments');
-        setAllPayments(paymentsData);
-      } catch (error) {
-        console.error('❌ Error fetching all payments:', error);
-        showError('Không thể tải danh sách thanh toán: ' + (error.message || error));
-      } finally {
-        setLoadingAllPayments(false);
+    const paymentId = searchParams.get('paymentId') || searchParams.get('vnp_TxnRef');
+    const status = searchParams.get('status');
+    const vnp_ResponseCode = searchParams.get('vnp_ResponseCode');
+    
+    // Also check localStorage for pending payment ID
+    const pendingPaymentId = localStorage.getItem('pendingPaymentId');
+    
+    if (paymentId || status || vnp_ResponseCode || pendingPaymentId) {
+      // Handle VNPay callback
+      const idToUse = paymentId || pendingPaymentId;
+      handlePaymentCallback(idToUse, status, vnp_ResponseCode);
+      
+      // Clean up URL params and localStorage
+      if (paymentId || status || vnp_ResponseCode) {
+        setSearchParams({}, { replace: true });
       }
-    };
-
-    fetchPayments();
-  }, [showError]);
-
-  // Auto-load payment histories when contracts and allPayments are ready
-  useEffect(() => {
-    if (!contracts || contracts.length === 0 || !allPayments || allPayments.length === 0) {
-      return;
+      if (pendingPaymentId) {
+        localStorage.removeItem('pendingPaymentId');
+      }
     }
-
-    // Only process contracts with signed images
-    const contractsWithSigned = contracts.filter(
-      c => c.signedContractFileUrl || c.contractFileUrl
-    );
-
-    // Load payment histories for all contracts with signed images
-    contractsWithSigned.forEach((contract) => {
-      // Only load if not already loaded
-      if (!paymentHistories[contract.contractId] || paymentHistories[contract.contractId].length === 0) {
-        const contractPayments = allPayments.filter(payment => 
-          paymentMatchesContract(payment, contract, contract.contractId)
-        );
-        
-        if (contractPayments.length > 0) {
-          // Sort by createdAt (newest first)
-          contractPayments.sort((a, b) => {
-            const dateA = new Date(a.createdAt || 0);
-            const dateB = new Date(b.createdAt || 0);
-            return dateB - dateA;
-          });
-          
-          console.log('🔄 Auto-loading', contractPayments.length, 'payments for contract:', contract.contractId);
-          setPaymentHistories(prev => ({
-            ...prev,
-            [contract.contractId]: contractPayments
-          }));
-        }
-      }
-    });
-  }, [contracts, allPayments, paymentMatchesContract]);
-
-  // Check for payment completion and update UI
-  useEffect(() => {
-    if (!contracts || contracts.length === 0) return;
-
-    // Check each pending payment contract to see if payment was completed
-    pendingPaymentContracts.forEach(contractId => {
-      const contract = contracts.find(c => c.contractId === contractId);
-      if (contract) {
-        const total = contract.totalPayment || 0;
-        const paid = contract.paidAmount || 0;
-        const remaining = total - paid;
-        
-        // If payment is completed (no remaining), stop polling and show success
-        if (remaining <= 0) {
-          // Stop polling for this contract
-          setPollingIntervals(prev => {
-            const next = new Map(prev);
-            const interval = next.get(contractId);
-            if (interval) {
-              clearInterval(interval);
-              next.delete(contractId);
-            }
-            return next;
-          });
-          
-          // Remove from pending list
-          setPendingPaymentContracts(prev => {
-            const next = new Set(prev);
-            next.delete(contractId);
-            return next;
-          });
-          
-          // Show success message
-          success(`Thanh toán cho hợp đồng ${contract.contractCode || contractId} đã hoàn tất thành công!`);
-          
-          // Fetch latest payment details using /payment/all and /payment/{paymentId}
-          // Show modal with payment details
-          fetchLatestPaymentDetails(contractId, true);
-          
-          // Refresh payment history if expanded
-          if (expandedContracts.has(contractId)) {
-            // Refresh payment history for this contract
-            setLoadingHistories(prev => new Set([...prev, contractId]));
-            getPaymentHistoryByContract(contractId)
-              .then(history => {
-                setPaymentHistories(prev => ({
-                  ...prev,
-                  [contractId]: history?.data || history || []
-                }));
-              })
-              .catch(error => {
-                console.error('Error refreshing payment history:', error);
-                setPaymentHistories(prev => ({
-                  ...prev,
-                  [contractId]: []
-                }));
-              })
-              .finally(() => {
-                setLoadingHistories(prev => {
-                  const next = new Set(prev);
-                  next.delete(contractId);
-                  return next;
-                });
-              });
-          }
-        }
-      }
-    });
-  }, [contracts, pendingPaymentContracts, expandedContracts, fetchLatestPaymentDetails, success]);
+  }, [searchParams, setSearchParams, handlePaymentCallback]);
 
   // Handle contractId from navigation state
   useEffect(() => {
@@ -418,7 +181,7 @@ function PaymentManagement() {
       const contractId = location.state.contractId;
       setHighlightedContractId(contractId);
       
-      // Scroll to the contract after a short delay to ensure DOM is updated
+      // Scroll to the contract after a short delay
       setTimeout(() => {
         const element = document.getElementById(`contract-row-${contractId}`);
         if (element) {
@@ -426,68 +189,23 @@ function PaymentManagement() {
         }
       }, 300);
       
-      // Clear the state to prevent re-triggering
+      // Clear the state
       window.history.replaceState({}, document.title);
     }
   }, [location]);
 
-  // Polling mechanism to check payment status
-  useEffect(() => {
-    if (pendingPaymentContracts.size === 0) return;
-
-    const checkPaymentStatus = async () => {
-      try {
-        // Refresh contracts to get latest payment status
-        await dispatch(fetchAllContractsThunk());
-      } catch (error) {
-        console.error('Error checking payment status:', error);
-      }
-    };
-
-    // Check immediately, then every 5 seconds
-    checkPaymentStatus();
-    const interval = setInterval(checkPaymentStatus, 5000);
-
-    return () => clearInterval(interval);
-  }, [pendingPaymentContracts, dispatch]);
-
-  // Handle window focus - refresh when user returns from VNPay
-  useEffect(() => {
-    const handleFocus = () => {
-      if (pendingPaymentContracts.size > 0) {
-        // User returned from payment window, refresh contracts
-        dispatch(fetchAllContractsThunk());
-      }
-    };
-
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [pendingPaymentContracts, dispatch]);
-
-  // Cleanup polling intervals on unmount
-  useEffect(() => {
-    return () => {
-      pollingIntervals.forEach((interval) => clearInterval(interval));
-      setPollingIntervals(new Map());
-    };
-  }, []);
-
   // Filter contracts that have signed contract file uploaded
   const contractsWithSignedImage = (contracts || []).filter(
-    contract => contract.signedContractFileUrl || contract.contractFileUrl
+    contract => contract.contractFileUrl
   );
 
   // Calculate summary statistics
   const totalRevenue = contractsWithSignedImage.reduce(
-    (sum, contract) => sum + (contract.paidAmount || 0), 0
+    (sum, contract) => sum + calculatePaidAmount(contract, allPayments), 0
   );
   
   const pendingAmount = contractsWithSignedImage.reduce(
-    (sum, contract) => {
-      const total = contract.totalPayment || 0;
-      const paid = contract.paidAmount || 0;
-      return sum + Math.max(0, total - paid);
-    }, 0
+    (sum, contract) => sum + calculateRemainingAmount(contract, allPayments), 0
   );
 
   const handlePaymentClick = (contract) => {
@@ -511,107 +229,68 @@ function PaymentManagement() {
         paymentForm.paymentMethod
       );
 
-      // Store payment ID if available in response
-      if (response?.data?.paymentId || response?.paymentId) {
-        const paymentId = response?.data?.paymentId || response?.paymentId;
-        setRecentPaymentIds(prev => {
-          const next = new Map(prev);
-          next.set(selectedContract.contractId, paymentId);
-          return next;
-        });
-      }
-      
-      // If payment method is VNPAY, open payment URL in new window
-      if (paymentForm.paymentMethod === 'VNPAY' && (response.data || response)) {
-        const paymentUrl = typeof response.data === 'string' ? response.data : response.data?.paymentUrl || response.paymentUrl;
-        if (paymentUrl) {
-          const paymentWindow = window.open(paymentUrl, '_blank');
+      // If payment method is VNPAY, redirect to payment URL
+      if (paymentForm.paymentMethod === 'VNPAY') {
+        // Handle different response structures
+        let paymentUrl = null;
+        let paymentId = null;
+        
+        // Response could be: {paymentUrl: "...", paymentId: 1} or {data: {paymentUrl: "...", paymentId: 1}} or just the URL string
+        if (typeof response === 'string') {
+          paymentUrl = response;
+        } else if (response?.paymentUrl) {
+          paymentUrl = response.paymentUrl;
+          paymentId = response.paymentId;
+        } else if (response?.data?.paymentUrl) {
+          paymentUrl = response.data.paymentUrl;
+          paymentId = response.data.paymentId;
+        } else if (response?.data && typeof response.data === 'string') {
+          paymentUrl = response.data;
+          paymentId = response.paymentId;
+        }
+        
+        if (paymentUrl && typeof paymentUrl === 'string' && paymentUrl.startsWith('http')) {
+          // Store paymentId in localStorage for callback handling
+          if (paymentId) {
+            localStorage.setItem('pendingPaymentId', paymentId.toString());
+          }
           
-          // Add contract to pending payments list for polling
-          setPendingPaymentContracts(prev => new Set([...prev, selectedContract.contractId]));
-        
-        // Start polling for this specific contract
-        const pollInterval = setInterval(async () => {
-          try {
-            await dispatch(fetchAllContractsThunk());
-            
-            // Check if payment is completed by comparing old and new paid amounts
-            // This will be checked in the next render cycle
-          } catch (error) {
-            console.error('Error polling payment status:', error);
-          }
-        }, 3000); // Poll every 3 seconds
-        
-        setPollingIntervals(prev => {
-          const next = new Map(prev);
-          next.set(selectedContract.contractId, pollInterval);
-          return next;
-        });
-        
-        // Auto-stop polling after 10 minutes (safety timeout)
-        setTimeout(() => {
-          setPollingIntervals(prev => {
-            const next = new Map(prev);
-            const interval = next.get(selectedContract.contractId);
-            if (interval) {
-              clearInterval(interval);
-              next.delete(selectedContract.contractId);
-            }
-            return next;
-          });
-          setPendingPaymentContracts(prev => {
-            const next = new Set(prev);
-            next.delete(selectedContract.contractId);
-            return next;
-          });
-        }, 600000); // 10 minutes
-        
-        // Monitor payment window - if closed, check payment status
-        const checkWindowClosed = setInterval(() => {
-          if (paymentWindow && paymentWindow.closed) {
-            clearInterval(checkWindowClosed);
-            // User closed payment window, refresh and check payment status
-            setTimeout(async () => {
-              await dispatch(fetchAllContractsThunk());
-              // Fetch payment details using /payment/all and /payment/{paymentId}
-              await fetchLatestPaymentDetails(selectedContract.contractId, true);
-              // Stop polling for this contract after checking
-              setPollingIntervals(prev => {
-                const next = new Map(prev);
-                const interval = next.get(selectedContract.contractId);
-                if (interval) {
-                  clearInterval(interval);
-                  next.delete(selectedContract.contractId);
-                }
-                return next;
-              });
-              setPendingPaymentContracts(prev => {
-                const next = new Set(prev);
-                next.delete(selectedContract.contractId);
-                return next;
-              });
-            }, 2000);
-          }
-        }, 1000);
-        
-          success('Đang chuyển hướng đến VNPay. Vui lòng hoàn tất thanh toán trên trang VNPay. Hệ thống sẽ tự động cập nhật sau khi thanh toán hoàn tất.');
+          // Redirect to VNPay
+          window.location.href = paymentUrl;
+          return; // Don't close modal or show success yet - user will be redirected
         } else {
+          console.error('Invalid payment URL response:', response);
           showError('Không thể lấy URL thanh toán VNPay. Vui lòng thử lại.');
         }
       } else if (paymentForm.paymentMethod === 'CASH') {
+        // For cash payments, show success immediately
         success('Thanh toán tiền mặt đã được ghi nhận thành công!');
-        // Refresh immediately for cash payments and fetch payment details
+        
+        // Refresh data
         setTimeout(async () => {
-          await dispatch(fetchAllContractsThunk());
-          // Show payment details modal
-          await fetchLatestPaymentDetails(selectedContract.contractId, true);
+          await fetchContracts();
+          await fetchAllPayments();
+          
+          // Show payment details if paymentId is available
+          if (response?.paymentId || response?.data?.paymentId) {
+            const paymentId = response?.paymentId || response?.data?.paymentId;
+            try {
+              const paymentResponse = await getPaymentById(paymentId);
+              const paymentData = paymentResponse?.data || paymentResponse;
+              if (paymentData) {
+                setSelectedPaymentDetail(paymentData);
+                setShowPaymentDetailModal(true);
+              }
+            } catch (error) {
+              console.error('Error fetching payment details:', error);
+            }
+          }
         }, 500);
       } else {
         success('Tạo thanh toán thành công!');
         setTimeout(async () => {
-          await dispatch(fetchAllContractsThunk());
-          // Show payment details modal
-          await fetchLatestPaymentDetails(selectedContract.contractId, true);
+          await fetchContracts();
+          await fetchAllPayments();
         }, 500);
       }
 
@@ -639,58 +318,35 @@ function PaymentManagement() {
         return;
       }
       
-      // Fetch payment history if not already loaded
+      // Fetch payment history by filtering allPayments
       setLoadingHistories(prev => new Set([...prev, contractId]));
+      
       try {
         const contract = contracts?.find(c => c.contractId === contractId);
-        let historyData = [];
-        
-        // First, try to use allPayments from state (already loaded on mount)
-        if (allPayments && allPayments.length > 0 && contract) {
-          console.log('📋 Using allPayments from state for contract:', contractId);
-          const contractPayments = allPayments.filter(payment => 
-            paymentMatchesContract(payment, contract, contractId)
+        if (contract && allPayments.length > 0) {
+          const contractPayments = filterPaymentsByContract(
+            allPayments, 
+            contractId, 
+            contract.contractCode
           );
-          historyData = contractPayments;
-          console.log('✅ Found', contractPayments.length, 'payments in allPayments');
-        }
-        
-        // Also try to get payment history by contract API (as backup/merge)
-        try {
-          const history = await getPaymentHistoryByContract(contractId);
-          const historyDataFromAPI = history?.data || history || [];
-          
-          if (historyDataFromAPI.length > 0) {
-            console.log('📋 Also fetched', historyDataFromAPI.length, 'payments from API');
-            // Merge with existing data
-            const merged = [...historyData, ...historyDataFromAPI];
-            // Remove duplicates
-            const uniquePayments = merged.reduce((acc, payment) => {
-              const key = payment.paymentId || payment.paymentCode;
-              if (!acc.find(p => (p.paymentId || p.paymentCode) === key)) {
-                acc.push(payment);
-              }
-              return acc;
-            }, []);
-            historyData = uniquePayments;
-          }
-        } catch (error) {
-          console.error('Error fetching payment history by contract:', error);
-          // Continue with data from allPayments if available
-        }
         
         // Sort by createdAt (newest first)
-        historyData.sort((a, b) => {
-          const dateA = new Date(a.createdAt || 0);
-          const dateB = new Date(b.createdAt || 0);
+          contractPayments.sort((a, b) => {
+            const dateA = new Date(a.createdAt || 0);
+            const dateB = new Date(b.createdAt || 0);
           return dateB - dateA;
         });
         
-        console.log('💾 Saving', historyData.length, 'payments to state for contract:', contractId);
         setPaymentHistories(prev => ({
           ...prev,
-          [contractId]: historyData
-        }));
+            [contractId]: contractPayments
+          }));
+        } else {
+          setPaymentHistories(prev => ({
+            ...prev,
+            [contractId]: []
+          }));
+        }
       } catch (error) {
         console.error('Error fetching payment history:', error);
         setPaymentHistories(prev => ({
@@ -709,9 +365,8 @@ function PaymentManagement() {
   };
 
   const getStatusColor = (contract) => {
-    const total = contract.totalPayment || 0;
-    const paid = contract.paidAmount || 0;
-    const remaining = total - paid;
+    const remaining = calculateRemainingAmount(contract, allPayments);
+    const paid = calculatePaidAmount(contract, allPayments);
     
     if (remaining <= 0) return 'bg-green-100 text-green-800';
     if (paid > 0) return 'bg-yellow-100 text-yellow-800';
@@ -719,9 +374,8 @@ function PaymentManagement() {
   };
 
   const getStatusText = (contract) => {
-    const total = contract.totalPayment || 0;
-    const paid = contract.paidAmount || 0;
-    const remaining = total - paid;
+    const remaining = calculateRemainingAmount(contract, allPayments);
+    const paid = calculatePaidAmount(contract, allPayments);
     
     if (remaining <= 0) return 'Hoàn thành';
     if (paid > 0) return 'Thanh toán một phần';
@@ -780,7 +434,21 @@ function PaymentManagement() {
           </div>
         </div>
 
-        
+        {/* Summary Statistics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-lg p-4">
+            <p className="text-sm text-gray-600 mb-1">Tổng doanh thu</p>
+            <p className="text-2xl font-bold text-emerald-600">
+              {totalRevenue.toLocaleString('vi-VN')} VNĐ
+            </p>
+          </div>
+          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-sm text-gray-600 mb-1">Số tiền còn lại</p>
+            <p className="text-2xl font-bold text-yellow-600">
+              {pendingAmount.toLocaleString('vi-VN')} VNĐ
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Contracts Table */}
@@ -827,12 +495,11 @@ function PaymentManagement() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {contractsWithSignedImage.map((contract) => {
                   const total = contract.totalPayment || 0;
-                  const paid = contract.paidAmount || 0;
-                  const remaining = Math.max(0, total - paid);
+                  const paid = calculatePaidAmount(contract, allPayments);
+                  const remaining = calculateRemainingAmount(contract, allPayments);
                   const isExpanded = expandedContracts.has(contract.contractId);
                   const history = paymentHistories[contract.contractId] || [];
                   const isLoadingHistory = loadingHistories.has(contract.contractId);
-                  const isPendingPayment = pendingPaymentContracts.has(contract.contractId);
 
                   return (
                     <React.Fragment key={contract.contractId}>
@@ -841,21 +508,11 @@ function PaymentManagement() {
                         className={`hover:bg-gray-50 transition-colors ${
                           highlightedContractId === contract.contractId 
                             ? 'bg-blue-50 border-l-4 border-blue-500 shadow-sm' 
-                            : isPendingPayment
-                            ? 'bg-yellow-50 border-l-4 border-yellow-400'
                             : ''
                         }`}
                       >
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          <div className="flex items-center gap-2">
                             {contract.contractCode || 'N/A'}
-                            {isPendingPayment && (
-                              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 animate-pulse">
-                                <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                                Đang xử lý thanh toán
-                              </span>
-                            )}
-                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <div className="flex flex-col">
@@ -952,10 +609,10 @@ function PaymentManagement() {
                                     </thead>
                                     <tbody className="bg-white divide-y divide-gray-200">
                                       {history.map((payment, idx) => {
-                                        const paymentDate = payment.paymentDate || payment.createdAt;
-                                        const amount = payment.amount || payment.paymentAmount || 0;
+                                        const paymentDate = payment.createdAt;
+                                        const amount = payment.amount || 0;
                                         const remainPrice = payment.remainPrice !== undefined ? payment.remainPrice : null;
-                                        const paymentCode = payment.paymentCode || payment.code || `PAY-${payment.paymentId || idx + 1}`;
+                                        const paymentCode = payment.paymentCode || `PAY-${payment.paymentId || idx + 1}`;
                                         const status = payment.status || 'DRAFT';
                                         
                                         return (
@@ -975,10 +632,10 @@ function PaymentManagement() {
                                                 : 'N/A'}
                                             </td>
                                             <td className="px-4 py-2 text-sm text-gray-900">
-                                              {getPaymentTypeText(payment.paymentType || payment.type)}
+                                              {getPaymentTypeText(payment.paymentType)}
                                             </td>
                                             <td className="px-4 py-2 text-sm text-gray-900">
-                                              {getPaymentMethodText(payment.paymentMethod || payment.method)}
+                                              {getPaymentMethodText(payment.paymentMethod)}
                                             </td>
                                             <td className="px-4 py-2 text-sm text-gray-900 font-medium">
                                               {amount.toLocaleString('vi-VN')} VNĐ
@@ -1124,13 +781,6 @@ function PaymentManagement() {
                   </div>
 
                   <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <p className="text-sm text-gray-500 mb-1">Mã đơn hàng</p>
-                    <p className="text-base font-semibold text-blue-600">
-                      {selectedPaymentDetail.orderCode || 'N/A'}
-                    </p>
-                  </div>
-
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
                     <p className="text-sm text-gray-500 mb-1">Loại thanh toán</p>
                     <p className="text-base font-semibold text-gray-900">
                       {getPaymentTypeText(selectedPaymentDetail.paymentType)}
@@ -1167,63 +817,6 @@ function PaymentManagement() {
                           })
                         : 'N/A'}
                     </p>
-                  </div>
-                </div>
-
-                {/* Payment Summary */}
-                <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-lg p-6">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-4">Tóm tắt thanh toán</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Mã thanh toán:</span>
-                      <span className="font-semibold text-gray-900">
-                        {selectedPaymentDetail.paymentCode || `PAY-${selectedPaymentDetail.paymentId || 'N/A'}`}
-                      </span>
-                    </div>
-                    {selectedPaymentDetail.orderCode && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Mã đơn hàng:</span>
-                        <span className="font-semibold text-blue-600">
-                          {selectedPaymentDetail.orderCode}
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Mã hợp đồng:</span>
-                      <span className="font-semibold text-gray-900">
-                        {selectedPaymentDetail.contractCode || 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Số tiền:</span>
-                      <span className="font-bold text-emerald-600 text-lg">
-                        {(selectedPaymentDetail.amount || 0).toLocaleString('vi-VN')} VNĐ
-                      </span>
-                    </div>
-                    {selectedPaymentDetail.remainPrice !== undefined && selectedPaymentDetail.remainPrice !== null && (
-                      <div className="flex justify-between items-center">
-                        <span className="text-gray-600">Còn lại:</span>
-                        <span className="font-semibold text-gray-900">
-                          {selectedPaymentDetail.remainPrice.toLocaleString('vi-VN')} VNĐ
-                        </span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-600">Trạng thái:</span>
-                      <span className={`px-3 py-1 text-sm font-semibold rounded-full ${
-                        selectedPaymentDetail.status === 'COMPLETED' || selectedPaymentDetail.status === 'SUCCESS' || selectedPaymentDetail.status === 'PAID'
-                          ? 'bg-green-100 text-green-800'
-                          : selectedPaymentDetail.status === 'PENDING' || selectedPaymentDetail.status === 'PROCESSING'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {selectedPaymentDetail.status === 'COMPLETED' || selectedPaymentDetail.status === 'SUCCESS' || selectedPaymentDetail.status === 'PAID'
-                          ? 'Hoàn thành'
-                          : selectedPaymentDetail.status === 'PENDING' || selectedPaymentDetail.status === 'PROCESSING'
-                          ? 'Đang xử lý'
-                          : selectedPaymentDetail.status || 'N/A'}
-                      </span>
-                    </div>
                   </div>
                 </div>
               </div>
@@ -1287,14 +880,14 @@ function PaymentManagement() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Đã trả</label>
                 <p className="text-sm text-gray-600">
-                  {(selectedContract.paidAmount || 0).toLocaleString('vi-VN')} VNĐ
+                  {calculatePaidAmount(selectedContract, allPayments).toLocaleString('vi-VN')} VNĐ
                 </p>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Còn lại</label>
                 <p className="text-sm text-gray-600 font-medium">
-                  {Math.max(0, (selectedContract.totalPayment || 0) - (selectedContract.paidAmount || 0)).toLocaleString('vi-VN')} VNĐ
+                  {calculateRemainingAmount(selectedContract, allPayments).toLocaleString('vi-VN')} VNĐ
                 </p>
               </div>
 

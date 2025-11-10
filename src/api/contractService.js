@@ -90,9 +90,18 @@ export async function getContractHtml(contractId) {
 
 // Get all contracts (API: GET /api/contracts/all)
 export async function getAllContracts() {
-    return request('/api/contracts/all', {
+    const response = await request('/api/contracts/all', {
         method: 'GET'
     });
+    
+    // Handle response structure: array or { code, message, data }
+    if (Array.isArray(response)) {
+        return response;
+    }
+    if (response?.data) {
+        return response.data;
+    }
+    return response;
 }
 
 // Get contract by order ID (check if order has contract)
