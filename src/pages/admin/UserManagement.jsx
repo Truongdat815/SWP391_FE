@@ -476,8 +476,7 @@ function UserManagement() {
   const tabs = [
     { id: 'dealer-staff', name: 'Nhân viên cửa hàng', count: getFilteredUsersByRole('Nhân viên cửa hàng').length },
     { id: 'dealer-manager', name: 'Quản lý cửa hàng', count: getFilteredUsersByRole('Quản lý cửa hàng').length },
-    { id: 'evm-staff', name: 'Nhân viên hãng xe', count: getFilteredUsersByRole('Nhân viên hãng xe').length },
-    { id: 'admin', name: 'Quản trị viên', count: getFilteredUsersByRole('Quản trị viên').length }
+    { id: 'evm-staff', name: 'Nhân viên hãng xe', count: getFilteredUsersByRole('Nhân viên hãng xe').length }
   ];
 
   const renderUserTable = (roleName, roleColor) => {
@@ -626,7 +625,6 @@ function UserManagement() {
   const renderEVMStaffTable = () => renderUserTable('Nhân viên hãng xe', getRoleColor('Nhân viên hãng xe'));
   const renderDealerStaffTable = () => renderUserTable('Nhân viên cửa hàng', getRoleColor('Nhân viên cửa hàng'));
   const renderDealerManagerTable = () => renderUserTable('Quản lý cửa hàng', getRoleColor('Quản lý cửa hàng'));
-  const renderAdminTable = () => renderUserTable('Quản trị viên', getRoleColor('Quản trị viên'));
 
 
   return (
@@ -784,7 +782,6 @@ function UserManagement() {
           {activeTab === 'dealer-staff' && renderDealerStaffTable()}
           {activeTab === 'dealer-manager' && renderDealerManagerTable()}
           {activeTab === 'evm-staff' && renderEVMStaffTable()}
-          {activeTab === 'admin' && renderAdminTable()}
         </div>
       </div>
 

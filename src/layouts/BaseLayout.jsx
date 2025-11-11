@@ -526,6 +526,7 @@ const BaseLayout = ({
 }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const dropdownRef = useRef(null);
@@ -544,6 +545,7 @@ const BaseLayout = ({
   }, []);
 
   const handleLogout = () => {
+    logout(); // Clear tokens, user info, and Redux state
     navigate('/signin');
   };
 
