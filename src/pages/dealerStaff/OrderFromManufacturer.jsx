@@ -84,14 +84,9 @@ function OrderFromManufacturer({ onBack }) {
   };
 
   const getStatusText = (status) => {
-    switch (status) {
-      case 'pending': return 'Chờ xác nhận';
-      case 'confirmed': return 'Đã xác nhận';
-      case 'processing': return 'Đang sản xuất';
-      case 'delivered': return 'Đã giao hàng';
-      case 'cancelled': return 'Đã hủy';
-      default: return status;
-    }
+    if (!status) return status || 'N/A';
+    // Return status in English as from API response
+    return status.toUpperCase();
   };
 
   return (

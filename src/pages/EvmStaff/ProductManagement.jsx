@@ -48,6 +48,30 @@ function ProductManagement() {
     dispatch(getAllColorsThunk());
   }, [dispatch]);
 
+  // Format currency: 50000000 -> 50.000.000
+  const formatCurrency = (value) => {
+    if (!value && value !== 0) return '';
+    // Remove all non-digit characters
+    const numericValue = String(value).replace(/\D/g, '');
+    // Add dots as thousand separators
+    return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  // Parse currency: "50.000.000" -> 50000000
+  const parseCurrency = (value) => {
+    if (!value) return '';
+    // Remove all non-digit characters
+    return value.replace(/\D/g, '');
+  };
+
+  // Handler for price input change
+  const handlePriceChange = (e) => {
+    const inputValue = e.target.value;
+    // Allow only digits and dots
+    const formatted = formatCurrency(inputValue);
+    setFormData({ ...formData, price: formatted });
+  };
+
   const resetForm = () => {
     setFormData({ modelId: '', colorId: '', price: '' });
     setSelectedImageFile(null);
@@ -65,7 +89,7 @@ function ProductManagement() {
     setFormData({
       modelId: item.modelId,
       colorId: item.colorId,
-      price: item.price || '',
+      price: item.price ? formatCurrency(item.price) : '',
     });
     setSelectedImageFile(null);
     setImagePreview(item.imagePath || null);
@@ -105,7 +129,8 @@ function ProductManagement() {
     try {
       const modelId = parseInt(formData.modelId, 10);
       const colorId = parseInt(formData.colorId, 10);
-      const price = parseFloat(formData.price) || 0;
+      // Parse price: remove dots and convert to number
+      const price = parseFloat(parseCurrency(formData.price)) || 0;
 
       if (editingItem) {
         // Update - không gửi imagePath, chỉ update price
@@ -278,7 +303,7 @@ function ProductManagement() {
   }, [modelColors, searchTerm, filterModel, filterColor, sortBy, sortOrder, models, colors]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -302,7 +327,7 @@ function ProductManagement() {
       <div className="max-w-7xl mx-auto">
         {/* Modern Header */}
         <div className="mb-8">
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-8">
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-4">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-lg">
@@ -467,7 +492,7 @@ function ProductManagement() {
 
         {/* Content Area */}
         {status === 'loading' && modelColors.length === 0 ? (
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 p-12">
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 p-4">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
                 <svg className="w-8 h-8 text-emerald-600 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -480,7 +505,7 @@ function ProductManagement() {
             </div>
           </div>
         ) : filteredAndSortedItems.length === 0 ? (
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 p-12">
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 p-4">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
                 <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -559,7 +584,7 @@ function ProductManagement() {
                               <div className="flex items-center justify-between p-3 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg">
                                 <div>
                                   <p className="text-xs text-gray-600">Giá bán</p>
-                                  <p className="text-lg font-bold text-emerald-600">{modelDetails.price?.toLocaleString('vi-VN')} VNĐ</p>
+                                  <p className="text-lg font-bold text-emerald-600">{item.price?.toLocaleString('vi-VN') || 'N/A'} VNĐ</p>
                                 </div>
                                 <div className="text-right">
                                   <p className="text-xs text-gray-600">Năm</p>
@@ -733,7 +758,7 @@ function ProductManagement() {
                                 {modelDetails ? (
                                   <div className="space-y-1">
                                     <div className="text-lg font-bold text-emerald-600">
-                                      {modelDetails.price?.toLocaleString('vi-VN')} VNĐ
+                                      {item.price?.toLocaleString('vi-VN') || 'N/A'} VNĐ
                                     </div>
                                     <div className="text-sm text-gray-600">
                                       Năm {modelDetails.modelYear}
@@ -953,14 +978,12 @@ function ProductManagement() {
                         Giá (VNĐ) <span className="text-red-500">*</span>
                       </label>
                       <input
-                        type="number"
+                        type="text"
                         value={formData.price}
-                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                        onChange={handlePriceChange}
                         className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200 placeholder-gray-400"
-                        placeholder="VD: 50000000"
+                        placeholder="VD: 50.000.000"
                         required
-                        min="0"
-                        step="1000"
                       />
                     </div>
                   </div>

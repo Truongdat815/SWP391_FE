@@ -47,6 +47,10 @@ export async function getStoresByStatus(status) {
     return request(`/api/stores/status/${encodeURIComponent(status)}`, { method: 'GET' });
 }
 
+export async function getActiveStores() {
+    return request('/api/stores/active', { method: 'GET' });
+}
+
 export async function uploadStoreImage(storeId, file) {
     const token = getToken();
     const url = `${API_URL}/api/stores/${encodeURIComponent(storeId)}/upload-image`;

@@ -16,6 +16,56 @@ import {
 import { createContractFromOrderThunk } from '../../store/slices/contractSlice';
 import { getOrderById } from '../../api/orderService';
 
+// Helper function to aggregate order details with same modelId and colorId
+const aggregateOrderDetails = (details) => {
+  if (!details || details.length === 0) return [];
+  
+  const aggregatedMap = new Map();
+  
+  details.forEach((detail) => {
+    const key = `${detail.modelId || ''}-${detail.colorId || ''}`;
+    
+    if (aggregatedMap.has(key)) {
+      // Aggregate with existing detail
+      const existing = aggregatedMap.get(key);
+      const newQuantity = (existing.quantity || 0) + (detail.quantity || 0);
+      const unitPrice = existing.unitPrice || detail.unitPrice || detail.unit_price || 0;
+      
+      // Aggregate VAT (should be proportional to quantity)
+      const newVatAmount = (existing.vatAmount || existing.vat_amount || 0) + (detail.vatAmount || detail.vat_amount || 0);
+      
+      // Aggregate discount (should be proportional to quantity)
+      const newDiscountAmount = (existing.discountAmount || existing.discount_amount || 0) + (detail.discountAmount || detail.discount_amount || 0);
+      
+      // Fees should NOT be multiplied - take from first detail only (fees are per order, not per item)
+      // Use the first detail's fees (existing), don't add from the new detail
+      const licensePlateFee = existing.licensePlateFee || existing.license_plate_fee || 0;
+      const registrationFee = existing.registrationFee || existing.registration_fee || 0;
+      
+      // Recalculate totalPrice from scratch to ensure it matches quantity=2 scenario:
+      // totalPrice = (unitPrice * newQuantity) + VAT + fees - discount
+      const subtotal = unitPrice * newQuantity;
+      const newTotalPrice = subtotal + newVatAmount + licensePlateFee + registrationFee - newDiscountAmount;
+      
+      aggregatedMap.set(key, {
+        ...existing,
+        quantity: newQuantity,
+        unitPrice: unitPrice,
+        vatAmount: newVatAmount,
+        discountAmount: newDiscountAmount,
+        licensePlateFee: licensePlateFee, // Keep from first, don't sum
+        registrationFee: registrationFee, // Keep from first, don't sum
+        totalPrice: newTotalPrice // Recalculated to match quantity=2 scenario
+      });
+    } else {
+      // First occurrence - keep as is
+      aggregatedMap.set(key, { ...detail });
+    }
+  });
+  
+  return Array.from(aggregatedMap.values());
+};
+
 function OrderSummary() {
     const { orderId } = useParams();
     const location = useLocation();
@@ -64,9 +114,12 @@ function OrderSummary() {
                 
                 // Load order details from getOrderDetailsResponses
                 if (!orderDetails || orderDetails.length === 0) {
-                    const details = latestOrder.getOrderDetailsResponses || [];
-                    setOrderDetails(Array.isArray(details) ? details : []);
-                    console.log('Loaded order details from response:', details);
+                    const rawDetails = latestOrder.getOrderDetailsResponses || [];
+                    // Aggregate details with same modelId and colorId (in case quantity was increased)
+                    const aggregatedDetails = aggregateOrderDetails(rawDetails);
+                    setOrderDetails(Array.isArray(aggregatedDetails) ? aggregatedDetails : []);
+                    console.log('Loaded order details from response:', rawDetails);
+                    console.log('Aggregated order details:', aggregatedDetails);
                 }
                 
                 setInitialLoading(false);

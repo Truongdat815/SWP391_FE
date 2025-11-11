@@ -1,6 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import {
     createPromotion,
+    createPromotionForAllModels,
     getAllPromotions,
     getPromotionByName,
     updatePromotion,
@@ -38,6 +39,18 @@ export const createNewPromotion = createAsyncThunk(
     async (promotionData, { rejectWithValue }) => {
         try {
             const response = await createPromotion(promotionData);
+            return response;
+        } catch (error) {
+            return rejectWithValue(error.message);
+        }
+    }
+);
+
+export const createNewPromotionForAllModels = createAsyncThunk(
+    'promotions/createPromotionForAllModels',
+    async (promotionData, { rejectWithValue }) => {
+        try {
+            const response = await createPromotionForAllModels(promotionData);
             return response;
         } catch (error) {
             return rejectWithValue(error.message);
@@ -104,7 +117,52 @@ const promotionSlice = createSlice({
             })
             .addCase(fetchPromotions.fulfilled, (state, action) => {
                 state.loading = false;
-                state.promotions = action.payload.data || action.payload;
+                const allPromotions = action.payload.data || action.payload;
+                
+                // Process promotions: if there are multiple promotions with same details but different modelIds,
+                // and one has modelId = 0, only keep that one
+                if (Array.isArray(allPromotions)) {
+                    const processedPromotions = [];
+                    const groupedPromotions = new Map();
+                    
+                    // Group by promotion details (excluding modelId)
+                    allPromotions.forEach(promo => {
+                        const key = `${promo.promotionName || ''}_${promo.promotionType || ''}_${promo.amount || 0}_${promo.startDate || ''}_${promo.endDate || ''}_${promo.storeId || 0}`;
+                        if (!groupedPromotions.has(key)) {
+                            groupedPromotions.set(key, []);
+                        }
+                        groupedPromotions.get(key).push(promo);
+                    });
+                    
+                    // For each group, if there's modelId = 0, only keep that one
+                    // If multiple promotions with same details but different modelIds (and no modelId = 0),
+                    // create a summary promotion with modelId = 0
+                    groupedPromotions.forEach((group) => {
+                        const allModelsPromo = group.find(p => p.modelId === 0 || p.modelId === null);
+                        if (allModelsPromo) {
+                            processedPromotions.push(allModelsPromo);
+                        } else if (group.length > 1) {
+                            // Multiple promotions with same details but different modelIds
+                            // Create a summary promotion with modelId = 0
+                            const firstPromo = group[0];
+                            const summaryPromo = {
+                                ...firstPromo,
+                                modelId: 0,
+                                promotionId: firstPromo.promotionId || 0,
+                                // Store all related promotion IDs for deletion
+                                relatedPromotionIds: group.map(p => p.promotionId).filter(id => id && !id.toString().startsWith('summary_'))
+                            };
+                            processedPromotions.push(summaryPromo);
+                        } else {
+                            // Single promotion in group
+                            processedPromotions.push(...group);
+                        }
+                    });
+                    
+                    state.promotions = processedPromotions;
+                } else {
+                    state.promotions = allPromotions;
+                }
             })
             .addCase(fetchPromotions.rejected, (state, action) => {
                 state.loading = false;
@@ -134,6 +192,42 @@ const promotionSlice = createSlice({
                 state.success = action.payload.message || 'Tạo khuyến mãi thành công!';
             })
             .addCase(createNewPromotion.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            })
+            // Create promotion for all models
+            .addCase(createNewPromotionForAllModels.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(createNewPromotionForAllModels.fulfilled, (state, action) => {
+                state.loading = false;
+                // The response might be an array of promotions created for all models
+                const promotionData = action.payload.data || action.payload;
+                if (Array.isArray(promotionData)) {
+                    // If array, check if there's a promotion with modelId = 0
+                    const allModelsPromo = promotionData.find(p => p.modelId === 0);
+                    if (allModelsPromo) {
+                        // Only add the one with modelId = 0
+                        state.promotions.push(allModelsPromo);
+                    } else if (promotionData.length > 0) {
+                        // If no modelId = 0, create a summary promotion with modelId = 0
+                        const firstPromo = promotionData[0];
+                        const summaryPromo = {
+                            ...firstPromo,
+                            modelId: 0,
+                            promotionId: firstPromo.promotionId || 0
+                        };
+                        state.promotions.push(summaryPromo);
+                    }
+                } else {
+                    // Single promotion, ensure modelId is 0
+                    const promo = { ...promotionData, modelId: 0 };
+                    state.promotions.push(promo);
+                }
+                state.success = action.payload.message || 'Tạo khuyến mãi cho tất cả model thành công!';
+            })
+            .addCase(createNewPromotionForAllModels.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             })

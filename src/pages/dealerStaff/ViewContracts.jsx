@@ -40,6 +40,56 @@ import { ModernTable, ModernTableHead, ModernTableHeader, ModernTableBody, Moder
 import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
 import EmptyState from '../../components/ui/EmptyState';
 
+// Helper function to aggregate order details with same modelId and colorId
+const aggregateOrderDetails = (details) => {
+  if (!details || details.length === 0) return [];
+  
+  const aggregatedMap = new Map();
+  
+  details.forEach((detail) => {
+    const key = `${detail.modelId || ''}-${detail.colorId || ''}`;
+    
+    if (aggregatedMap.has(key)) {
+      // Aggregate with existing detail
+      const existing = aggregatedMap.get(key);
+      const newQuantity = (existing.quantity || 0) + (detail.quantity || 0);
+      const unitPrice = existing.unitPrice || detail.unitPrice || detail.unit_price || 0;
+      
+      // Aggregate VAT (should be proportional to quantity)
+      const newVatAmount = (existing.vatAmount || existing.vat_amount || 0) + (detail.vatAmount || detail.vat_amount || 0);
+      
+      // Aggregate discount (should be proportional to quantity)
+      const newDiscountAmount = (existing.discountAmount || existing.discount_amount || 0) + (detail.discountAmount || detail.discount_amount || 0);
+      
+      // Fees should NOT be multiplied - take from first detail only (fees are per order, not per item)
+      // Use the first detail's fees (existing), don't add from the new detail
+      const licensePlateFee = existing.licensePlateFee || existing.license_plate_fee || 0;
+      const registrationFee = existing.registrationFee || existing.registration_fee || 0;
+      
+      // Recalculate totalPrice from scratch to ensure it matches quantity=2 scenario:
+      // totalPrice = (unitPrice * newQuantity) + VAT + fees - discount
+      const subtotal = unitPrice * newQuantity;
+      const newTotalPrice = subtotal + newVatAmount + licensePlateFee + registrationFee - newDiscountAmount;
+      
+      aggregatedMap.set(key, {
+        ...existing,
+        quantity: newQuantity,
+        unitPrice: unitPrice,
+        vatAmount: newVatAmount,
+        discountAmount: newDiscountAmount,
+        licensePlateFee: licensePlateFee, // Keep from first, don't sum
+        registrationFee: registrationFee, // Keep from first, don't sum
+        totalPrice: newTotalPrice // Recalculated to match quantity=2 scenario
+      });
+    } else {
+      // First occurrence - keep as is
+      aggregatedMap.set(key, { ...detail });
+    }
+  });
+  
+  return Array.from(aggregatedMap.values());
+};
+
 function ViewContracts() {
   const dispatch = useDispatch();
   const location = useLocation();
@@ -78,12 +128,19 @@ function ViewContracts() {
 
 
   // Filter contracts by search
-  const filteredContracts = (contracts || []).filter(contract => 
-    contract.contractId?.toString().includes(searchTerm) ||
-    contract.contractCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contract.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    contract.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredContracts = (contracts || [])
+    .filter(contract => 
+      contract.contractId?.toString().includes(searchTerm) ||
+      contract.contractCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      contract.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      contract.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      // Sort from newest to oldest by contractDate or createdAt
+      const dateA = new Date(a.contractDate || a.createdAt || 0);
+      const dateB = new Date(b.contractDate || b.createdAt || 0);
+      return dateB - dateA; // Descending order (newest first)
+    });
 
   // Handle view contract HTML
   const handleViewContract = async (contract) => {
@@ -132,8 +189,11 @@ function ViewContracts() {
       setSelectedOrder(order);
       
       // Backend returns product details in 'getOrderDetailsResponses' array
-      const details = order.getOrderDetailsResponses || [];
-      setOrderDetails(details);
+      const rawDetails = order.getOrderDetailsResponses || [];
+      
+      // Aggregate details with same modelId and colorId (in case quantity was increased)
+      const aggregatedDetails = aggregateOrderDetails(rawDetails);
+      setOrderDetails(aggregatedDetails);
     } catch (err) {
       console.error('Error loading order:', err);
       error('Không thể tải thông tin đơn hàng: ' + err.message);
@@ -218,15 +278,9 @@ function ViewContracts() {
 
 
   const getStatusText = (status) => {
-    const upperStatus = status?.toUpperCase();
-    switch (upperStatus) {
-      case 'DRAFT': return 'Nháp';
-      case 'PENDING': return 'Chờ xử lý';
-      case 'ACTIVE': return 'Đang hoạt động';
-      case 'COMPLETED': return 'Hoàn thành';
-      case 'CANCELLED': return 'Đã hủy';
-      default: return 'Không xác định';
-    }
+    if (!status) return status || 'N/A';
+    // Return status in English as from API response
+    return status.toUpperCase();
   };
 
   return (

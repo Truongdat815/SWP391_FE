@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { getCurrentUser } from '@/api/userService';
 
 const EVMStaffProfile = ({ onBack }) => {
-  const { user, isAuthenticated } = useAuth();
   const [formData, setFormData] = useState({
     name: 'EVM Staff',
     email: 'evm@electra.com',
@@ -10,25 +9,40 @@ const EVMStaffProfile = ({ onBack }) => {
     role: 'Nhân viên EVM',
     employeeId: 'ES001',
     department: 'Phòng sản xuất & phân phối',
-    startDate: '2023-02-01',
     position: 'Nhân viên quản lý tồn kho'
   });
 
-  // Load user data from session
+  const [loading, setLoading] = useState(true);
+
+  // Load user data from API /users/me
   useEffect(() => {
-    if (isAuthenticated && user && user.roleName === 'EVM Staff') {
-      setFormData({
-        name: user.fullName || 'EVM Staff',
-        email: user.email || 'evm@electra.com',
-        phone: user.phone || '0901234567',
-        role: 'Nhân viên EVM',
-        employeeId: `ES${user.userId?.toString().padStart(3, '0') || '001'}`,
-        department: 'Phòng sản xuất & phân phối',
-        startDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : '2023-02-01',
-        position: user.position || 'Nhân viên quản lý tồn kho'
-      });
-    }
-  }, [isAuthenticated, user]);
+    const fetchUserInfo = async () => {
+      try {
+        setLoading(true);
+        const response = await getCurrentUser();
+        // API trả về { code, message, data: { userId, fullName, email, ... } }
+        const userData = response?.data;
+        
+        if (userData) {
+          setFormData({
+            name: userData.fullName || 'EVM Staff',
+            email: userData.email || 'evm@electra.com',
+            phone: userData.phone || '0901234567',
+            role: 'Nhân viên EVM',
+            employeeId: `ES${userData.userId?.toString().padStart(3, '0') || '001'}`,
+            department: 'Phòng sản xuất & phân phối',
+            position: userData.position || 'Nhân viên quản lý tồn kho'
+          });
+        }
+      } catch (error) {
+        console.error('Lỗi lấy thông tin user:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserInfo();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -43,8 +57,19 @@ const EVMStaffProfile = ({ onBack }) => {
     alert('Thông tin đã được cập nhật thành công!');
   };
 
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="animate-pulse">
+          <div className="bg-gray-200 h-32 rounded-lg mb-4"></div>
+          <div className="bg-gray-200 h-96 rounded-lg"></div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto">
       {onBack && (
         <button
           onClick={onBack}
@@ -56,7 +81,7 @@ const EVMStaffProfile = ({ onBack }) => {
           Quay lại
         </button>
       )}
-      <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-lg p-6 sm:p-8 shadow-sm mb-4">
+      <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-lg p-4 shadow-sm mb-4">
         <div className="flex items-center gap-4">
           <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center ring-8 ring-white shadow">
             <span className="text-emerald-600 font-bold text-xl">ES</span>
@@ -68,7 +93,7 @@ const EVMStaffProfile = ({ onBack }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
@@ -136,16 +161,6 @@ const EVMStaffProfile = ({ onBack }) => {
               onChange={handleInputChange}
               className="w-full border rounded-xl px-3 py-2 bg-gray-50 text-gray-500 bg-white text-gray-900 bg-white text-gray-900" 
               disabled 
-            />
-          </div>
-          <div className="sm:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Ngày bắt đầu làm việc</label>
-            <input 
-              name="startDate"
-              type="date"
-              value={formData.startDate}
-              onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition bg-white text-gray-900 bg-white text-gray-900" 
             />
           </div>
         </div>
@@ -216,8 +231,7 @@ const EVMStaffProfile = ({ onBack }) => {
           </div>
         </div>
 
-        <div className="mt-6 flex items-center justify-between">
-          <p className="text-sm text-gray-500">Lần cập nhật gần nhất: hôm nay</p>
+        <div className="mt-6 flex items-center justify-end">
           <button 
             onClick={handleSave}
             className="px-6 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 active:scale-[0.98] transition shadow-sm bg-white text-gray-900"

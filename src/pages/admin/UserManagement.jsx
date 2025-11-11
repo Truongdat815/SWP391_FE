@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { getAllUsersThunk, createUserThunk, deleteUserThunk, updateUserThunk } from '@store/slices/userSlice';
 import { getAllStoresThunk } from '@store/slices/storeSlice';
 import { getAllRolesThunk, createRoleThunk, updateRoleThunk, deleteRoleThunk } from '@store/slices/roleSlice';
+import { getActiveStores } from '@/api/storeService';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedSelect from '@/components/ui/AnimatedSelect';
 import Toast from '@/components/ui/Toast';
@@ -45,6 +46,10 @@ function UserManagement() {
   const storesStatus = useSelector((s) => s.stores.status);
   const storesError = useSelector((s) => s.stores.error);
   const isStoresFetching = storesStatus === 'loading';
+  
+  // State cho danh sách cửa hàng active (chỉ dùng cho form thêm/sửa user)
+  const [activeStores, setActiveStores] = useState([]);
+  const [isLoadingActiveStores, setIsLoadingActiveStores] = useState(false);
 
   const roles = useSelector((s) => s.roles.items);
   const rolesStatus = useSelector((s) => s.roles.status);
@@ -91,6 +96,26 @@ function UserManagement() {
       dispatch(getAllStoresThunk());
     }
   }, [dispatch, storesStatus]);
+
+  // Fetch active stores khi component mount hoặc khi mở modal thêm user
+  useEffect(() => {
+    const fetchActiveStores = async () => {
+      setIsLoadingActiveStores(true);
+      try {
+        const response = await getActiveStores();
+        // Xử lý response có thể là data trực tiếp hoặc { data: [...] }
+        const storesData = response?.data || response || [];
+        setActiveStores(Array.isArray(storesData) ? storesData : []);
+      } catch (err) {
+        console.error('Lỗi lấy danh sách cửa hàng active:', err);
+        setActiveStores([]);
+      } finally {
+        setIsLoadingActiveStores(false);
+      }
+    };
+
+    fetchActiveStores();
+  }, []);
 
   useEffect(() => {
     if (rolesStatus === 'idle') {
@@ -198,6 +223,18 @@ function UserManagement() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate password
+    if (!formData.password || formData.password.trim() === '') {
+      error('Vui lòng nhập mật khẩu');
+      return;
+    }
+    
+    if (formData.password.length < 6) {
+      error('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+    
     try {
       // Set operation type để tracking loading state
       setOperationType('create');
@@ -208,9 +245,42 @@ function UserManagement() {
       // Xóa status vì backend tự xử lý khi tạo user mới
       delete submitData.status;
       
+      // Đảm bảo password không rỗng
+      if (!submitData.password || submitData.password.trim() === '') {
+        error('Mật khẩu không được để trống');
+        setOperationType(null);
+        return;
+      }
+      
+      // Trim password để đảm bảo không có khoảng trắng thừa
+      submitData.password = submitData.password.trim();
+      
+      // Đảm bảo password có giá trị sau khi trim
+      if (!submitData.password || submitData.password.length === 0) {
+        error('Mật khẩu không được để trống');
+        setOperationType(null);
+        return;
+      }
+      
       // Nếu là Admin (1) hoặc EVM Staff (2), không gửi storeId
       if (doesNotRequireStore(parseInt(formData.roleId))) {
         delete submitData.storeId;
+      }
+      
+      // Debug log - ẩn password để bảo mật
+      const debugData = { ...submitData };
+      if (debugData.password) {
+        debugData.password = '***';
+      }
+      console.log('Submitting user data:', debugData);
+      console.log('Password length:', submitData.password?.length);
+      console.log('Password exists:', !!submitData.password);
+      
+      // Kiểm tra lần cuối trước khi gửi
+      if (!submitData.password || submitData.password.trim() === '') {
+        error('Lỗi: Mật khẩu không được để trống');
+        setOperationType(null);
+        return;
       }
       
       await dispatch(createUserThunk(submitData)).unwrap();
@@ -258,6 +328,22 @@ function UserManagement() {
     setOperationType(null); // Reset operation type khi đóng modal
   };
 
+  // Refresh active stores khi mở modal thêm user
+  const handleOpenAddModal = async () => {
+    setIsLoadingActiveStores(true);
+    try {
+      const response = await getActiveStores();
+      const storesData = response?.data || response || [];
+      setActiveStores(Array.isArray(storesData) ? storesData : []);
+    } catch (err) {
+      console.error('Lỗi lấy danh sách cửa hàng active:', err);
+      setActiveStores([]);
+    } finally {
+      setIsLoadingActiveStores(false);
+    }
+    setShowAddModal(true);
+  };
+
   const handleDeleteClick = (user) => {
     setUserToDelete(user);
     setShowDeleteModal(true);
@@ -294,7 +380,20 @@ function UserManagement() {
     setOperationType(null); // Reset operation type khi hủy
   };
 
-  const handleEditClick = (user) => {
+  const handleEditClick = async (user) => {
+    // Refresh active stores khi mở modal edit
+    setIsLoadingActiveStores(true);
+    try {
+      const response = await getActiveStores();
+      const storesData = response?.data || response || [];
+      setActiveStores(Array.isArray(storesData) ? storesData : []);
+    } catch (err) {
+      console.error('Lỗi lấy danh sách cửa hàng active:', err);
+      setActiveStores([]);
+    } finally {
+      setIsLoadingActiveStores(false);
+    }
+    
     setUserToEdit(user);
     setFormData({
       fullName: user.fullName || '',
@@ -603,7 +702,7 @@ function UserManagement() {
                       {searchTerm ? 'Thử thay đổi từ khóa tìm kiếm' : 'Bắt đầu bằng cách thêm người dùng với vai trò này'}
                     </p>
                     <button
-                      onClick={() => setShowAddModal(true)}
+                      onClick={handleOpenAddModal}
                       className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm"
                     >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -665,7 +764,7 @@ function UserManagement() {
           </div>
           <div className="flex space-x-3">
             <button
-              onClick={() => setShowAddModal(true)}
+              onClick={handleOpenAddModal}
               className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center text-sm"
               
             >
@@ -810,7 +909,7 @@ function UserManagement() {
             >
               <div className="mt-2">
                 <div className="flex justify-between items-center mb-3 pb-3 border-b border-gray-200">
-                  <h3 className="text-xl font-bold text-gray-900">➕ Thêm người dùng mới</h3>
+                  <h3 className="text-xl font-bold text-gray-900"> Thêm người dùng mới</h3>
                   <button
                     onClick={handleCloseModal}
                   className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
@@ -850,13 +949,13 @@ function UserManagement() {
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
                       required={formData.roleId && requiresStore(parseInt(formData.roleId))}
-                      disabled={isStoresFetching || (formData.roleId && doesNotRequireStore(parseInt(formData.roleId)))}
+                      disabled={isLoadingActiveStores || (formData.roleId && doesNotRequireStore(parseInt(formData.roleId)))}
                     >
                       <option value="">
-                        {isStoresFetching ? 'Đang tải cửa hàng...' : 
+                        {isLoadingActiveStores ? 'Đang tải cửa hàng active...' : 
                          (formData.roleId && doesNotRequireStore(parseInt(formData.roleId))) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
                       </option>
-                      {stores.map((store) => (
+                      {activeStores.map((store) => (
                         <option key={store.storeId} value={store.storeId}>
                           {store.storeName} ({store.provinceName || 'N/A'})
                         </option>
@@ -864,6 +963,9 @@ function UserManagement() {
                     </select>
                     {formData.roleId && doesNotRequireStore(parseInt(formData.roleId)) && (
                       <p className="text-xs text-gray-500 mt-1.5">💡 Quản trị viên và Nhân viên hãng xe không thuộc về cửa hàng cụ thể</p>
+                    )}
+                    {!isLoadingActiveStores && activeStores.length === 0 && formData.roleId && requiresStore(parseInt(formData.roleId)) && (
+                      <p className="text-xs text-yellow-600 mt-1.5">⚠️ Không có cửa hàng active nào để chọn</p>
                     )}
                   </div>
 
@@ -1034,13 +1136,13 @@ function UserManagement() {
                       onChange={handleInputChange}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
                       required={formData.roleId && requiresStore(parseInt(formData.roleId))}
-                      disabled={isStoresFetching || (formData.roleId && doesNotRequireStore(parseInt(formData.roleId)))}
+                      disabled={isLoadingActiveStores || (formData.roleId && doesNotRequireStore(parseInt(formData.roleId)))}
                     >
                       <option value="">
-                        {isStoresFetching ? 'Đang tải cửa hàng...' : 
-                         (formData.roleId && doesNotRequireStore(parseInt(formData.roleId))) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng'}
+                        {isLoadingActiveStores ? 'Đang tải cửa hàng active...' : 
+                         (formData.roleId && doesNotRequireStore(parseInt(formData.roleId))) ? 'Không thuộc cửa hàng' : 'Chọn cửa hàng active'}
                       </option>
-                      {stores.map((store) => (
+                      {activeStores.map((store) => (
                         <option key={store.storeId} value={store.storeId}>
                           {store.storeName} ({store.provinceName || 'N/A'})
                         </option>
@@ -1048,6 +1150,9 @@ function UserManagement() {
                     </select>
                     {formData.roleId && doesNotRequireStore(parseInt(formData.roleId)) && (
                       <p className="text-xs text-gray-500 mt-1.5">💡 Quản trị viên và Nhân viên hãng xe không thuộc về cửa hàng cụ thể</p>
+                    )}
+                    {!isLoadingActiveStores && activeStores.length === 0 && formData.roleId && requiresStore(parseInt(formData.roleId)) && (
+                      <p className="text-xs text-yellow-600 mt-1.5">⚠️ Không có cửa hàng active nào để chọn</p>
                     )}
                   </div>
 

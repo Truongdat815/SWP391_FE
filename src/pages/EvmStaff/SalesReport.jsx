@@ -116,7 +116,7 @@ function SalesReport({ onBack }) {
   };
 
   return (
-    <div className="px-6 space-y-6 w-full">
+    <div className="space-y-4 w-full">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

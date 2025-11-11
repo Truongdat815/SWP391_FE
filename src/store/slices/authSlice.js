@@ -22,10 +22,29 @@ export const loginThunk = createAsyncThunk(
                 console.log('Getting user info for email:', credentials.email);
                 
                 // Get all users and find by email
-                const allUsersResponse = await authService.getAllUsers();
-                console.log('All users response:', allUsersResponse);
-                const allUsers = allUsersResponse.data || allUsersResponse;
-                const userInfo = allUsers.find(user => user.email === credentials.email);
+                // Retry logic để đảm bảo lấy được user info mới nhất (sau khi đổi mật khẩu, status có thể đã được cập nhật)
+                let userInfo = null;
+                let retryCount = 0;
+                const maxRetries = 3;
+                
+                while (!userInfo && retryCount < maxRetries) {
+                    const allUsersResponse = await authService.getAllUsers();
+                    console.log(`Getting user info (attempt ${retryCount + 1}):`, allUsersResponse);
+                    const allUsers = allUsersResponse.data || allUsersResponse;
+                    userInfo = allUsers.find(user => user.email === credentials.email);
+                    
+                    if (!userInfo) {
+                        if (retryCount < maxRetries - 1) {
+                            // Wait a bit before retry (especially after password change)
+                            await new Promise(resolve => setTimeout(resolve, 500));
+                        }
+                        retryCount++;
+                    } else {
+                        console.log('User info found:', userInfo);
+                        console.log('User status:', userInfo.status);
+                        break;
+                    }
+                }
                 
                 if (!userInfo) {
                     throw new Error('User info not found');

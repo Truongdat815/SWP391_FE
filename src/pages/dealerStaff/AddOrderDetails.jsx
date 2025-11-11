@@ -148,40 +148,85 @@ function AddOrderDetails() {
             return;
         }
         
-        const detailData = {
-            orderId: parseInt(orderId),
-            storeStockId: stockId,
-            unitPrice: prices.unitPrice,
-            quantity: quantity,
-            vatAmount: prices.vat,
-            licensePlateFee: licensePlateFee,
-            registrationFee: registrationFee,
-            discountAmount: prices.discount,
-            totalPrice: prices.total,
-            // Only add these optional fields if they have values
-            ...(selectedPromotion?.promotionId && { promotionId: selectedPromotion.promotionId }),
-            ...(selectedStock.modelId && { modelId: selectedStock.modelId }),
-            ...(selectedStock.modelColorId && { modelColorId: selectedStock.modelColorId }),
-            ...(selectedStock.colorId && { colorId: selectedStock.colorId })
-        };
+        // Check if product with same model and color already exists
+        const existingDetailIndex = orderDetails.findIndex(detail => {
+            const sameModel = String(detail.modelId || '') === String(selectedStock.modelId || '');
+            const sameColor = String(detail.colorId || '') === String(selectedStock.colorId || '') ||
+                            String(detail.modelColorId || '') === String(selectedStock.modelColorId || '');
+            return sameModel && sameColor;
+        });
         
-        console.log('Detail Data to add locally:', detailData);
-        console.log('Selected Stock ALL fields:', selectedStock);
-        
-        // ⭐ Save to local state only - will send all to API when "Lưu đơn hàng"
-        const newDetail = {
-            // Temporary ID for frontend rendering
-            orderDetailId: Date.now(),
-            // Data to send to API later
-            ...detailData,
-            // Display info
-            modelName: selectedStock.modelName,
-            colorName: selectedStock.colorName
-        };
-        
-        // Add to local array
-        setOrderDetails([...orderDetails, newDetail]);
-        success('✅ Đã thêm sản phẩm! Nhấn "Lưu đơn hàng" để hoàn tất.');
+        if (existingDetailIndex >= 0) {
+            // Product already exists - increase quantity
+            const existingDetail = orderDetails[existingDetailIndex];
+            const newQuantity = existingDetail.quantity + quantity;
+            
+            // Check if new quantity exceeds stock
+            if (newQuantity > selectedStock.quantity) {
+                showError(`Số lượng tồn kho không đủ. Chỉ còn ${selectedStock.quantity} xe. (Đã có ${existingDetail.quantity} trong đơn hàng)`);
+                return;
+            }
+            
+            // Recalculate prices with new quantity
+            const newSubtotal = prices.unitPrice * newQuantity;
+            const newVat = newSubtotal * 0.1; // 10% VAT
+            const newFees = licensePlateFee + registrationFee;
+            const newDiscount = selectedPromotion ? calculateDiscount(newSubtotal, selectedPromotion) : 0;
+            const newTotal = newSubtotal + newVat + newFees - newDiscount;
+            
+            // Update existing detail
+            const updatedDetails = [...orderDetails];
+            updatedDetails[existingDetailIndex] = {
+                ...existingDetail,
+                quantity: newQuantity,
+                unitPrice: prices.unitPrice,
+                vatAmount: newVat,
+                licensePlateFee: licensePlateFee,
+                registrationFee: registrationFee,
+                discountAmount: newDiscount,
+                totalPrice: newTotal,
+                ...(selectedPromotion?.promotionId && { promotionId: selectedPromotion.promotionId })
+            };
+            
+            setOrderDetails(updatedDetails);
+            success(`✅ Đã tăng số lượng sản phẩm lên ${newQuantity}! Nhấn "Lưu đơn hàng" để hoàn tất.`);
+        } else {
+            // New product - add to list
+            const detailData = {
+                orderId: parseInt(orderId),
+                storeStockId: stockId,
+                unitPrice: prices.unitPrice,
+                quantity: quantity,
+                vatAmount: prices.vat,
+                licensePlateFee: licensePlateFee,
+                registrationFee: registrationFee,
+                discountAmount: prices.discount,
+                totalPrice: prices.total,
+                // Only add these optional fields if they have values
+                ...(selectedPromotion?.promotionId && { promotionId: selectedPromotion.promotionId }),
+                ...(selectedStock.modelId && { modelId: selectedStock.modelId }),
+                ...(selectedStock.modelColorId && { modelColorId: selectedStock.modelColorId }),
+                ...(selectedStock.colorId && { colorId: selectedStock.colorId })
+            };
+            
+            console.log('Detail Data to add locally:', detailData);
+            console.log('Selected Stock ALL fields:', selectedStock);
+            
+            // ⭐ Save to local state only - will send all to API when "Lưu đơn hàng"
+            const newDetail = {
+                // Temporary ID for frontend rendering
+                orderDetailId: Date.now(),
+                // Data to send to API later
+                ...detailData,
+                // Display info
+                modelName: selectedStock.modelName,
+                colorName: selectedStock.colorName
+            };
+            
+            // Add to local array
+            setOrderDetails([...orderDetails, newDetail]);
+            success('✅ Đã thêm sản phẩm! Nhấn "Lưu đơn hàng" để hoàn tất.');
+        }
         
         // Reset form
         resetForm();

@@ -44,6 +44,14 @@ export async function getAllUsers() {
     return request('/api/users/all', { method: 'GET' });
 }
 
+// Change password API
+export async function changePassword(passwordData) {
+    return request('/api/auth/change-password', { 
+        method: 'POST', 
+        body: passwordData 
+    });
+}
+
 // Logout (clear tokens)
 export function logout() {
     localStorage.removeItem('access_token');

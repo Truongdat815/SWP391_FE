@@ -56,7 +56,22 @@ function SignIn() {
         
         // Get user info from result
         const user = result.payload.user;
-        console.log('User info:', user); // Debug log
+        console.log('User info after login:', user); // Debug log
+        console.log('User status:', user.status); // Debug log
+        console.log('User status uppercase:', user.status?.toUpperCase()); // Debug log
+        
+        // Kiểm tra nếu user có status PENDING, redirect đến trang đổi mật khẩu
+        // Chỉ redirect nếu status thực sự là PENDING (không phải ACTIVE hoặc các status khác)
+        const userStatus = user.status ? user.status.toUpperCase().trim() : '';
+        if (userStatus === 'PENDING') {
+          console.log('User status is PENDING, redirecting to change password page');
+          setTimeout(() => {
+            navigate('/change-password');
+          }, 100);
+          return;
+        } else {
+          console.log('User status is NOT PENDING, proceeding to role-based navigation. Status:', userStatus);
+        }
         
         // Navigate based on role (corrected mapping)
         const roleRoutes = {
@@ -108,6 +123,7 @@ function SignIn() {
         
         console.log('User roleId:', user.roleId); // Debug log
         console.log('User roleName:', user.roleName); // Debug log
+        console.log('User status:', user.status); // Debug log
         console.log('Target route:', targetRoute); // Debug log
         console.log('Full user object:', user); // Debug log
         

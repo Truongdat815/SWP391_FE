@@ -46,6 +46,93 @@ import ModernButton from '../../components/ui/ModernButton';
 import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
 import EmptyState from '../../components/ui/EmptyState';
 
+// Helper function to aggregate order details with same modelId and colorId
+const aggregateOrderDetails = (details) => {
+  if (!details || details.length === 0) return [];
+  
+  console.log('🔍 Raw order details from backend:', details);
+  
+  const aggregatedMap = new Map();
+  
+  details.forEach((detail, index) => {
+    // Ensure we have valid modelId and colorId - try multiple field name variations
+    const modelId = String(detail.modelId || detail.model_id || detail.modelId || '');
+    const colorId = String(detail.colorId || detail.color_id || detail.colorId || '');
+    const key = `${modelId}-${colorId}`;
+    
+    console.log(`  Detail ${index}:`, {
+      modelId,
+      colorId,
+      quantity: detail.quantity,
+      totalPrice: detail.totalPrice || detail.total_price,
+      unitPrice: detail.unitPrice || detail.unit_price,
+      key
+    });
+    
+    // Skip if missing required fields
+    if (!modelId || !colorId || modelId === 'undefined' || colorId === 'undefined' || key === '-') {
+      console.warn('⚠️ Skipping detail with invalid modelId/colorId:', detail);
+      return;
+    }
+    
+    if (aggregatedMap.has(key)) {
+      // Aggregate with existing detail
+      const existing = aggregatedMap.get(key);
+      const newQuantity = (existing.quantity || 0) + (detail.quantity || 0);
+      const unitPrice = existing.unitPrice || detail.unitPrice || detail.unit_price || 0;
+      
+      console.log(`  Aggregating: existing qty=${existing.quantity}, new qty=${detail.quantity}, total=${newQuantity}`);
+      
+      // Aggregate VAT (should be proportional to quantity)
+      const newVatAmount = (existing.vatAmount || existing.vat_amount || 0) + (detail.vatAmount || detail.vat_amount || 0);
+      
+      // Aggregate discount (should be proportional to quantity)
+      const newDiscountAmount = (existing.discountAmount || existing.discount_amount || 0) + (detail.discountAmount || detail.discount_amount || 0);
+      
+      // Fees should NOT be multiplied - take from first detail only (fees are per order, not per item)
+      // Use the first detail's fees (existing), don't add from the new detail
+      const licensePlateFee = existing.licensePlateFee || existing.license_plate_fee || 0;
+      const registrationFee = existing.registrationFee || existing.registration_fee || 0;
+      
+      // Recalculate totalPrice from scratch to ensure it matches quantity=2 scenario:
+      // totalPrice = (unitPrice * newQuantity) + VAT + fees - discount
+      const subtotal = unitPrice * newQuantity;
+      const newTotalPrice = subtotal + newVatAmount + licensePlateFee + registrationFee - newDiscountAmount;
+      
+      console.log(`  Recalculated: unitPrice=${unitPrice}, qty=${newQuantity}, subtotal=${subtotal}, VAT=${newVatAmount}, fees=${licensePlateFee + registrationFee}, discount=${newDiscountAmount}, totalPrice=${newTotalPrice}`);
+      
+      aggregatedMap.set(key, {
+        ...existing,
+        quantity: newQuantity,
+        unitPrice: unitPrice,
+        vatAmount: newVatAmount,
+        discountAmount: newDiscountAmount,
+        licensePlateFee: licensePlateFee, // Keep from first, don't sum
+        registrationFee: registrationFee, // Keep from first, don't sum
+        totalPrice: newTotalPrice // Recalculated to match quantity=2 scenario
+      });
+    } else {
+      // First occurrence - keep as is, but normalize field names
+      aggregatedMap.set(key, {
+        ...detail,
+        quantity: detail.quantity || 0,
+        unitPrice: detail.unitPrice || detail.unit_price || 0,
+        vatAmount: detail.vatAmount || detail.vat_amount || 0,
+        discountAmount: detail.discountAmount || detail.discount_amount || 0,
+        licensePlateFee: detail.licensePlateFee || detail.license_plate_fee || 0,
+        registrationFee: detail.registrationFee || detail.registration_fee || 0,
+        totalPrice: detail.totalPrice || detail.total_price || 0,
+        modelId: modelId,
+        colorId: colorId
+      });
+    }
+  });
+  
+  const result = Array.from(aggregatedMap.values());
+  console.log('✅ Aggregated result:', result);
+  return result;
+};
+
 function ViewOrders() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -75,22 +162,27 @@ function ViewOrders() {
   const [ordersWithContracts, setOrdersWithContracts] = useState({}); // Map orderId -> contract
   const [creatingContract, setCreatingContract] = useState(null);
   // Thêm state và hàm sort
-  const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
+  const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest'
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const sortOrders = (arr, mode = 'newest') => {
     const getTime = (o) => new Date(o.orderDate || 0).getTime();
     const getId = (o) => Number(o.orderId || 0);
     const getName = (o) => (o.customerName || '').toLowerCase();
+    const getStatus = (o) => (o.status || '').toUpperCase();
     const byNewest = (a, b) => (getTime(b) - getTime(a)) || (getId(b) - getId(a));
     const byOldest = (a, b) => (getTime(a) - getTime(b)) || (getId(a) - getId(b));
     const byNameAsc = (a, b) => getName(a).localeCompare(getName(b), 'vi');
     const byNameDesc = (a, b) => getName(b).localeCompare(getName(a), 'vi');
+    const byStatusAsc = (a, b) => getStatus(a).localeCompare(getStatus(b));
+    const byStatusDesc = (a, b) => getStatus(b).localeCompare(getStatus(a));
     const copy = [...arr];
     switch (mode) {
       case 'oldest': return copy.sort(byOldest);
       case 'name-asc': return copy.sort(byNameAsc);
       case 'name-desc': return copy.sort(byNameDesc);
+      case 'status-asc': return copy.sort(byStatusAsc);
+      case 'status-desc': return copy.sort(byStatusDesc);
       case 'newest':
       default: return copy.sort(byNewest);
     }
@@ -134,16 +226,14 @@ function ViewOrders() {
 
   // Fetch orders from API based on filters (server-side filtering)
   useEffect(() => {
-    // Only show DRAFT and CONFIRMED orders
+    // Always fetch all orders, we'll do client-side sorting by status
     if (startDate && endDate) {
       dispatch(fetchOrdersByDateRange({ startDate, endDate }));
-    } else if (statusFilter !== 'all') {
-      dispatch(fetchOrdersByStatus(statusFilter));
     } else {
-      // Fetch all orders, but we'll filter to DRAFT and CONFIRMED
+      // Fetch all orders, we'll sort by status on client-side
       dispatch(fetchOrders());
     }
-  }, [dispatch, statusFilter, startDate, endDate]);
+  }, [dispatch, startDate, endDate]);
   
   // Update local orders state when Redux orders change
   useEffect(() => {
@@ -206,8 +296,31 @@ function ViewOrders() {
       });
     }
 
-    setFilteredOrders(sortOrders(filtered, sortMode));
-  }, [searchTerm, orders, sortMode]);
+    // Sort orders: if statusFilter is selected, prioritize that status first
+    let sorted = sortOrders(filtered, sortMode);
+    
+    // If a specific status is selected, sort to show that status first
+    if (statusFilter !== 'all') {
+      const selectedStatusUpper = statusFilter.toUpperCase();
+      sorted = sorted.sort((a, b) => {
+        const aStatus = (a.status || '').toUpperCase();
+        const bStatus = (b.status || '').toUpperCase();
+        
+        // If both have the selected status, maintain current sort order
+        if (aStatus === selectedStatusUpper && bStatus === selectedStatusUpper) {
+          return 0;
+        }
+        // If only a has the selected status, a comes first
+        if (aStatus === selectedStatusUpper) return -1;
+        // If only b has the selected status, b comes first
+        if (bStatus === selectedStatusUpper) return 1;
+        // If neither has the selected status, maintain current sort order
+        return 0;
+      });
+    }
+
+    setFilteredOrders(sorted);
+  }, [searchTerm, orders, sortMode, statusFilter]);
 
   const getStatusColor = (status) => {
     if (!status) return 'bg-gray-100 text-gray-800';
@@ -225,18 +338,9 @@ function ViewOrders() {
   };
 
   const getStatusText = (status) => {
-    if (!status) return 'Không xác định';
-    const upperStatus = status?.toUpperCase();
-    switch (upperStatus) {
-      case 'DRAFT': return 'Nháp';
-      case 'PENDING': return 'Chờ duyệt';
-      case 'APPROVED': return 'Đã phê duyệt';
-      case 'CONFIRMED': return 'Đã xác nhận';
-      case 'PROCESSING': return 'Đang xử lý';
-      case 'COMPLETED': return 'Hoàn thành';
-      case 'CANCELLED': return 'Đã hủy';
-      default: return status || 'N/A';
-    }
+    if (!status) return status || 'N/A';
+    // Return status in English as from API response
+    return status.toUpperCase();
   };
 
 
@@ -262,20 +366,11 @@ function ViewOrders() {
         console.log('ℹ️ Order has no products yet');
         setSelectedOrderDetails([]);
       } else {
-        // Filter duplicates by modelId and colorId combination
-        // Use a Map to track unique combinations and keep the first occurrence
-        const uniqueDetailsMap = new Map();
-        orderDetails.forEach((detail) => {
-          const key = `${detail.modelId}-${detail.colorId}`;
-          if (!uniqueDetailsMap.has(key)) {
-            uniqueDetailsMap.set(key, detail);
-          }
-        });
-        
-        const uniqueDetails = Array.from(uniqueDetailsMap.values());
+        // Aggregate details with same modelId and colorId (in case quantity was increased)
+        const aggregatedDetails = aggregateOrderDetails(orderDetails);
         console.log('✅ Found product details in order:', orderDetails);
-        console.log('✅ Filtered unique details:', uniqueDetails);
-        setSelectedOrderDetails(uniqueDetails);
+        console.log('✅ Aggregated details:', aggregatedDetails);
+        setSelectedOrderDetails(aggregatedDetails);
       }
     } catch (error) {
       console.error('⚠️ Error loading order:', error);
@@ -509,13 +604,13 @@ function ViewOrders() {
                 >
                   <span className="text-gray-700 text-sm">
                     {statusFilter === 'all' ? 'Tất cả trạng thái' :
-                     statusFilter === 'draft' ? 'Nháp' :
-                     statusFilter === 'approved' ? 'Đã phê duyệt' :
-                     statusFilter === 'pending' ? 'Chờ duyệt' :
-                     statusFilter === 'confirmed' ? 'Đã xác nhận' :
-                     statusFilter === 'processing' ? 'Đang xử lý' :
-                     statusFilter === 'completed' ? 'Hoàn thành' :
-                     statusFilter === 'cancelled' ? 'Đã hủy' : 'Tất cả trạng thái'}
+                     statusFilter === 'draft' ? 'DRAFT' :
+                     statusFilter === 'approved' ? 'APPROVED' :
+                     statusFilter === 'pending' ? 'PENDING' :
+                     statusFilter === 'confirmed' ? 'CONFIRMED' :
+                     statusFilter === 'processing' ? 'PROCESSING' :
+                     statusFilter === 'completed' ? 'COMPLETED' :
+                     statusFilter === 'cancelled' ? 'CANCELLED' : 'Tất cả trạng thái'}
                   </span>
                   <motion.svg
                     animate={{ rotate: showStatusDropdown ? 180 : 0 }}
@@ -544,13 +639,13 @@ function ViewOrders() {
                       <div className="py-1 max-h-60 overflow-y-auto">
                         {[
                           { value: 'all', label: 'Tất cả trạng thái' },
-                          { value: 'draft', label: 'Nháp' },
-                          { value: 'approved', label: 'Đã phê duyệt' },
-                          { value: 'pending', label: 'Chờ duyệt' },
-                          { value: 'confirmed', label: 'Đã xác nhận' },
-                          { value: 'processing', label: 'Đang xử lý' },
-                          { value: 'completed', label: 'Hoàn thành' },
-                          { value: 'cancelled', label: 'Đã hủy' }
+                          { value: 'draft', label: 'DRAFT' },
+                          { value: 'approved', label: 'APPROVED' },
+                          { value: 'pending', label: 'PENDING' },
+                          { value: 'confirmed', label: 'CONFIRMED' },
+                          { value: 'processing', label: 'PROCESSING' },
+                          { value: 'completed', label: 'COMPLETED' },
+                          { value: 'cancelled', label: 'CANCELLED' }
                         ].map((option, index) => (
                           <motion.button
                             key={option.value}
@@ -589,9 +684,7 @@ function ViewOrders() {
                 >
                   <span className="text-gray-700 text-sm">
                     {sortMode === 'newest' ? 'Đơn hàng mới nhất' :
-                     sortMode === 'oldest' ? 'Đơn hàng cũ nhất' :
-                     sortMode === 'name-asc' ? 'Tên KH A → Z' :
-                     sortMode === 'name-desc' ? 'Tên KH Z → A' : 'Đơn hàng mới nhất'}
+                     sortMode === 'oldest' ? 'Đơn hàng cũ nhất' : 'Đơn hàng mới nhất'}
                   </span>
                   <motion.svg
                     animate={{ rotate: showSortDropdown ? 180 : 0 }}
@@ -620,9 +713,7 @@ function ViewOrders() {
                       <div className="py-1">
                         {[
                           { value: 'newest', label: 'Đơn hàng mới nhất' },
-                          { value: 'oldest', label: 'Đơn hàng cũ nhất' },
-                          { value: 'name-asc', label: 'Tên KH A → Z' },
-                          { value: 'name-desc', label: 'Tên KH Z → A' }
+                          { value: 'oldest', label: 'Đơn hàng cũ nhất' }
                         ].map((option, index) => (
                           <motion.button
                             key={option.value}
@@ -713,14 +804,28 @@ function ViewOrders() {
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Từ ngày
                     </label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      onKeyDown={(e) => e.preventDefault()}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer transition-shadow text-sm"
-                      placeholder="Chọn ngày"
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        onKeyDown={(e) => e.preventDefault()}
+                        className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer transition-shadow text-sm ${
+                          startDate 
+                            ? 'text-gray-900 [&::-webkit-datetime-edit-text]:opacity-100 [&::-webkit-datetime-edit-month-field]:opacity-100 [&::-webkit-datetime-edit-day-field]:opacity-100 [&::-webkit-datetime-edit-year-field]:opacity-100' 
+                            : '[&::-webkit-datetime-edit-text]:opacity-0 [&::-webkit-datetime-edit-month-field]:opacity-0 [&::-webkit-datetime-edit-day-field]:opacity-0 [&::-webkit-datetime-edit-year-field]:opacity-0'
+                        }`}
+                        style={{ 
+                          color: startDate ? '#111827' : 'transparent',
+                          position: 'relative'
+                        }}
+                      />
+                      {!startDate && (
+                        <div className="absolute inset-0 flex items-center pointer-events-none px-2.5 text-gray-400 text-sm">
+                          dd/mm/yyyy
+                        </div>
+                      )}
+                    </div>
                   </motion.div>
                   <motion.div 
                     initial={{ opacity: 0, x: -15 }}
@@ -732,14 +837,28 @@ function ViewOrders() {
                     <label className="block text-xs font-medium text-gray-700 mb-1">
                       Đến ngày
                     </label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      onKeyDown={(e) => e.preventDefault()}
-                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer transition-shadow text-sm"
-                      placeholder="Chọn ngày"
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        onKeyDown={(e) => e.preventDefault()}
+                        className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer transition-shadow text-sm ${
+                          endDate 
+                            ? 'text-gray-900 [&::-webkit-datetime-edit-text]:opacity-100 [&::-webkit-datetime-edit-month-field]:opacity-100 [&::-webkit-datetime-edit-day-field]:opacity-100 [&::-webkit-datetime-edit-year-field]:opacity-100' 
+                            : '[&::-webkit-datetime-edit-text]:opacity-0 [&::-webkit-datetime-edit-month-field]:opacity-0 [&::-webkit-datetime-edit-day-field]:opacity-0 [&::-webkit-datetime-edit-year-field]:opacity-0'
+                        }`}
+                        style={{ 
+                          color: endDate ? '#111827' : 'transparent',
+                          position: 'relative'
+                        }}
+                      />
+                      {!endDate && (
+                        <div className="absolute inset-0 flex items-center pointer-events-none px-2.5 text-gray-400 text-sm">
+                          dd/mm/yyyy
+                        </div>
+                      )}
+                    </div>
                   </motion.div>
                   <motion.div 
                     initial={{ opacity: 0, x: -15 }}

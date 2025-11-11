@@ -194,10 +194,15 @@ function PaymentManagement() {
     }
   }, [location]);
 
-  // Filter contracts that have signed contract file uploaded
-  const contractsWithSignedImage = (contracts || []).filter(
-    contract => contract.contractFileUrl
-  );
+  // Filter contracts that have signed contract file uploaded and sort from newest to oldest
+  const contractsWithSignedImage = (contracts || [])
+    .filter(contract => contract.contractFileUrl)
+    .sort((a, b) => {
+      // Sort from newest to oldest by contractDate or createdAt
+      const dateA = new Date(a.contractDate || a.createdAt || 0);
+      const dateB = new Date(b.contractDate || b.createdAt || 0);
+      return dateB - dateA; // Descending order (newest first)
+    });
 
   // Calculate summary statistics
   const totalRevenue = contractsWithSignedImage.reduce(

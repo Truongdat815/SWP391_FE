@@ -43,7 +43,6 @@ function VehicleManagement() {
   const [sortBy, setSortBy] = useState('modelName');
   const [sortOrder, setSortOrder] = useState('asc');
   const [filterBodyType, setFilterBodyType] = useState('');
-  const [priceRange, setPriceRange] = useState([0, 200000]);
 
   const [formData, setFormData] = useState({
     modelName: '',
@@ -55,7 +54,6 @@ function VehicleManagement() {
     torqueNm: '',
     acceleration: '',
     seatingCapacity: 5,
-    price: '',
     description: '',
   });
 
@@ -74,7 +72,6 @@ function VehicleManagement() {
       torqueNm: '',
       acceleration: '',
       seatingCapacity: 5,
-      price: '',
       description: '',
     });
   };
@@ -97,7 +94,6 @@ function VehicleManagement() {
       torqueNm: model.torqueNm || '',
       acceleration: model.acceleration || '',
       seatingCapacity: model.seatingCapacity || 5,
-      price: model.price || '',
       description: model.description || '',
     });
     setIsModalOpen(true);
@@ -168,10 +164,7 @@ function VehicleManagement() {
       
       const matchesBodyType = !filterBodyType || model.bodyType === filterBodyType;
       
-      const matchesPrice = !model.price || 
-        (model.price >= priceRange[0] && model.price <= priceRange[1]);
-      
-      return matchesSearch && matchesBodyType && matchesPrice;
+      return matchesSearch && matchesBodyType;
     });
 
     // Sort
@@ -191,10 +184,10 @@ function VehicleManagement() {
     });
 
     return filtered;
-  }, [models, searchTerm, filterBodyType, priceRange, sortBy, sortOrder]);
+  }, [models, searchTerm, filterBodyType, sortBy, sortOrder]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-green-50 p-4 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-green-50">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -230,7 +223,7 @@ function VehicleManagement() {
       <div className="max-w-7xl mx-auto">
         {/* Modern Header */}
         <div className="mb-8">
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-8">
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-4">
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="flex items-center gap-4">
                 <div className="p-3 bg-gradient-to-r from-green-600 to-green-700 rounded-lg">
@@ -309,8 +302,6 @@ function VehicleManagement() {
               >
                 <option value="modelName-asc">Tên A-Z</option>
                 <option value="modelName-desc">Tên Z-A</option>
-                <option value="price-asc">Giá thấp-cao</option>
-                <option value="price-desc">Giá cao-thấp</option>
                 <option value="modelYear-desc">Năm mới nhất</option>
                 <option value="modelYear-asc">Năm cũ nhất</option>
               </select>
@@ -355,7 +346,6 @@ function VehicleManagement() {
                   setFilterBodyType('');
                   setSortBy('modelName');
                   setSortOrder('asc');
-                  setPriceRange([0, 200000]);
                 }}
                 className="w-full px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center justify-center gap-2"
               >
@@ -417,17 +407,11 @@ function VehicleManagement() {
                     >
                       {/* Card Header */}
                       <div className="bg-gradient-to-r from-green-600 to-green-700 p-4 text-white">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="text-xl font-bold mb-1">{model.modelName}</h3>
-                            <p className="text-blue-100">
-                              {BODY_TYPES.find(t => t.value === model.bodyType)?.label || model.bodyType} • {model.modelYear}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-2xl font-bold">{model.price?.toLocaleString('vi-VN')} VNĐ</div>
-                            <div className="text-blue-100 text-sm">Giá bán</div>
-                          </div>
+                        <div>
+                          <h3 className="text-xl font-bold mb-1">{model.modelName}</h3>
+                          <p className="text-blue-100">
+                            {BODY_TYPES.find(t => t.value === model.bodyType)?.label || model.bodyType} • {model.modelYear}
+                          </p>
                         </div>
                       </div>
 
@@ -510,7 +494,6 @@ function VehicleManagement() {
                         <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Loại</th>
                         <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Pin (kWh)</th>
                         <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Tầm xa (km)</th>
-                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Giá (VNĐ)</th>
                         <th className="px-3 py-2.5 text-right text-sm font-semibold text-gray-700">Thao tác</th>
                       </tr>
                     </thead>
@@ -535,9 +518,6 @@ function VehicleManagement() {
                             </td>
                             <td className="px-3 py-2.5 text-gray-600">{model.batteryCapacity}</td>
                             <td className="px-3 py-2.5 text-gray-600">{model.range}</td>
-                            <td className="px-3 py-2.5">
-                              <span className="font-bold text-gray-900">{model.price?.toLocaleString('vi-VN')} VNĐ</span>
-                            </td>
                             <td className="px-3 py-2.5 text-right">
                               <div className="flex items-center justify-end gap-3">
                                 <button
@@ -848,38 +828,18 @@ function VehicleManagement() {
                     </div>
                   </div>
 
-                  {/* Pricing & Additional Info */}
+                  {/* Additional Info */}
                   <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-md">
                     <div className="flex items-center gap-3 mb-4">
                       <div className="p-2 bg-amber-100 rounded-lg">
                         <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </div>
-                      <h4 className="text-lg font-semibold text-gray-800">Giá bán & Mô tả</h4>
+                      <h4 className="text-lg font-semibold text-gray-800">Mô tả</h4>
                     </div>
                     
-                    <div className="space-y-6">
-                      {/* Price */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">
-                          Giá bán (VNĐ) <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            step="1000"
-                            value={formData.price}
-                            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                            onWheel={handleWheelOnNumberInput}
-                            className="w-full pl-4 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
-                            required
-                            min={1000}
-                            placeholder="450000000"
-                          />
-                        </div>
-                      </div>
-
+                    <div>
                       {/* Description */}
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-3">

@@ -2,18 +2,6 @@ import { motion } from 'framer-motion';
 import { statusColors } from '../../styles/designSystem';
 
 const StatusBadge = ({ status, size = 'md' }) => {
-  const statusMap = {
-    'ACTIVE': 'Hoạt động',
-    'INACTIVE': 'Không hoạt động',
-    'PENDING': 'Chờ duyệt',
-    'CONFIRMED': 'Đã xác nhận',
-    'COMPLETED': 'Hoàn thành',
-    'CANCELLED': 'Đã hủy',
-    'DRAFT': 'Nháp',
-    'APPROVED': 'Đã phê duyệt',
-    'PROCESSING': 'Đang xử lý'
-  };
-
   const sizes = {
     sm: 'px-2 py-1 text-xs',
     md: 'px-3 py-1.5 text-sm',
@@ -22,7 +10,8 @@ const StatusBadge = ({ status, size = 'md' }) => {
 
   const upperStatus = status?.toUpperCase();
   const colorConfig = statusColors[upperStatus] || statusColors.PENDING;
-  const text = statusMap[upperStatus] || status;
+  // Return status in English as from API response
+  const text = upperStatus || status || 'N/A';
 
   return (
     <motion.span

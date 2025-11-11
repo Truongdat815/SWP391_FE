@@ -7,6 +7,7 @@ import CarDetail from './pages/public/CarDetail'
 import Dealers from './pages/public/Dealers'
 import DealerDetail from './pages/public/DealerDetail'
 import SignIn from './pages/auth/SignIn'
+import ChangePassword from './pages/auth/ChangePassword'
 import ProtectedRoute from './components/ProtectedRoute'
 import { AuthProvider } from './contexts/AuthContext'
 import Snackbar from './components/Snackbar'
@@ -23,6 +24,7 @@ import CommonSettings from './pages/common/CommonSettings'
 import CommonHelp from './pages/common/CommonHelp'
 
 // Dealer Manager Sub Pages
+import DealerManagerDashboard from './pages/dealerManager/DealerManagerDashboard'
 import TaoBaoCao from './pages/dealerManager/TaoBaoCao'
 import BaoCaoDoanhSo from './pages/dealerManager/BaoCaoDoanhSo'
 import XuatBaoCao from './pages/dealerManager/XuatBaoCao'
@@ -34,6 +36,7 @@ import DealerManagerOrders from './pages/dealerManager/OrderManagement'
 import PromotionManagement from './pages/dealerManager/PromotionManagement'
 
 // Dealer Staff Sub Pages
+import DealerStaffDashboard from './pages/dealerStaff/DealerStaffDashboard'
 import QuoteOrderManagement from './pages/dealerStaff/QuoteOrderManagement'
 import ViewOrders from './pages/dealerStaff/ViewOrders'
 import CreateOrder from './pages/dealerStaff/CreateOrder'
@@ -51,6 +54,7 @@ import CarComparison from './pages/dealerStaff/CarComparison'
 import FeedbackManagement from './pages/dealerStaff/FeedbackManagement'
 
 // EVM Staff Sub Pages
+import EVMStaffDashboard from './pages/EvmStaff/EVMStaffDashboard'
 import ProductManagement from './pages/EvmStaff/ProductManagement'
 import VehicleManagement from './pages/EvmStaff/VehicleManagement'
 import DealerOrderManagement from './pages/EvmStaff/DealerOrderManagement'
@@ -106,6 +110,13 @@ function AnimatedRoutes() {
           {/* Login Route without Header/Footer */}
           <Route path="/signin" element={<PageTransition><SignIn /></PageTransition>} />
           
+          {/* Change Password Route - Protected (requires authentication) */}
+          <Route path="/change-password" element={
+            <ProtectedRoute>
+              <PageTransition><ChangePassword /></PageTransition>
+            </ProtectedRoute>
+          } />
+          
           {/* Admin Routes - Protected */}
           <Route path="/admin" element={
             <ProtectedRoute requiredRole="admin">
@@ -127,7 +138,8 @@ function AnimatedRoutes() {
               <DealerStaffLayout />
             </ProtectedRoute>
           }>
-            <Route index element={<Navigate to="/dealer-staff/order-management" replace />} />
+            <Route index element={<Navigate to="/dealer-staff/dashboard" replace />} />
+            <Route path="dashboard" element={<DealerStaffDashboard />} />
             <Route path="order-management" element={<OrderManagement />} />
             {/* Legacy routes - redirect to new combined pages */}
             <Route path="create-order" element={<Navigate to="/dealer-staff/order-management" replace />} />
@@ -155,7 +167,8 @@ function AnimatedRoutes() {
               <DealerManagerLayout />
             </ProtectedRoute>
           }>
-            <Route index element={<Navigate to="/dealer-manager/inventory" replace />} />
+            <Route index element={<Navigate to="/dealer-manager/dashboard" replace />} />
+            <Route path="dashboard" element={<DealerManagerDashboard />} />
             <Route path="inventory" element={<DealerManagerInventory />} />
             <Route path="orders" element={<DealerManagerOrders />} />
             <Route path="promotion-management" element={<PromotionManagement />} />
@@ -175,7 +188,8 @@ function AnimatedRoutes() {
               <EVMStaffLayout />
             </ProtectedRoute>
           }>
-            <Route index element={<Navigate to="/evm-staff/vehicle-management" replace />} />
+            <Route index element={<Navigate to="/evm-staff/dashboard" replace />} />
+            <Route path="dashboard" element={<EVMStaffDashboard />} />
             <Route path="product-management" element={<ProductManagement />} />
             <Route path="vehicle-management" element={<VehicleManagement />} />
             <Route path="dealer-orders" element={<DealerOrderManagement />} />

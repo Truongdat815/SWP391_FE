@@ -43,4 +43,8 @@ export async function deleteUser(userId) {
     return request(`/api/users/delete/${encodeURIComponent(userId)}`, { method: 'DELETE' });
 }
 
+export async function getCurrentUser() {
+    return request('/api/users/me', { method: 'GET' });
+}
+
 

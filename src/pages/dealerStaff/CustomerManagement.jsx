@@ -571,18 +571,9 @@ function CustomerManagement() {
   };
 
   const getStatusText = (status) => {
-    if (!status) return 'Không xác định';
-    const upperStatus = status?.toUpperCase();
-    switch (upperStatus) {
-      case 'DRAFT': return 'Nháp';
-      case 'PENDING': return 'Chờ duyệt';
-      case 'APPROVED': return 'Đã phê duyệt';
-      case 'CONFIRMED': return 'Đã xác nhận';
-      case 'PROCESSING': return 'Đang xử lý';
-      case 'COMPLETED': return 'Hoàn thành';
-      case 'CANCELLED': return 'Đã hủy';
-      default: return status || 'N/A';
-    }
+    if (!status) return status || 'N/A';
+    // Return status in English as from API response
+    return status.toUpperCase();
   };
 
   // Hàm lọc khách hàng theo search term
@@ -651,9 +642,9 @@ function CustomerManagement() {
         onCancel={confirm.onCancel}
       />
 
-      <div className="px-4 space-y-3">
+      <div className="space-y-4">
       {/* Header */}
-      <div className="bg-gradient-to-r from-white to-gray-50 rounded-lg shadow-md border border-gray-100 p-3">
+      <div className="bg-gradient-to-r from-white to-gray-50 rounded-lg shadow-md border border-gray-100 p-4">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
@@ -753,7 +744,7 @@ function CustomerManagement() {
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3">
+      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-4">
         <div className="flex flex-col md:flex-row gap-3">
           <div className="flex-1">
             <div className="relative group">
@@ -791,7 +782,7 @@ function CustomerManagement() {
         <div className="overflow-x-auto">
           {isCustomersFetching && <SkeletonTable />}
           {!isCustomersFetching && customersError && (
-            <div className="p-3 text-xs text-red-600 bg-red-50 rounded-lg border border-red-200">
+            <div className="p-4 text-xs text-red-600 bg-red-50 rounded-lg border border-red-200">
               ❌ Lỗi tải danh sách: {String(customersError?.error || customersError?.data || 'Unknown error')}
             </div>
           )}

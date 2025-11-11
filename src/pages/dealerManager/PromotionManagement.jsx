@@ -5,6 +5,7 @@ import {
   fetchPromotions,
   fetchActivePromotions,
   createNewPromotion,
+  createNewPromotionForAllModels,
   updatePromotionById,
   deletePromotionById,
   clearError,
@@ -119,7 +120,59 @@ function PromotionManagement() {
       filtered = filtered.filter(promo => promo.promotionType === typeFilter);
     }
 
-    setFilteredPromotions(filtered);
+    // Group promotions by name and details, if there's one with modelId = 0, only show that one
+    const groupedPromotions = new Map();
+    filtered.forEach(promo => {
+      // Create a unique key based on promotion details (excluding modelId)
+      const key = `${promo.promotionName || ''}_${promo.promotionType || ''}_${promo.amount || 0}_${promo.startDate || ''}_${promo.endDate || ''}_${promo.storeId || 0}`;
+      
+      if (!groupedPromotions.has(key)) {
+        groupedPromotions.set(key, []);
+      }
+      groupedPromotions.get(key).push(promo);
+    });
+
+    // For each group, if there's a promotion with modelId = 0, only keep that one
+    // If multiple promotions with same details but different modelIds (and no modelId = 0),
+    // create a summary promotion with modelId = 0 to represent "Tất cả model"
+    const finalFiltered = [];
+    const seenPromotionKeys = new Set();
+    
+    groupedPromotions.forEach((group, key) => {
+      // First, check if there's a promotion with modelId = 0
+      const allModelsPromo = group.find(p => p.modelId === 0 || p.modelId === null);
+      if (allModelsPromo) {
+        // If there's a promotion for all models, only show that one
+        if (!seenPromotionKeys.has(key)) {
+          finalFiltered.push(allModelsPromo);
+          seenPromotionKeys.add(key);
+        }
+      } else if (group.length > 1) {
+        // If multiple promotions with same details but different modelIds (and no modelId = 0)
+        // Create a summary promotion with modelId = 0 to represent "Tất cả model"
+        if (!seenPromotionKeys.has(key)) {
+          const firstPromo = group[0];
+          const summaryPromo = {
+            ...firstPromo,
+            modelId: 0,
+            // Use the first promotion's ID or create a composite key
+            promotionId: firstPromo.promotionId || `summary_${key}`,
+            // Store all related promotion IDs for deletion
+            relatedPromotionIds: group.map(p => p.promotionId).filter(id => id && !id.toString().startsWith('summary_'))
+          };
+          finalFiltered.push(summaryPromo);
+          seenPromotionKeys.add(key);
+        }
+      } else {
+        // Single promotion in group, show it normally
+        if (!seenPromotionKeys.has(key)) {
+          finalFiltered.push(group[0]);
+          seenPromotionKeys.add(key);
+        }
+      }
+    });
+
+    setFilteredPromotions(finalFiltered);
   }, [promotions, searchTerm, statusFilter, typeFilter]);
 
   // Clear messages after 3s
@@ -137,13 +190,58 @@ function PromotionManagement() {
     }
   }, [error, dispatch]);
 
+  // Format currency: 50000000 -> 50.000.000
+  const formatCurrency = (value) => {
+    if (!value && value !== 0) return '';
+    // Remove all non-digit characters
+    const numericValue = String(value).replace(/\D/g, '');
+    // Add dots as thousand separators
+    return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  // Parse currency: "50.000.000" -> 50000000
+  const parseCurrency = (value) => {
+    if (!value) return '';
+    // Remove all non-digit characters
+    return value.replace(/\D/g, '');
+  };
+
   // Form handlers
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: type === 'checkbox' ? checked : value
-    }));
+    
+    // If changing promotionType, format amount accordingly
+    if (name === 'promotionType') {
+      setFormData(prev => {
+        let newAmount = prev.amount;
+        // If switching to FIXED_AMOUNT and amount exists, format it
+        if (value === 'FIXED_AMOUNT' && prev.amount) {
+          newAmount = formatCurrency(prev.amount);
+        }
+        // If switching to PERCENTAGE and amount is formatted, remove dots
+        else if (value === 'PERCENTAGE' && prev.amount) {
+          newAmount = parseCurrency(prev.amount);
+        }
+        return {
+          ...prev,
+          [name]: value,
+          amount: newAmount
+        };
+      });
+    }
+    // If changing amount and promotionType is FIXED_AMOUNT, format it
+    else if (name === 'amount' && formData.promotionType === 'FIXED_AMOUNT') {
+      const formatted = formatCurrency(value);
+      setFormData(prev => ({
+        ...prev,
+        [name]: formatted
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
+      }));
+    }
   };
 
   const resetForm = () => {
@@ -151,7 +249,7 @@ function PromotionManagement() {
       promotionName: '',
       description: '',
       promotionType: 'PERCENTAGE',
-      amount: 0,
+      amount: '',
       startDate: '',
       endDate: '',
       modelId: 0,
@@ -163,12 +261,30 @@ function PromotionManagement() {
   const handleAddPromotion = async (e) => {
     e.preventDefault();
     try {
-      await dispatch(createNewPromotion({
+      // Parse amount: if FIXED_AMOUNT, remove dots; otherwise use as is
+      let parsedAmount = formData.amount;
+      if (formData.promotionType === 'FIXED_AMOUNT') {
+        parsedAmount = parseFloat(parseCurrency(formData.amount)) || 0;
+      } else {
+        parsedAmount = parseFloat(formData.amount) || 0;
+      }
+
+      const promotionData = {
         ...formData,
-        amount: parseFloat(formData.amount),
+        amount: parsedAmount,
         modelId: parseInt(formData.modelId) || 0,
         storeId: userStoreId // Add storeId from user context
-      })).unwrap();
+      };
+
+      // If modelId is 0 (Tất cả các model), call create-for-all-models API once
+      // This API will create promotions for all models automatically on the backend
+      if (promotionData.modelId === 0) {
+        await dispatch(createNewPromotionForAllModels(promotionData)).unwrap();
+      } else {
+        // Create single promotion for specific model using regular create API
+        await dispatch(createNewPromotion(promotionData)).unwrap();
+      }
+      
       resetForm();
       setShowAddModal(false);
       dispatch(fetchPromotions());
@@ -180,11 +296,16 @@ function PromotionManagement() {
   // Edit promotion
   const handleEditClick = (promotion) => {
     setSelectedPromotion(promotion);
+    // Format amount if it's FIXED_AMOUNT
+    const formattedAmount = promotion.promotionType === 'FIXED_AMOUNT' && promotion.amount
+      ? formatCurrency(promotion.amount)
+      : promotion.amount || '';
+
     setFormData({
       promotionName: promotion.promotionName,
       description: promotion.description,
       promotionType: promotion.promotionType,
-      amount: promotion.amount,
+      amount: formattedAmount,
       startDate: promotion.startDate?.split('T')[0] || '',
       endDate: promotion.endDate?.split('T')[0] || '',
       modelId: promotion.modelId || 0,
@@ -198,11 +319,19 @@ function PromotionManagement() {
     if (!selectedPromotion) return;
     
     try {
+      // Parse amount: if FIXED_AMOUNT, remove dots; otherwise use as is
+      let parsedAmount = formData.amount;
+      if (formData.promotionType === 'FIXED_AMOUNT') {
+        parsedAmount = parseFloat(parseCurrency(formData.amount)) || 0;
+      } else {
+        parsedAmount = parseFloat(formData.amount) || 0;
+      }
+
       await dispatch(updatePromotionById({
         promotionId: selectedPromotion.promotionId,
         promotionData: {
           ...formData,
-          amount: parseFloat(formData.amount),
+          amount: parsedAmount,
           modelId: parseInt(formData.modelId) || 0,
           storeId: userStoreId // Add storeId from user context
         }
@@ -226,7 +355,55 @@ function PromotionManagement() {
     if (!selectedPromotion) return;
     
     try {
-      await dispatch(deletePromotionById(selectedPromotion.promotionId)).unwrap();
+      let promotionIdsToDelete = [];
+      
+      // If it's a summary promotion (modelId = 0) with relatedPromotionIds, use those
+      if ((selectedPromotion.modelId === 0 || selectedPromotion.modelId === null) && selectedPromotion.relatedPromotionIds) {
+        promotionIdsToDelete = selectedPromotion.relatedPromotionIds;
+      } else {
+        // Normalize dates for comparison
+        const normalizedStartDate = normalizeDateString(selectedPromotion.startDate);
+        const normalizedEndDate = normalizeDateString(selectedPromotion.endDate);
+        
+        // Find all promotions with the same name and details (regardless of modelId)
+        const relatedPromotions = promotions.filter(promo => {
+          // Skip summary promotions when searching
+          if (promo.promotionId && promo.promotionId.toString().startsWith('summary_')) {
+            return false;
+          }
+          
+          const promoNormalizedStartDate = normalizeDateString(promo.startDate);
+          const promoNormalizedEndDate = normalizeDateString(promo.endDate);
+          
+          return promo.promotionName === selectedPromotion.promotionName &&
+                 promo.promotionType === selectedPromotion.promotionType &&
+                 promo.amount === selectedPromotion.amount &&
+                 promoNormalizedStartDate === normalizedStartDate &&
+                 promoNormalizedEndDate === normalizedEndDate &&
+                 promo.storeId === selectedPromotion.storeId;
+        });
+        
+        // If it's a summary promotion or there are multiple related promotions, delete all
+        if ((selectedPromotion.modelId === 0 || selectedPromotion.modelId === null) || relatedPromotions.length > 1) {
+          promotionIdsToDelete = relatedPromotions.map(p => p.promotionId).filter(id => id);
+        } else {
+          // Delete single promotion for specific model
+          if (selectedPromotion.promotionId && !selectedPromotion.promotionId.toString().startsWith('summary_')) {
+            promotionIdsToDelete = [selectedPromotion.promotionId];
+          }
+        }
+      }
+      
+      console.log('Promotion IDs to delete:', promotionIdsToDelete);
+      
+      // Delete all promotions
+      if (promotionIdsToDelete.length > 0) {
+        const deletePromises = promotionIdsToDelete.map(promotionId => 
+          dispatch(deletePromotionById(promotionId)).unwrap()
+        );
+        await Promise.all(deletePromises);
+      }
+      
       setShowDeleteModal(false);
       setSelectedPromotion(null);
       dispatch(fetchPromotions());
@@ -295,6 +472,39 @@ function PromotionManagement() {
       return `${amount}%`;
     }
     return `${amount.toLocaleString()}đ`;
+  };
+
+  // Format date to dd/mm/yyyy
+  const formatDate = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  // Normalize date string for comparison (remove time part, keep only date)
+  const normalizeDateString = (dateString) => {
+    if (!dateString) return '';
+    // If date string includes time, extract only date part
+    if (dateString.includes('T')) {
+      return dateString.split('T')[0];
+    }
+    // If date string is in format YYYY-MM-DD, return as is
+    if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateString;
+    }
+    // Try to parse and format as YYYY-MM-DD
+    try {
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch {
+      return dateString;
+    }
   };
 
   return (
@@ -528,15 +738,15 @@ function PromotionManagement() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">
-                          {new Date(promotion.startDate).toLocaleDateString('vi-VN')}
+                          {formatDate(promotion.startDate)}
                         </div>
                         <div className="text-xs text-gray-500">
-                          đến {new Date(promotion.endDate).toLocaleDateString('vi-VN')}
+                          đến {formatDate(promotion.endDate)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {promotion.modelId === 0 ? (
-                          <span className="text-emerald-600 font-medium">Tất cả</span>
+                          <span className="text-emerald-600 font-medium">Tất cả model</span>
                         ) : (
                           models.find(m => m.modelId === promotion.modelId)?.modelName || 'N/A'
                         )}
@@ -653,17 +863,29 @@ function PromotionManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Giá trị {formData.promotionType === 'PERCENTAGE' ? '(%)' : '(VNĐ)'} <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="number"
-                      name="amount"
-                      value={formData.amount}
-                      onChange={handleInputChange}
-                      required
-                      min="0"
-                      max={formData.promotionType === 'PERCENTAGE' ? '100' : undefined}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                      placeholder={formData.promotionType === 'PERCENTAGE' ? 'VD: 10' : 'VD: 5000000'}
-                    />
+                    {formData.promotionType === 'FIXED_AMOUNT' ? (
+                      <input
+                        type="text"
+                        name="amount"
+                        value={formData.amount}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        placeholder="VD: 50.000.000"
+                      />
+                    ) : (
+                      <input
+                        type="number"
+                        name="amount"
+                        value={formData.amount}
+                        onChange={handleInputChange}
+                        required
+                        min="0"
+                        max="100"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        placeholder="VD: 10"
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -673,28 +895,58 @@ function PromotionManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Ngày bắt đầu <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="date"
-                      name="startDate"
-                      value={formData.startDate}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        name="startDate"
+                        value={formData.startDate}
+                        onChange={handleInputChange}
+                        required
+                        className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
+                          formData.startDate 
+                            ? 'text-gray-900 [&::-webkit-datetime-edit-text]:opacity-100 [&::-webkit-datetime-edit-month-field]:opacity-100 [&::-webkit-datetime-edit-day-field]:opacity-100 [&::-webkit-datetime-edit-year-field]:opacity-100' 
+                            : '[&::-webkit-datetime-edit-text]:opacity-0 [&::-webkit-datetime-edit-month-field]:opacity-0 [&::-webkit-datetime-edit-day-field]:opacity-0 [&::-webkit-datetime-edit-year-field]:opacity-0'
+                        }`}
+                        style={{ 
+                          color: formData.startDate ? '#111827' : 'transparent',
+                          position: 'relative'
+                        }}
+                      />
+                      {!formData.startDate && (
+                        <div className="absolute inset-0 flex items-center pointer-events-none px-3 text-gray-400 text-sm">
+                          dd/mm/yyyy
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Ngày kết thúc <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="date"
-                      name="endDate"
-                      value={formData.endDate}
-                      onChange={handleInputChange}
-                      required
-                      min={formData.startDate}
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        name="endDate"
+                        value={formData.endDate}
+                        onChange={handleInputChange}
+                        required
+                        min={formData.startDate}
+                        className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
+                          formData.endDate 
+                            ? 'text-gray-900 [&::-webkit-datetime-edit-text]:opacity-100 [&::-webkit-datetime-edit-month-field]:opacity-100 [&::-webkit-datetime-edit-day-field]:opacity-100 [&::-webkit-datetime-edit-year-field]:opacity-100' 
+                            : '[&::-webkit-datetime-edit-text]:opacity-0 [&::-webkit-datetime-edit-month-field]:opacity-0 [&::-webkit-datetime-edit-day-field]:opacity-0 [&::-webkit-datetime-edit-year-field]:opacity-0'
+                        }`}
+                        style={{ 
+                          color: formData.endDate ? '#111827' : 'transparent',
+                          position: 'relative'
+                        }}
+                      />
+                      {!formData.endDate && (
+                        <div className="absolute inset-0 flex items-center pointer-events-none px-3 text-gray-400 text-sm">
+                          dd/mm/yyyy
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -716,20 +968,7 @@ function PromotionManagement() {
                       </option>
                     ))}
                   </select>
-                </div>
-
-                {/* Active */}
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="active"
-                    checked={formData.active}
-                    onChange={handleInputChange}
-                    className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
-                  />
-                  <label className="ml-2 block text-sm text-gray-900">
-                    Kích hoạt ngay
-                  </label>
+                 
                 </div>
               </div>
 
@@ -752,12 +991,12 @@ function PromotionManagement() {
                   {loading ? (
                     <>
                       <Loader2 className="h-5 w-5 animate-spin mr-2" />
-                      Đang tạo...
+                      {formData.modelId === 0 ? 'Đang tạo cho tất cả model...' : 'Đang tạo...'}
                     </>
                   ) : (
                     <>
                       <Plus className="h-5 w-5 mr-2" />
-                      Tạo Khuyến Mãi
+                      {formData.modelId === 0 ? 'Tạo Cho Tất Cả Model' : 'Tạo Khuyến Mãi'}
                     </>
                   )}
                 </button>
@@ -831,15 +1070,29 @@ function PromotionManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Giá trị <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="number"
-                      name="amount"
-                      value={formData.amount}
-                      onChange={handleInputChange}
-                      required
-                      min="0"
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    />
+                    {formData.promotionType === 'FIXED_AMOUNT' ? (
+                      <input
+                        type="text"
+                        name="amount"
+                        value={formData.amount}
+                        onChange={handleInputChange}
+                        required
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        placeholder="VD: 50.000.000"
+                      />
+                    ) : (
+                      <input
+                        type="number"
+                        name="amount"
+                        value={formData.amount}
+                        onChange={handleInputChange}
+                        required
+                        min="0"
+                        max="100"
+                        className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                        placeholder="VD: 10"
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -848,27 +1101,57 @@ function PromotionManagement() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Ngày bắt đầu <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="date"
-                      name="startDate"
-                      value={formData.startDate}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        name="startDate"
+                        value={formData.startDate}
+                        onChange={handleInputChange}
+                        required
+                        className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
+                          formData.startDate 
+                            ? 'text-gray-900 [&::-webkit-datetime-edit-text]:opacity-100 [&::-webkit-datetime-edit-month-field]:opacity-100 [&::-webkit-datetime-edit-day-field]:opacity-100 [&::-webkit-datetime-edit-year-field]:opacity-100' 
+                            : '[&::-webkit-datetime-edit-text]:opacity-0 [&::-webkit-datetime-edit-month-field]:opacity-0 [&::-webkit-datetime-edit-day-field]:opacity-0 [&::-webkit-datetime-edit-year-field]:opacity-0'
+                        }`}
+                        style={{ 
+                          color: formData.startDate ? '#111827' : 'transparent',
+                          position: 'relative'
+                        }}
+                      />
+                      {!formData.startDate && (
+                        <div className="absolute inset-0 flex items-center pointer-events-none px-3 text-gray-400 text-sm">
+                          dd/mm/yyyy
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Ngày kết thúc <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="date"
-                      name="endDate"
-                      value={formData.endDate}
-                      onChange={handleInputChange}
-                      required
-                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        name="endDate"
+                        value={formData.endDate}
+                        onChange={handleInputChange}
+                        required
+                        className={`w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent ${
+                          formData.endDate 
+                            ? 'text-gray-900 [&::-webkit-datetime-edit-text]:opacity-100 [&::-webkit-datetime-edit-month-field]:opacity-100 [&::-webkit-datetime-edit-day-field]:opacity-100 [&::-webkit-datetime-edit-year-field]:opacity-100' 
+                            : '[&::-webkit-datetime-edit-text]:opacity-0 [&::-webkit-datetime-edit-month-field]:opacity-0 [&::-webkit-datetime-edit-day-field]:opacity-0 [&::-webkit-datetime-edit-year-field]:opacity-0'
+                        }`}
+                        style={{ 
+                          color: formData.endDate ? '#111827' : 'transparent',
+                          position: 'relative'
+                        }}
+                      />
+                      {!formData.endDate && (
+                        <div className="absolute inset-0 flex items-center pointer-events-none px-3 text-gray-400 text-sm">
+                          dd/mm/yyyy
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -889,19 +1172,6 @@ function PromotionManagement() {
                       </option>
                     ))}
                   </select>
-                </div>
-
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="active"
-                    checked={formData.active}
-                    onChange={handleInputChange}
-                    className="h-4 w-4 text-emerald-600 focus:ring-emerald-500 border-gray-300 rounded"
-                  />
-                  <label className="ml-2 block text-sm text-gray-900">
-                    Kích hoạt
-                  </label>
                 </div>
               </div>
 
@@ -953,8 +1223,20 @@ function PromotionManagement() {
                 Xác nhận xóa
               </h3>
               <p className="text-gray-600 text-center mb-4">
-                Bạn có chắc chắn muốn xóa khuyến mãi <br />
-                <span className="font-semibold text-gray-900">"{selectedPromotion.promotionName}"</span>?
+                {selectedPromotion.modelId === 0 || selectedPromotion.modelId === null ? (
+                  <>
+                    Bạn có chắc chắn muốn xóa khuyến mãi <br />
+                    <span className="font-semibold text-gray-900">"{selectedPromotion.promotionName}"</span>?<br />
+                    <span className="text-red-600 font-medium text-sm mt-2 block">
+                      Lưu ý: Điều này sẽ xóa khuyến mãi cho tất cả các model!
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    Bạn có chắc chắn muốn xóa khuyến mãi <br />
+                    <span className="font-semibold text-gray-900">"{selectedPromotion.promotionName}"</span>?
+                  </>
+                )}
               </p>
               <div className="flex justify-center gap-3">
                 <button
@@ -1042,14 +1324,14 @@ function PromotionManagement() {
                       <div>
                         <p className="text-xs text-gray-500">Bắt đầu</p>
                         <p className="font-semibold text-gray-900">
-                          {new Date(selectedPromotion.startDate).toLocaleDateString('vi-VN')}
+                          {formatDate(selectedPromotion.startDate)}
                         </p>
                       </div>
                       <div className="text-gray-400">→</div>
                       <div>
                         <p className="text-xs text-gray-500">Kết thúc</p>
                         <p className="font-semibold text-gray-900">
-                          {new Date(selectedPromotion.endDate).toLocaleDateString('vi-VN')}
+                          {formatDate(selectedPromotion.endDate)}
                         </p>
                       </div>
                     </div>
