@@ -512,7 +512,7 @@ function InventoryManagement() {
       />
 
       <div className="max-w-7xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
         <div className="flex items-start justify-between mb-4">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -527,7 +527,7 @@ function InventoryManagement() {
               onClick={openCreate} 
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
-              className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-lg hover:shadow-xl transition-all"
+              className="px-6 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow-md hover:shadow-xl transition-all"
             >
               <span className="flex items-center gap-2">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -918,7 +918,7 @@ function InventoryManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-4 w-full max-w-2xl"
+              className="bg-white rounded-lg shadow-2xl p-4 w-full max-w-2xl"
             >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Thêm xe vào kho</h3>
@@ -1141,7 +1141,7 @@ function InventoryManagement() {
                   type="submit" 
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-lg"
+                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-md"
                 >
                   Thêm
                 </motion.button>
@@ -1173,7 +1173,7 @@ function InventoryManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-4 w-full max-w-md"
+              className="bg-white rounded-lg shadow-2xl p-4 w-full max-w-md"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Cập nhật số lượng</h3>
@@ -1210,7 +1210,7 @@ function InventoryManagement() {
                   type="submit"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-lg"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors shadow-md"
                 >
                   Cập nhật
                 </motion.button>
@@ -1242,7 +1242,7 @@ function InventoryManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-4 w-full max-w-md"
+              className="bg-white rounded-lg shadow-2xl p-4 w-full max-w-md"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Cập nhật giá bán</h3>
@@ -1279,7 +1279,7 @@ function InventoryManagement() {
                   type="submit"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors shadow-lg"
+                  className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors shadow-md"
                 >
                   Cập nhật
                 </motion.button>
@@ -1311,9 +1311,9 @@ function InventoryManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-lg shadow-2xl p-4 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-4">
                 <motion.div
                   initial={{ x: -10, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
@@ -1442,7 +1442,7 @@ function InventoryManagement() {
                     type="submit"
                     whileHover={{ scale: 1.05, x: 5 }}
                     whileTap={{ scale: 0.95 }}
-                    className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-lg font-medium flex items-center gap-2"
+                    className="px-6 py-2.5 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all shadow-md font-medium flex items-center gap-2"
                   >
                     <motion.svg 
                       className="w-5 h-5" 
@@ -1484,7 +1484,7 @@ function InventoryManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-4 w-full max-w-md"
+              className="bg-white rounded-lg shadow-2xl p-4 w-full max-w-md"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Xác nhận xóa</h3>
@@ -1510,7 +1510,7 @@ function InventoryManagement() {
                     onClick={handleSubmitDelete}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-lg"
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors shadow-md"
                   >
                     Xóa
                   </motion.button>
@@ -1542,7 +1542,7 @@ function InventoryManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-lg shadow-2xl p-4 w-full max-w-2xl max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -1656,7 +1656,7 @@ function InventoryManagement() {
                     type="submit"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-lg"
+                    className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-md"
                   >
                     Gửi yêu cầu tới EVM
                   </motion.button>

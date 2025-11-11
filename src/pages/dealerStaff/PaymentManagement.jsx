@@ -421,30 +421,30 @@ function PaymentManagement() {
       />
 
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-4">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3 mb-3">
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-              <DollarSign className="h-8 w-8 text-emerald-600 mr-3" />
+            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+              <DollarSign className="h-6 w-6 text-emerald-600 mr-2" />
               Quản Lý Thanh Toán
             </h1>
-            <p className="text-gray-600 mt-1">
+            <p className="text-gray-600 mt-0.5 text-sm">
               Thanh toán cho các hợp đồng đã có chữ ký
             </p>
           </div>
         </div>
 
         {/* Summary Statistics */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-          <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-lg p-4">
-            <p className="text-sm text-gray-600 mb-1">Tổng doanh thu</p>
-            <p className="text-2xl font-bold text-emerald-600">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
+          <div className="bg-gradient-to-r from-emerald-50 to-green-50 border border-emerald-200 rounded-lg p-3">
+            <p className="text-xs text-gray-600 mb-0.5">Tổng doanh thu</p>
+            <p className="text-xl font-bold text-emerald-600">
               {totalRevenue.toLocaleString('vi-VN')} VNĐ
             </p>
           </div>
-          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-4">
-            <p className="text-sm text-gray-600 mb-1">Số tiền còn lại</p>
-            <p className="text-2xl font-bold text-yellow-600">
+          <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-lg p-3">
+            <p className="text-xs text-gray-600 mb-0.5">Số tiền còn lại</p>
+            <p className="text-xl font-bold text-yellow-600">
               {pendingAmount.toLocaleString('vi-VN')} VNĐ
             </p>
           </div>
@@ -452,42 +452,42 @@ function PaymentManagement() {
       </div>
 
       {/* Contracts Table */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mr-3" />
-            <span className="text-gray-600">Đang tải hợp đồng...</span>
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-2" />
+            <span className="text-gray-600 text-sm">Đang tải hợp đồng...</span>
           </div>
         ) : contractsWithSignedImage.length === 0 ? (
-          <div className="text-center py-12">
-            <CreditCard className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">Không có hợp đồng nào có chữ ký</p>
-            <p className="text-gray-400 text-sm mt-2">Các hợp đồng đã upload chữ ký sẽ xuất hiện ở đây</p>
+          <div className="text-center py-8">
+            <CreditCard className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-500 text-base">Không có hợp đồng nào có chữ ký</p>
+            <p className="text-gray-400 text-xs mt-1.5">Các hợp đồng đã upload chữ ký sẽ xuất hiện ở đây</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Mã hợp đồng
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Mã đơn hàng
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Tổng thanh toán
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Đã trả
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Còn lại
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Trạng thái
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Thao tác
                   </th>
                 </tr>
@@ -511,40 +511,40 @@ function PaymentManagement() {
                             : ''
                         }`}
                       >
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                        <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-gray-900">
                             {contract.contractCode || 'N/A'}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
                           <div className="flex flex-col">
                             <span className="font-medium text-blue-600">
                               {contract.orderCode || 'N/A'}
                             </span>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900 font-medium">
                           {total.toLocaleString('vi-VN')} VNĐ
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
                           {paid.toLocaleString('vi-VN')} VNĐ
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
                           {remaining.toLocaleString('vi-VN')} VNĐ
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(contract)}`}>
+                        <td className="px-3 py-2.5 whitespace-nowrap">
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-md ${getStatusColor(contract)}`}>
                             {getStatusText(contract)}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium">
                           <div className="flex items-center gap-2">
                             <button
                               onClick={() => handlePaymentClick(contract)}
                               disabled={processingPayment === contract.contractId || remaining <= 0}
-                              className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm"
+                              className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-xs"
                             >
                               {processingPayment === contract.contractId ? (
                                 <>
-                                  <Loader2 className="h-4 w-4 animate-spin inline mr-2" />
+                                  <Loader2 className="h-3 w-3 animate-spin inline mr-1.5" />
                                   Đang xử lý...
                                 </>
                               ) : (
@@ -553,14 +553,14 @@ function PaymentManagement() {
                             </button>
                             <button
                               onClick={() => togglePaymentHistory(contract.contractId)}
-                              className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm flex items-center"
+                              className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-xs flex items-center"
                             >
-                              <History className="h-4 w-4 mr-2" />
+                              <History className="h-3 w-3 mr-1.5" />
                               {isExpanded ? 'Ẩn lịch sử' : 'Lịch sử'}
                               {isExpanded ? (
-                                <ChevronUp className="h-4 w-4 ml-2" />
+                                <ChevronUp className="h-3 w-3 ml-1.5" />
                               ) : (
-                                <ChevronDown className="h-4 w-4 ml-2" />
+                                <ChevronDown className="h-3 w-3 ml-1.5" />
                               )}
                             </button>
                           </div>
@@ -568,41 +568,41 @@ function PaymentManagement() {
                       </tr>
                       {isExpanded && (
                         <tr>
-                          <td colSpan="7" className="px-6 py-4 bg-gray-50">
+                          <td colSpan="7" className="px-3 py-2.5 bg-gray-50">
                             {isLoadingHistory ? (
-                              <div className="flex items-center justify-center py-4">
-                                <Loader2 className="h-5 w-5 animate-spin text-emerald-600 mr-2" />
-                                <span className="text-gray-600">Đang tải lịch sử thanh toán...</span>
+                              <div className="flex items-center justify-center py-3">
+                                <Loader2 className="h-4 w-4 animate-spin text-emerald-600 mr-2" />
+                                <span className="text-gray-600 text-xs">Đang tải lịch sử thanh toán...</span>
                               </div>
                             ) : history.length > 0 ? (
-                              <div className="bg-white rounded-lg border border-gray-200 p-4">
-                                <h4 className="text-sm font-semibold text-gray-900 mb-3 flex items-center">
-                                  <History className="h-4 w-4 mr-2" />
+                              <div className="bg-white rounded-lg border border-gray-200 p-3">
+                                <h4 className="text-xs font-semibold text-gray-900 mb-2 flex items-center">
+                                  <History className="h-3 w-3 mr-1.5" />
                                   Lịch sử thanh toán
                                 </h4>
                                 <div className="overflow-x-auto">
                                   <table className="min-w-full divide-y divide-gray-200">
                                     <thead className="bg-gray-50">
                                       <tr>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                        <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase">
                                           Mã thanh toán
                                         </th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                        <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase">
                                           Ngày thanh toán
                                         </th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                        <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase">
                                           Loại thanh toán
                                         </th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                        <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase">
                                           Phương thức
                                         </th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                        <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase">
                                           Số tiền
                                         </th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                        <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase">
                                           Còn lại
                                         </th>
-                                        <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase">
+                                        <th className="px-2 py-1.5 text-left text-xs font-semibold text-gray-700 uppercase">
                                           Trạng thái
                                         </th>
                                       </tr>
@@ -617,10 +617,10 @@ function PaymentManagement() {
                                         
                                         return (
                                           <tr key={payment.paymentId || payment.paymentCode || idx} className="hover:bg-gray-50">
-                                            <td className="px-4 py-2 text-sm font-medium text-gray-900">
+                                            <td className="px-2 py-1.5 text-xs font-medium text-gray-900">
                                               {paymentCode}
                                             </td>
-                                            <td className="px-4 py-2 text-sm text-gray-900">
+                                            <td className="px-2 py-1.5 text-xs text-gray-900">
                                               {paymentDate 
                                                 ? new Date(paymentDate).toLocaleString('vi-VN', {
                                                     year: 'numeric',
@@ -631,22 +631,22 @@ function PaymentManagement() {
                                                   })
                                                 : 'N/A'}
                                             </td>
-                                            <td className="px-4 py-2 text-sm text-gray-900">
+                                            <td className="px-2 py-1.5 text-xs text-gray-900">
                                               {getPaymentTypeText(payment.paymentType)}
                                             </td>
-                                            <td className="px-4 py-2 text-sm text-gray-900">
+                                            <td className="px-2 py-1.5 text-xs text-gray-900">
                                               {getPaymentMethodText(payment.paymentMethod)}
                                             </td>
-                                            <td className="px-4 py-2 text-sm text-gray-900 font-medium">
+                                            <td className="px-2 py-1.5 text-xs text-gray-900 font-medium">
                                               {amount.toLocaleString('vi-VN')} VNĐ
                                             </td>
-                                            <td className="px-4 py-2 text-sm text-gray-900">
+                                            <td className="px-2 py-1.5 text-xs text-gray-900">
                                               {remainPrice !== null 
                                                 ? `${remainPrice.toLocaleString('vi-VN')} VNĐ`
                                                 : '-'}
                                             </td>
-                                            <td className="px-4 py-2 text-sm">
-                                              <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                            <td className="px-2 py-1.5 text-xs">
+                                              <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-md ${
                                                 status === 'COMPLETED' || status === 'SUCCESS' || status === 'PAID'
                                                   ? 'bg-green-100 text-green-800'
                                                   : status === 'PENDING' || status === 'PROCESSING'
@@ -678,7 +678,7 @@ function PaymentManagement() {
                                 </div>
                               </div>
                             ) : (
-                              <div className="text-center py-4 text-gray-500">
+                              <div className="text-center py-3 text-gray-500 text-xs">
                                 Chưa có lịch sử thanh toán
                               </div>
                             )}
@@ -697,14 +697,14 @@ function PaymentManagement() {
       {/* Payment Detail Modal - Show after payment completion */}
       {showPaymentDetailModal && selectedPaymentDetail && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-start justify-between mb-6">
+          <div className="bg-white rounded-lg p-4 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between mb-4">
               <div>
-                <h3 className="text-2xl font-bold text-gray-900 flex items-center">
-                  <CheckCircle className="h-6 w-6 text-green-500 mr-2" />
+                <h3 className="text-xl font-bold text-gray-900 flex items-center">
+                  <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
                   Thông tin thanh toán
                 </h3>
-                <p className="text-sm text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-0.5">
                   Chi tiết giao dịch thanh toán
                 </p>
               </div>
@@ -715,22 +715,22 @@ function PaymentManagement() {
                 }}
                 className="text-gray-400 hover:text-gray-600 transition-colors"
               >
-                <X className="h-6 w-6" />
+                <X className="h-5 w-5" />
               </button>
             </div>
 
             {loadingPaymentDetail ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mr-3" />
-                <span className="text-gray-600">Đang tải thông tin thanh toán...</span>
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-2" />
+                <span className="text-gray-600 text-sm">Đang tải thông tin thanh toán...</span>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Payment Status Badge */}
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                   <div>
-                    <p className="text-sm text-gray-500 mb-1">Trạng thái</p>
-                    <span className={`inline-flex px-3 py-1 text-sm font-semibold rounded-full ${
+                    <p className="text-xs text-gray-500 mb-0.5">Trạng thái</p>
+                    <span className={`inline-flex px-2.5 py-1 text-xs font-semibold rounded-md ${
                       selectedPaymentDetail.status === 'COMPLETED' || selectedPaymentDetail.status === 'SUCCESS' || selectedPaymentDetail.status === 'PAID'
                         ? 'bg-green-100 text-green-800'
                         : selectedPaymentDetail.status === 'PENDING' || selectedPaymentDetail.status === 'PROCESSING'
@@ -757,55 +757,55 @@ function PaymentManagement() {
                     </span>
                   </div>
                   <div className="text-right">
-                    <p className="text-sm text-gray-500 mb-1">Số tiền</p>
-                    <p className="text-2xl font-bold text-emerald-600">
+                    <p className="text-xs text-gray-500 mb-0.5">Số tiền</p>
+                    <p className="text-xl font-bold text-emerald-600">
                       {(selectedPaymentDetail.amount || 0).toLocaleString('vi-VN')} VNĐ
                     </p>
                   </div>
                 </div>
 
                 {/* Payment Details Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <p className="text-sm text-gray-500 mb-1">Mã thanh toán</p>
-                    <p className="text-base font-semibold text-gray-900">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div className="bg-white border border-gray-200 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-0.5">Mã thanh toán</p>
+                    <p className="text-sm font-semibold text-gray-900">
                       {selectedPaymentDetail.paymentCode || `PAY-${selectedPaymentDetail.paymentId || 'N/A'}`}
                     </p>
                   </div>
 
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <p className="text-sm text-gray-500 mb-1">Mã hợp đồng</p>
-                    <p className="text-base font-semibold text-gray-900">
+                  <div className="bg-white border border-gray-200 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-0.5">Mã hợp đồng</p>
+                    <p className="text-sm font-semibold text-gray-900">
                       {selectedPaymentDetail.contractCode || 'N/A'}
                     </p>
                   </div>
 
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <p className="text-sm text-gray-500 mb-1">Loại thanh toán</p>
-                    <p className="text-base font-semibold text-gray-900">
+                  <div className="bg-white border border-gray-200 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-0.5">Loại thanh toán</p>
+                    <p className="text-sm font-semibold text-gray-900">
                       {getPaymentTypeText(selectedPaymentDetail.paymentType)}
                     </p>
                   </div>
 
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <p className="text-sm text-gray-500 mb-1">Phương thức thanh toán</p>
-                    <p className="text-base font-semibold text-gray-900">
+                  <div className="bg-white border border-gray-200 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-0.5">Phương thức thanh toán</p>
+                    <p className="text-sm font-semibold text-gray-900">
                       {getPaymentMethodText(selectedPaymentDetail.paymentMethod)}
                     </p>
                   </div>
 
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <p className="text-sm text-gray-500 mb-1">Số tiền còn lại</p>
-                    <p className="text-base font-semibold text-gray-900">
+                  <div className="bg-white border border-gray-200 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-0.5">Số tiền còn lại</p>
+                    <p className="text-sm font-semibold text-gray-900">
                       {selectedPaymentDetail.remainPrice !== undefined && selectedPaymentDetail.remainPrice !== null
                         ? `${selectedPaymentDetail.remainPrice.toLocaleString('vi-VN')} VNĐ`
                         : '-'}
                     </p>
                   </div>
 
-                  <div className="bg-white border border-gray-200 rounded-lg p-4">
-                    <p className="text-sm text-gray-500 mb-1">Thời gian tạo</p>
-                    <p className="text-base font-semibold text-gray-900">
+                  <div className="bg-white border border-gray-200 rounded-lg p-3">
+                    <p className="text-xs text-gray-500 mb-0.5">Thời gian tạo</p>
+                    <p className="text-sm font-semibold text-gray-900">
                       {selectedPaymentDetail.createdAt
                         ? new Date(selectedPaymentDetail.createdAt).toLocaleString('vi-VN', {
                             year: 'numeric',
@@ -823,13 +823,13 @@ function PaymentManagement() {
             )}
 
             {/* Close Button */}
-            <div className="mt-6 flex justify-end">
+            <div className="mt-4 flex justify-end">
               <button
                 onClick={() => {
                   setShowPaymentDetailModal(false);
                   setSelectedPaymentDetail(null);
                 }}
-                className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium"
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-medium text-sm"
               >
                 Đóng
               </button>
@@ -841,9 +841,9 @@ function PaymentManagement() {
       {/* Payment Modal */}
       {showPaymentModal && selectedContract && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md">
-            <div className="flex items-start justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Tạo thanh toán</h3>
+          <div className="bg-white rounded-lg p-4 w-full max-w-md">
+            <div className="flex items-start justify-between mb-3">
+              <h3 className="text-base font-semibold text-gray-900">Tạo thanh toán</h3>
               <button
                 onClick={() => {
                   setShowPaymentModal(false);
@@ -851,52 +851,52 @@ function PaymentManagement() {
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
-                <X className="h-5 w-5" />
+                <X className="h-4 w-4" />
               </button>
             </div>
             
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Mã hợp đồng</label>
-                <p className="text-sm text-gray-600 font-medium">
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Mã hợp đồng</label>
+                <p className="text-xs text-gray-600 font-medium">
                   {selectedContract.contractCode || 'N/A'}
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Mã đơn hàng</label>
-                <p className="text-sm text-blue-600 font-medium">
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Mã đơn hàng</label>
+                <p className="text-xs text-blue-600 font-medium">
                   {selectedContract.orderCode || 'N/A'}
                 </p>
               </div>
               
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Tổng thanh toán</label>
-                <p className="text-sm text-gray-600 font-medium">
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Tổng thanh toán</label>
+                <p className="text-xs text-gray-600 font-medium">
                   {(selectedContract.totalPayment || 0).toLocaleString('vi-VN')} VNĐ
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Đã trả</label>
-                <p className="text-sm text-gray-600">
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Đã trả</label>
+                <p className="text-xs text-gray-600">
                   {calculatePaidAmount(selectedContract, allPayments).toLocaleString('vi-VN')} VNĐ
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Còn lại</label>
-                <p className="text-sm text-gray-600 font-medium">
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Còn lại</label>
+                <p className="text-xs text-gray-600 font-medium">
                   {calculateRemainingAmount(selectedContract, allPayments).toLocaleString('vi-VN')} VNĐ
                 </p>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Loại thanh toán *</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Loại thanh toán *</label>
                 <select
                   value={paymentForm.paymentType}
                   onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentType: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
                 >
                   <option value="DEPOSIT">Đặt cọc</option>
                   <option value="BALANCE">Thanh toán số dư</option>
@@ -904,36 +904,36 @@ function PaymentManagement() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Phương thức thanh toán *</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1.5">Phương thức thanh toán *</label>
                 <select
                   value={paymentForm.paymentMethod}
                   onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentMethod: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
                 >
                   <option value="VNPAY">VNPay</option>
                   <option value="CASH">Tiền mặt</option>
                 </select>
               </div>
 
-              <div className="flex justify-end space-x-4 pt-4 border-t border-gray-200">
+              <div className="flex justify-end space-x-3 pt-3 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={() => {
                     setShowPaymentModal(false);
                     setSelectedContract(null);
                   }}
-                  className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm"
                 >
                   Hủy
                 </button>
                 <button
                   onClick={handleCreatePayment}
                   disabled={processingPayment === selectedContract.contractId}
-                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  className="px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-sm"
                 >
                   {processingPayment === selectedContract.contractId ? (
                     <>
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
                       Đang xử lý...
                     </>
                   ) : (

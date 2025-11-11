@@ -19,7 +19,7 @@ import { useConfirm } from '@/hooks/useConfirm';
 const TableSkeleton = () => (
   <div className="animate-pulse space-y-4">
     {[...Array(5)].map((_, i) => (
-      <div key={i} className="flex items-center space-x-4 px-6 py-4">
+      <div key={i} className="flex items-center space-x-3 px-3 py-2.5">
         <div className="h-12 w-12 bg-gray-200 rounded-full"></div>
         <div className="flex-1 space-y-2">
           <div className="h-4 bg-gray-200 rounded w-3/4"></div>
@@ -658,22 +658,22 @@ function StoreManagement() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                 Cửa hàng
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                 Chủ cửa hàng
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                 Địa điểm
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                 Trạng thái
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                 Doanh thu
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                 Thao tác
               </th>
             </tr>
@@ -685,13 +685,13 @@ function StoreManagement() {
                 className={`transition-all duration-200 hover:bg-blue-50 hover:shadow-sm cursor-pointer
                   ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
               >
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="flex items-center">
                     {store.imagePath ? (
                       <img 
                         src={store.imagePath} 
                         alt={store.storeName}
-                        className="h-12 w-12 rounded-lg object-cover mr-4 shadow-md ring-2 ring-blue-100"
+                        className="h-10 w-10 rounded-lg object-cover mr-3 shadow-sm ring-2 ring-blue-100"
                         onError={(e) => {
                           e.target.onerror = null;
                           e.target.style.display = 'none';
@@ -700,16 +700,16 @@ function StoreManagement() {
                       />
                     ) : null}
                     <div 
-                      className="h-12 w-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mr-4 shadow-lg ring-2 ring-blue-100"
+                      className="h-10 w-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mr-3 shadow-md ring-2 ring-blue-100"
                       style={{ display: store.imagePath ? 'none' : 'flex' }}
                     >
-                      <span className="text-white font-bold text-sm">
+                      <span className="text-white font-bold text-xs">
                         {(store.storeName || '').charAt(0)}
                       </span>
                     </div>
                     <div>
                       <div className="text-sm font-semibold text-gray-900">{store.storeName}</div>
-                      <div className="text-sm text-gray-500 flex items-center">
+                      <div className="text-xs text-gray-500 flex items-center">
                         <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
                         </svg>
@@ -718,25 +718,25 @@ function StoreManagement() {
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">{store.ownerName}</div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">{store.provinceName}</div>
-                  <div className="text-sm text-gray-500 max-w-xs truncate">{store.address}</div>
+                  <div className="text-xs text-gray-500 max-w-xs truncate">{store.address}</div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusColor(store.status)}`}>
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  <span className={`px-2 py-0.5 inline-flex text-xs font-semibold rounded-md ${getStatusColor(store.status)}`}>
                     {getStatusText(store.status)}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-600">{store.totalOrders || 0} đơn hàng</div>
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  <div className="text-xs text-gray-600">{store.totalOrders || 0} đơn hàng</div>
                   <div className="text-sm font-bold text-green-600">
                     {(store.totalRevenue || 0).toLocaleString('vi-VN')} ₫
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="flex items-center space-x-2">
                     <button 
                       onClick={() => handleEdit(store)}
@@ -803,7 +803,7 @@ function StoreManagement() {
                           setStatusFilter('');
                           setProvinceFilter('');
                         }}
-                        className="inline-flex items-center px-6 py-3 bg-white border-2 border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 transition shadow-md hover:shadow-lg"
+                        className="inline-flex items-center px-3 py-1.5 bg-white border-2 border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 transition shadow-sm hover:shadow-md text-sm"
                       >
                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -813,7 +813,7 @@ function StoreManagement() {
                     ) : (
                       <button
                         onClick={() => setShowAddModal(true)}
-                        className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                        className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm"
                       >
                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -834,31 +834,31 @@ function StoreManagement() {
   const renderAnalytics = () => (
     <div className="space-y-6">
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg shadow-md p-4 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5">
           <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-white bg-opacity-20 backdrop-blur-sm">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="p-2 rounded-lg bg-white bg-opacity-20 backdrop-blur-sm">
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-white text-opacity-90">Tổng số cửa hàng</p>
-              <p className="text-3xl font-bold text-white">{stores.length}</p>
+            <div className="ml-3">
+              <p className="text-xs font-medium text-white text-opacity-90">Tổng số cửa hàng</p>
+              <p className="text-2xl font-bold text-white">{stores.length}</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-lg shadow-md p-4 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5">
           <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-white bg-opacity-20 backdrop-blur-sm">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="p-2 rounded-lg bg-white bg-opacity-20 backdrop-blur-sm">
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-white text-opacity-90">Cửa hàng hoạt động</p>
-              <p className="text-3xl font-bold text-white">
+            <div className="ml-3">
+              <p className="text-xs font-medium text-white text-opacity-90">Cửa hàng hoạt động</p>
+              <p className="text-2xl font-bold text-white">
                 {stores.filter(store => store.status === 'ACTIVE').length}
               </p>
             </div>
@@ -866,16 +866,16 @@ function StoreManagement() {
         </div>
 
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-md p-4 hover:shadow-lg transition-all duration-300 transform hover:-translate-y-0.5">
           <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-white bg-opacity-20 backdrop-blur-sm">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="p-2 rounded-lg bg-white bg-opacity-20 backdrop-blur-sm">
+              <svg className="h-6 w-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
               </svg>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-white text-opacity-90">Tổng doanh thu</p>
-              <p className="text-2xl font-bold text-white">
+            <div className="ml-3">
+              <p className="text-xs font-medium text-white text-opacity-90">Tổng doanh thu</p>
+              <p className="text-xl font-bold text-white">
                 {stores.reduce((sum, store) => sum + (store.totalRevenue || 0), 0).toLocaleString('vi-VN')} ₫
               </p>
             </div>
@@ -884,15 +884,15 @@ function StoreManagement() {
       </div>
 
       {/* Chart Placeholder */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Biểu đồ doanh thu theo cửa hàng</h3>
-        <div className="h-64 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100">
+      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-4">
+        <h3 className="text-base font-semibold text-gray-900 mb-3">Biểu đồ doanh thu theo cửa hàng</h3>
+        <div className="h-56 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100">
           <div className="text-center">
-            <svg className="h-16 w-16 text-gray-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-12 w-12 text-gray-400 mx-auto mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
             </svg>
-            <p className="text-gray-500 font-medium text-lg">Biểu đồ sẽ được hiển thị tại đây</p>
-            <p className="text-gray-400 text-sm mt-2">Tích hợp với Chart.js hoặc Recharts</p>
+            <p className="text-gray-500 font-medium text-base">Biểu đồ sẽ được hiển thị tại đây</p>
+            <p className="text-gray-400 text-xs mt-1.5">Tích hợp với Chart.js hoặc Recharts</p>
           </div>
         </div>
       </div>
@@ -900,7 +900,7 @@ function StoreManagement() {
   );
 
   return (
-    <div className="px-6 space-y-6">
+    <div className="px-4 space-y-4">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -924,7 +924,7 @@ function StoreManagement() {
       <div className="flex justify-end space-x-3">
         <button
           onClick={() => setShowAddModal(true)}
-          className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center"
+          className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center text-sm"
           
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -933,7 +933,7 @@ function StoreManagement() {
           Thêm cửa hàng
         </button>
         <button 
-          className="bg-white text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200 flex items-center"
+          className="bg-white text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-all shadow-sm hover:shadow-md border border-gray-200 flex items-center text-sm"
           
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -944,7 +944,7 @@ function StoreManagement() {
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <div className="relative group">
@@ -985,7 +985,7 @@ function StoreManagement() {
             </select>
             <button
               onClick={handleSearch}
-              className="px-5 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg flex items-center"
+              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg flex items-center text-sm"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -1371,7 +1371,7 @@ function StoreManagement() {
                     disabled={isCreatingStore}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-sm"
                   >
                     {isCreatingStore && (
                       <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
@@ -1410,7 +1410,7 @@ function StoreManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-[480px] p-6 border shadow-2xl rounded-xl bg-white"
+              className="w-[480px] p-4 border shadow-lg rounded-lg bg-white"
             >
               <div className="mt-3">
                 <div className="flex items-center justify-center w-16 h-16 mx-auto bg-gradient-to-br from-red-100 to-red-200 rounded-full mb-4 shadow-lg">
@@ -1495,7 +1495,7 @@ function StoreManagement() {
                     onClick={confirmDelete}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl flex items-center"
+                    className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg flex items-center text-sm"
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />

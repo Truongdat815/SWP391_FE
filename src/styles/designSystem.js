@@ -104,13 +104,13 @@ export const statusColors = {
   }
 };
 
-// Common UI Patterns
+// Common UI Patterns - Optimized for compact, professional design
 export const uiPatterns = {
   glass: 'bg-white/80 backdrop-blur-lg border border-white/20',
-  card: 'bg-white rounded-2xl shadow-lg border border-gray-100',
-  cardHover: 'hover:shadow-2xl hover:-translate-y-1 transition-all duration-300',
-  input: 'px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:border-transparent bg-white/80 backdrop-blur-sm transition-all',
-  button: 'px-6 py-3 rounded-xl font-medium shadow-lg hover:shadow-xl transition-all',
-  badge: 'px-3 py-1.5 rounded-full text-sm font-medium shadow-md'
+  card: 'bg-white rounded-lg shadow-md border border-gray-100',
+  cardHover: 'hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300',
+  input: 'px-3 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:border-transparent bg-white/80 backdrop-blur-sm transition-all',
+  button: 'px-4 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transition-all',
+  badge: 'px-2.5 py-1 rounded-md text-sm font-medium shadow-sm'
 };
 

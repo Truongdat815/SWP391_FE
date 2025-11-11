@@ -427,7 +427,7 @@ function Inventory() {
         />
 
         <div className="max-w-7xl mx-auto">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3">
             <div className="flex items-center justify-center py-4">
               <div className="text-center">
                 <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600"></div>
@@ -465,7 +465,7 @@ function Inventory() {
         />
 
         <div className="max-w-7xl mx-auto">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+          <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3">
             <div className="flex items-center justify-center py-4">
               <div className="text-center">
                 <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -512,12 +512,12 @@ function Inventory() {
       />
 
       <div className="max-w-7xl mx-auto">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+        <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3">
           {/* Header */}
           <div className="mb-8">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">Inventory Management</h1>
+              <h1 className="text-2xl font-bold text-gray-900 mb-1.5">Inventory Management</h1>
               <p className="text-gray-600">Theo dõi tồn kho tất cả cửa hàng và lập báo cáo đặt xe</p>
               {user && user.storeId && (
                 <p className="text-sm text-emerald-600 mt-1">
@@ -663,7 +663,7 @@ function Inventory() {
       {/* Create Store Stock Modal */}
       {createModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-10 mx-auto p-5 border w-11/12 md:w-2/3 lg:w-1/2 shadow-lg rounded-md bg-white">
+          <div className="relative top-10 mx-auto p-4 border w-11/12 md:w-2/3 lg:w-1/2 shadow-md rounded-lg bg-white">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-xl font-semibold text-gray-900">
                 Thêm xe vào kho
@@ -825,7 +825,7 @@ function Inventory() {
       {/* Update Quantity Modal */}
       {updateQuantityModal && selectedStock && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-1/3 shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-4 border w-11/12 md:w-1/3 shadow-md rounded-lg bg-white">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 Cập nhật số lượng
@@ -888,7 +888,7 @@ function Inventory() {
       {/* Update Price Modal */}
       {updatePriceModal && selectedStock && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-1/3 shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-4 border w-11/12 md:w-1/3 shadow-md rounded-lg bg-white">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 Cập nhật giá bán
@@ -953,7 +953,7 @@ function Inventory() {
       {/* Delete Confirmation Modal */}
       {deleteModal && selectedStock && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-1/3 shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-4 border w-11/12 md:w-1/3 shadow-md rounded-lg bg-white">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-red-600">
                 Xác nhận xóa
@@ -1014,7 +1014,7 @@ function Inventory() {
       {/* Report Modal */}
       {reportModal && (
         <div className="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-          <div className="relative top-20 mx-auto p-5 border w-11/12 md:w-2/3 lg:w-1/2 shadow-lg rounded-md bg-white">
+          <div className="relative top-20 mx-auto p-4 border w-11/12 md:w-2/3 lg:w-1/2 shadow-md rounded-lg bg-white">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">
                 Báo cáo đặt hàng cho Manager

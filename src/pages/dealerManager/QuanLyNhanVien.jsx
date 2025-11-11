@@ -192,12 +192,12 @@ function QuanLyNhanVien() {
       />
 
       <div className="max-w-7xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
         {/* Header */}
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Quản lý nhân viên</h1>
+              <h1 className="text-xl font-bold text-gray-900">Quản lý nhân viên</h1>
               <p className="text-gray-600">
                 Quản lý Dealer Staff tại {user?.storeName || 'cửa hàng của bạn'}
               </p>
@@ -206,7 +206,7 @@ function QuanLyNhanVien() {
               onClick={() => setShowAddModal(true)}
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all flex items-center gap-2"
             >
               <motion.svg 
                 className="h-5 w-5" 
@@ -224,7 +224,7 @@ function QuanLyNhanVien() {
         </div>
 
         {/* Filters */}
-        <div className="mb-6">
+        <div className="mb-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm</label>
@@ -339,7 +339,7 @@ function QuanLyNhanVien() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto"
+              className="bg-white rounded-lg shadow-2xl p-4 w-full max-w-md max-h-[90vh] overflow-y-auto"
             >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Thêm nhân viên mới</h3>
@@ -436,7 +436,7 @@ function QuanLyNhanVien() {
                   type="submit"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg transition-colors"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md transition-colors"
                 >
                   Thêm nhân viên
                 </motion.button>
@@ -468,7 +468,7 @@ function QuanLyNhanVien() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-md"
+              className="bg-white rounded-lg shadow-2xl p-4 w-full max-w-md"
             >
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Chỉnh sửa nhân viên</h3>
@@ -526,7 +526,7 @@ function QuanLyNhanVien() {
                   type="submit"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg transition-colors"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md transition-colors"
                 >
                   Cập nhật
                 </motion.button>

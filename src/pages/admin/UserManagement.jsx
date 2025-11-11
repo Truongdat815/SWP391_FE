@@ -15,7 +15,7 @@ import { useConfirm } from '@/hooks/useConfirm';
 const TableSkeleton = () => (
   <div className="animate-pulse space-y-4">
     {[...Array(5)].map((_, i) => (
-      <div key={i} className="flex items-center space-x-4 px-6 py-4">
+      <div key={i} className="flex items-center space-x-3 px-3 py-2.5">
         <div className="h-12 w-12 bg-gray-200 rounded-full"></div>
         <div className="flex-1 space-y-2">
           <div className="h-4 bg-gray-200 rounded w-3/4"></div>
@@ -499,13 +499,13 @@ function UserManagement() {
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
               <tr>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Họ tên</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Số điện thoại</th>
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Trạng thái</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Họ tên</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Số điện thoại</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Trạng thái</th>
                 {(roleName !== 'Quản trị viên' && roleName !== 'Admin' && roleName !== 'Nhân viên hãng xe' && roleName !== 'EVM Staff') && (
-                  <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Cửa hàng</th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Cửa hàng</th>
                 )}
-                <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">Thao tác</th>
+                <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Thao tác</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
@@ -515,9 +515,9 @@ function UserManagement() {
                 className={`transition-all duration-200 hover:bg-red-50 hover:shadow-sm cursor-pointer
                   ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
               >
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="flex items-center">
-                    <div className={`h-12 w-12 bg-gradient-to-br ${roleColor} rounded-full flex items-center justify-center mr-4 shadow-lg ring-2 ring-opacity-20 ring-gray-300`}>
+                    <div className={`h-10 w-10 bg-gradient-to-br ${roleColor} rounded-full flex items-center justify-center mr-3 shadow-md ring-2 ring-opacity-20 ring-gray-300`}>
                       <span className="text-white font-bold text-sm">
                         {u.fullName ? u.fullName.trim().charAt(0).toUpperCase() : 'U'}
                       </span>
@@ -534,7 +534,7 @@ function UserManagement() {
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900 flex items-center">
                     <svg className="w-4 h-4 mr-2 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                       <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
@@ -542,17 +542,17 @@ function UserManagement() {
                     {u.phone}
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <span className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusColor(u.status)}`}>
                     {getStatusText(u.status)}
                   </span>
                 </td>
                 {(roleName !== 'Quản trị viên' && roleName !== 'Admin' && roleName !== 'Nhân viên hãng xe' && roleName !== 'EVM Staff') && (
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 py-2.5 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{u.storeName || 'N/A'}</div>
                   </td>
                 )}
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="flex items-center space-x-2">
                     <button 
                       onClick={() => handleEditClick(u)}
@@ -605,7 +605,7 @@ function UserManagement() {
                     </p>
                     <button
                       onClick={() => setShowAddModal(true)}
-                      className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                      className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm"
                     >
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -652,13 +652,13 @@ function UserManagement() {
       />
       
       {/* Header */}
-      <div className="bg-gradient-to-r from-white to-gray-50 rounded-xl shadow-lg border border-gray-100 p-6">
+      <div className="bg-gradient-to-r from-white to-gray-50 rounded-lg shadow-md border border-gray-100 p-3">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent">
+            <h1 className="text-2xl font-bold bg-gradient-to-r from-red-600 to-red-800 bg-clip-text text-transparent">
               Quản lý người dùng & phân quyền
             </h1>
-            <p className="text-gray-600 mt-2 flex items-center">
+            <p className="text-gray-600 mt-1 flex items-center text-sm">
               <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                 <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
               </svg>
@@ -668,7 +668,7 @@ function UserManagement() {
           <div className="flex space-x-3">
             <button
               onClick={() => setShowAddModal(true)}
-              className="bg-gradient-to-r from-red-500 to-red-600 text-white px-5 py-2.5 rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center"
+              className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center text-sm"
               
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -677,7 +677,7 @@ function UserManagement() {
               Thêm người dùng
             </button>
             <button 
-              className="bg-white text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200 flex items-center"
+              className="bg-white text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-all shadow-sm hover:shadow-md border border-gray-200 flex items-center text-sm"
               
             >
               <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -690,7 +690,7 @@ function UserManagement() {
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <div className="relative group">
@@ -732,7 +732,7 @@ function UserManagement() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden">
         <div className="border-b border-gray-200 bg-gradient-to-r from-gray-50 to-white">
           <nav className="flex space-x-8 px-6">
             {tabs.map((tab) => (
@@ -758,7 +758,7 @@ function UserManagement() {
           </nav>
         </div>
 
-        <div className="p-6">
+        <div className="p-3">
           {/* Hiển thị thông tin tìm kiếm */}
           {searchTerm && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -809,11 +809,11 @@ function UserManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-2xl p-4 border shadow-lg rounded-lg bg-white max-h-[90vh] overflow-y-auto"
             >
-              <div className="mt-3">
-                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-                  <h3 className="text-2xl font-bold text-gray-900">➕ Thêm người dùng mới</h3>
+              <div className="mt-2">
+                <div className="flex justify-between items-center mb-3 pb-3 border-b border-gray-200">
+                  <h3 className="text-xl font-bold text-gray-900">➕ Thêm người dùng mới</h3>
                   <button
                     onClick={handleCloseModal}
                   className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
@@ -947,7 +947,7 @@ function UserManagement() {
                     onClick={handleCloseModal}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-sm text-sm"
                   >
                     ❌ Hủy
                   </motion.button>
@@ -956,7 +956,7 @@ function UserManagement() {
                     disabled={isCreatingUser}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                    className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-sm"
                   >
                     {isCreatingUser && (
                       <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
@@ -995,11 +995,11 @@ function UserManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-2xl p-4 border shadow-lg rounded-lg bg-white max-h-[90vh] overflow-y-auto"
             >
-              <div className="mt-3">
-              <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-                <h3 className="text-2xl font-bold text-gray-900">✏️ Chỉnh sửa người dùng</h3>
+              <div className="mt-2">
+              <div className="flex justify-between items-center mb-3 pb-3 border-b border-gray-200">
+                <h3 className="text-xl font-bold text-gray-900">✏️ Chỉnh sửa người dùng</h3>
                 <button
                   onClick={handleEditCancel}
                   className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
@@ -1146,7 +1146,7 @@ function UserManagement() {
                     onClick={handleEditCancel}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-sm text-sm"
                   >
                     Hủy
                   </motion.button>
@@ -1155,7 +1155,7 @@ function UserManagement() {
                     disabled={isUpdatingUser}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                    className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-sm"
                   >
                     {isUpdatingUser && (
                       <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
@@ -1194,7 +1194,7 @@ function UserManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-[480px] p-6 border shadow-2xl rounded-xl bg-white"
+              className="w-[480px] p-4 border shadow-lg rounded-lg bg-white"
             >
               <div className="mt-3">
                 <div className="flex items-center justify-center w-16 h-16 mx-auto bg-gradient-to-br from-red-100 to-red-200 rounded-full mb-4 shadow-lg">
@@ -1239,7 +1239,7 @@ function UserManagement() {
                     onClick={handleDeleteCancel}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-sm text-sm"
                   >
                     Hủy
                   </motion.button>
@@ -1248,7 +1248,7 @@ function UserManagement() {
                     disabled={isDeletingUser}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                    className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-sm"
                   >
                     {isDeletingUser && (
                       <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
@@ -1406,7 +1406,7 @@ function UserManagement() {
                     onClick={handleCloseDetailModal}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-sm text-sm"
                   >
                     Đóng
                   </motion.button>

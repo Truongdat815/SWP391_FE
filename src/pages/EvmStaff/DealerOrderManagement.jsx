@@ -215,9 +215,9 @@ function DealerOrderManagement() {
         onConfirm={confirm.onConfirm}
         onCancel={confirm.onCancel}
       />
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
         <motion.div 
-          className="mb-6"
+          className="mb-4"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
@@ -440,7 +440,7 @@ function DealerOrderManagement() {
                           onClick={() => handleComplete(order)}
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          className="px-3 py-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded text-sm hover:from-green-700 hover:to-emerald-700 flex items-center gap-1 ml-auto shadow-lg"
+                          className="px-3 py-1 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded text-sm hover:from-green-700 hover:to-emerald-700 flex items-center gap-1 ml-auto shadow-md"
                         >
                           <motion.svg 
                             className="w-4 h-4" 
@@ -485,9 +485,9 @@ function DealerOrderManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-lg"
+              className="bg-white rounded-lg shadow-2xl p-4 w-full max-w-lg"
             >
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-4">
                 <motion.div
                   initial={{ x: -10, opacity: 0 }}
                   animate={{ x: 0, opacity: 1 }}
@@ -606,7 +606,7 @@ function DealerOrderManagement() {
                   type="submit"
                   whileHover={{ scale: 1.05, x: 5 }}
                   whileTap={{ scale: 0.95 }}
-                  className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:from-emerald-700 hover:to-green-700 transition-all shadow-lg font-medium flex items-center gap-2"
+                  className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-green-600 text-white rounded-lg hover:from-emerald-700 hover:to-green-700 transition-all shadow-md font-medium flex items-center gap-2"
                 >
                   <motion.svg 
                     className="w-5 h-5" 

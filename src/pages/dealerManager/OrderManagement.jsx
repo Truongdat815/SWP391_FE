@@ -291,8 +291,8 @@ function OrderManagement() {
 
 <div className="max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-900 flex items-center">
+      <div className="mb-4">
+        <h1 className="text-xl font-bold text-gray-900 flex items-center">
           <FileText className="h-8 w-8 mr-3 text-emerald-600" />
           Quản lý đơn hàng
         </h1>
@@ -309,9 +309,9 @@ function OrderManagement() {
         </div>
       )}
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
         {/* Filters and Bulk Actions */}
-        <div className="flex flex-col gap-4 mb-6">
+        <div className="flex flex-col gap-4 mb-4">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <div className="relative">
@@ -406,19 +406,19 @@ function OrderManagement() {
                       <span className="text-xs font-medium text-gray-600">Tất cả</span>
                     </div>
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Mã đơn hàng
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Khách hàng
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Ngày tạo
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Trạng thái
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Thao tác
                   </th>
                 </tr>
@@ -439,10 +439,10 @@ function OrderManagement() {
                         className="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
                       />
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-gray-900">
                       {order.orderNumber || `ORD-${order.orderId}`}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
                         {order.customerName || order.customer?.fullName || 'N/A'}
                       </div>
@@ -450,15 +450,15 @@ function OrderManagement() {
                         {order.customerPhone || order.customer?.phone || ''}
                       </div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
                       {order.orderDate ? new Date(order.orderDate).toLocaleDateString('vi-VN') : 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status || order.orderStatus)}`}>
                         {getStatusText(order.status || order.orderStatus)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-3">
                         <button
                           onClick={() => handleViewDetails(order)}
@@ -505,7 +505,7 @@ function OrderManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-11/12 md:w-3/4 lg:w-1/2 p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+              className="w-11/12 md:w-3/4 lg:w-1/2 p-5 border shadow-2xl rounded-lg bg-white max-h-[90vh] overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">
@@ -519,7 +519,7 @@ function OrderManagement() {
                 </button>
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Customer Information */}
                 <div className="bg-gray-50 rounded-lg p-4">
                   <h4 className="font-semibold text-gray-900 mb-3">Thông tin khách hàng</h4>

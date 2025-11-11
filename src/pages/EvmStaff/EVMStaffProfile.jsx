@@ -56,20 +56,20 @@ const EVMStaffProfile = ({ onBack }) => {
           Quay lại
         </button>
       )}
-      <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-2xl p-6 sm:p-8 shadow-sm mb-6">
+      <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-lg p-6 sm:p-8 shadow-sm mb-4">
         <div className="flex items-center gap-4">
           <div className="h-16 w-16 rounded-full bg-emerald-100 flex items-center justify-center ring-8 ring-white shadow">
             <span className="text-emerald-600 font-bold text-xl">ES</span>
           </div>
           <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Thông tin cá nhân</h1>
+            <h1 className="text-2xl sm:text-2xl font-bold text-gray-900">Thông tin cá nhân</h1>
             <p className="text-gray-600">Quản lý hồ sơ nhân viên EVM</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-200 p-6 sm:p-8">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 sm:p-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
             <input 

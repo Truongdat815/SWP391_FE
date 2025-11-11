@@ -464,35 +464,35 @@ function ViewOrders() {
         onCancel={confirm.onCancel}
       />
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3">
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Quản lý đơn hàng</h2>
-            <p className="text-gray-600 mt-1">Danh sách các đơn hàng đã tạo</p>
+            <h2 className="text-xl font-bold text-gray-900">Quản lý đơn hàng</h2>
+            <p className="text-gray-600 mt-0.5 text-sm">Danh sách các đơn hàng đã tạo</p>
           </div>
         </div>
 
         {/* Loading State */}
         {loading && (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mr-3" />
-            <span className="text-gray-600">Đang tải danh sách đơn hàng...</span>
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-2" />
+            <span className="text-gray-600 text-sm">Đang tải danh sách đơn hàng...</span>
           </div>
         )}
 
         {/* Filters */}
         {!loading && (
-          <div className="space-y-4 mb-4">
-            <div className="flex flex-col sm:flex-row gap-4">
+          <div className="space-y-3 mb-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Tìm kiếm theo tên khách hàng, mã đơn hàng..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
                   />
                 </div>
               </div>
@@ -505,9 +505,9 @@ function ViewOrders() {
                   }}
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-left flex items-center justify-between transition-all"
+                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-left flex items-center justify-between transition-all text-sm"
                 >
-                  <span className="text-gray-700">
+                  <span className="text-gray-700 text-sm">
                     {statusFilter === 'all' ? 'Tất cả trạng thái' :
                      statusFilter === 'draft' ? 'Nháp' :
                      statusFilter === 'approved' ? 'Đã phê duyệt' :
@@ -520,7 +520,7 @@ function ViewOrders() {
                   <motion.svg
                     animate={{ rotate: showStatusDropdown ? 180 : 0 }}
                     transition={{ duration: 0.3 }}
-                    className="h-5 w-5 text-gray-400"
+                    className="h-4 w-4 text-gray-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -539,7 +539,7 @@ function ViewOrders() {
                         duration: 0.2,
                         ease: [0.4, 0, 0.2, 1]
                       }}
-                      className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50 origin-top"
+                      className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden z-50 origin-top"
                     >
                       <div className="py-1 max-h-60 overflow-y-auto">
                         {[
@@ -561,7 +561,7 @@ function ViewOrders() {
                               setStatusFilter(option.value);
                               setShowStatusDropdown(false);
                             }}
-                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-emerald-50 transition-colors ${
+                            className={`w-full px-3 py-2 text-left text-xs hover:bg-emerald-50 transition-colors ${
                               statusFilter === option.value 
                                 ? 'bg-emerald-50 text-emerald-700 font-medium' 
                                 : 'text-gray-700'
@@ -585,9 +585,9 @@ function ViewOrders() {
                   }}
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-left flex items-center justify-between transition-all"
+                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-left flex items-center justify-between transition-all text-sm"
                 >
-                  <span className="text-gray-700">
+                  <span className="text-gray-700 text-sm">
                     {sortMode === 'newest' ? 'Đơn hàng mới nhất' :
                      sortMode === 'oldest' ? 'Đơn hàng cũ nhất' :
                      sortMode === 'name-asc' ? 'Tên KH A → Z' :
@@ -596,7 +596,7 @@ function ViewOrders() {
                   <motion.svg
                     animate={{ rotate: showSortDropdown ? 180 : 0 }}
                     transition={{ duration: 0.3 }}
-                    className="h-5 w-5 text-gray-400"
+                    className="h-4 w-4 text-gray-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -615,7 +615,7 @@ function ViewOrders() {
                         duration: 0.2,
                         ease: [0.4, 0, 0.2, 1]
                       }}
-                      className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50 origin-top"
+                      className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden z-50 origin-top"
                     >
                       <div className="py-1">
                         {[
@@ -633,7 +633,7 @@ function ViewOrders() {
                               setSortMode(option.value);
                               setShowSortDropdown(false);
                             }}
-                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-emerald-50 transition-colors ${
+                            className={`w-full px-3 py-2 text-left text-xs hover:bg-emerald-50 transition-colors ${
                               sortMode === option.value 
                                 ? 'bg-emerald-50 text-emerald-700 font-medium' 
                                 : 'text-gray-700'
@@ -651,7 +651,7 @@ function ViewOrders() {
                 onClick={() => setShowDateFilter(!showDateFilter)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className={`sm:w-auto px-4 py-2 border rounded-lg transition-all flex items-center justify-center font-medium ${
+                className={`sm:w-auto px-3 py-1.5 border rounded-lg transition-all flex items-center justify-center font-medium text-sm ${
                   showDateFilter 
                     ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm' 
                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -661,7 +661,7 @@ function ViewOrders() {
                   animate={{ rotate: showDateFilter ? 180 : 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <Calendar className="h-5 w-5 mr-2" />
+                  <Calendar className="h-4 w-4 mr-1.5" />
                 </motion.div>
                 Lọc theo ngày
               </motion.button>
@@ -701,7 +701,7 @@ function ViewOrders() {
                     overflow: 'hidden',
                     willChange: 'transform, opacity, max-height'
                   }}
-                  className="flex flex-col sm:flex-row gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-sm"
+                  className="flex flex-col sm:flex-row gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 shadow-sm"
                 >
                   <motion.div 
                     initial={{ opacity: 0, x: -15 }}
@@ -710,7 +710,7 @@ function ViewOrders() {
                     transition={{ delay: 0.1, duration: 0.25, ease: "easeOut" }}
                     className="flex-1"
                   >
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Từ ngày
                     </label>
                     <input
@@ -718,7 +718,7 @@ function ViewOrders() {
                       value={startDate}
                       onChange={(e) => setStartDate(e.target.value)}
                       onKeyDown={(e) => e.preventDefault()}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer transition-shadow"
+                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer transition-shadow text-sm"
                       placeholder="Chọn ngày"
                     />
                   </motion.div>
@@ -729,7 +729,7 @@ function ViewOrders() {
                     transition={{ delay: 0.15, duration: 0.25, ease: "easeOut" }}
                     className="flex-1"
                   >
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Đến ngày
                     </label>
                     <input
@@ -737,7 +737,7 @@ function ViewOrders() {
                       value={endDate}
                       onChange={(e) => setEndDate(e.target.value)}
                       onKeyDown={(e) => e.preventDefault()}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer transition-shadow"
+                      className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer transition-shadow text-sm"
                       placeholder="Chọn ngày"
                     />
                   </motion.div>
@@ -755,7 +755,7 @@ function ViewOrders() {
                       }}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                      className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
                     >
                       Xóa bộ lọc
                     </motion.button>
@@ -768,12 +768,12 @@ function ViewOrders() {
 
         {/* Orders Table */}
         {!loading && filteredOrders.length === 0 ? (
-          <div className="text-center py-4">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="text-center py-6">
+            <svg className="mx-auto h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
             <h3 className="mt-2 text-sm font-medium text-gray-900">Không có đơn hàng nào</h3>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-xs text-gray-500">
               {searchTerm || statusFilter !== 'all' 
                 ? 'Không tìm thấy đơn hàng phù hợp với bộ lọc.' 
                 : 'Chưa có đơn hàng nào được tạo.'}
@@ -784,25 +784,25 @@ function ViewOrders() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Mã đơn hàng
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Khách hàng
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Ngày tạo
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Trạng thái
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Hợp đồng
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Tổng tiền
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Thao tác
                   </th>
                 </tr>
@@ -810,29 +810,29 @@ function ViewOrders() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredOrders.map((order) => (
                   <tr key={order.orderId} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-gray-900">
                       {order.orderCode || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{order.customerName || 'N/A'}</div>
-                      <div className="text-sm text-gray-500">{order.customerPhone || 'N/A'}</div>
+                      <div className="text-xs text-gray-500">{order.customerPhone || 'N/A'}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
                       {order.orderDate ? new Date(order.orderDate).toLocaleDateString('vi-VN') : 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-md ${getStatusColor(order.status)}`}>
                         {getStatusText(order.status)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       {(() => {
                         const contract = ordersWithContracts[order.orderId];
                         if (contract) {
                           return (
                             <button
                               onClick={() => navigate('/dealer-staff/contract-management')}
-                              className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 hover:bg-green-200 transition-colors"
+                              className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-green-100 text-green-800 hover:bg-green-200 transition-colors"
                             >
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Đã có
@@ -840,29 +840,29 @@ function ViewOrders() {
                           );
                         } else if (order.status?.toUpperCase() === 'CONFIRMED') {
                           return (
-                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                            <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-md bg-gray-100 text-gray-800">
                               Chưa có
                             </span>
                           );
                         } else {
                           return (
-                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-400">
+                            <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-md bg-gray-100 text-gray-400">
                               -
                             </span>
                           );
                         }
                       })()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
                       {(order.totalPayment || order.totalPrice || 0).toLocaleString('vi-VN')} VNĐ
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex flex-wrap gap-2">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium">
+                      <div className="flex flex-wrap gap-1.5">
                         <button
                           onClick={() => handleViewDetails(order)}
-                          className="text-emerald-600 hover:text-emerald-900 transition-colors flex items-center"
+                          className="text-emerald-600 hover:text-emerald-900 transition-colors flex items-center text-xs"
                         >
-                          <Eye className="h-4 w-4 mr-1" />
+                          <Eye className="h-3 w-3 mr-1" />
                           Chi tiết
                         </button>
                         
@@ -870,9 +870,9 @@ function ViewOrders() {
                         {order.status?.toUpperCase() === 'DRAFT' && (
                           <button
                             onClick={() => handleConfirmOrder(order.orderId)}
-                            className="text-blue-600 hover:text-blue-900 transition-colors flex items-center"
+                            className="text-blue-600 hover:text-blue-900 transition-colors flex items-center text-xs"
                           >
-                            <CheckCircle className="h-4 w-4 mr-1" />
+                            <CheckCircle className="h-3 w-3 mr-1" />
                             Xác nhận
                           </button>
                         )}
@@ -882,17 +882,17 @@ function ViewOrders() {
                           <button
                             onClick={() => handleCreateContract(order)}
                             disabled={creatingContract === order.orderId}
-                            className="text-blue-600 hover:text-blue-900 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="text-blue-600 hover:text-blue-900 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed text-xs"
                             title="Tạo hợp đồng"
                           >
                             {creatingContract === order.orderId ? (
                               <>
-                                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
                                 Đang tạo...
                               </>
                             ) : (
                               <>
-                                <FileText className="h-4 w-4 mr-1" />
+                                <FileText className="h-3 w-3 mr-1" />
                                 Tạo hợp đồng
                               </>
                             )}
@@ -903,10 +903,10 @@ function ViewOrders() {
                         {order.status?.toUpperCase() === 'CONFIRMED' && ordersWithContracts[order.orderId] && (
                           <button
                             onClick={() => navigate('/dealer-staff/contract-management')}
-                            className="text-green-600 hover:text-green-900 transition-colors flex items-center"
+                            className="text-green-600 hover:text-green-900 transition-colors flex items-center text-xs"
                             title="Xem hợp đồng"
                           >
-                            <FileText className="h-4 w-4 mr-1" />
+                            <FileText className="h-3 w-3 mr-1" />
                             Xem hợp đồng
                           </button>
                         )}
@@ -915,9 +915,9 @@ function ViewOrders() {
                         {(order.status?.toUpperCase() === 'DRAFT' || order.status?.toUpperCase() === 'CONFIRMED') && (
                           <button
                             onClick={() => handleDeleteOrder(order.orderId, order.status)}
-                            className="text-red-600 hover:text-red-900 transition-colors flex items-center"
+                            className="text-red-600 hover:text-red-900 transition-colors flex items-center text-xs"
                           >
-                            <Trash2 className="h-4 w-4 mr-1" />
+                            <Trash2 className="h-3 w-3 mr-1" />
                             Xóa
                           </button>
                         )}
@@ -952,73 +952,73 @@ function ViewOrders() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-7xl p-4 border shadow-2xl rounded-2xl bg-white max-h-[95vh] overflow-y-auto"
+              className="w-full max-w-7xl p-4 border shadow-lg rounded-lg bg-white max-h-[95vh] overflow-y-auto"
             >
               {/* Header */}
-              <div className="flex items-start justify-between mb-4 pb-3 border-b border-gray-200">
+              <div className="flex items-start justify-between mb-3 pb-3 border-b border-gray-200">
                 <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <Receipt className="h-8 w-8 text-emerald-600" />
-                    <h3 className="text-2xl font-bold text-gray-900">
+                  <div className="flex items-center space-x-2 mb-1.5">
+                    <Receipt className="h-6 w-6 text-emerald-600" />
+                    <h3 className="text-xl font-bold text-gray-900">
                       Chi tiết đơn hàng
                     </h3>
                   </div>
-                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  <div className="flex items-center space-x-3 text-xs text-gray-600">
                     <span className="flex items-center">
-                      <Tag className="h-4 w-4 mr-1" />
+                      <Tag className="h-3 w-3 mr-1" />
                       Mã: <span className="font-semibold ml-1">{selectedOrder.orderCode || 'N/A'}</span>
                     </span>
                     <span className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-1" />
+                      <Calendar className="h-3 w-3 mr-1" />
                       {selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleDateString('vi-VN', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
                       }) : 'N/A'}
                     </span>
-                    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedOrder.status)}`}>
+                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-md ${getStatusColor(selectedOrder.status)}`}>
                       {getStatusText(selectedOrder.status)}
                     </span>
                   </div>
                 </div>
                 <button
                   onClick={handleCloseModal}
-                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
+                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-all"
                 >
-                  <X className="h-6 w-6" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {/* Three Column Info Cards */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                   {/* Customer Information */}
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <User className="h-5 w-5 text-blue-600" />
-                      <h4 className="font-bold text-blue-900">Thông tin khách hàng</h4>
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <User className="h-4 w-4 text-blue-600" />
+                      <h4 className="font-bold text-blue-900 text-sm">Thông tin khách hàng</h4>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <div className="flex items-start">
-                        <UserCircle className="h-4 w-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <UserCircle className="h-3 w-3 text-blue-600 mr-1.5 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <p className="text-xs text-blue-700">Tên khách hàng</p>
-                          <p className="text-sm font-semibold text-blue-900">{selectedOrder.customerName || 'N/A'}</p>
+                          <p className="text-xs font-semibold text-blue-900">{selectedOrder.customerName || 'N/A'}</p>
                         </div>
                       </div>
                       <div className="flex items-start">
-                        <Phone className="h-4 w-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <Phone className="h-3 w-3 text-blue-600 mr-1.5 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <p className="text-xs text-blue-700">Số điện thoại</p>
-                          <p className="text-sm font-semibold text-blue-900">{selectedOrder.customerPhone || 'N/A'}</p>
+                          <p className="text-xs font-semibold text-blue-900">{selectedOrder.customerPhone || 'N/A'}</p>
                         </div>
                       </div>
                       {selectedOrder.customerEmail && (
                         <div className="flex items-start">
-                          <Mail className="h-4 w-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                          <Mail className="h-3 w-3 text-blue-600 mr-1.5 mt-0.5 flex-shrink-0" />
                           <div className="flex-1">
                             <p className="text-xs text-blue-700">Email</p>
-                            <p className="text-sm font-semibold text-blue-900 break-all">{selectedOrder.customerEmail}</p>
+                            <p className="text-xs font-semibold text-blue-900 break-all">{selectedOrder.customerEmail}</p>
                           </div>
                         </div>
                       )}
@@ -1026,58 +1026,58 @@ function ViewOrders() {
                   </div>
 
                   {/* Staff & Store Information */}
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <Building2 className="h-5 w-5 text-purple-600" />
-                      <h4 className="font-bold text-purple-900">Nhân viên & Cửa hàng</h4>
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Building2 className="h-4 w-4 text-purple-600" />
+                      <h4 className="font-bold text-purple-900 text-sm">Nhân viên & Cửa hàng</h4>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <div className="flex items-start">
-                        <UserCircle className="h-4 w-4 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <UserCircle className="h-3 w-3 text-purple-600 mr-1.5 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <p className="text-xs text-purple-700">Nhân viên phụ trách</p>
-                          <p className="text-sm font-semibold text-purple-900">{selectedOrder.staffName || 'N/A'}</p>
+                          <p className="text-xs font-semibold text-purple-900">{selectedOrder.staffName || 'N/A'}</p>
                         </div>
                       </div>
                       <div className="flex items-start">
-                        <Building2 className="h-4 w-4 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <Building2 className="h-3 w-3 text-purple-600 mr-1.5 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <p className="text-xs text-purple-700">Cửa hàng</p>
-                          <p className="text-sm font-semibold text-purple-900">{selectedOrder.storeName || 'N/A'}</p>
+                          <p className="text-xs font-semibold text-purple-900">{selectedOrder.storeName || 'N/A'}</p>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Financial Summary */}
-                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <DollarSign className="h-5 w-5 text-emerald-600" />
-                      <h4 className="font-bold text-emerald-900">Tổng quan tài chính</h4>
+                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-3 border border-emerald-200">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <DollarSign className="h-4 w-4 text-emerald-600" />
+                      <h4 className="font-bold text-emerald-900 text-sm">Tổng quan tài chính</h4>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-emerald-700">Tổng giá sản phẩm:</span>
-                        <span className="text-sm font-semibold text-emerald-900">
+                        <span className="text-xs font-semibold text-emerald-900">
                           {(selectedOrder.totalPrice || 0).toLocaleString('vi-VN')}đ
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-emerald-700">Phí dịch vụ và biển số:</span>
-                        <span className="text-sm font-semibold text-orange-600">
+                        <span className="text-xs font-semibold text-orange-600">
                           +{(selectedOrder.totalTaxPrice || 0).toLocaleString('vi-VN')}đ
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-emerald-700">Khuyến mãi:</span>
-                        <span className="text-sm font-semibold text-red-600">
+                        <span className="text-xs font-semibold text-red-600">
                           -{(selectedOrder.totalPromotionAmount || 0).toLocaleString('vi-VN')}đ
                         </span>
                       </div>
-                      <div className="pt-2 border-t-2 border-emerald-300">
+                      <div className="pt-1.5 border-t-2 border-emerald-300">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-bold text-emerald-900">Tổng thanh toán:</span>
-                          <span className="text-lg font-bold text-emerald-600">
+                          <span className="text-xs font-bold text-emerald-900">Tổng thanh toán:</span>
+                          <span className="text-base font-bold text-emerald-600">
                             {(selectedOrder.totalPayment || 0).toLocaleString('vi-VN')}đ
                           </span>
                         </div>
@@ -1087,48 +1087,48 @@ function ViewOrders() {
                 </div>
 
                 {/* Product Details */}
-                <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
-                  <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-4">
-                    <h4 className="font-bold text-white flex items-center text-lg">
-                      <ShoppingBag className="h-6 w-6 mr-2" />
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-2.5">
+                    <h4 className="font-bold text-white flex items-center text-sm">
+                      <ShoppingBag className="h-4 w-4 mr-1.5" />
                       Chi tiết sản phẩm
                     </h4>
                   </div>
                   
                   {loadingDetails ? (
-                    <div className="flex items-center justify-center py-4">
-                      <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mr-3" />
-                      <span className="text-gray-600 font-medium">Đang tải chi tiết sản phẩm...</span>
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-2" />
+                      <span className="text-gray-600 font-medium text-sm">Đang tải chi tiết sản phẩm...</span>
                     </div>
                   ) : selectedOrderDetails.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                               Sản phẩm
                             </th>
-                            <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
                               Số lượng
                             </th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                               Đơn giá
                             </th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                               Phí đăng ký
                             </th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                               Phí biển số
                             </th>
                             {selectedOrderDetails.some(item => item.promotionName) && (
-                              <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                                 Khuyến mãi
                               </th>
                             )}
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                               Giảm giá
                             </th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                               Thành tiền
                             </th>
                           </tr>
@@ -1136,38 +1136,38 @@ function ViewOrders() {
                         <tbody className="bg-white divide-y divide-gray-100">
                           {selectedOrderDetails.map((item, index) => (
                             <tr key={index} className="hover:bg-emerald-50 transition-colors">
-                              <td className="px-6 py-4">
+                              <td className="px-3 py-2">
                                 <div className="flex items-center">
-                                  <div className="h-10 w-10 flex-shrink-0 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center mr-3">
-                                    <Package className="h-5 w-5 text-white" />
+                                  <div className="h-8 w-8 flex-shrink-0 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center mr-2">
+                                    <Package className="h-4 w-4 text-white" />
                                   </div>
                                   <div>
-                                    <div className="font-semibold text-gray-900">{item.modelName || 'N/A'}</div>
-                                    <div className="text-sm text-gray-500 flex items-center">
+                                    <div className="font-semibold text-gray-900 text-sm">{item.modelName || 'N/A'}</div>
+                                    <div className="text-xs text-gray-500 flex items-center">
                                       <Tag className="h-3 w-3 mr-1" />
                                       {item.colorName || 'N/A'}
                                     </div>
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-6 py-4 text-center">
-                                <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm font-bold">
+                              <td className="px-3 py-2 text-center">
+                                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md text-xs font-bold">
                                   {item.quantity || 0}
                                 </span>
                               </td>
-                              <td className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
+                              <td className="px-3 py-2 text-right text-xs font-semibold text-gray-900">
                                 {(item.unitPrice || 0).toLocaleString('vi-VN')}đ
                               </td>
-                              <td className="px-6 py-4 text-right text-sm text-gray-600">
+                              <td className="px-3 py-2 text-right text-xs text-gray-600">
                                 {(item.registrationFee || 0).toLocaleString('vi-VN')}đ
                               </td>
-                              <td className="px-6 py-4 text-right text-sm text-gray-600">
+                              <td className="px-3 py-2 text-right text-xs text-gray-600">
                                 {(item.licensePlateFee || 0).toLocaleString('vi-VN')}đ
                               </td>
                               {selectedOrderDetails.some(i => i.promotionName) && (
-                                <td className="px-6 py-4 text-right text-xs">
+                                <td className="px-3 py-2 text-right text-xs">
                                   {item.promotionName ? (
-                                    <span className="inline-flex items-center px-2 py-1 bg-pink-100 text-pink-800 rounded-full">
+                                    <span className="inline-flex items-center px-2 py-0.5 bg-pink-100 text-pink-800 rounded-md">
                                       <Tag className="h-3 w-3 mr-1" />
                                       {item.promotionName}
                                     </span>
@@ -1176,10 +1176,10 @@ function ViewOrders() {
                                   )}
                                 </td>
                               )}
-                              <td className="px-6 py-4 text-right text-sm text-red-600 font-semibold">
+                              <td className="px-3 py-2 text-right text-xs text-red-600 font-semibold">
                                 {(item.discountAmount || 0) > 0 ? `-${(item.discountAmount || 0).toLocaleString('vi-VN')}đ` : '-'}
                               </td>
-                              <td className="px-6 py-4 text-right text-base font-bold text-emerald-600">
+                              <td className="px-3 py-2 text-right text-sm font-bold text-emerald-600">
                                 {(item.totalPrice || 0).toLocaleString('vi-VN')}đ
                               </td>
                             </tr>
@@ -1188,21 +1188,21 @@ function ViewOrders() {
                       </table>
                     </div>
                   ) : (
-                    <div className="text-center py-4">
-                      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 mb-4">
-                        <Package className="h-10 w-10 text-gray-400" />
+                    <div className="text-center py-6">
+                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-3">
+                        <Package className="h-8 w-8 text-gray-400" />
                       </div>
-                      <h4 className="text-lg font-semibold text-gray-900 mb-2">Chưa có sản phẩm</h4>
-                      <p className="text-gray-500 mb-4">Đơn hàng này chưa có sản phẩm nào</p>
+                      <h4 className="text-base font-semibold text-gray-900 mb-1.5">Chưa có sản phẩm</h4>
+                      <p className="text-gray-500 mb-3 text-sm">Đơn hàng này chưa có sản phẩm nào</p>
                       {selectedOrder.status?.toUpperCase() === 'DRAFT' && (
                         <button
                           onClick={() => {
                             handleEditOrder(selectedOrder.orderId);
                             handleCloseModal();
                           }}
-                          className="inline-flex items-center px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                          className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm"
                         >
-                          <Plus className="h-5 w-5 mr-2" />
+                          <Plus className="h-4 w-4 mr-1.5" />
                           Thêm sản phẩm ngay
                         </button>
                       )}
@@ -1212,32 +1212,32 @@ function ViewOrders() {
 
                 {/* Contract Section */}
                 {selectedOrder && (
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <Receipt className="h-5 w-5 text-purple-600" />
-                      <h4 className="font-bold text-purple-900">Thông tin hợp đồng</h4>
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Receipt className="h-4 w-4 text-purple-600" />
+                      <h4 className="font-bold text-purple-900 text-sm">Thông tin hợp đồng</h4>
                     </div>
                     {(() => {
                       const contract = ordersWithContracts[selectedOrder.orderId];
                       if (contract) {
                         return (
-                          <div className="space-y-2">
+                          <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-purple-700">Trạng thái:</span>
-                              <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                              <span className="text-xs text-purple-700">Trạng thái:</span>
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-green-100 text-green-800">
                                 <CheckCircle className="h-3 w-3 mr-1" />
                                 Đã có hợp đồng
                               </span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-purple-700">Mã hợp đồng:</span>
-                              <span className="text-sm font-semibold text-purple-900">
+                              <span className="text-xs text-purple-700">Mã hợp đồng:</span>
+                              <span className="text-xs font-semibold text-purple-900">
                                 {contract.contractCode || 'N/A'}
                               </span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-purple-700">Đã upload chữ ký:</span>
-                              <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
+                              <span className="text-xs text-purple-700">Đã upload chữ ký:</span>
+                              <span className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md ${
                                 contract.signedContractFileUrl || contract.contractFileUrl
                                   ? 'bg-green-100 text-green-800'
                                   : 'bg-yellow-100 text-yellow-800'
@@ -1262,23 +1262,23 @@ function ViewOrders() {
                               }}
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
-                              className="w-full mt-3 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center font-semibold"
+                              className="w-full mt-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center font-semibold text-sm"
                             >
-                              <Receipt className="h-4 w-4 mr-2" />
+                              <Receipt className="h-3 w-3 mr-1.5" />
                               Xem hợp đồng
                             </motion.button>
                           </div>
                         );
                       } else if (selectedOrder.status?.toUpperCase() === 'CONFIRMED') {
                         return (
-                          <div className="space-y-2">
+                          <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-purple-700">Trạng thái:</span>
-                              <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                              <span className="text-xs text-purple-700">Trạng thái:</span>
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-gray-100 text-gray-800">
                                 Chưa có hợp đồng
                               </span>
                             </div>
-                            <p className="text-sm text-purple-700">
+                            <p className="text-xs text-purple-700">
                               Đơn hàng đã xác nhận. Bạn có thể tạo hợp đồng ngay bây giờ.
                             </p>
                             <motion.button
@@ -1286,16 +1286,16 @@ function ViewOrders() {
                               disabled={creatingContract === selectedOrder.orderId}
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
-                              className="w-full mt-3 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold"
+                              className="w-full mt-2 px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold text-sm"
                             >
                               {creatingContract === selectedOrder.orderId ? (
                                 <>
-                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                  <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
                                   Đang tạo...
                                 </>
                               ) : (
                                 <>
-                                  <Plus className="h-4 w-4 mr-2" />
+                                  <Plus className="h-3 w-3 mr-1.5" />
                                   Tạo hợp đồng
                                 </>
                               )}
@@ -1304,14 +1304,14 @@ function ViewOrders() {
                         );
                       } else {
                         return (
-                          <div className="space-y-2">
+                          <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-purple-700">Trạng thái:</span>
-                              <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-400">
+                              <span className="text-xs text-purple-700">Trạng thái:</span>
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-gray-100 text-gray-400">
                                 Chưa thể tạo
                               </span>
                             </div>
-                            <p className="text-sm text-purple-600">
+                            <p className="text-xs text-purple-600">
                               Vui lòng xác nhận đơn hàng trước khi tạo hợp đồng.
                             </p>
                           </div>
@@ -1333,21 +1333,21 @@ function ViewOrders() {
                         }}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center font-semibold"
+                        className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center font-semibold text-sm"
                       >
-                        <CheckCircle className="h-5 w-5 mr-2" />
+                        <CheckCircle className="h-4 w-4 mr-1.5" />
                         Xác nhận đơn hàng
                       </motion.button>
                     )}
                   </div>
                   
                   {/* General Actions - RIGHT SIDE */}
-                  <div className="flex space-x-4">
+                  <div className="flex space-x-3">
                     <motion.button
                       onClick={handleCloseModal}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm"
                     >
                       Đóng
                     </motion.button>

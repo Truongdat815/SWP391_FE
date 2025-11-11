@@ -168,7 +168,7 @@ const AdminSettings = () => {
         <div className="grid grid-cols-12 gap-6">
           {/* Sidebar */}
           <div className="col-span-12 lg:col-span-3">
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sticky top-6">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3 sticky top-4">
               <nav className="space-y-1">
                 {sections.map((section) => (
                   <button

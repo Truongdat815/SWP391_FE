@@ -69,7 +69,7 @@ function BaoCaoDoanhSo() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="max-w-7xl mx-auto p-4">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -80,7 +80,7 @@ function BaoCaoDoanhSo() {
               </svg>
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Báo cáo doanh số</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Báo cáo doanh số</h1>
               <p className="text-gray-600">Phân tích chi tiết doanh số bán hàng</p>
             </div>
           </div>
@@ -108,7 +108,7 @@ function BaoCaoDoanhSo() {
       </div>
 
       {/* Period Selection */}
-      <div className="bg-white rounded-lg shadow p-6 mb-6">
+      <div className="bg-white rounded-lg shadow p-4 mb-4">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Chọn khoảng thời gian</h2>
         <div className="flex flex-wrap gap-3">
           {periods.map((period) => (
@@ -157,8 +157,8 @@ function BaoCaoDoanhSo() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center">
             <div className="p-3 bg-red-100 rounded-lg">
               <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -173,7 +173,7 @@ function BaoCaoDoanhSo() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center">
             <div className="p-3 bg-green-100 rounded-lg">
               <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -188,7 +188,7 @@ function BaoCaoDoanhSo() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center">
             <div className="p-3 bg-blue-100 rounded-lg">
               <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -203,7 +203,7 @@ function BaoCaoDoanhSo() {
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <div className="flex items-center">
             <div className="p-3 bg-purple-100 rounded-lg">
               <svg className="h-6 w-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -220,12 +220,12 @@ function BaoCaoDoanhSo() {
       </div>
 
       {/* Sales by Model */}
-      <div className="bg-white rounded-lg shadow mb-6">
-        <div className="px-6 py-4 border-b border-gray-200">
+      <div className="bg-white rounded-lg shadow mb-4">
+        <div className="px-3 py-2.5 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">Doanh số theo mẫu xe</h3>
         </div>
-        <div className="p-6">
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+        <div className="p-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 items-start">
             {/* Donut Chart */}
             <div className="col-span-1 flex flex-col items-center">
               <div
@@ -291,27 +291,27 @@ function BaoCaoDoanhSo() {
       </div>
 
       {/* Sales by Employee */}
-      <div className="bg-white rounded-lg shadow mb-6">
-        <div className="px-6 py-4 border-b border-gray-200">
+      <div className="bg-white rounded-lg shadow mb-4">
+        <div className="px-3 py-2.5 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">Doanh số theo nhân viên</h3>
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Nhân viên
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Doanh số
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Số đơn hàng
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Tỷ lệ chuyển đổi
                 </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Xếp hạng
                 </th>
               </tr>
@@ -319,7 +319,7 @@ function BaoCaoDoanhSo() {
             <tbody className="bg-white divide-y divide-gray-200">
               {salesData.byEmployee.map((employee, index) => (
                 <tr key={index}>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 py-2.5 whitespace-nowrap">
                     <div className="flex items-center">
                       <div className="h-10 w-10 bg-gray-300 rounded-full mr-4"></div>
                       <div>
@@ -328,18 +328,18 @@ function BaoCaoDoanhSo() {
                       </div>
                     </div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 py-2.5 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{employee.sales}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 py-2.5 whitespace-nowrap">
                     <div className="text-sm text-gray-900">{employee.orders}</div>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 py-2.5 whitespace-nowrap">
                     <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
                       {employee.conversion}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
+                  <td className="px-3 py-2.5 whitespace-nowrap">
                     <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                       index === 0 ? 'bg-yellow-100 text-yellow-800' :
                       index === 1 ? 'bg-gray-100 text-gray-800' :
@@ -358,10 +358,10 @@ function BaoCaoDoanhSo() {
 
       {/* Sales Trends */}
       <div className="bg-white rounded-lg shadow">
-        <div className="px-6 py-4 border-b border-gray-200">
+        <div className="px-3 py-2.5 border-b border-gray-200">
           <h3 className="text-lg font-medium text-gray-900">Xu hướng doanh số</h3>
         </div>
-        <div className="p-6">
+        <div className="p-4">
           <div className="space-y-4">
             {salesData.trends.map((trend, index) => (
               <div key={index} className="flex items-center justify-between p-4 border border-gray-200 rounded-lg">

@@ -135,8 +135,8 @@ function SalesReport({ onBack }) {
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
           <div className="flex items-center">
             <div className="p-3 rounded-lg bg-green-50 text-green-600">
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -151,7 +151,7 @@ function SalesReport({ onBack }) {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
           <div className="flex items-center">
             <div className="p-3 rounded-lg bg-blue-50 text-blue-600">
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -166,7 +166,7 @@ function SalesReport({ onBack }) {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
           <div className="flex items-center">
             <div className="p-3 rounded-lg bg-purple-50 text-purple-600">
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -181,7 +181,7 @@ function SalesReport({ onBack }) {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
           <div className="flex items-center">
             <div className="p-3 rounded-lg bg-orange-50 text-orange-600">
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -198,7 +198,7 @@ function SalesReport({ onBack }) {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100">
         <div className="border-b border-gray-200">
           <nav className="flex space-x-8 px-6">
             {tabs.map((tab) => (
@@ -218,7 +218,7 @@ function SalesReport({ onBack }) {
           </nav>
         </div>
 
-        <div className="p-6">
+        <div className="p-4">
           {/* Sales by Region */}
           {activeTab === 'sales' && (
             <div className="space-y-6">
@@ -234,9 +234,9 @@ function SalesReport({ onBack }) {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 {salesData.map((region, index) => (
-                  <div key={index} className="bg-white border border-gray-200 rounded-xl p-6">
+                  <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
                     <div className="flex items-center justify-between mb-4">
                       <div className="flex items-center">
                         <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600 mr-4">
@@ -289,7 +289,7 @@ function SalesReport({ onBack }) {
               </div>
 
               {/* Sales Chart Placeholder */}
-              <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-900 mb-4">Biểu đồ doanh số theo tháng</h4>
                 <div className="h-64 flex items-center justify-center border-2 border-dashed border-gray-200 rounded-lg bg-gray-50">
                   <div className="text-center">
@@ -318,29 +318,29 @@ function SalesReport({ onBack }) {
                 </div>
               </div>
 
-              <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+              <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Mẫu xe
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Tổng tồn kho
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Đã đặt
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Có sẵn
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Tỷ lệ tiêu thụ
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Dự báo nhu cầu
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Thao tác
                       </th>
                     </tr>
@@ -348,7 +348,7 @@ function SalesReport({ onBack }) {
                   <tbody className="bg-white divide-y divide-gray-200">
                     {inventoryData.map((item, index) => (
                       <tr key={index}>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-3 py-2.5 whitespace-nowrap">
                           <div className="flex items-center">
                             <div className="p-2 rounded-lg bg-emerald-50 text-emerald-600 mr-4">
                             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -358,13 +358,13 @@ function SalesReport({ onBack }) {
                             <div className="text-sm font-medium text-gray-900">{item.model}</div>
                           </div>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
                           {item.totalStock}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                        <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
                           {item.reserved}
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-3 py-2.5 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
                             item.available > 20 ? 'bg-green-100 text-green-800' : 
                             item.available > 10 ? 'bg-yellow-100 text-yellow-800' : 'bg-red-100 text-red-800'
@@ -372,17 +372,17 @@ function SalesReport({ onBack }) {
                             {item.available}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-3 py-2.5 whitespace-nowrap">
                           <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getTurnoverColor(item.turnoverRate)}`}>
                             {item.turnoverRate}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
+                        <td className="px-3 py-2.5 whitespace-nowrap">
                           <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
                             {item.demandForecast}
                           </span>
                         </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                        <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium">
                           <button className="text-emerald-600 hover:text-emerald-900 mr-3">Cập nhật</button>
                           <button className="text-blue-600 hover:text-blue-900">Chi tiết</button>
                         </td>
@@ -393,11 +393,11 @@ function SalesReport({ onBack }) {
               </div>
 
               {/* AI Demand Forecast */}
-              <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-900 mb-4">Dự báo nhu cầu AI</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   {inventoryData.map((item, index) => (
-                    <div key={index} className="text-center p-6 border border-gray-200 rounded-lg">
+                    <div key={index} className="text-center p-4 border border-gray-200 rounded-lg">
                       <div className="h-16 w-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <svg className="h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -423,8 +423,8 @@ function SalesReport({ onBack }) {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
                   <h4 className="font-semibold text-gray-900 mb-4">Insights quan trọng</h4>
                   <div className="space-y-4">
                     <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -459,7 +459,7 @@ function SalesReport({ onBack }) {
                   </div>
                 </div>
 
-                <div className="bg-white border border-gray-200 rounded-xl p-6">
+                <div className="bg-white border border-gray-200 rounded-lg p-4">
                   <h4 className="font-semibold text-gray-900 mb-4">Dự báo xu hướng</h4>
                   <div className="space-y-4">
                     <div className="p-4 border border-gray-200 rounded-lg">
@@ -484,7 +484,7 @@ function SalesReport({ onBack }) {
               </div>
 
               {/* AI Recommendations */}
-              <div className="bg-white border border-gray-200 rounded-xl p-6">
+              <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <h4 className="font-semibold text-gray-900 mb-4">Khuyến nghị từ AI</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-lg">

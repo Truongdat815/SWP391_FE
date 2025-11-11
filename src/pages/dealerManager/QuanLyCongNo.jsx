@@ -292,7 +292,7 @@ function QuanLyCongNo() {
         onCancel={confirm.onCancel}
       />
 
-      <div className="max-w-7xl mx-auto p-6">
+      <div className="max-w-7xl mx-auto p-4">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between">
@@ -303,7 +303,7 @@ function QuanLyCongNo() {
               </svg>
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Quản lý công nợ</h1>
+              <h1 className="text-2xl font-bold text-gray-900">Quản lý công nợ</h1>
               <p className="text-gray-600">Theo dõi và quản lý công nợ khách hàng</p>
             </div>
           </div>
@@ -312,7 +312,7 @@ function QuanLyCongNo() {
               onClick={() => setShowAddModal(true)}
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
-              className="px-6 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+              className="px-6 py-2.5 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 shadow-md hover:shadow-xl transition-all flex items-center gap-2"
             >
               <motion.svg 
                 className="h-5 w-5" 
@@ -330,7 +330,7 @@ function QuanLyCongNo() {
               onClick={handleExportReport}
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
-              className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-lg hover:shadow-xl transition-all flex items-center gap-2"
+              className="px-6 py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-md hover:shadow-xl transition-all flex items-center gap-2"
             >
               <motion.svg 
                 className="h-5 w-5" 
@@ -349,7 +349,7 @@ function QuanLyCongNo() {
       </div>
 
       {/* Tabs */}
-      <div className="bg-white border-b mb-6">
+      <div className="bg-white border-b mb-4">
         <nav className="flex space-x-8">
           <button
             onClick={() => setActiveTab('overview')}
@@ -388,8 +388,8 @@ function QuanLyCongNo() {
       {activeTab === 'overview' && (
         <div className="space-y-6">
           {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="bg-white rounded-lg shadow p-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center">
                 <div className="p-3 bg-red-100 rounded-lg">
                   <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -403,7 +403,7 @@ function QuanLyCongNo() {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center">
                 <div className="p-3 bg-orange-100 rounded-lg">
                   <svg className="h-6 w-6 text-orange-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -417,7 +417,7 @@ function QuanLyCongNo() {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center">
                 <div className="p-3 bg-red-100 rounded-lg">
                   <svg className="h-6 w-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -431,7 +431,7 @@ function QuanLyCongNo() {
               </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-4">
               <div className="flex items-center">
                 <div className="p-3 bg-blue-100 rounded-lg">
                   <svg className="h-6 w-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -448,7 +448,7 @@ function QuanLyCongNo() {
 
           {/* Critical Debts Alert */}
           {criticalDebts.length > 0 && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4">
               <div className="flex items-center mb-4">
                 <svg className="h-6 w-6 text-red-600 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
@@ -480,7 +480,7 @@ function QuanLyCongNo() {
       {activeTab === 'list' && (
         <div className="space-y-6">
           {/* Filters */}
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm</label>
@@ -518,19 +518,19 @@ function QuanLyCongNo() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Khách hàng
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Số tiền nợ
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Ngày đến hạn
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Trạng thái
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Thao tác
                     </th>
                   </tr>
@@ -538,7 +538,7 @@ function QuanLyCongNo() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredDebts.map((debt) => (
                     <tr key={debt.id}>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         <div className="flex items-center">
                           <div className="h-10 w-10 bg-gray-300 rounded-full mr-4 flex items-center justify-center">
                             <span className="text-gray-600 font-medium text-sm">
@@ -551,24 +551,24 @@ function QuanLyCongNo() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         <div className="text-sm font-medium text-gray-900">{formatCurrency(debt.amount)}</div>
                         <div className="text-sm text-gray-500">
                           Gốc: {formatCurrency(debt.originalAmount)}
                         </div>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{formatDate(debt.dueDate)}</div>
                         {debt.daysOverdue > 0 && (
                           <div className="text-sm text-red-600">Quá hạn {debt.daysOverdue} ngày</div>
                         )}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
+                      <td className="px-3 py-2.5 whitespace-nowrap">
                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(debt.status)}`}>
                           {getStatusText(debt.status)}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium">
                         <div className="flex gap-2">
                           <motion.button
                             onClick={() => handlePayment(debt)}
@@ -622,9 +622,9 @@ function QuanLyCongNo() {
       {/* Analytics Tab */}
       {activeTab === 'analytics' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {/* Debt by Status Chart */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-4">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Phân bố công nợ theo trạng thái</h3>
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
@@ -659,7 +659,7 @@ function QuanLyCongNo() {
             </div>
 
             {/* Payment Trends */}
-            <div className="bg-white rounded-lg shadow p-6">
+            <div className="bg-white rounded-lg shadow p-4">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Xu hướng thanh toán</h3>
               <div className="h-64 bg-gray-50 rounded-lg flex items-center justify-center">
                 <div className="text-center">
@@ -695,7 +695,7 @@ function QuanLyCongNo() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md p-6 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-md p-4 border shadow-2xl rounded-lg bg-white max-h-[90vh] overflow-y-auto"
             >
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Thêm công nợ mới</h3>
@@ -773,7 +773,7 @@ function QuanLyCongNo() {
                     type="submit"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 shadow-lg transition-colors"
+                    className="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 shadow-md transition-colors"
                   >
                     Thêm
                   </motion.button>
@@ -806,7 +806,7 @@ function QuanLyCongNo() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-md p-6 border shadow-2xl rounded-xl bg-white"
+              className="w-full max-w-md p-4 border shadow-2xl rounded-lg bg-white"
             >
             <div className="mt-3">
               <h3 className="text-lg font-medium text-gray-900 mb-4">Ghi nhận thanh toán</h3>
@@ -854,7 +854,7 @@ function QuanLyCongNo() {
                     type="submit"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-lg transition-colors"
+                    className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 shadow-md transition-colors"
                   >
                     Ghi nhận
                   </motion.button>

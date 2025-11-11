@@ -319,71 +319,71 @@ function PromotionManagement() {
         onCancel={confirm.onCancel}
       />
 
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-4">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-3">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between mb-4">
+        <div className="mb-3">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-                <Tag className="h-8 w-8 mr-3 text-emerald-600" />
+              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
+                <Tag className="h-6 w-6 mr-2 text-emerald-600" />
                 Quản Lý Khuyến Mãi
               </h1>
-              <p className="text-gray-600 mt-2">
+              <p className="text-gray-600 mt-1 text-sm">
                 Tạo và quản lý các chương trình khuyến mãi cho sản phẩm
               </p>
             </div>
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center px-6 py-3 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-lg hover:from-emerald-700 hover:to-blue-700 transition-all shadow-lg"
+              className="flex items-center px-4 py-2 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-lg hover:from-emerald-700 hover:to-blue-700 transition-all shadow-md text-sm"
             >
-              <Plus className="h-5 w-5 mr-2" />
+              <Plus className="h-4 w-4 mr-2" />
               Tạo Khuyến Mãi
             </button>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-4">
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
+            <div className="bg-white p-3 rounded-lg shadow-md border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Tổng khuyến mãi</p>
-                  <p className="text-2xl font-bold text-gray-900">{promotions.length}</p>
+                  <p className="text-xs text-gray-600">Tổng khuyến mãi</p>
+                  <p className="text-xl font-bold text-gray-900">{promotions.length}</p>
                 </div>
-                <Tag className="h-8 w-8 text-emerald-600" />
+                <Tag className="h-6 w-6 text-emerald-600" />
               </div>
             </div>
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="bg-white p-3 rounded-lg shadow-md border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Đang áp dụng</p>
-                  <p className="text-2xl font-bold text-green-600">
+                  <p className="text-xs text-gray-600">Đang áp dụng</p>
+                  <p className="text-xl font-bold text-green-600">
                     {promotions.filter(p => isPromotionActive(p)).length}
                   </p>
                 </div>
-                <CheckCircle className="h-8 w-8 text-green-600" />
+                <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
             </div>
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="bg-white p-3 rounded-lg shadow-md border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Giảm giá %</p>
-                  <p className="text-2xl font-bold text-blue-600">
+                  <p className="text-xs text-gray-600">Giảm giá %</p>
+                  <p className="text-xl font-bold text-blue-600">
                     {promotions.filter(p => p.promotionType === 'PERCENTAGE').length}
                   </p>
                 </div>
-                <Percent className="h-8 w-8 text-blue-600" />
+                <Percent className="h-6 w-6 text-blue-600" />
               </div>
             </div>
-            <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100">
+            <div className="bg-white p-3 rounded-lg shadow-md border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Giảm cố định</p>
-                  <p className="text-2xl font-bold text-purple-600">
+                  <p className="text-xs text-gray-600">Giảm cố định</p>
+                  <p className="text-xl font-bold text-purple-600">
                     {promotions.filter(p => p.promotionType === 'FIXED_AMOUNT').length}
                   </p>
                 </div>
-                <DollarSign className="h-8 w-8 text-purple-600" />
+                <DollarSign className="h-6 w-6 text-purple-600" />
               </div>
             </div>
           </div>
@@ -417,7 +417,7 @@ function PromotionManagement() {
         </AnimatePresence>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
             <div className="relative">
@@ -477,22 +477,22 @@ function PromotionManagement() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Tên khuyến mãi
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Loại & Giá trị
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Thời gian
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Model
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Trạng thái
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Thao tác
                     </th>
                   </tr>
@@ -740,14 +740,14 @@ function PromotionManagement() {
                     setShowAddModal(false);
                     resetForm();
                   }}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-lg hover:from-emerald-700 hover:to-blue-700 transition-all disabled:opacity-50 flex items-center"
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-lg hover:from-emerald-700 hover:to-blue-700 transition-all disabled:opacity-50 flex items-center"
                 >
                   {loading ? (
                     <>
@@ -913,14 +913,14 @@ function PromotionManagement() {
                     setSelectedPromotion(null);
                     resetForm();
                   }}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={loading}
-                  className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-lg hover:from-emerald-700 hover:to-blue-700 transition-all disabled:opacity-50"
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-lg hover:from-emerald-700 hover:to-blue-700 transition-all disabled:opacity-50"
                 >
                   {loading ? (
                     <>
@@ -952,7 +952,7 @@ function PromotionManagement() {
               <h3 className="text-xl font-bold text-gray-900 text-center mb-2">
                 Xác nhận xóa
               </h3>
-              <p className="text-gray-600 text-center mb-6">
+              <p className="text-gray-600 text-center mb-4">
                 Bạn có chắc chắn muốn xóa khuyến mãi <br />
                 <span className="font-semibold text-gray-900">"{selectedPromotion.promotionName}"</span>?
               </p>
@@ -962,14 +962,14 @@ function PromotionManagement() {
                     setShowDeleteModal(false);
                     setSelectedPromotion(null);
                   }}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Hủy
                 </button>
                 <button
                   onClick={handleDeleteConfirm}
                   disabled={loading}
-                  className="px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50"
                 >
                   {loading ? 'Đang xóa...' : 'Xóa'}
                 </button>
@@ -998,7 +998,7 @@ function PromotionManagement() {
             </div>
             
             <div className="p-6">
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <div>
                   <h4 className="text-lg font-semibold text-gray-900 mb-2">
                     {selectedPromotion.promotionName}
@@ -1006,7 +1006,7 @@ function PromotionManagement() {
                   <p className="text-gray-600">{selectedPromotion.description}</p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-6">
+                <div className="grid grid-cols-2 gap-4">
                   <div className="bg-blue-50 p-4 rounded-lg">
                     <div className="flex items-center mb-2">
                       {selectedPromotion.promotionType === 'PERCENTAGE' ? (
@@ -1091,7 +1091,7 @@ function PromotionManagement() {
                     setShowDetailModal(false);
                     setSelectedPromotion(null);
                   }}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors"
                 >
                   Đóng
                 </button>
@@ -1100,7 +1100,7 @@ function PromotionManagement() {
                     setShowDetailModal(false);
                     handleEditClick(selectedPromotion);
                   }}
-                  className="px-6 py-3 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-lg hover:from-emerald-700 hover:to-blue-700 transition-all"
+                  className="px-4 py-2 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-lg hover:from-emerald-700 hover:to-blue-700 transition-all"
                 >
                   Chỉnh Sửa
                 </button>
