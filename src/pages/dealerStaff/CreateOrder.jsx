@@ -169,6 +169,7 @@ function CreateOrder({ onBack }) {
   const [storeInfo, setStoreInfo] = useState(null); // Store information
   const [showConfirmDialog, setShowConfirmDialog] = useState(false); // Show confirmation snackbar
   const [pendingConfirmAction, setPendingConfirmAction] = useState(null); // Store pending confirm action
+  const [includeLicensePlateService, setIncludeLicensePlateService] = useState(true); // Include license plate service fee
   
   // Debounce timer ref
   const validationTimerRef = useRef(null);
@@ -476,6 +477,14 @@ function CreateOrder({ onBack }) {
     }
   }, [formData.modelId, formData.colorId, filteredStoreStocks]);
 
+  // Clear orderDetailsResponse when includeLicensePlateService changes
+  // This ensures the quote will be recalculated with the new value
+  useEffect(() => {
+    if (orderDetailsResponse) {
+      setOrderDetailsResponse(null);
+    }
+  }, [includeLicensePlateService]);
+
   // Handle quantity blur - auto validate
   const handleQuantityBlur = () => {
     if (formData.modelId && formData.colorId && formData.quantity > 0) {
@@ -483,7 +492,7 @@ function CreateOrder({ onBack }) {
     }
   };
 
-  // Step 2: Add item to order - Call API /orders/create/quote
+  // Step 2: Add item to order - Only update local state, no API call
   const handleAddItem = async () => {
     if (!currentValidation || !currentValidation.isValid) {
       setError('Vui lòng kiểm tra sản phẩm trước khi thêm');
@@ -496,7 +505,7 @@ function CreateOrder({ onBack }) {
       
       let orderId = currentOrderId;
       
-      // Step 1: Create order if not exists
+      // Step 1: Create order if not exists (only to get orderId, no quote API call)
       if (!orderId) {
         console.log('🚀 Creating order for customer:', selectedCustomer);
         const orderResult = await dispatch(createNewOrder({ 
@@ -514,22 +523,27 @@ function CreateOrder({ onBack }) {
         console.log('✅ Order created with ID:', orderId);
       }
 
-      // Step 2: Update selectedItems with new/updated item
+      // Step 2: Update selectedItems with new/updated item (local state only)
       let updatedItems = [];
       const existingIndex = selectedItems.findIndex(
         item => item.modelId === currentValidation.modelId && item.colorId === currentValidation.colorId
       );
 
       if (existingIndex >= 0) {
-        // Update existing item
+        // Product already exists - increase quantity instead of replacing
         updatedItems = [...selectedItems];
+        const existingItem = updatedItems[existingIndex];
         updatedItems[existingIndex] = {
-          ...updatedItems[existingIndex],
+          ...existingItem,
           modelId: currentValidation.modelId,
           colorId: currentValidation.colorId,
-          quantity: currentValidation.quantity,
-          promotionId: currentValidation.promotionId || 0,
-          isValid: true
+          quantity: existingItem.quantity + currentValidation.quantity, // Add to existing quantity
+          promotionId: currentValidation.promotionId || existingItem.promotionId || 0,
+          isValid: true,
+          // Keep display info from validation
+          modelName: currentValidation.modelName || existingItem.modelName,
+          colorName: currentValidation.colorName || existingItem.colorName,
+          promotionName: currentValidation.promotionName || existingItem.promotionName
         };
       } else {
         // Add new item
@@ -538,100 +552,31 @@ function CreateOrder({ onBack }) {
           colorId: currentValidation.colorId,
           quantity: currentValidation.quantity,
           promotionId: currentValidation.promotionId || 0,
-          isValid: true
+          isValid: true,
+          // Add display info from validation
+          modelName: currentValidation.modelName,
+          colorName: currentValidation.colorName,
+          promotionName: currentValidation.promotionName
         }];
       }
 
-      // Step 3: Call API /orders/create/quote with all items
-      console.log('🚀 Calling /orders/create/quote with items:', updatedItems);
-      const quoteResponse = await createOrderDetailsInBatch(orderId, updatedItems);
-      console.log('✅ Quote response:', quoteResponse);
-
-      // Extract response data
-      const responseData = quoteResponse.data || quoteResponse;
-      
-      // Update selectedItems with response data
-      // Use a Set to track which response details have been used to avoid duplicates
-      if (responseData.getOrderDetailsResponses && responseData.getOrderDetailsResponses.length > 0) {
-        const usedResponseIndices = new Set();
-        const itemsWithResponse = updatedItems.map((item) => {
-          // Find matching detail response by modelId and colorId
-          let detailResponse = responseData.getOrderDetailsResponses.find(
-            (d, idx) => !usedResponseIndices.has(idx) &&
-                       String(d.modelId) === String(item.modelId) && 
-                       String(d.colorId) === String(item.colorId)
-          );
-          
-          // If not found, try to find by index (fallback)
-          if (!detailResponse) {
-            const availableIndex = responseData.getOrderDetailsResponses.findIndex(
-              (d, idx) => !usedResponseIndices.has(idx)
-            );
-            if (availableIndex >= 0) {
-              detailResponse = responseData.getOrderDetailsResponses[availableIndex];
-              usedResponseIndices.add(availableIndex);
-            }
-          } else {
-            // Mark this response as used
-            const responseIndex = responseData.getOrderDetailsResponses.indexOf(detailResponse);
-            if (responseIndex >= 0) {
-              usedResponseIndices.add(responseIndex);
-            }
-          }
-          
-          return {
-            ...item,
-            modelName: detailResponse?.modelName || item.modelName || currentValidation.modelName,
-            colorName: detailResponse?.colorName || item.colorName || currentValidation.colorName,
-            unitPrice: detailResponse?.unitPrice || item.unitPrice || 0,
-            licensePlateFee: detailResponse?.licensePlateFee || item.licensePlateFee || 0,
-            registrationFee: detailResponse?.registrationFee || item.registrationFee || 0,
-            promotionName: detailResponse?.promotionName || item.promotionName || currentValidation.promotionName,
-            discountAmount: detailResponse?.discountAmount || item.discountAmount || 0,
-            totalPrice: detailResponse?.totalPrice || item.totalPrice || 0,
-            vatAmount: detailResponse?.vatAmount || item.vatAmount || 0
-          };
-        });
-        
-        // Filter out any potential duplicates by modelId+colorId combination
-        const uniqueItems = [];
-        const seenKeys = new Set();
-        itemsWithResponse.forEach(item => {
-          const key = `${item.modelId}-${item.colorId}`;
-          if (!seenKeys.has(key)) {
-            seenKeys.add(key);
-            uniqueItems.push(item);
-          }
-        });
-        
-        setSelectedItems(uniqueItems);
-      } else {
-        // Filter duplicates even without response data
-        const uniqueItems = [];
-        const seenKeys = new Set();
-        updatedItems.forEach(item => {
-          const key = `${item.modelId}-${item.colorId}`;
-          if (!seenKeys.has(key)) {
-            seenKeys.add(key);
-            uniqueItems.push(item);
-          }
-        });
-        setSelectedItems(uniqueItems);
-      }
-
-      // Store order details response for display in step 3
-      setOrderDetailsResponse({
-        orderId: responseData.orderId || orderId,
-        orderCode: responseData.orderCode,
-        status: responseData.status || 'DRAFT',
-        getOrderDetailsResponses: responseData.getOrderDetailsResponses || [],
-        totalPrice: responseData.totalPrice || 0,
-        totalTaxPrice: responseData.totalTaxPrice || 0,
-        totalPromotionAmount: responseData.totalPromotionAmount || 0,
-        totalPayment: responseData.totalPayment || 0
+      // Filter duplicates by modelId+colorId combination
+      const uniqueItems = [];
+      const seenKeys = new Set();
+      updatedItems.forEach(item => {
+        const key = `${item.modelId}-${item.colorId}`;
+        if (!seenKeys.has(key)) {
+          seenKeys.add(key);
+          uniqueItems.push(item);
+        }
       });
+      
+      setSelectedItems(uniqueItems);
+      
+      // Clear orderDetailsResponse since we haven't called quote API yet
+      setOrderDetailsResponse(null);
 
-      setSuccess(existingIndex >= 0 ? 'Đã cập nhật sản phẩm trong đơn hàng' : 'Đã thêm sản phẩm vào đơn hàng');
+      setSuccess(existingIndex >= 0 ? `Đã tăng số lượng sản phẩm lên ${uniqueItems[existingIndex].quantity}` : 'Đã thêm sản phẩm vào đơn hàng');
 
       // Reset form
       setFormData({
@@ -649,73 +594,18 @@ function CreateOrder({ onBack }) {
     }
   };
 
-  // Step 2: Remove item from order - Call API to update
-  const handleRemoveItem = async (index) => {
-    if (!currentOrderId) {
-      // If no order created yet, just remove from local state
-      setSelectedItems(selectedItems.filter((_, i) => i !== index));
-      setSuccess('Đã xóa sản phẩm khỏi đơn hàng');
-      return;
-    }
-
+  // Step 2: Remove item from order - Only update local state, no API call
+  const handleRemoveItem = (index) => {
     try {
       setError(null);
       
       // Remove item from local state
       const updatedItems = selectedItems.filter((_, i) => i !== index);
+      setSelectedItems(updatedItems);
       
-      if (updatedItems.length === 0) {
-        // If no items left, just update local state
-        setSelectedItems([]);
-        setOrderDetailsResponse(null);
-        setSuccess('Đã xóa sản phẩm khỏi đơn hàng');
-        return;
-      }
-
-      // Call API to update order details
-      console.log('🚀 Updating order after removing item:', updatedItems);
-      const quoteResponse = await createOrderDetailsInBatch(currentOrderId, updatedItems);
-      console.log('✅ Updated quote response:', quoteResponse);
-
-      // Extract response data
-      const responseData = quoteResponse.data || quoteResponse;
+      // Clear orderDetailsResponse since items have changed
+      setOrderDetailsResponse(null);
       
-      // Update selectedItems with response data
-      if (responseData.getOrderDetailsResponses && responseData.getOrderDetailsResponses.length > 0) {
-        const itemsWithResponse = updatedItems.map((item, idx) => {
-          const detailResponse = responseData.getOrderDetailsResponses[idx];
-          
-          return {
-            ...item,
-            modelName: detailResponse?.modelName || item.modelName,
-            colorName: detailResponse?.colorName || item.colorName,
-            unitPrice: detailResponse?.unitPrice || item.unitPrice || 0,
-            licensePlateFee: detailResponse?.licensePlateFee || item.licensePlateFee || 0,
-            registrationFee: detailResponse?.registrationFee || item.registrationFee || 0,
-            promotionName: detailResponse?.promotionName || item.promotionName,
-            discountAmount: detailResponse?.discountAmount || item.discountAmount || 0,
-            totalPrice: detailResponse?.totalPrice || item.totalPrice || 0,
-            vatAmount: detailResponse?.vatAmount || item.vatAmount || 0
-          };
-        });
-        
-        setSelectedItems(itemsWithResponse);
-      } else {
-        setSelectedItems(updatedItems);
-      }
-
-      // Update order details response
-      setOrderDetailsResponse({
-        orderId: responseData.orderId || currentOrderId,
-        orderCode: responseData.orderCode || orderDetailsResponse?.orderCode,
-        status: responseData.status || orderDetailsResponse?.status || 'DRAFT',
-        getOrderDetailsResponses: responseData.getOrderDetailsResponses || [],
-        totalPrice: responseData.totalPrice || 0,
-        totalTaxPrice: responseData.totalTaxPrice || 0,
-        totalPromotionAmount: responseData.totalPromotionAmount || 0,
-        totalPayment: responseData.totalPayment || 0
-      });
-
       setSuccess('Đã xóa sản phẩm khỏi đơn hàng');
       
     } catch (error) {
@@ -732,24 +622,69 @@ function CreateOrder({ onBack }) {
     if (selectedItems && selectedItems.length > 0) {
       // Map selectedItems to get corresponding details from API response
       details = selectedItems.map(item => {
-        // Find matching detail from API response
-        const detailFromResponse = orderData?.getOrderDetailsResponses?.find(
+        // Find all matching details from API response (in case there are duplicates)
+        const matchingDetails = orderData?.getOrderDetailsResponses?.filter(
           d => String(d.modelId) === String(item.modelId) && 
                String(d.colorId) === String(item.colorId)
-        );
+        ) || [];
         
-        // Use detail from response if available, otherwise use item data
-        return detailFromResponse || {
-          modelName: item.modelName,
-          colorName: item.colorName,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice || 0,
-          registrationFee: item.registrationFee || 0,
-          licensePlateFee: item.licensePlateFee || 0,
-          promotionName: item.promotionName,
-          discountAmount: item.discountAmount || 0,
-          totalPrice: item.totalPrice || 0
-        };
+        // If multiple details found, aggregate them (sum quantities, prices, etc.)
+        let detailFromResponse = null;
+        if (matchingDetails.length > 0) {
+          if (matchingDetails.length === 1) {
+            // Single detail - use it directly
+            detailFromResponse = matchingDetails[0];
+          } else {
+            // Multiple details - aggregate them
+            detailFromResponse = {
+              modelId: item.modelId,
+              colorId: item.colorId,
+              modelName: matchingDetails[0].modelName || item.modelName,
+              colorName: matchingDetails[0].colorName || item.colorName,
+              quantity: matchingDetails.reduce((sum, d) => sum + (d.quantity || 0), 0),
+              unitPrice: matchingDetails[0].unitPrice || item.unitPrice || 0,
+              registrationFee: matchingDetails.reduce((sum, d) => sum + (d.registrationFee || 0), 0),
+              licensePlateFee: matchingDetails.reduce((sum, d) => sum + (d.licensePlateFee || 0), 0),
+              promotionName: matchingDetails[0].promotionName || item.promotionName,
+              discountAmount: matchingDetails.reduce((sum, d) => sum + (d.discountAmount || 0), 0),
+              totalPrice: matchingDetails.reduce((sum, d) => sum + (d.totalPrice || 0), 0),
+              vatAmount: matchingDetails.reduce((sum, d) => sum + (d.vatAmount || 0), 0)
+            };
+          }
+        }
+        
+        // Always prioritize data from selectedItems (which has the correct updated values after quantity increase)
+        // Use detail from response only as fallback for missing fields
+        if (detailFromResponse) {
+          return {
+            ...detailFromResponse,
+            // Override with selectedItems values (these are the most up-to-date)
+            quantity: item.quantity, // Use quantity from selectedItems (correct updated value)
+            totalPrice: item.totalPrice || detailFromResponse.totalPrice || 0,
+            unitPrice: item.unitPrice || detailFromResponse.unitPrice || 0,
+            vatAmount: item.vatAmount || detailFromResponse.vatAmount || 0,
+            discountAmount: item.discountAmount || detailFromResponse.discountAmount || 0,
+            registrationFee: item.registrationFee || detailFromResponse.registrationFee || 0,
+            licensePlateFee: item.licensePlateFee || detailFromResponse.licensePlateFee || 0,
+            promotionName: item.promotionName || detailFromResponse.promotionName,
+            modelName: item.modelName || detailFromResponse.modelName,
+            colorName: item.colorName || detailFromResponse.colorName
+          };
+        } else {
+          // Use item data directly if no response found
+          return {
+            modelName: item.modelName,
+            colorName: item.colorName,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice || 0,
+            registrationFee: item.registrationFee || 0,
+            licensePlateFee: item.licensePlateFee || 0,
+            promotionName: item.promotionName,
+            discountAmount: item.discountAmount || 0,
+            totalPrice: item.totalPrice || 0,
+            vatAmount: item.vatAmount || 0
+          };
+        }
       });
     } else {
       // Fallback to orderData.getOrderDetailsResponses if selectedItems is empty
@@ -1054,35 +989,123 @@ function CreateOrder({ onBack }) {
     `;
   };
 
-  // Step 2: Continue to confirmation - Open in new tab for printing
-  const handleContinueToConfirm = () => {
+  // Step 2: Continue to confirmation - Call API /orders/create/quote then generate HTML
+  const handleContinueToConfirm = async () => {
     if (selectedItems.length === 0) {
       setError('Vui lòng thêm ít nhất một sản phẩm vào đơn hàng!');
       return;
     }
-    
-    if (!orderDetailsResponse) {
-      setError('Không có thông tin đơn hàng để hiển thị. Vui lòng thêm sản phẩm vào đơn hàng trước.');
-      return;
-    }
 
-    // Generate HTML content
-    const htmlContent = generateOrderHTML(orderDetailsResponse);
-    
-    // Open new window with order content
-    const printWindow = window.open('', '_blank');
-    if (printWindow) {
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
-      
-      // Auto focus on print window
-      printWindow.focus();
-      
-      // Navigate to step 3 after opening print window
-      setCurrentStep(3);
+    try {
       setError(null);
-    } else {
-      setError('Không thể mở cửa sổ mới. Vui lòng kiểm tra cài đặt popup của trình duyệt.');
+      setSuccess(null);
+      
+      let orderId = currentOrderId;
+      
+      // Step 1: Create order if not exists
+      if (!orderId) {
+        console.log('🚀 Creating order for customer:', selectedCustomer);
+        const orderResult = await dispatch(createNewOrder({ 
+          customerId: selectedCustomer.customerId 
+        })).unwrap();
+        
+        const orderData = orderResult.data || orderResult;
+        orderId = orderData.orderId || orderData.id;
+        
+        if (!orderId) {
+          throw new Error('Không nhận được orderId từ server');
+        }
+        
+        setCurrentOrderId(orderId);
+        console.log('✅ Order created with ID:', orderId);
+      }
+
+      // Step 2: Call API /orders/create/quote with all selectedItems
+      console.log('🚀 Calling /orders/create/quote with items:', selectedItems);
+      console.log('📋 includeLicensePlateService:', includeLicensePlateService);
+      const quoteResponse = await createOrderDetailsInBatch(orderId, selectedItems, includeLicensePlateService);
+      console.log('✅ Quote response:', quoteResponse);
+
+      // Extract response data - handle both {code, message, data} and direct data structure
+      let responseData;
+      if (quoteResponse && quoteResponse.data) {
+        // Response has {code, message, data} structure
+        responseData = quoteResponse.data;
+      } else if (quoteResponse && quoteResponse.orderId) {
+        // Response is direct data structure
+        responseData = quoteResponse;
+      } else {
+        // Fallback
+        responseData = quoteResponse || {};
+      }
+      console.log('📊 Extracted responseData:', responseData);
+      
+      // Update selectedItems with response data for display
+      if (responseData.getOrderDetailsResponses && responseData.getOrderDetailsResponses.length > 0) {
+        const itemsWithResponse = selectedItems.map((item) => {
+          // Find matching detail response by modelId and colorId
+          const detailResponse = responseData.getOrderDetailsResponses.find(
+            d => String(d.modelId) === String(item.modelId) && 
+                 String(d.colorId) === String(item.colorId)
+          );
+          
+          if (detailResponse) {
+            return {
+              ...item,
+              modelName: detailResponse.modelName || item.modelName,
+              colorName: detailResponse.colorName || item.colorName,
+              unitPrice: detailResponse.unitPrice || item.unitPrice || 0,
+              licensePlateFee: detailResponse.licensePlateFee || item.licensePlateFee || 0,
+              registrationFee: detailResponse.registrationFee || item.registrationFee || 0,
+              promotionName: detailResponse.promotionName || item.promotionName,
+              discountAmount: detailResponse.discountAmount || item.discountAmount || 0,
+              totalPrice: detailResponse.totalPrice || item.totalPrice || 0,
+              vatAmount: detailResponse.vatAmount || item.vatAmount || 0
+            };
+          }
+          return item;
+        });
+        
+        setSelectedItems(itemsWithResponse);
+      }
+
+      // Store order details response for display in step 3
+      const orderDetailsData = {
+        orderId: responseData.orderId || orderId,
+        orderCode: responseData.orderCode,
+        status: responseData.status || 'DRAFT',
+        getOrderDetailsResponses: responseData.getOrderDetailsResponses || [],
+        totalPrice: responseData.totalPrice || 0,
+        totalTaxPrice: responseData.totalTaxPrice || 0,
+        totalPromotionAmount: responseData.totalPromotionAmount || 0,
+        totalPayment: responseData.totalPayment || 0
+      };
+      
+      setOrderDetailsResponse(orderDetailsData);
+
+      // Step 3: Generate HTML content
+      console.log('📄 Generating HTML with orderDetailsData:', orderDetailsData);
+      const htmlContent = generateOrderHTML(orderDetailsData);
+      
+      // Step 4: Open new window with order content
+      const printWindow = window.open('', '_blank');
+      if (printWindow) {
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
+        
+        // Auto focus on print window
+        printWindow.focus();
+        
+        // Navigate to step 3 after opening print window
+        setCurrentStep(3);
+        setError(null);
+      } else {
+        setError('Không thể mở cửa sổ mới. Vui lòng kiểm tra cài đặt popup của trình duyệt.');
+      }
+      
+    } catch (error) {
+      console.error('❌ Error continuing to confirm:', error);
+      setError('Không thể tạo báo giá đơn hàng: ' + (error.message || error));
     }
   };
 
@@ -1127,8 +1150,20 @@ function CreateOrder({ onBack }) {
         });
       } else {
         // If no orderDetailsResponse, refresh by calling API again
-        const quoteResponse = await createOrderDetailsInBatch(orderId, selectedItems);
-        const responseData = quoteResponse.data || quoteResponse;
+        const quoteResponse = await createOrderDetailsInBatch(orderId, selectedItems, includeLicensePlateService);
+        
+        // Extract response data - handle both {code, message, data} and direct data structure
+        let responseData;
+        if (quoteResponse && quoteResponse.data) {
+          // Response has {code, message, data} structure
+          responseData = quoteResponse.data;
+        } else if (quoteResponse && quoteResponse.orderId) {
+          // Response is direct data structure
+          responseData = quoteResponse;
+        } else {
+          // Fallback
+          responseData = quoteResponse || {};
+        }
         
         setOrderResponse({
           orderId: responseData.orderId || orderId,
@@ -1181,49 +1216,27 @@ function CreateOrder({ onBack }) {
         return;
       }
       
-      // Use existing order if already created, otherwise create new one
-      let orderId = currentOrderId;
+      // Ensure orderDetailsResponse exists (should be set from Step 2 when clicking "Tiếp tục")
+      if (!orderDetailsResponse) {
+        setError('Vui lòng quay lại bước trước và nhấn "Tiếp tục" để tạo báo giá đơn hàng trước khi xác nhận.');
+        return;
+      }
+      
+      // Use existing orderId from orderDetailsResponse or currentOrderId
+      const orderId = orderDetailsResponse.orderId || currentOrderId;
       
       if (!orderId) {
-        console.log('🚀 Creating order for customer:', selectedCustomer);
-        const orderResult = await dispatch(createNewOrder({ 
-          customerId: selectedCustomer.customerId 
-        })).unwrap();
-        
-        const orderData = orderResult.data || orderResult;
-        orderId = orderData.orderId || orderData.id;
-        
-        if (!orderId) {
-          throw new Error('Không nhận được orderId từ server');
-        }
-        
-        setCurrentOrderId(orderId);
-        
-        // Create order details if not already created
-        if (!orderDetailsResponse) {
-          const quoteResponse = await createOrderDetailsInBatch(orderId, selectedItems);
-          const responseData = quoteResponse.data || quoteResponse;
-          setOrderDetailsResponse({
-            orderId: responseData.orderId || orderId,
-            orderCode: responseData.orderCode,
-            status: responseData.status || 'DRAFT',
-            getOrderDetailsResponses: responseData.getOrderDetailsResponses || [],
-            totalPrice: responseData.totalPrice || 0,
-            totalTaxPrice: responseData.totalTaxPrice || 0,
-            totalPromotionAmount: responseData.totalPromotionAmount || 0,
-            totalPayment: responseData.totalPayment || 0
-          });
-        }
+        throw new Error('Không tìm thấy mã đơn hàng. Vui lòng thử lại.');
       }
       
       // Show confirmation snackbar
-      const orderCode = orderDetailsResponse?.orderCode || `#${orderId}`;
+      const orderCode = orderDetailsResponse.orderCode || `#${orderId}`;
       setPendingConfirmAction({
         orderId,
         orderCode,
         customerName: selectedCustomer?.fullName,
         itemCount: selectedItems.length,
-        totalPayment: orderDetailsResponse?.totalPayment || 0
+        totalPayment: orderDetailsResponse.totalPayment || 0
       });
       setShowConfirmDialog(true);
       
@@ -1295,6 +1308,26 @@ function CreateOrder({ onBack }) {
     if (currentStep === 1) {
       if (onBack) onBack();
       else navigate(-1);
+    } else if (currentStep === 3) {
+      // If going back from Step 3, reset all state to allow starting fresh
+      setSelectedItems([]);
+      setOrderDetailsResponse(null);
+      setCurrentOrderId(null);
+      setCurrentValidation(null);
+      setFormData({
+        modelId: '',
+        colorId: '',
+        quantity: 1,
+        promotionId: 0
+      });
+      setError(null);
+      setSuccess(null);
+      setOrderResponse(null);
+      setPendingConfirmAction(null);
+      setShowConfirmDialog(false);
+      dispatch(clearValidationResult());
+      // Go back to Step 2 to add products again
+      setCurrentStep(2);
     } else {
       setCurrentStep(currentStep - 1);
       setError(null);
@@ -1535,6 +1568,28 @@ function CreateOrder({ onBack }) {
                     className="w-full"
                   />
                 </div>
+              </div>
+
+              {/* License Plate Service Checkbox */}
+              {/* When checked: includeLicensePlateService = true, when unchecked: includeLicensePlateService = false */}
+              <div className="mt-4 mb-3">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeLicensePlateService}
+                    onChange={(e) => {
+                      // e.target.checked is true when ticked, false when unticked
+                      setIncludeLicensePlateService(e.target.checked);
+                    }}
+                    className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 focus:ring-2"
+                  />
+                  <span className="ml-2 text-sm font-medium text-gray-700">
+                    Bao gồm phí dịch vụ và biển số
+                  </span>
+                </label>
+                <p className="ml-6 text-xs text-gray-500 mt-1">
+                  Tích vào để tính phí đăng ký và biển số vào tổng giá trị đơn hàng
+                </p>
               </div>
 
               {/* Stock Info Display (when model+color selected, no quantity needed) */}

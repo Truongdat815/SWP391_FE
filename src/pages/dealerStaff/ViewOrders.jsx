@@ -46,6 +46,93 @@ import ModernButton from '../../components/ui/ModernButton';
 import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
 import EmptyState from '../../components/ui/EmptyState';
 
+// Helper function to aggregate order details with same modelId and colorId
+const aggregateOrderDetails = (details) => {
+  if (!details || details.length === 0) return [];
+  
+  console.log('🔍 Raw order details from backend:', details);
+  
+  const aggregatedMap = new Map();
+  
+  details.forEach((detail, index) => {
+    // Ensure we have valid modelId and colorId - try multiple field name variations
+    const modelId = String(detail.modelId || detail.model_id || detail.modelId || '');
+    const colorId = String(detail.colorId || detail.color_id || detail.colorId || '');
+    const key = `${modelId}-${colorId}`;
+    
+    console.log(`  Detail ${index}:`, {
+      modelId,
+      colorId,
+      quantity: detail.quantity,
+      totalPrice: detail.totalPrice || detail.total_price,
+      unitPrice: detail.unitPrice || detail.unit_price,
+      key
+    });
+    
+    // Skip if missing required fields
+    if (!modelId || !colorId || modelId === 'undefined' || colorId === 'undefined' || key === '-') {
+      console.warn('⚠️ Skipping detail with invalid modelId/colorId:', detail);
+      return;
+    }
+    
+    if (aggregatedMap.has(key)) {
+      // Aggregate with existing detail
+      const existing = aggregatedMap.get(key);
+      const newQuantity = (existing.quantity || 0) + (detail.quantity || 0);
+      const unitPrice = existing.unitPrice || detail.unitPrice || detail.unit_price || 0;
+      
+      console.log(`  Aggregating: existing qty=${existing.quantity}, new qty=${detail.quantity}, total=${newQuantity}`);
+      
+      // Aggregate VAT (should be proportional to quantity)
+      const newVatAmount = (existing.vatAmount || existing.vat_amount || 0) + (detail.vatAmount || detail.vat_amount || 0);
+      
+      // Aggregate discount (should be proportional to quantity)
+      const newDiscountAmount = (existing.discountAmount || existing.discount_amount || 0) + (detail.discountAmount || detail.discount_amount || 0);
+      
+      // Fees should NOT be multiplied - take from first detail only (fees are per order, not per item)
+      // Use the first detail's fees (existing), don't add from the new detail
+      const licensePlateFee = existing.licensePlateFee || existing.license_plate_fee || 0;
+      const registrationFee = existing.registrationFee || existing.registration_fee || 0;
+      
+      // Recalculate totalPrice from scratch to ensure it matches quantity=2 scenario:
+      // totalPrice = (unitPrice * newQuantity) + VAT + fees - discount
+      const subtotal = unitPrice * newQuantity;
+      const newTotalPrice = subtotal + newVatAmount + licensePlateFee + registrationFee - newDiscountAmount;
+      
+      console.log(`  Recalculated: unitPrice=${unitPrice}, qty=${newQuantity}, subtotal=${subtotal}, VAT=${newVatAmount}, fees=${licensePlateFee + registrationFee}, discount=${newDiscountAmount}, totalPrice=${newTotalPrice}`);
+      
+      aggregatedMap.set(key, {
+        ...existing,
+        quantity: newQuantity,
+        unitPrice: unitPrice,
+        vatAmount: newVatAmount,
+        discountAmount: newDiscountAmount,
+        licensePlateFee: licensePlateFee, // Keep from first, don't sum
+        registrationFee: registrationFee, // Keep from first, don't sum
+        totalPrice: newTotalPrice // Recalculated to match quantity=2 scenario
+      });
+    } else {
+      // First occurrence - keep as is, but normalize field names
+      aggregatedMap.set(key, {
+        ...detail,
+        quantity: detail.quantity || 0,
+        unitPrice: detail.unitPrice || detail.unit_price || 0,
+        vatAmount: detail.vatAmount || detail.vat_amount || 0,
+        discountAmount: detail.discountAmount || detail.discount_amount || 0,
+        licensePlateFee: detail.licensePlateFee || detail.license_plate_fee || 0,
+        registrationFee: detail.registrationFee || detail.registration_fee || 0,
+        totalPrice: detail.totalPrice || detail.total_price || 0,
+        modelId: modelId,
+        colorId: colorId
+      });
+    }
+  });
+  
+  const result = Array.from(aggregatedMap.values());
+  console.log('✅ Aggregated result:', result);
+  return result;
+};
+
 function ViewOrders() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -75,22 +162,27 @@ function ViewOrders() {
   const [ordersWithContracts, setOrdersWithContracts] = useState({}); // Map orderId -> contract
   const [creatingContract, setCreatingContract] = useState(null);
   // Thêm state và hàm sort
-  const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
+  const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest'
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
   const sortOrders = (arr, mode = 'newest') => {
     const getTime = (o) => new Date(o.orderDate || 0).getTime();
     const getId = (o) => Number(o.orderId || 0);
     const getName = (o) => (o.customerName || '').toLowerCase();
+    const getStatus = (o) => (o.status || '').toUpperCase();
     const byNewest = (a, b) => (getTime(b) - getTime(a)) || (getId(b) - getId(a));
     const byOldest = (a, b) => (getTime(a) - getTime(b)) || (getId(a) - getId(b));
     const byNameAsc = (a, b) => getName(a).localeCompare(getName(b), 'vi');
     const byNameDesc = (a, b) => getName(b).localeCompare(getName(a), 'vi');
+    const byStatusAsc = (a, b) => getStatus(a).localeCompare(getStatus(b));
+    const byStatusDesc = (a, b) => getStatus(b).localeCompare(getStatus(a));
     const copy = [...arr];
     switch (mode) {
       case 'oldest': return copy.sort(byOldest);
       case 'name-asc': return copy.sort(byNameAsc);
       case 'name-desc': return copy.sort(byNameDesc);
+      case 'status-asc': return copy.sort(byStatusAsc);
+      case 'status-desc': return copy.sort(byStatusDesc);
       case 'newest':
       default: return copy.sort(byNewest);
     }
@@ -134,16 +226,14 @@ function ViewOrders() {
 
   // Fetch orders from API based on filters (server-side filtering)
   useEffect(() => {
-    // Only show DRAFT and CONFIRMED orders
+    // Always fetch all orders, we'll do client-side sorting by status
     if (startDate && endDate) {
       dispatch(fetchOrdersByDateRange({ startDate, endDate }));
-    } else if (statusFilter !== 'all') {
-      dispatch(fetchOrdersByStatus(statusFilter));
     } else {
-      // Fetch all orders, but we'll filter to DRAFT and CONFIRMED
+      // Fetch all orders, we'll sort by status on client-side
       dispatch(fetchOrders());
     }
-  }, [dispatch, statusFilter, startDate, endDate]);
+  }, [dispatch, startDate, endDate]);
   
   // Update local orders state when Redux orders change
   useEffect(() => {
@@ -206,8 +296,31 @@ function ViewOrders() {
       });
     }
 
-    setFilteredOrders(sortOrders(filtered, sortMode));
-  }, [searchTerm, orders, sortMode]);
+    // Sort orders: if statusFilter is selected, prioritize that status first
+    let sorted = sortOrders(filtered, sortMode);
+    
+    // If a specific status is selected, sort to show that status first
+    if (statusFilter !== 'all') {
+      const selectedStatusUpper = statusFilter.toUpperCase();
+      sorted = sorted.sort((a, b) => {
+        const aStatus = (a.status || '').toUpperCase();
+        const bStatus = (b.status || '').toUpperCase();
+        
+        // If both have the selected status, maintain current sort order
+        if (aStatus === selectedStatusUpper && bStatus === selectedStatusUpper) {
+          return 0;
+        }
+        // If only a has the selected status, a comes first
+        if (aStatus === selectedStatusUpper) return -1;
+        // If only b has the selected status, b comes first
+        if (bStatus === selectedStatusUpper) return 1;
+        // If neither has the selected status, maintain current sort order
+        return 0;
+      });
+    }
+
+    setFilteredOrders(sorted);
+  }, [searchTerm, orders, sortMode, statusFilter]);
 
   const getStatusColor = (status) => {
     if (!status) return 'bg-gray-100 text-gray-800';
@@ -225,67 +338,11 @@ function ViewOrders() {
   };
 
   const getStatusText = (status) => {
-    if (!status) return 'Không xác định';
-    const upperStatus = status?.toUpperCase();
-    switch (upperStatus) {
-      case 'DRAFT': return 'Nháp';
-      case 'PENDING': return 'Chờ duyệt';
-      case 'APPROVED': return 'Đã phê duyệt';
-      case 'CONFIRMED': return 'Đã xác nhận';
-      case 'PROCESSING': return 'Đang xử lý';
-      case 'COMPLETED': return 'Hoàn thành';
-      case 'CANCELLED': return 'Đã hủy';
-      default: return status || 'N/A';
-    }
+    if (!status) return status || 'N/A';
+    // Return status in English as from API response
+    return status.toUpperCase();
   };
 
-  // Format order code to ORD-01, ORD-02, ...
-  const formatOrderCode = (orderCode, orderId) => {
-    if (orderCode) {
-      // If orderCode already has format, extract number or use as is
-      const match = orderCode.match(/ORD-(\d+)/i);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        return `ORD-${String(num).padStart(2, '0')}`;
-      }
-      // Try to extract number from orderCode
-      const numMatch = orderCode.match(/(\d+)/);
-      if (numMatch) {
-        const num = parseInt(numMatch[1], 10);
-        return `ORD-${String(num).padStart(2, '0')}`;
-      }
-    }
-    // Fallback to orderId
-    if (orderId) {
-      const num = parseInt(orderId, 10);
-      return `ORD-${String(num).padStart(2, '0')}`;
-    }
-    return orderCode || 'N/A';
-  };
-
-  // Format contract code to CTR-01, CTR-02, ...
-  const formatContractCode = (contractCode, contractId) => {
-    if (contractCode) {
-      // If contractCode already has format, extract number or use as is
-      const match = contractCode.match(/CTR-(\d+)/i);
-      if (match) {
-        const num = parseInt(match[1], 10);
-        return `CTR-${String(num).padStart(2, '0')}`;
-      }
-      // Try to extract number from contractCode
-      const numMatch = contractCode.match(/(\d+)/);
-      if (numMatch) {
-        const num = parseInt(numMatch[1], 10);
-        return `CTR-${String(num).padStart(2, '0')}`;
-      }
-    }
-    // Fallback to contractId
-    if (contractId) {
-      const num = parseInt(contractId, 10);
-      return `CTR-${String(num).padStart(2, '0')}`;
-    }
-    return contractCode || 'N/A';
-  };
 
   const handleViewDetails = async (order) => {
     setSelectedOrder(order);
@@ -309,20 +366,11 @@ function ViewOrders() {
         console.log('ℹ️ Order has no products yet');
         setSelectedOrderDetails([]);
       } else {
-        // Filter duplicates by modelId and colorId combination
-        // Use a Map to track unique combinations and keep the first occurrence
-        const uniqueDetailsMap = new Map();
-        orderDetails.forEach((detail) => {
-          const key = `${detail.modelId}-${detail.colorId}`;
-          if (!uniqueDetailsMap.has(key)) {
-            uniqueDetailsMap.set(key, detail);
-          }
-        });
-        
-        const uniqueDetails = Array.from(uniqueDetailsMap.values());
+        // Aggregate details with same modelId and colorId (in case quantity was increased)
+        const aggregatedDetails = aggregateOrderDetails(orderDetails);
         console.log('✅ Found product details in order:', orderDetails);
-        console.log('✅ Filtered unique details:', uniqueDetails);
-        setSelectedOrderDetails(uniqueDetails);
+        console.log('✅ Aggregated details:', aggregatedDetails);
+        setSelectedOrderDetails(aggregatedDetails);
       }
     } catch (error) {
       console.error('⚠️ Error loading order:', error);
@@ -443,9 +491,7 @@ function ViewOrders() {
     // Check if order already has contract
     const existingContract = ordersWithContracts[order.orderId];
     if (existingContract) {
-      const formattedOrderCode = formatOrderCode(order.orderCode, order.orderId);
-      const formattedContractCode = formatContractCode(existingContract.contractCode, existingContract.contractId);
-      showError(`Đơn hàng ${formattedOrderCode} đã có hợp đồng ${formattedContractCode}. Vui lòng xem hợp đồng hiện tại.`);
+      showError(`Đơn hàng ${order.orderCode || 'N/A'} đã có hợp đồng ${existingContract.contractCode || 'N/A'}. Vui lòng xem hợp đồng hiện tại.`);
       return;
     }
     
@@ -463,10 +509,7 @@ function ViewOrders() {
       
       // Show success message with both order code and contract code
       const contractCode = result.contractCode || result.data?.contractCode;
-      const contractId = result.contractId || result.data?.contractId;
-      const formattedOrderCode = formatOrderCode(order.orderCode, order.orderId);
-      const formattedContractCode = formatContractCode(contractCode, contractId);
-      success(`Đã tạo hợp đồng ${formattedContractCode} thành công cho đơn hàng ${formattedOrderCode}!`);
+      success(`Đã tạo hợp đồng ${contractCode || 'N/A'} thành công cho đơn hàng ${order.orderCode || 'N/A'}!`);
       
       // Refresh contracts and orders
       await dispatch(fetchAllContractsThunk());
@@ -478,10 +521,12 @@ function ViewOrders() {
         dispatch(fetchOrders());
       }
       
-      // Close modal and navigate to contract management
+      // Close modal if open and navigate to contract management
       setTimeout(() => {
-        setShowModal(false);
-        navigate('/dealer-staff/contract-management', { state: { tab: 'view' } });
+        if (showModal) {
+          setShowModal(false);
+        }
+        navigate('/dealer-staff/contract-management');
       }, 1500);
       
     } catch (err) {
@@ -514,35 +559,35 @@ function ViewOrders() {
         onCancel={confirm.onCancel}
       />
 
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-        <div className="flex items-center justify-between mb-4">
+      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3">
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Quản lý đơn hàng</h2>
-            <p className="text-gray-600 mt-1">Danh sách các đơn hàng đã tạo</p>
+            <h2 className="text-xl font-bold text-gray-900">Quản lý đơn hàng</h2>
+            <p className="text-gray-600 mt-0.5 text-sm">Danh sách các đơn hàng đã tạo</p>
           </div>
         </div>
 
         {/* Loading State */}
         {loading && (
-          <div className="flex items-center justify-center py-4">
-            <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mr-3" />
-            <span className="text-gray-600">Đang tải danh sách đơn hàng...</span>
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-2" />
+            <span className="text-gray-600 text-sm">Đang tải danh sách đơn hàng...</span>
           </div>
         )}
 
         {/* Filters */}
         {!loading && (
-          <div className="space-y-4 mb-4">
-            <div className="flex flex-col sm:flex-row gap-4">
+          <div className="space-y-3 mb-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1">
                 <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+                  <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Tìm kiếm theo tên khách hàng, mã đơn hàng..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
                   />
                 </div>
               </div>
@@ -555,22 +600,22 @@ function ViewOrders() {
                   }}
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-left flex items-center justify-between transition-all"
+                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-left flex items-center justify-between transition-all text-sm"
                 >
-                  <span className="text-gray-700">
+                  <span className="text-gray-700 text-sm">
                     {statusFilter === 'all' ? 'Tất cả trạng thái' :
-                     statusFilter === 'draft' ? 'Nháp' :
-                     statusFilter === 'approved' ? 'Đã phê duyệt' :
-                     statusFilter === 'pending' ? 'Chờ duyệt' :
-                     statusFilter === 'confirmed' ? 'Đã xác nhận' :
-                     statusFilter === 'processing' ? 'Đang xử lý' :
-                     statusFilter === 'completed' ? 'Hoàn thành' :
-                     statusFilter === 'cancelled' ? 'Đã hủy' : 'Tất cả trạng thái'}
+                     statusFilter === 'draft' ? 'DRAFT' :
+                     statusFilter === 'approved' ? 'APPROVED' :
+                     statusFilter === 'pending' ? 'PENDING' :
+                     statusFilter === 'confirmed' ? 'CONFIRMED' :
+                     statusFilter === 'processing' ? 'PROCESSING' :
+                     statusFilter === 'completed' ? 'COMPLETED' :
+                     statusFilter === 'cancelled' ? 'CANCELLED' : 'Tất cả trạng thái'}
                   </span>
                   <motion.svg
                     animate={{ rotate: showStatusDropdown ? 180 : 0 }}
                     transition={{ duration: 0.3 }}
-                    className="h-5 w-5 text-gray-400"
+                    className="h-4 w-4 text-gray-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -589,18 +634,18 @@ function ViewOrders() {
                         duration: 0.2,
                         ease: [0.4, 0, 0.2, 1]
                       }}
-                      className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50 origin-top"
+                      className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden z-50 origin-top"
                     >
                       <div className="py-1 max-h-60 overflow-y-auto">
                         {[
                           { value: 'all', label: 'Tất cả trạng thái' },
-                          { value: 'draft', label: 'Nháp' },
-                          { value: 'approved', label: 'Đã phê duyệt' },
-                          { value: 'pending', label: 'Chờ duyệt' },
-                          { value: 'confirmed', label: 'Đã xác nhận' },
-                          { value: 'processing', label: 'Đang xử lý' },
-                          { value: 'completed', label: 'Hoàn thành' },
-                          { value: 'cancelled', label: 'Đã hủy' }
+                          { value: 'draft', label: 'DRAFT' },
+                          { value: 'approved', label: 'APPROVED' },
+                          { value: 'pending', label: 'PENDING' },
+                          { value: 'confirmed', label: 'CONFIRMED' },
+                          { value: 'processing', label: 'PROCESSING' },
+                          { value: 'completed', label: 'COMPLETED' },
+                          { value: 'cancelled', label: 'CANCELLED' }
                         ].map((option, index) => (
                           <motion.button
                             key={option.value}
@@ -611,7 +656,7 @@ function ViewOrders() {
                               setStatusFilter(option.value);
                               setShowStatusDropdown(false);
                             }}
-                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-emerald-50 transition-colors ${
+                            className={`w-full px-3 py-2 text-left text-xs hover:bg-emerald-50 transition-colors ${
                               statusFilter === option.value 
                                 ? 'bg-emerald-50 text-emerald-700 font-medium' 
                                 : 'text-gray-700'
@@ -635,18 +680,16 @@ function ViewOrders() {
                   }}
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-left flex items-center justify-between transition-all"
+                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-left flex items-center justify-between transition-all text-sm"
                 >
-                  <span className="text-gray-700">
+                  <span className="text-gray-700 text-sm">
                     {sortMode === 'newest' ? 'Đơn hàng mới nhất' :
-                     sortMode === 'oldest' ? 'Đơn hàng cũ nhất' :
-                     sortMode === 'name-asc' ? 'Tên KH A → Z' :
-                     sortMode === 'name-desc' ? 'Tên KH Z → A' : 'Đơn hàng mới nhất'}
+                     sortMode === 'oldest' ? 'Đơn hàng cũ nhất' : 'Đơn hàng mới nhất'}
                   </span>
                   <motion.svg
                     animate={{ rotate: showSortDropdown ? 180 : 0 }}
                     transition={{ duration: 0.3 }}
-                    className="h-5 w-5 text-gray-400"
+                    className="h-4 w-4 text-gray-400"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -665,14 +708,12 @@ function ViewOrders() {
                         duration: 0.2,
                         ease: [0.4, 0, 0.2, 1]
                       }}
-                      className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50 origin-top"
+                      className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden z-50 origin-top"
                     >
                       <div className="py-1">
                         {[
                           { value: 'newest', label: 'Đơn hàng mới nhất' },
-                          { value: 'oldest', label: 'Đơn hàng cũ nhất' },
-                          { value: 'name-asc', label: 'Tên KH A → Z' },
-                          { value: 'name-desc', label: 'Tên KH Z → A' }
+                          { value: 'oldest', label: 'Đơn hàng cũ nhất' }
                         ].map((option, index) => (
                           <motion.button
                             key={option.value}
@@ -683,7 +724,7 @@ function ViewOrders() {
                               setSortMode(option.value);
                               setShowSortDropdown(false);
                             }}
-                            className={`w-full px-4 py-2.5 text-left text-sm hover:bg-emerald-50 transition-colors ${
+                            className={`w-full px-3 py-2 text-left text-xs hover:bg-emerald-50 transition-colors ${
                               sortMode === option.value 
                                 ? 'bg-emerald-50 text-emerald-700 font-medium' 
                                 : 'text-gray-700'
@@ -701,7 +742,7 @@ function ViewOrders() {
                 onClick={() => setShowDateFilter(!showDateFilter)}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className={`sm:w-auto px-4 py-2 border rounded-lg transition-all flex items-center justify-center font-medium ${
+                className={`sm:w-auto px-3 py-1.5 border rounded-lg transition-all flex items-center justify-center font-medium text-sm ${
                   showDateFilter 
                     ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-sm' 
                     : 'border-gray-300 text-gray-700 hover:bg-gray-50'
@@ -711,7 +752,7 @@ function ViewOrders() {
                   animate={{ rotate: showDateFilter ? 180 : 0 }}
                   transition={{ duration: 0.3 }}
                 >
-                  <Calendar className="h-5 w-5 mr-2" />
+                  <Calendar className="h-4 w-4 mr-1.5" />
                 </motion.div>
                 Lọc theo ngày
               </motion.button>
@@ -751,7 +792,7 @@ function ViewOrders() {
                     overflow: 'hidden',
                     willChange: 'transform, opacity, max-height'
                   }}
-                  className="flex flex-col sm:flex-row gap-4 p-4 bg-gray-50 rounded-lg border border-gray-200 shadow-sm"
+                  className="flex flex-col sm:flex-row gap-3 p-3 bg-gray-50 rounded-lg border border-gray-200 shadow-sm"
                 >
                   <motion.div 
                     initial={{ opacity: 0, x: -15 }}
@@ -760,17 +801,31 @@ function ViewOrders() {
                     transition={{ delay: 0.1, duration: 0.25, ease: "easeOut" }}
                     className="flex-1"
                   >
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Từ ngày
                     </label>
-                    <input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      onKeyDown={(e) => e.preventDefault()}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer transition-shadow"
-                      placeholder="Chọn ngày"
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={startDate}
+                        onChange={(e) => setStartDate(e.target.value)}
+                        onKeyDown={(e) => e.preventDefault()}
+                        className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer transition-shadow text-sm ${
+                          startDate 
+                            ? 'text-gray-900 [&::-webkit-datetime-edit-text]:opacity-100 [&::-webkit-datetime-edit-month-field]:opacity-100 [&::-webkit-datetime-edit-day-field]:opacity-100 [&::-webkit-datetime-edit-year-field]:opacity-100' 
+                            : '[&::-webkit-datetime-edit-text]:opacity-0 [&::-webkit-datetime-edit-month-field]:opacity-0 [&::-webkit-datetime-edit-day-field]:opacity-0 [&::-webkit-datetime-edit-year-field]:opacity-0'
+                        }`}
+                        style={{ 
+                          color: startDate ? '#111827' : 'transparent',
+                          position: 'relative'
+                        }}
+                      />
+                      {!startDate && (
+                        <div className="absolute inset-0 flex items-center pointer-events-none px-2.5 text-gray-400 text-sm">
+                          dd/mm/yyyy
+                        </div>
+                      )}
+                    </div>
                   </motion.div>
                   <motion.div 
                     initial={{ opacity: 0, x: -15 }}
@@ -779,17 +834,31 @@ function ViewOrders() {
                     transition={{ delay: 0.15, duration: 0.25, ease: "easeOut" }}
                     className="flex-1"
                   >
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                    <label className="block text-xs font-medium text-gray-700 mb-1">
                       Đến ngày
                     </label>
-                    <input
-                      type="date"
-                      value={endDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      onKeyDown={(e) => e.preventDefault()}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer transition-shadow"
-                      placeholder="Chọn ngày"
-                    />
+                    <div className="relative">
+                      <input
+                        type="date"
+                        value={endDate}
+                        onChange={(e) => setEndDate(e.target.value)}
+                        onKeyDown={(e) => e.preventDefault()}
+                        className={`w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent cursor-pointer transition-shadow text-sm ${
+                          endDate 
+                            ? 'text-gray-900 [&::-webkit-datetime-edit-text]:opacity-100 [&::-webkit-datetime-edit-month-field]:opacity-100 [&::-webkit-datetime-edit-day-field]:opacity-100 [&::-webkit-datetime-edit-year-field]:opacity-100' 
+                            : '[&::-webkit-datetime-edit-text]:opacity-0 [&::-webkit-datetime-edit-month-field]:opacity-0 [&::-webkit-datetime-edit-day-field]:opacity-0 [&::-webkit-datetime-edit-year-field]:opacity-0'
+                        }`}
+                        style={{ 
+                          color: endDate ? '#111827' : 'transparent',
+                          position: 'relative'
+                        }}
+                      />
+                      {!endDate && (
+                        <div className="absolute inset-0 flex items-center pointer-events-none px-2.5 text-gray-400 text-sm">
+                          dd/mm/yyyy
+                        </div>
+                      )}
+                    </div>
                   </motion.div>
                   <motion.div 
                     initial={{ opacity: 0, x: -15 }}
@@ -805,7 +874,7 @@ function ViewOrders() {
                       }}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium"
+                      className="px-3 py-1.5 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors font-medium text-sm"
                     >
                       Xóa bộ lọc
                     </motion.button>
@@ -818,12 +887,12 @@ function ViewOrders() {
 
         {/* Orders Table */}
         {!loading && filteredOrders.length === 0 ? (
-          <div className="text-center py-4">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="text-center py-6">
+            <svg className="mx-auto h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
             </svg>
             <h3 className="mt-2 text-sm font-medium text-gray-900">Không có đơn hàng nào</h3>
-            <p className="mt-1 text-sm text-gray-500">
+            <p className="mt-1 text-xs text-gray-500">
               {searchTerm || statusFilter !== 'all' 
                 ? 'Không tìm thấy đơn hàng phù hợp với bộ lọc.' 
                 : 'Chưa có đơn hàng nào được tạo.'}
@@ -834,25 +903,25 @@ function ViewOrders() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Mã đơn hàng
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Khách hàng
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Ngày tạo
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Trạng thái
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Hợp đồng
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Tổng tiền
                   </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Thao tác
                   </th>
                 </tr>
@@ -860,29 +929,29 @@ function ViewOrders() {
               <tbody className="bg-white divide-y divide-gray-200">
                 {filteredOrders.map((order) => (
                   <tr key={order.orderId} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {formatOrderCode(order.orderCode, order.orderId)}
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {order.orderCode || 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">{order.customerName || 'N/A'}</div>
-                      <div className="text-sm text-gray-500">{order.customerPhone || 'N/A'}</div>
+                      <div className="text-xs text-gray-500">{order.customerPhone || 'N/A'}</div>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
                       {order.orderDate ? new Date(order.orderDate).toLocaleDateString('vi-VN') : 'N/A'}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-md ${getStatusColor(order.status)}`}>
                         {getStatusText(order.status)}
                       </span>
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-3 py-2.5 whitespace-nowrap">
                       {(() => {
                         const contract = ordersWithContracts[order.orderId];
                         if (contract) {
                           return (
                             <button
-                              onClick={() => navigate('/dealer-staff/contract-management', { state: { tab: 'view' } })}
-                              className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800 hover:bg-green-200 transition-colors"
+                              onClick={() => navigate('/dealer-staff/contract-management')}
+                              className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-green-100 text-green-800 hover:bg-green-200 transition-colors"
                             >
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Đã có
@@ -890,29 +959,29 @@ function ViewOrders() {
                           );
                         } else if (order.status?.toUpperCase() === 'CONFIRMED') {
                           return (
-                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                            <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-md bg-gray-100 text-gray-800">
                               Chưa có
                             </span>
                           );
                         } else {
                           return (
-                            <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-400">
+                            <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-md bg-gray-100 text-gray-400">
                               -
                             </span>
                           );
                         }
                       })()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
                       {(order.totalPayment || order.totalPrice || 0).toLocaleString('vi-VN')} VNĐ
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                      <div className="flex flex-wrap gap-2">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium">
+                      <div className="flex flex-wrap gap-1.5">
                         <button
                           onClick={() => handleViewDetails(order)}
-                          className="text-emerald-600 hover:text-emerald-900 transition-colors flex items-center"
+                          className="text-emerald-600 hover:text-emerald-900 transition-colors flex items-center text-xs"
                         >
-                          <Eye className="h-4 w-4 mr-1" />
+                          <Eye className="h-3 w-3 mr-1" />
                           Chi tiết
                         </button>
                         
@@ -920,9 +989,9 @@ function ViewOrders() {
                         {order.status?.toUpperCase() === 'DRAFT' && (
                           <button
                             onClick={() => handleConfirmOrder(order.orderId)}
-                            className="text-blue-600 hover:text-blue-900 transition-colors flex items-center"
+                            className="text-blue-600 hover:text-blue-900 transition-colors flex items-center text-xs"
                           >
-                            <CheckCircle className="h-4 w-4 mr-1" />
+                            <CheckCircle className="h-3 w-3 mr-1" />
                             Xác nhận
                           </button>
                         )}
@@ -930,17 +999,34 @@ function ViewOrders() {
                         {/* Nút Tạo hợp đồng - chỉ hiện khi đơn hàng CONFIRMED và chưa có hợp đồng */}
                         {order.status?.toUpperCase() === 'CONFIRMED' && !ordersWithContracts[order.orderId] && (
                           <button
-                            onClick={() => navigate('/dealer-staff/contract-management', { 
-                              state: { 
-                                tab: 'create',
-                                orderId: order.orderId,
-                                orderData: order // Truyền thêm orderData để có thể hiển thị thông tin
-                              } 
-                            })}
-                            className="text-blue-600 hover:text-blue-900 transition-colors flex items-center"
+                            onClick={() => handleCreateContract(order)}
+                            disabled={creatingContract === order.orderId}
+                            className="text-blue-600 hover:text-blue-900 transition-colors flex items-center disabled:opacity-50 disabled:cursor-not-allowed text-xs"
+                            title="Tạo hợp đồng"
                           >
-                            <FileText className="h-4 w-4 mr-1" />
-                            Tạo hợp đồng
+                            {creatingContract === order.orderId ? (
+                              <>
+                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                Đang tạo...
+                              </>
+                            ) : (
+                              <>
+                                <FileText className="h-3 w-3 mr-1" />
+                                Tạo hợp đồng
+                              </>
+                            )}
+                          </button>
+                        )}
+                        
+                        {/* Nút Xem hợp đồng - khi đã có hợp đồng */}
+                        {order.status?.toUpperCase() === 'CONFIRMED' && ordersWithContracts[order.orderId] && (
+                          <button
+                            onClick={() => navigate('/dealer-staff/contract-management')}
+                            className="text-green-600 hover:text-green-900 transition-colors flex items-center text-xs"
+                            title="Xem hợp đồng"
+                          >
+                            <FileText className="h-3 w-3 mr-1" />
+                            Xem hợp đồng
                           </button>
                         )}
                         
@@ -948,9 +1034,9 @@ function ViewOrders() {
                         {(order.status?.toUpperCase() === 'DRAFT' || order.status?.toUpperCase() === 'CONFIRMED') && (
                           <button
                             onClick={() => handleDeleteOrder(order.orderId, order.status)}
-                            className="text-red-600 hover:text-red-900 transition-colors flex items-center"
+                            className="text-red-600 hover:text-red-900 transition-colors flex items-center text-xs"
                           >
-                            <Trash2 className="h-4 w-4 mr-1" />
+                            <Trash2 className="h-3 w-3 mr-1" />
                             Xóa
                           </button>
                         )}
@@ -985,73 +1071,73 @@ function ViewOrders() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-7xl p-4 border shadow-2xl rounded-2xl bg-white max-h-[95vh] overflow-y-auto"
+              className="w-full max-w-7xl p-4 border shadow-lg rounded-lg bg-white max-h-[95vh] overflow-y-auto"
             >
               {/* Header */}
-              <div className="flex items-start justify-between mb-4 pb-3 border-b border-gray-200">
+              <div className="flex items-start justify-between mb-3 pb-3 border-b border-gray-200">
                 <div className="flex-1">
-                  <div className="flex items-center space-x-3 mb-2">
-                    <Receipt className="h-8 w-8 text-emerald-600" />
-                    <h3 className="text-2xl font-bold text-gray-900">
+                  <div className="flex items-center space-x-2 mb-1.5">
+                    <Receipt className="h-6 w-6 text-emerald-600" />
+                    <h3 className="text-xl font-bold text-gray-900">
                       Chi tiết đơn hàng
                     </h3>
                   </div>
-                  <div className="flex items-center space-x-4 text-sm text-gray-600">
+                  <div className="flex items-center space-x-3 text-xs text-gray-600">
                     <span className="flex items-center">
-                      <Tag className="h-4 w-4 mr-1" />
-                      Mã: <span className="font-semibold ml-1">{formatOrderCode(selectedOrder.orderCode, selectedOrder.orderId)}</span>
+                      <Tag className="h-3 w-3 mr-1" />
+                      Mã: <span className="font-semibold ml-1">{selectedOrder.orderCode || 'N/A'}</span>
                     </span>
                     <span className="flex items-center">
-                      <Calendar className="h-4 w-4 mr-1" />
+                      <Calendar className="h-3 w-3 mr-1" />
                       {selectedOrder.orderDate ? new Date(selectedOrder.orderDate).toLocaleDateString('vi-VN', {
                         year: 'numeric',
                         month: 'long',
                         day: 'numeric'
                       }) : 'N/A'}
                     </span>
-                    <span className={`px-3 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedOrder.status)}`}>
+                    <span className={`px-2 py-0.5 text-xs font-semibold rounded-md ${getStatusColor(selectedOrder.status)}`}>
                       {getStatusText(selectedOrder.status)}
                     </span>
                   </div>
                 </div>
                 <button
                   onClick={handleCloseModal}
-                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
+                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-all"
                 >
-                  <X className="h-6 w-6" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {/* Three Column Info Cards */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
                   {/* Customer Information */}
-                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 border border-blue-200">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <User className="h-5 w-5 text-blue-600" />
-                      <h4 className="font-bold text-blue-900">Thông tin khách hàng</h4>
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <User className="h-4 w-4 text-blue-600" />
+                      <h4 className="font-bold text-blue-900 text-sm">Thông tin khách hàng</h4>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <div className="flex items-start">
-                        <UserCircle className="h-4 w-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <UserCircle className="h-3 w-3 text-blue-600 mr-1.5 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <p className="text-xs text-blue-700">Tên khách hàng</p>
-                          <p className="text-sm font-semibold text-blue-900">{selectedOrder.customerName || 'N/A'}</p>
+                          <p className="text-xs font-semibold text-blue-900">{selectedOrder.customerName || 'N/A'}</p>
                         </div>
                       </div>
                       <div className="flex items-start">
-                        <Phone className="h-4 w-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <Phone className="h-3 w-3 text-blue-600 mr-1.5 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <p className="text-xs text-blue-700">Số điện thoại</p>
-                          <p className="text-sm font-semibold text-blue-900">{selectedOrder.customerPhone || 'N/A'}</p>
+                          <p className="text-xs font-semibold text-blue-900">{selectedOrder.customerPhone || 'N/A'}</p>
                         </div>
                       </div>
                       {selectedOrder.customerEmail && (
                         <div className="flex items-start">
-                          <Mail className="h-4 w-4 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
+                          <Mail className="h-3 w-3 text-blue-600 mr-1.5 mt-0.5 flex-shrink-0" />
                           <div className="flex-1">
                             <p className="text-xs text-blue-700">Email</p>
-                            <p className="text-sm font-semibold text-blue-900 break-all">{selectedOrder.customerEmail}</p>
+                            <p className="text-xs font-semibold text-blue-900 break-all">{selectedOrder.customerEmail}</p>
                           </div>
                         </div>
                       )}
@@ -1059,58 +1145,58 @@ function ViewOrders() {
                   </div>
 
                   {/* Staff & Store Information */}
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <Building2 className="h-5 w-5 text-purple-600" />
-                      <h4 className="font-bold text-purple-900">Nhân viên & Cửa hàng</h4>
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Building2 className="h-4 w-4 text-purple-600" />
+                      <h4 className="font-bold text-purple-900 text-sm">Nhân viên & Cửa hàng</h4>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <div className="flex items-start">
-                        <UserCircle className="h-4 w-4 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <UserCircle className="h-3 w-3 text-purple-600 mr-1.5 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <p className="text-xs text-purple-700">Nhân viên phụ trách</p>
-                          <p className="text-sm font-semibold text-purple-900">{selectedOrder.staffName || 'N/A'}</p>
+                          <p className="text-xs font-semibold text-purple-900">{selectedOrder.staffName || 'N/A'}</p>
                         </div>
                       </div>
                       <div className="flex items-start">
-                        <Building2 className="h-4 w-4 text-purple-600 mr-2 mt-0.5 flex-shrink-0" />
+                        <Building2 className="h-3 w-3 text-purple-600 mr-1.5 mt-0.5 flex-shrink-0" />
                         <div className="flex-1">
                           <p className="text-xs text-purple-700">Cửa hàng</p>
-                          <p className="text-sm font-semibold text-purple-900">{selectedOrder.storeName || 'N/A'}</p>
+                          <p className="text-xs font-semibold text-purple-900">{selectedOrder.storeName || 'N/A'}</p>
                         </div>
                       </div>
                     </div>
                   </div>
 
                   {/* Financial Summary */}
-                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-xl p-4 border border-emerald-200">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <DollarSign className="h-5 w-5 text-emerald-600" />
-                      <h4 className="font-bold text-emerald-900">Tổng quan tài chính</h4>
+                  <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-3 border border-emerald-200">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <DollarSign className="h-4 w-4 text-emerald-600" />
+                      <h4 className="font-bold text-emerald-900 text-sm">Tổng quan tài chính</h4>
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-1.5">
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-emerald-700">Tổng giá sản phẩm:</span>
-                        <span className="text-sm font-semibold text-emerald-900">
+                        <span className="text-xs font-semibold text-emerald-900">
                           {(selectedOrder.totalPrice || 0).toLocaleString('vi-VN')}đ
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-emerald-700">Phí dịch vụ và biển số:</span>
-                        <span className="text-sm font-semibold text-orange-600">
+                        <span className="text-xs font-semibold text-orange-600">
                           +{(selectedOrder.totalTaxPrice || 0).toLocaleString('vi-VN')}đ
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
                         <span className="text-xs text-emerald-700">Khuyến mãi:</span>
-                        <span className="text-sm font-semibold text-red-600">
+                        <span className="text-xs font-semibold text-red-600">
                           -{(selectedOrder.totalPromotionAmount || 0).toLocaleString('vi-VN')}đ
                         </span>
                       </div>
-                      <div className="pt-2 border-t-2 border-emerald-300">
+                      <div className="pt-1.5 border-t-2 border-emerald-300">
                         <div className="flex justify-between items-center">
-                          <span className="text-sm font-bold text-emerald-900">Tổng thanh toán:</span>
-                          <span className="text-lg font-bold text-emerald-600">
+                          <span className="text-xs font-bold text-emerald-900">Tổng thanh toán:</span>
+                          <span className="text-base font-bold text-emerald-600">
                             {(selectedOrder.totalPayment || 0).toLocaleString('vi-VN')}đ
                           </span>
                         </div>
@@ -1120,48 +1206,48 @@ function ViewOrders() {
                 </div>
 
                 {/* Product Details */}
-                <div className="bg-white rounded-xl border-2 border-gray-200 overflow-hidden">
-                  <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-6 py-4">
-                    <h4 className="font-bold text-white flex items-center text-lg">
-                      <ShoppingBag className="h-6 w-6 mr-2" />
+                <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                  <div className="bg-gradient-to-r from-emerald-600 to-emerald-700 px-4 py-2.5">
+                    <h4 className="font-bold text-white flex items-center text-sm">
+                      <ShoppingBag className="h-4 w-4 mr-1.5" />
                       Chi tiết sản phẩm
                     </h4>
                   </div>
                   
                   {loadingDetails ? (
-                    <div className="flex items-center justify-center py-4">
-                      <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mr-3" />
-                      <span className="text-gray-600 font-medium">Đang tải chi tiết sản phẩm...</span>
+                    <div className="flex items-center justify-center py-6">
+                      <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-2" />
+                      <span className="text-gray-600 font-medium text-sm">Đang tải chi tiết sản phẩm...</span>
                     </div>
                   ) : selectedOrderDetails.length > 0 ? (
                     <div className="overflow-x-auto">
                       <table className="min-w-full divide-y divide-gray-200">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                               Sản phẩm
                             </th>
-                            <th className="px-6 py-4 text-center text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
                               Số lượng
                             </th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                               Đơn giá
                             </th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                               Phí đăng ký
                             </th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                               Phí biển số
                             </th>
                             {selectedOrderDetails.some(item => item.promotionName) && (
-                              <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                                 Khuyến mãi
                               </th>
                             )}
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                               Giảm giá
                             </th>
-                            <th className="px-6 py-4 text-right text-xs font-bold text-gray-700 uppercase tracking-wider">
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                               Thành tiền
                             </th>
                           </tr>
@@ -1169,38 +1255,38 @@ function ViewOrders() {
                         <tbody className="bg-white divide-y divide-gray-100">
                           {selectedOrderDetails.map((item, index) => (
                             <tr key={index} className="hover:bg-emerald-50 transition-colors">
-                              <td className="px-6 py-4">
+                              <td className="px-3 py-2">
                                 <div className="flex items-center">
-                                  <div className="h-10 w-10 flex-shrink-0 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center mr-3">
-                                    <Package className="h-5 w-5 text-white" />
+                                  <div className="h-8 w-8 flex-shrink-0 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-lg flex items-center justify-center mr-2">
+                                    <Package className="h-4 w-4 text-white" />
                                   </div>
                                   <div>
-                                    <div className="font-semibold text-gray-900">{item.modelName || 'N/A'}</div>
-                                    <div className="text-sm text-gray-500 flex items-center">
+                                    <div className="font-semibold text-gray-900 text-sm">{item.modelName || 'N/A'}</div>
+                                    <div className="text-xs text-gray-500 flex items-center">
                                       <Tag className="h-3 w-3 mr-1" />
                                       {item.colorName || 'N/A'}
                                     </div>
                                   </div>
                                 </div>
                               </td>
-                              <td className="px-6 py-4 text-center">
-                                <span className="px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full text-sm font-bold">
+                              <td className="px-3 py-2 text-center">
+                                <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-md text-xs font-bold">
                                   {item.quantity || 0}
                                 </span>
                               </td>
-                              <td className="px-6 py-4 text-right text-sm font-semibold text-gray-900">
+                              <td className="px-3 py-2 text-right text-xs font-semibold text-gray-900">
                                 {(item.unitPrice || 0).toLocaleString('vi-VN')}đ
                               </td>
-                              <td className="px-6 py-4 text-right text-sm text-gray-600">
+                              <td className="px-3 py-2 text-right text-xs text-gray-600">
                                 {(item.registrationFee || 0).toLocaleString('vi-VN')}đ
                               </td>
-                              <td className="px-6 py-4 text-right text-sm text-gray-600">
+                              <td className="px-3 py-2 text-right text-xs text-gray-600">
                                 {(item.licensePlateFee || 0).toLocaleString('vi-VN')}đ
                               </td>
                               {selectedOrderDetails.some(i => i.promotionName) && (
-                                <td className="px-6 py-4 text-right text-xs">
+                                <td className="px-3 py-2 text-right text-xs">
                                   {item.promotionName ? (
-                                    <span className="inline-flex items-center px-2 py-1 bg-pink-100 text-pink-800 rounded-full">
+                                    <span className="inline-flex items-center px-2 py-0.5 bg-pink-100 text-pink-800 rounded-md">
                                       <Tag className="h-3 w-3 mr-1" />
                                       {item.promotionName}
                                     </span>
@@ -1209,10 +1295,10 @@ function ViewOrders() {
                                   )}
                                 </td>
                               )}
-                              <td className="px-6 py-4 text-right text-sm text-red-600 font-semibold">
+                              <td className="px-3 py-2 text-right text-xs text-red-600 font-semibold">
                                 {(item.discountAmount || 0) > 0 ? `-${(item.discountAmount || 0).toLocaleString('vi-VN')}đ` : '-'}
                               </td>
-                              <td className="px-6 py-4 text-right text-base font-bold text-emerald-600">
+                              <td className="px-3 py-2 text-right text-sm font-bold text-emerald-600">
                                 {(item.totalPrice || 0).toLocaleString('vi-VN')}đ
                               </td>
                             </tr>
@@ -1221,21 +1307,21 @@ function ViewOrders() {
                       </table>
                     </div>
                   ) : (
-                    <div className="text-center py-4">
-                      <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gray-100 mb-4">
-                        <Package className="h-10 w-10 text-gray-400" />
+                    <div className="text-center py-6">
+                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gray-100 mb-3">
+                        <Package className="h-8 w-8 text-gray-400" />
                       </div>
-                      <h4 className="text-lg font-semibold text-gray-900 mb-2">Chưa có sản phẩm</h4>
-                      <p className="text-gray-500 mb-4">Đơn hàng này chưa có sản phẩm nào</p>
+                      <h4 className="text-base font-semibold text-gray-900 mb-1.5">Chưa có sản phẩm</h4>
+                      <p className="text-gray-500 mb-3 text-sm">Đơn hàng này chưa có sản phẩm nào</p>
                       {selectedOrder.status?.toUpperCase() === 'DRAFT' && (
                         <button
                           onClick={() => {
                             handleEditOrder(selectedOrder.orderId);
                             handleCloseModal();
                           }}
-                          className="inline-flex items-center px-6 py-3 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                          className="inline-flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors font-semibold shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm"
                         >
-                          <Plus className="h-5 w-5 mr-2" />
+                          <Plus className="h-4 w-4 mr-1.5" />
                           Thêm sản phẩm ngay
                         </button>
                       )}
@@ -1245,32 +1331,32 @@ function ViewOrders() {
 
                 {/* Contract Section */}
                 {selectedOrder && (
-                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 border border-purple-200">
-                    <div className="flex items-center space-x-2 mb-3">
-                      <Receipt className="h-5 w-5 text-purple-600" />
-                      <h4 className="font-bold text-purple-900">Thông tin hợp đồng</h4>
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Receipt className="h-4 w-4 text-purple-600" />
+                      <h4 className="font-bold text-purple-900 text-sm">Thông tin hợp đồng</h4>
                     </div>
                     {(() => {
                       const contract = ordersWithContracts[selectedOrder.orderId];
                       if (contract) {
                         return (
-                          <div className="space-y-2">
+                          <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-purple-700">Trạng thái:</span>
-                              <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">
+                              <span className="text-xs text-purple-700">Trạng thái:</span>
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-green-100 text-green-800">
                                 <CheckCircle className="h-3 w-3 mr-1" />
                                 Đã có hợp đồng
                               </span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-purple-700">Mã hợp đồng:</span>
-                              <span className="text-sm font-semibold text-purple-900">
-                                {formatContractCode(contract.contractCode, contract.contractId)}
+                              <span className="text-xs text-purple-700">Mã hợp đồng:</span>
+                              <span className="text-xs font-semibold text-purple-900">
+                                {contract.contractCode || 'N/A'}
                               </span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-purple-700">Đã upload chữ ký:</span>
-                              <span className={`inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full ${
+                              <span className="text-xs text-purple-700">Đã upload chữ ký:</span>
+                              <span className={`inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md ${
                                 contract.signedContractFileUrl || contract.contractFileUrl
                                   ? 'bg-green-100 text-green-800'
                                   : 'bg-yellow-100 text-yellow-800'
@@ -1291,27 +1377,27 @@ function ViewOrders() {
                             <motion.button
                               onClick={() => {
                                 handleCloseModal();
-                                navigate('/dealer-staff/contract-management', { state: { tab: 'view' } });
+                                navigate('/dealer-staff/contract-management');
                               }}
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
-                              className="w-full mt-3 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center font-semibold"
+                              className="w-full mt-2 px-3 py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors flex items-center justify-center font-semibold text-sm"
                             >
-                              <Receipt className="h-4 w-4 mr-2" />
+                              <Receipt className="h-3 w-3 mr-1.5" />
                               Xem hợp đồng
                             </motion.button>
                           </div>
                         );
                       } else if (selectedOrder.status?.toUpperCase() === 'CONFIRMED') {
                         return (
-                          <div className="space-y-2">
+                          <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-purple-700">Trạng thái:</span>
-                              <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-800">
+                              <span className="text-xs text-purple-700">Trạng thái:</span>
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-gray-100 text-gray-800">
                                 Chưa có hợp đồng
                               </span>
                             </div>
-                            <p className="text-sm text-purple-700">
+                            <p className="text-xs text-purple-700">
                               Đơn hàng đã xác nhận. Bạn có thể tạo hợp đồng ngay bây giờ.
                             </p>
                             <motion.button
@@ -1319,16 +1405,16 @@ function ViewOrders() {
                               disabled={creatingContract === selectedOrder.orderId}
                               whileHover={{ scale: 1.02 }}
                               whileTap={{ scale: 0.98 }}
-                              className="w-full mt-3 px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold"
+                              className="w-full mt-2 px-3 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-semibold text-sm"
                             >
                               {creatingContract === selectedOrder.orderId ? (
                                 <>
-                                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                  <Loader2 className="h-3 w-3 animate-spin mr-1.5" />
                                   Đang tạo...
                                 </>
                               ) : (
                                 <>
-                                  <Plus className="h-4 w-4 mr-2" />
+                                  <Plus className="h-3 w-3 mr-1.5" />
                                   Tạo hợp đồng
                                 </>
                               )}
@@ -1337,14 +1423,14 @@ function ViewOrders() {
                         );
                       } else {
                         return (
-                          <div className="space-y-2">
+                          <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
-                              <span className="text-sm text-purple-700">Trạng thái:</span>
-                              <span className="inline-flex items-center px-2 py-1 text-xs font-semibold rounded-full bg-gray-100 text-gray-400">
+                              <span className="text-xs text-purple-700">Trạng thái:</span>
+                              <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-gray-100 text-gray-400">
                                 Chưa thể tạo
                               </span>
                             </div>
-                            <p className="text-sm text-purple-600">
+                            <p className="text-xs text-purple-600">
                               Vui lòng xác nhận đơn hàng trước khi tạo hợp đồng.
                             </p>
                           </div>
@@ -1366,21 +1452,21 @@ function ViewOrders() {
                         }}
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
-                        className="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center font-semibold"
+                        className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors flex items-center font-semibold text-sm"
                       >
-                        <CheckCircle className="h-5 w-5 mr-2" />
+                        <CheckCircle className="h-4 w-4 mr-1.5" />
                         Xác nhận đơn hàng
                       </motion.button>
                     )}
                   </div>
                   
                   {/* General Actions - RIGHT SIDE */}
-                  <div className="flex space-x-4">
+                  <div className="flex space-x-3">
                     <motion.button
                       onClick={handleCloseModal}
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
-                      className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors"
+                      className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm"
                     >
                       Đóng
                     </motion.button>

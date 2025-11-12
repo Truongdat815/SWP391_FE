@@ -646,9 +646,9 @@ function FeedbackManagement({ onBack }) {
         onConfirm={confirm.onConfirm}
         onCancel={confirm.onCancel}
       />
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-900">Quản lý phản hồi & khiếu nại</h2>
+      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-xl font-bold text-gray-900">Quản lý phản hồi & khiếu nại</h2>
           <div className="flex items-center gap-3">
             {/* Sort Dropdown */}
             <div className="relative" ref={sortDropdownRef}>
@@ -666,7 +666,7 @@ function FeedbackManagement({ onBack }) {
               </button>
               
               {showSortDropdown && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-md border border-gray-200 z-50">
                   <button
                     onClick={() => { setSortBy('newest'); setShowSortDropdown(false); }}
                     className={`w-full text-left px-4 py-2 hover:bg-gray-100 transition-colors ${sortBy === 'newest' ? 'bg-emerald-50 text-emerald-700 font-semibold' : ''}`}
@@ -737,7 +737,7 @@ function FeedbackManagement({ onBack }) {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Chờ xử lý</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-xl font-bold text-gray-900">
                   {sortedFeedbacks.filter(f => f.status === 'pending' || f.status === 'draft').length}
                 </p>
               </div>
@@ -753,7 +753,7 @@ function FeedbackManagement({ onBack }) {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Đang xử lý</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-xl font-bold text-gray-900">
                   {sortedFeedbacks.filter(f => f.status === 'in_progress' || f.status === 'inprogress').length}
                 </p>
               </div>
@@ -769,7 +769,7 @@ function FeedbackManagement({ onBack }) {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Đã giải quyết</p>
-                <p className="text-2xl font-bold text-gray-900">
+                <p className="text-xl font-bold text-gray-900">
                   {sortedFeedbacks.filter(f => f.status === 'resolved').length}
                 </p>
               </div>
@@ -785,7 +785,7 @@ function FeedbackManagement({ onBack }) {
               </div>
               <div className="ml-4">
                 <p className="text-sm font-medium text-gray-600">Tổng phản hồi</p>
-                <p className="text-2xl font-bold text-gray-900">{sortedFeedbacks.length}</p>
+                <p className="text-xl font-bold text-gray-900">{sortedFeedbacks.length}</p>
               </div>
             </div>
           </div>
@@ -794,7 +794,7 @@ function FeedbackManagement({ onBack }) {
         {/* Create Feedback Modal */}
         {showCreateForm && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowCreateForm(false)}>
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-lg p-4 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Tạo phản hồi mới</h3>
                 <button
@@ -911,7 +911,7 @@ function FeedbackManagement({ onBack }) {
         {/* Edit Feedback Modal */}
         {showEditForm && selectedFeedback && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => { setShowEditForm(false); setSelectedFeedback(null); }}>
-            <div className="bg-white rounded-lg p-6 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="bg-white rounded-lg p-4 w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Chỉnh sửa phản hồi</h3>
                 <button

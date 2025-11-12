@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../../contexts/AuthContext';
+import { getCurrentUser } from '@/api/userService';
 
 const DealerStaffProfile = ({ onBack }) => {
-  const { user, isAuthenticated } = useAuth();
   const [formData, setFormData] = useState({
     name: 'Staff Name',
     email: 'staff@electra.com',
@@ -10,27 +9,42 @@ const DealerStaffProfile = ({ onBack }) => {
     role: 'Nhân viên bán hàng',
     employeeId: 'DS001',
     department: 'Phòng bán hàng',
-    startDate: '2023-03-15',
     dealer: 'Đại lý Hà Nội',
     manager: 'Nguyễn Văn Manager'
   });
 
-  // Load user data from session
+  const [loading, setLoading] = useState(true);
+
+  // Load user data from API /users/me
   useEffect(() => {
-    if (isAuthenticated && user && user.roleName === 'Dealer Staff') {
-      setFormData({
-        name: user.fullName || 'Staff Name',
-        email: user.email || 'staff@electra.com',
-        phone: user.phone || '0901234567',
-        role: 'Nhân viên bán hàng',
-        employeeId: `DS${user.userId?.toString().padStart(3, '0') || '001'}`,
-        department: 'Phòng bán hàng',
-        startDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : '2023-03-15',
-        dealer: user.storeName || 'Đại lý Hà Nội',
-        manager: user.managerName || 'Nguyễn Văn Manager'
-      });
-    }
-  }, [isAuthenticated, user]);
+    const fetchUserInfo = async () => {
+      try {
+        setLoading(true);
+        const response = await getCurrentUser();
+        // API trả về { code, message, data: { userId, fullName, email, ... } }
+        const userData = response?.data;
+        
+        if (userData) {
+          setFormData({
+            name: userData.fullName || 'Staff Name',
+            email: userData.email || 'staff@electra.com',
+            phone: userData.phone || '0901234567',
+            role: 'Nhân viên bán hàng',
+            employeeId: `DS${userData.userId?.toString().padStart(3, '0') || '001'}`,
+            department: 'Phòng bán hàng',
+            dealer: userData.storeName || 'Đại lý Hà Nội',
+            manager: userData.managerName || 'Nguyễn Văn Manager'
+          });
+        }
+      } catch (error) {
+        console.error('Lỗi lấy thông tin user:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUserInfo();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -44,6 +58,17 @@ const DealerStaffProfile = ({ onBack }) => {
     // Xử lý lưu thông tin
     alert('Thông tin đã được cập nhật thành công!');
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto p-4">
+        <div className="animate-pulse">
+          <div className="bg-gray-200 h-32 rounded-2xl mb-4"></div>
+          <div className="bg-gray-200 h-96 rounded-2xl"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto p-4">
@@ -150,16 +175,6 @@ const DealerStaffProfile = ({ onBack }) => {
               disabled 
             />
           </div>
-          <div className="sm:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Ngày bắt đầu làm việc</label>
-            <input 
-              name="startDate"
-              type="date"
-              value={formData.startDate}
-              onChange={handleInputChange}
-              className="w-full border rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition bg-white text-gray-900 bg-white text-gray-900" 
-            />
-          </div>
         </div>
 
         {/* Thành tích bán hàng */}
@@ -216,8 +231,7 @@ const DealerStaffProfile = ({ onBack }) => {
           </div>
         </div>
 
-        <div className="mt-4 flex items-center justify-between">
-          <p className="text-sm text-gray-500">Lần cập nhật gần nhất: hôm nay</p>
+        <div className="mt-4 flex items-center justify-end">
           <button 
             onClick={handleSave}
             className="px-6 py-2 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 active:scale-[0.98] transition shadow-sm bg-white text-gray-900"

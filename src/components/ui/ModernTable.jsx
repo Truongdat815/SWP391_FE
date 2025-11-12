@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 
 export const ModernTable = ({ children, className = '' }) => {
   return (
-    <div className={`overflow-hidden rounded-2xl border border-gray-100 shadow-lg ${className}`}>
+    <div className={`overflow-hidden rounded-lg border border-gray-100 shadow-md ${className}`}>
       <div className="overflow-x-auto">
         <table className="min-w-full divide-y divide-gray-100">
           {children}
@@ -22,15 +22,15 @@ export const ModernTableHead = ({ children }) => {
 
 export const ModernTableHeader = ({ children, sortable = false, onSort, className = '' }) => {
   return (
-    <th className={`px-6 py-4 text-left ${className}`}>
+    <th className={`px-3 py-2.5 text-left ${className}`}>
       <div className={`flex items-center gap-2 ${sortable ? 'group cursor-pointer' : ''}`} onClick={onSort}>
-        <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">
+        <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
           {children}
         </span>
         {sortable && (
           <motion.svg
-            whileHover={{ scale: 1.2 }}
-            className="w-4 h-4 text-gray-400 group-hover:text-gray-600 transition-colors"
+            whileHover={{ scale: 1.1 }}
+            className="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600 transition-colors"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -54,13 +54,13 @@ export const ModernTableBody = ({ children }) => {
 export const ModernTableRow = ({ children, index = 0, onClick, className = '' }) => {
   return (
     <motion.tr
-      initial={{ opacity: 0, x: -20 }}
+      initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.05 }}
+      transition={{ delay: index * 0.03 }}
       onClick={onClick}
       className={`
-        group hover:bg-gradient-to-r hover:from-emerald-50/50 hover:to-teal-50/50
-        transition-all duration-200
+        group hover:bg-gradient-to-r hover:from-emerald-50/40 hover:to-teal-50/40
+        transition-all duration-150
         ${onClick ? 'cursor-pointer' : ''}
         ${className}
       `}
@@ -72,7 +72,7 @@ export const ModernTableRow = ({ children, index = 0, onClick, className = '' })
 
 export const ModernTableCell = ({ children, className = '' }) => {
   return (
-    <td className={`px-6 py-4 ${className}`}>
+    <td className={`px-3 py-2.5 ${className}`}>
       {children}
     </td>
   );

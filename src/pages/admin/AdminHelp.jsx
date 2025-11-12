@@ -68,27 +68,27 @@ const AdminHelp = ({ onBack }) => {
   );
 
   return (
-    <div className="max-w-4xl mx-auto p-6 space-y-6">
+    <div className="max-w-4xl mx-auto p-4 space-y-4">
       {onBack && (
         <button
           onClick={onBack}
-          className="mb-4 flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+          className="mb-3 flex items-center text-gray-600 hover:text-gray-900 transition-colors text-sm"
         >
-          <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
           Quay lại
         </button>
       )}
-      <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 rounded-2xl p-6 sm:p-8 shadow-sm">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Trợ giúp quản trị</h1>
-        <p className="text-gray-600 mt-1">Hướng dẫn và hỗ trợ cho quản trị viên hệ thống</p>
+      <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 rounded-lg p-4 shadow-sm">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Trợ giúp quản trị</h1>
+        <p className="text-gray-600 mt-0.5 text-sm">Hướng dẫn và hỗ trợ cho quản trị viên hệ thống</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2 space-y-4">
           {/* Tabs */}
-          <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
+          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-md">
             <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 mb-6">
               <button
                 onClick={() => setActiveTab('faq')}

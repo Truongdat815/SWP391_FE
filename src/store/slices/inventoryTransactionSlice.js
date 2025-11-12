@@ -24,6 +24,28 @@ export const getTransactionsByStoreStockThunk = createAsyncThunk(
     }
 );
 
+export const getTransactionByIdThunk = createAsyncThunk(
+    'inventoryTransactions/getById',
+    async (inventoryId, { rejectWithValue }) => {
+        try {
+            return await inventoryTransactionService.getTransactionById(inventoryId);
+        } catch (err) {
+            return rejectWithValue(err.message || 'Failed to fetch inventory transaction by id');
+        }
+    }
+);
+
+export const getTransactionsByDateRangeThunk = createAsyncThunk(
+    'inventoryTransactions/getByDateRange',
+    async ({ startDate, endDate }, { rejectWithValue }) => {
+        try {
+            return await inventoryTransactionService.getTransactionsByDateRange(startDate, endDate);
+        } catch (err) {
+            return rejectWithValue(err.message || 'Failed to fetch inventory transactions by date range');
+        }
+    }
+);
+
 export const createTransactionThunk = createAsyncThunk(
     'inventoryTransactions/create',
     async (payload, { rejectWithValue }) => {
@@ -54,6 +76,50 @@ export const deleteTransactionThunk = createAsyncThunk(
             return inventoryId;
         } catch (err) {
             return rejectWithValue(err.message || 'Failed to delete transaction');
+        }
+    }
+);
+
+export const acceptTransactionThunk = createAsyncThunk(
+    'inventoryTransactions/accept',
+    async (inventoryId, { rejectWithValue }) => {
+        try {
+            return await inventoryTransactionService.acceptTransaction(inventoryId);
+        } catch (err) {
+            return rejectWithValue(err.message || 'Failed to accept transaction');
+        }
+    }
+);
+
+export const rejectTransactionThunk = createAsyncThunk(
+    'inventoryTransactions/reject',
+    async (inventoryId, { rejectWithValue }) => {
+        try {
+            return await inventoryTransactionService.rejectTransaction(inventoryId);
+        } catch (err) {
+            return rejectWithValue(err.message || 'Failed to reject transaction');
+        }
+    }
+);
+
+export const startShippingTransactionThunk = createAsyncThunk(
+    'inventoryTransactions/startShipping',
+    async (inventoryId, { rejectWithValue }) => {
+        try {
+            return await inventoryTransactionService.startShippingTransaction(inventoryId);
+        } catch (err) {
+            return rejectWithValue(err.message || 'Failed to start shipping');
+        }
+    }
+);
+
+export const confirmDeliveryTransactionThunk = createAsyncThunk(
+    'inventoryTransactions/confirmDelivery',
+    async (inventoryId, { rejectWithValue }) => {
+        try {
+            return await inventoryTransactionService.confirmDeliveryTransaction(inventoryId);
+        } catch (err) {
+            return rejectWithValue(err.message || 'Failed to confirm delivery');
         }
     }
 );
@@ -109,6 +175,44 @@ const inventoryTransactionSlice = createSlice({
                 state.status = 'failed';
                 state.error = action.payload;
             })
+            // By ID
+            .addCase(getTransactionByIdThunk.pending, (state) => {
+                state.status = 'loading';
+                state.error = null;
+            })
+            .addCase(getTransactionByIdThunk.fulfilled, (state, action) => {
+                state.status = 'succeeded';
+                const transaction = action.payload?.data || action.payload;
+                if (transaction) {
+                    const idx = state.items.findIndex(t => (t.inventoryId ?? t.id) === (transaction.inventoryId ?? transaction.id));
+                    if (idx !== -1) {
+                        state.items[idx] = transaction;
+                    } else {
+                        state.items.push(transaction);
+                    }
+                }
+            })
+            .addCase(getTransactionByIdThunk.rejected, (state, action) => {
+                state.status = 'failed';
+                state.error = action.payload;
+            })
+            // By date range
+            .addCase(getTransactionsByDateRangeThunk.pending, (state) => {
+                state.status = 'loading';
+                state.error = null;
+            })
+            .addCase(getTransactionsByDateRangeThunk.fulfilled, (state, action) => {
+                state.status = 'succeeded';
+                state.items = Array.isArray(action.payload?.data)
+                    ? action.payload.data
+                    : Array.isArray(action.payload)
+                    ? action.payload
+                    : [];
+            })
+            .addCase(getTransactionsByDateRangeThunk.rejected, (state, action) => {
+                state.status = 'failed';
+                state.error = action.payload;
+            })
             // create
             .addCase(createTransactionThunk.pending, (state) => {
                 state.status = 'loading';
@@ -144,6 +248,89 @@ const inventoryTransactionSlice = createSlice({
             .addCase(deleteTransactionThunk.fulfilled, (state, action) => {
                 const id = action.payload;
                 state.items = state.items.filter(t => (t.inventoryId ?? t.id) !== id);
+            })
+            // accept
+            .addCase(acceptTransactionThunk.pending, (state) => {
+                state.status = 'loading';
+                state.error = null;
+            })
+            .addCase(acceptTransactionThunk.fulfilled, (state, action) => {
+                state.status = 'succeeded';
+                const updated = action.payload?.data || action.payload;
+                if (updated) {
+                    const idx = state.items.findIndex(t => (t.inventoryId ?? t.id) === (updated.inventoryId ?? updated.id));
+                    if (idx !== -1) {
+                        state.items[idx] = updated;
+                    } else {
+                        // If transaction not found, add it to the list
+                        state.items.push(updated);
+                    }
+                }
+            })
+            .addCase(acceptTransactionThunk.rejected, (state, action) => {
+                state.status = 'failed';
+                state.error = action.payload;
+            })
+            // reject
+            .addCase(rejectTransactionThunk.pending, (state) => {
+                state.status = 'loading';
+                state.error = null;
+            })
+            .addCase(rejectTransactionThunk.fulfilled, (state, action) => {
+                state.status = 'succeeded';
+                const updated = action.payload?.data || action.payload;
+                if (updated) {
+                    const idx = state.items.findIndex(t => (t.inventoryId ?? t.id) === (updated.inventoryId ?? updated.id));
+                    if (idx !== -1) {
+                        state.items[idx] = updated;
+                    } else {
+                        // If transaction not found, add it to the list
+                        state.items.push(updated);
+                    }
+                }
+            })
+            .addCase(rejectTransactionThunk.rejected, (state, action) => {
+                state.status = 'failed';
+                state.error = action.payload;
+            })
+            // start shipping
+            .addCase(startShippingTransactionThunk.pending, (state) => {
+                state.status = 'loading';
+                state.error = null;
+            })
+            .addCase(startShippingTransactionThunk.fulfilled, (state, action) => {
+                state.status = 'succeeded';
+                const updated = action.payload?.data || action.payload;
+                if (updated) {
+                    const idx = state.items.findIndex(t => (t.inventoryId ?? t.id) === (updated.inventoryId ?? updated.id));
+                    if (idx !== -1) {
+                        state.items[idx] = updated;
+                    } else {
+                        // If transaction not found, add it to the list
+                        state.items.push(updated);
+                    }
+                }
+            })
+            .addCase(startShippingTransactionThunk.rejected, (state, action) => {
+                state.status = 'failed';
+                state.error = action.payload;
+            })
+            // confirm delivery
+            .addCase(confirmDeliveryTransactionThunk.pending, (state) => {
+                state.status = 'loading';
+                state.error = null;
+            })
+            .addCase(confirmDeliveryTransactionThunk.fulfilled, (state, action) => {
+                state.status = 'succeeded';
+                const updated = action.payload?.data || action.payload;
+                if (updated) {
+                    const idx = state.items.findIndex(t => (t.inventoryId ?? t.id) === (updated.inventoryId ?? updated.id));
+                    if (idx !== -1) state.items[idx] = updated;
+                }
+            })
+            .addCase(confirmDeliveryTransactionThunk.rejected, (state, action) => {
+                state.status = 'failed';
+                state.error = action.payload;
             });
     },
 });

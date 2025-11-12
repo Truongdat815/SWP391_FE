@@ -43,7 +43,6 @@ function VehicleManagement() {
   const [sortBy, setSortBy] = useState('modelName');
   const [sortOrder, setSortOrder] = useState('asc');
   const [filterBodyType, setFilterBodyType] = useState('');
-  const [priceRange, setPriceRange] = useState([0, 200000]);
 
   const [formData, setFormData] = useState({
     modelName: '',
@@ -55,7 +54,6 @@ function VehicleManagement() {
     torqueNm: '',
     acceleration: '',
     seatingCapacity: 5,
-    price: '',
     description: '',
   });
 
@@ -74,7 +72,6 @@ function VehicleManagement() {
       torqueNm: '',
       acceleration: '',
       seatingCapacity: 5,
-      price: '',
       description: '',
     });
   };
@@ -97,7 +94,6 @@ function VehicleManagement() {
       torqueNm: model.torqueNm || '',
       acceleration: model.acceleration || '',
       seatingCapacity: model.seatingCapacity || 5,
-      price: model.price || '',
       description: model.description || '',
     });
     setIsModalOpen(true);
@@ -168,10 +164,7 @@ function VehicleManagement() {
       
       const matchesBodyType = !filterBodyType || model.bodyType === filterBodyType;
       
-      const matchesPrice = !model.price || 
-        (model.price >= priceRange[0] && model.price <= priceRange[1]);
-      
-      return matchesSearch && matchesBodyType && matchesPrice;
+      return matchesSearch && matchesBodyType;
     });
 
     // Sort
@@ -191,10 +184,10 @@ function VehicleManagement() {
     });
 
     return filtered;
-  }, [models, searchTerm, filterBodyType, priceRange, sortBy, sortOrder]);
+  }, [models, searchTerm, filterBodyType, sortBy, sortOrder]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-green-50 p-4 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -230,16 +223,16 @@ function VehicleManagement() {
       <div className="max-w-7xl mx-auto">
         {/* Modern Header */}
         <div className="mb-8">
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-8">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-r from-green-600 to-green-700 rounded-xl">
+                <div className="p-3 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-lg">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                   </svg>
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
                     Quản lý xe điện
                   </h1>
                   <p className="text-gray-600 mt-1">Hệ thống quản lý danh mục xe điện toàn diện</p>
@@ -247,7 +240,7 @@ function VehicleManagement() {
               </div>
               <button
                 onClick={handleOpenCreate}
-                className="group px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2"
+                className="group px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-md hover:shadow-xl flex items-center gap-2"
               >
                 <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -259,8 +252,8 @@ function VehicleManagement() {
         </div>
 
         {/* Advanced Filters & Controls */}
-        <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 p-6 mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
+        <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 p-4 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
             {/* Search */}
             <div className="lg:col-span-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm</label>
@@ -275,7 +268,7 @@ function VehicleManagement() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Tìm theo tên xe hoặc mô tả..."
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-gray-50/50"
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50/50"
                 />
               </div>
             </div>
@@ -286,7 +279,7 @@ function VehicleManagement() {
               <select
                 value={filterBodyType}
                 onChange={(e) => setFilterBodyType(e.target.value)}
-                className="block w-full px-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-gray-50/50"
+                className="block w-full px-3 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50/50"
               >
                 <option value="">Tất cả loại</option>
                 {BODY_TYPES.map(type => (
@@ -305,12 +298,10 @@ function VehicleManagement() {
                   setSortBy(field);
                   setSortOrder(order);
                 }}
-                className="block w-full px-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-gray-50/50"
+                className="block w-full px-3 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50/50"
               >
                 <option value="modelName-asc">Tên A-Z</option>
                 <option value="modelName-desc">Tên Z-A</option>
-                <option value="price-asc">Giá thấp-cao</option>
-                <option value="price-desc">Giá cao-thấp</option>
                 <option value="modelYear-desc">Năm mới nhất</option>
                 <option value="modelYear-asc">Năm cũ nhất</option>
               </select>
@@ -319,12 +310,12 @@ function VehicleManagement() {
             {/* View Mode Toggle */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Hiển thị</label>
-              <div className="flex rounded-xl bg-gray-100 p-1">
+              <div className="flex rounded-lg bg-gray-100 p-1">
                 <button
                   onClick={() => setViewMode('cards')}
                   className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     viewMode === 'cards' 
-                      ? 'bg-green-600 text-white shadow-lg' 
+                      ? 'bg-emerald-600 text-white shadow-md' 
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -336,7 +327,7 @@ function VehicleManagement() {
                   onClick={() => setViewMode('table')}
                   className={`flex-1 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     viewMode === 'table' 
-                      ? 'bg-green-600 text-white shadow-lg' 
+                      ? 'bg-emerald-600 text-white shadow-md' 
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -355,9 +346,8 @@ function VehicleManagement() {
                   setFilterBodyType('');
                   setSortBy('modelName');
                   setSortOrder('asc');
-                  setPriceRange([0, 200000]);
                 }}
-                className="w-full px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition-colors flex items-center justify-center gap-2"
+                className="w-full px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors flex items-center justify-center gap-2"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -370,10 +360,10 @@ function VehicleManagement() {
 
         {/* Content Area */}
         {status === 'loading' && models.length === 0 ? (
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 p-12">
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 p-12">
             <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
-                <svg className="w-8 h-8 text-green-600 animate-spin" fill="none" viewBox="0 0 24 24">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
+                <svg className="w-8 h-8 text-emerald-600 animate-spin" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                 </svg>
@@ -383,7 +373,7 @@ function VehicleManagement() {
             </div>
           </div>
         ) : filteredAndSortedModels.length === 0 ? (
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 p-12">
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 p-12">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
                 <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -391,10 +381,10 @@ function VehicleManagement() {
                 </svg>
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">Không tìm thấy xe nào</h3>
-              <p className="text-gray-600 mb-6">Thử điều chỉnh bộ lọc hoặc thêm xe mới</p>
+              <p className="text-gray-600 mb-4">Thử điều chỉnh bộ lọc hoặc thêm xe mới</p>
               <button
                 onClick={handleOpenCreate}
-                className="px-6 py-3 bg-green-600 text-white rounded-xl hover:bg-blue-700 transition-colors"
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
               >
                 Thêm xe đầu tiên
               </button>
@@ -404,7 +394,7 @@ function VehicleManagement() {
           <>
             {viewMode === 'cards' ? (
               // Cards View
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <AnimatePresence>
                   {filteredAndSortedModels.map((model, index) => (
                     <motion.div
@@ -413,30 +403,24 @@ function VehicleManagement() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ delay: index * 0.05 }}
-                      className="group bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 hover:shadow-2xl transition-all duration-300 overflow-hidden"
+                      className="group bg-white/90 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 hover:shadow-2xl transition-all duration-300 overflow-hidden"
                     >
                       {/* Card Header */}
-                      <div className="bg-gradient-to-r from-green-600 to-green-700 p-6 text-white">
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <h3 className="text-xl font-bold mb-1">{model.modelName}</h3>
-                            <p className="text-blue-100">
-                              {BODY_TYPES.find(t => t.value === model.bodyType)?.label || model.bodyType} • {model.modelYear}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <div className="text-2xl font-bold">{model.price?.toLocaleString('vi-VN')} VNĐ</div>
-                            <div className="text-blue-100 text-sm">Giá bán</div>
-                          </div>
+                      <div className="bg-gradient-to-r from-emerald-600 to-teal-600 p-4 text-white">
+                        <div>
+                          <h3 className="text-xl font-bold mb-1">{model.modelName}</h3>
+                          <p className="text-emerald-100">
+                            {BODY_TYPES.find(t => t.value === model.bodyType)?.label || model.bodyType} • {model.modelYear}
+                          </p>
                         </div>
                       </div>
 
                       {/* Card Content */}
-                      <div className="p-6">
-                        <div className="grid grid-cols-2 gap-4 mb-6">
+                      <div className="p-4">
+                        <div className="grid grid-cols-2 gap-4 mb-4">
                           <div className="text-center">
-                            <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-xl mb-2 mx-auto">
-                              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <div className="flex items-center justify-center w-12 h-12 bg-emerald-100 rounded-lg mb-2 mx-auto">
+                              <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                               </svg>
                             </div>
@@ -444,7 +428,7 @@ function VehicleManagement() {
                             <div className="text-sm text-gray-600">kWh</div>
                           </div>
                           <div className="text-center">
-                            <div className="flex items-center justify-center w-12 h-12 bg-emerald-100 rounded-xl mb-2 mx-auto">
+                            <div className="flex items-center justify-center w-12 h-12 bg-emerald-100 rounded-lg mb-2 mx-auto">
                               <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                               </svg>
@@ -454,7 +438,7 @@ function VehicleManagement() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-3 mb-6 text-sm">
+                        <div className="grid grid-cols-3 gap-3 mb-4 text-sm">
                           <div className="text-center p-3 bg-gray-50 rounded-lg">
                             <div className="font-semibold text-gray-800">{model.powerHp}</div>
                             <div className="text-gray-600">HP</div>
@@ -477,7 +461,7 @@ function VehicleManagement() {
                         <div className="flex gap-3">
                           <button
                             onClick={() => handleOpenEdit(model)}
-                            className="flex-1 px-4 py-2 bg-green-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors flex items-center justify-center gap-2"
+                            className="flex-1 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors flex items-center justify-center gap-2"
                           >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -500,18 +484,17 @@ function VehicleManagement() {
               </div>
             ) : (
               // Table View
-              <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 overflow-hidden">
+              <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50/80 border-b border-gray-200">
                       <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tên xe</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Năm</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Loại</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Pin (kWh)</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Tầm xa (km)</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Giá (VNĐ)</th>
-                        <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">Thao tác</th>
+                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Tên xe</th>
+                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Năm</th>
+                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Loại</th>
+                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Pin (kWh)</th>
+                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Tầm xa (km)</th>
+                        <th className="px-3 py-2.5 text-right text-sm font-semibold text-gray-700">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -522,27 +505,24 @@ function VehicleManagement() {
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            className="hover:bg-blue-50/50 transition-colors"
+                            className="hover:bg-emerald-50/50 transition-colors"
                           >
-                            <td className="px-6 py-4">
+                            <td className="px-3 py-2.5">
                               <div className="font-semibold text-gray-900">{model.modelName}</div>
                             </td>
-                            <td className="px-6 py-4 text-gray-600">{model.modelYear}</td>
-                            <td className="px-6 py-4">
-                              <span className="px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-blue-800">
+                            <td className="px-3 py-2.5 text-gray-600">{model.modelYear}</td>
+                            <td className="px-3 py-2.5">
+                              <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
                                 {BODY_TYPES.find(t => t.value === model.bodyType)?.label || model.bodyType}
                               </span>
                             </td>
-                            <td className="px-6 py-4 text-gray-600">{model.batteryCapacity}</td>
-                            <td className="px-6 py-4 text-gray-600">{model.range}</td>
-                            <td className="px-6 py-4">
-                              <span className="font-bold text-gray-900">{model.price?.toLocaleString('vi-VN')} VNĐ</span>
-                            </td>
-                            <td className="px-6 py-4 text-right">
+                            <td className="px-3 py-2.5 text-gray-600">{model.batteryCapacity}</td>
+                            <td className="px-3 py-2.5 text-gray-600">{model.range}</td>
+                            <td className="px-3 py-2.5 text-right">
                               <div className="flex items-center justify-end gap-3">
                                 <button
                                   onClick={() => handleOpenEdit(model)}
-                                  className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                                  className="p-2 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
                                 >
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
@@ -574,12 +554,12 @@ function VehicleManagement() {
                 animate={{ opacity: 1 }}
                 className="mt-6 text-center"
               >
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-lg rounded-xl border border-white/20">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-lg rounded-lg border border-white/20">
                   <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
                   <span className="text-sm text-gray-600">
-                    Hiển thị <span className="font-semibold text-green-600">{filteredAndSortedModels.length}</span> trong tổng số <span className="font-semibold">{models.length}</span> xe
+                    Hiển thị <span className="font-semibold text-emerald-600">{filteredAndSortedModels.length}</span> trong tổng số <span className="font-semibold">{models.length}</span> xe
                   </span>
                 </div>
               </motion.div>
@@ -606,10 +586,10 @@ function VehicleManagement() {
               className="bg-white/95 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-4xl max-h-[95vh] overflow-hidden border border-white/20"
             >
               {/* Modern Modal Header */}
-              <div className="relative bg-gradient-to-r from-green-600 via-green-700 to-green-800 px-8 py-6">
+              <div className="relative bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 px-8 py-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="p-2 bg-white/20 rounded-xl">
+                    <div className="p-2 bg-white/20 rounded-lg">
                       <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={editingModel ? "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" : "M12 4v16m8-8H4"} />
                       </svg>
@@ -618,14 +598,14 @@ function VehicleManagement() {
                       <h3 className="text-xl font-bold text-white">
                         {editingModel ? 'Chỉnh sửa thông tin xe' : 'Thêm xe điện mới'}
                       </h3>
-                      <p className="text-blue-100 mt-1">
+                      <p className="text-emerald-100 mt-1">
                         {editingModel ? 'Cập nhật thông số kỹ thuật' : 'Nhập đầy đủ thông tin xe điện'}
                       </p>
                     </div>
                   </div>
                   <button
                     onClick={() => setIsModalOpen(false)}
-                    className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-xl transition-all duration-200"
+                    className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-lg transition-all duration-200"
                   >
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -634,7 +614,7 @@ function VehicleManagement() {
                 </div>
                 
                 {/* Decorative gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-purple-500/20 pointer-events-none"></div>
+                <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/20 to-teal-500/20 pointer-events-none"></div>
               </div>
 
               {/* Modern Modal Body */}
@@ -644,17 +624,17 @@ function VehicleManagement() {
                 <div className="space-y-8">
                   
                   {/* Basic Information Section */}
-                  <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-green-100 rounded-xl">
-                        <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-md">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-emerald-100 rounded-lg">
+                        <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                       </div>
                       <h4 className="text-lg font-semibold text-gray-800">Thông tin cơ bản</h4>
                     </div>
                     
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       {/* Model Name */}
                       <div className="lg:col-span-2">
                         <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -664,7 +644,7 @@ function VehicleManagement() {
                           type="text"
                           value={formData.modelName}
                           onChange={(e) => setFormData({ ...formData, modelName: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200 placeholder-gray-400"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200 placeholder-gray-400"
                           placeholder="VD: Electra CityLink Pro"
                           required
                         />
@@ -680,7 +660,7 @@ function VehicleManagement() {
                           value={formData.modelYear}
                           onChange={(e) => setFormData({ ...formData, modelYear: e.target.value })}
                           onWheel={handleWheelOnNumberInput}
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
                           required
                           min={2020}
                           max={2030}
@@ -695,7 +675,7 @@ function VehicleManagement() {
                         <select
                           value={formData.bodyType}
                           onChange={(e) => setFormData({ ...formData, bodyType: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
                           required
                         >
                           {BODY_TYPES.map(type => (
@@ -709,9 +689,9 @@ function VehicleManagement() {
                   </div>
 
                   {/* Performance Specifications */}
-                  <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-emerald-100 rounded-xl">
+                  <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-md">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-emerald-100 rounded-lg">
                         <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                         </svg>
@@ -719,7 +699,7 @@ function VehicleManagement() {
                       <h4 className="text-lg font-semibold text-gray-800">Thông số hiệu năng</h4>
                     </div>
                     
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       {/* Battery Capacity */}
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -732,7 +712,7 @@ function VehicleManagement() {
                             value={formData.batteryCapacity}
                             onChange={(e) => setFormData({ ...formData, batteryCapacity: e.target.value })}
                             onWheel={handleWheelOnNumberInput}
-                            className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
+                            className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
                             required
                             min={0.1}
                             placeholder="85.0"
@@ -753,7 +733,7 @@ function VehicleManagement() {
                             value={formData.range}
                             onChange={(e) => setFormData({ ...formData, range: e.target.value })}
                             onWheel={handleWheelOnNumberInput}
-                            className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
+                            className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
                             required
                             min={0.1}
                             placeholder="500"
@@ -774,7 +754,7 @@ function VehicleManagement() {
                             value={formData.powerHp}
                             onChange={(e) => setFormData({ ...formData, powerHp: e.target.value })}
                             onWheel={handleWheelOnNumberInput}
-                            className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
+                            className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
                             required
                             min={0.1}
                             placeholder="400"
@@ -795,7 +775,7 @@ function VehicleManagement() {
                             value={formData.torqueNm}
                             onChange={(e) => setFormData({ ...formData, torqueNm: e.target.value })}
                             onWheel={handleWheelOnNumberInput}
-                            className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
+                            className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
                             required
                             min={0.1}
                             placeholder="560"
@@ -816,7 +796,7 @@ function VehicleManagement() {
                             value={formData.acceleration}
                             onChange={(e) => setFormData({ ...formData, acceleration: e.target.value })}
                             onWheel={handleWheelOnNumberInput}
-                            className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
+                            className="w-full px-4 py-3 pr-12 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
                             required
                             min={0.1}
                             placeholder="3.2"
@@ -836,7 +816,7 @@ function VehicleManagement() {
                             value={formData.seatingCapacity}
                             onChange={(e) => setFormData({ ...formData, seatingCapacity: e.target.value })}
                             onWheel={handleWheelOnNumberInput}
-                            className="w-full px-4 py-3 pr-16 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
+                            className="w-full px-4 py-3 pr-16 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
                             required
                             min={2}
                             max={9}
@@ -848,38 +828,18 @@ function VehicleManagement() {
                     </div>
                   </div>
 
-                  {/* Pricing & Additional Info */}
-                  <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-amber-100 rounded-xl">
+                  {/* Additional Info */}
+                  <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-md">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-amber-100 rounded-lg">
                         <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                         </svg>
                       </div>
-                      <h4 className="text-lg font-semibold text-gray-800">Giá bán & Mô tả</h4>
+                      <h4 className="text-lg font-semibold text-gray-800">Mô tả</h4>
                     </div>
                     
-                    <div className="space-y-6">
-                      {/* Price */}
-                      <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">
-                          Giá bán (VNĐ) <span className="text-red-500">*</span>
-                        </label>
-                        <div className="relative">
-                          <input
-                            type="number"
-                            step="1000"
-                            value={formData.price}
-                            onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                            onWheel={handleWheelOnNumberInput}
-                            className="w-full pl-4 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm transition-all duration-200"
-                            required
-                            min={1000}
-                            placeholder="450000000"
-                          />
-                        </div>
-                      </div>
-
+                    <div>
                       {/* Description */}
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -888,7 +848,7 @@ function VehicleManagement() {
                         <textarea
                           value={formData.description}
                           onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 bg-white/80 backdrop-blur-sm resize-none transition-all duration-200 placeholder-gray-400"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm resize-none transition-all duration-200 placeholder-gray-400"
                           rows={4}
                           placeholder="Mô tả đặc điểm nổi bật, công nghệ, tính năng của xe điện..."
                         />
@@ -898,12 +858,12 @@ function VehicleManagement() {
                 </div>
 
                 {/* Modern Form Actions */}
-                <div className="sticky bottom-0 bg-gradient-to-r from-gray-50/90 to-white/90 backdrop-blur-xl border-t border-white/20 p-6 mt-8 -mx-8 -mb-8">
+                <div className="sticky bottom-0 bg-gradient-to-r from-gray-50/90 to-white/90 backdrop-blur-xl border-t border-white/20 p-4 mt-8 -mx-8 -mb-8">
                   <div className="flex gap-4">
                     <button
                       type="button"
                       onClick={() => setIsModalOpen(false)}
-                      className="flex-1 px-6 py-3 border-2 border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center justify-center gap-2"
+                      className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center justify-center gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -913,7 +873,7 @@ function VehicleManagement() {
                     <button
                       type="submit"
                       disabled={status === 'loading'}
-                      className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white px-6 py-3 rounded-xl font-medium hover:from-green-700 hover:to-green-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                      className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-4 py-2 rounded-lg font-medium hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-md hover:shadow-xl flex items-center justify-center gap-2"
                     >
                       {status === 'loading' ? (
                         <>

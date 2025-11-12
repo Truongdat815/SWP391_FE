@@ -109,21 +109,21 @@ const DealerManagerSettings = () => {
     <div className="min-h-screen bg-gray-50 p-4">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 rounded-2xl p-4 mb-4 shadow-sm">
-          <h1 className="text-3xl font-bold text-gray-900">{t.title}</h1>
+        <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 rounded-lg p-4 mb-4 shadow-sm">
+          <h1 className="text-2xl font-bold text-gray-900">{t.title}</h1>
           <p className="text-gray-600 mt-2">{t.subtitle}</p>
         </div>
 
         <div className="grid grid-cols-12 gap-4">
           {/* Sidebar Navigation */}
           <div className="col-span-12 lg:col-span-3">
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm sticky top-6">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm sticky top-6">
               <nav className="p-4 space-y-2">
                 {sections.map((section) => (
                   <button
                     key={section.id}
                     onClick={() => setActiveSection(section.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
                       activeSection === section.id
                         ? 'bg-red-100 text-red-700 border border-red-200'
                         : 'text-gray-700 hover:bg-gray-100'
@@ -157,7 +157,7 @@ const DealerManagerSettings = () => {
               >
                 {/* NGÔN NGỮ & ĐỊNH DẠNG */}
                 {activeSection === 'language' && (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4">
+                  <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 space-y-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.language.title}</h2>
                       <p className="text-gray-600">{t.language.subtitle}</p>
@@ -227,7 +227,7 @@ const DealerManagerSettings = () => {
 
                 {/* THÔNG BÁO */}
                 {activeSection === 'notifications' && (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4">
+                  <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 space-y-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.notifications.title}</h2>
                       <p className="text-gray-600">{t.notifications.subtitle}</p>
@@ -237,7 +237,7 @@ const DealerManagerSettings = () => {
                     <div className="space-y-4">
                       <h3 className="font-semibold text-gray-900">{t.notifications.channelsTitle}</h3>
                       
-                      <div className="flex items-center justify-between bg-gray-50 border rounded-xl p-4">
+                      <div className="flex items-center justify-between bg-gray-50 border rounded-lg p-4">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-lg bg-red-100 text-red-600 flex items-center justify-center">
                             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -261,7 +261,7 @@ const DealerManagerSettings = () => {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between bg-gray-50 border rounded-xl p-4">
+                      <div className="flex items-center justify-between bg-gray-50 border rounded-lg p-4">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-lg bg-emerald-100 text-emerald-600 flex items-center justify-center">
                             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -285,7 +285,7 @@ const DealerManagerSettings = () => {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between bg-gray-50 border rounded-xl p-4">
+                      <div className="flex items-center justify-between bg-gray-50 border rounded-lg p-4">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center">
                             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -309,7 +309,7 @@ const DealerManagerSettings = () => {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between bg-gray-50 border rounded-xl p-4">
+                      <div className="flex items-center justify-between bg-gray-50 border rounded-lg p-4">
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
                             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -338,7 +338,7 @@ const DealerManagerSettings = () => {
                     <div className="border-t pt-6 space-y-4">
                       <h3 className="font-semibold text-gray-900">{t.notifications.typesTitle}</h3>
                       
-                      <label className="flex items-center justify-between bg-gray-50 border rounded-xl p-4 cursor-pointer hover:bg-gray-100 transition">
+                      <label className="flex items-center justify-between bg-gray-50 border rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition">
                         <div>
                           <span className="text-gray-800 font-medium">{t.notifications.newOrdersTitle}</span>
                           <p className="text-sm text-gray-500">{t.notifications.newOrdersDesc}</p>
@@ -351,7 +351,7 @@ const DealerManagerSettings = () => {
                         />
                       </label>
 
-                      <label className="flex items-center justify-between bg-gray-50 border rounded-xl p-4 cursor-pointer hover:bg-gray-100 transition">
+                      <label className="flex items-center justify-between bg-gray-50 border rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition">
                         <div>
                           <span className="text-gray-800 font-medium">{t.notifications.lowStockTitle}</span>
                           <p className="text-sm text-gray-500">{t.notifications.lowStockDesc}</p>
@@ -364,7 +364,7 @@ const DealerManagerSettings = () => {
                         />
                       </label>
 
-                      <label className="flex items-center justify-between bg-gray-50 border rounded-xl p-4 cursor-pointer hover:bg-gray-100 transition">
+                      <label className="flex items-center justify-between bg-gray-50 border rounded-lg p-4 cursor-pointer hover:bg-gray-100 transition">
                         <div>
                           <span className="text-gray-800 font-medium">{t.notifications.employeeActionsTitle}</span>
                           <p className="text-sm text-gray-500">{t.notifications.employeeActionsDesc}</p>
@@ -414,14 +414,14 @@ const DealerManagerSettings = () => {
 
                 {/* LỊCH SỬ ĐĂNG NHẬP */}
                 {activeSection === 'security' && (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4">
+                  <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 space-y-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.security.title}</h2>
                       <p className="text-gray-600">{t.security.subtitle}</p>
                     </div>
 
                     {/* Bảo mật */}
-                    <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-xl p-4">
+                    <div className="bg-gradient-to-r from-red-50 to-orange-50 border border-red-200 rounded-lg p-4">
                       <div className="flex items-start gap-3">
                         <div className="h-10 w-10 rounded-lg bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
                           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -443,7 +443,7 @@ const DealerManagerSettings = () => {
 
                     {/* Auto logout setting */}
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between bg-gray-50 border rounded-xl p-4">
+                      <div className="flex items-center justify-between bg-gray-50 border rounded-lg p-4">
                         <div>
                           <p className="font-medium text-gray-800">{t.security.autoLogoutTitle}</p>
                           <p className="text-sm text-gray-500">{t.security.autoLogoutDesc}</p>
@@ -482,7 +482,7 @@ const DealerManagerSettings = () => {
                       <h3 className="font-semibold text-gray-900 mb-4">{t.security.loggedInDevicesTitle} ({loginHistory.length})</h3>
                       <div className="space-y-3">
                         {loginHistory.map((session) => (
-                          <div key={session.id} className="flex items-start justify-between border rounded-xl p-4 hover:bg-gray-50 transition">
+                          <div key={session.id} className="flex items-start justify-between border rounded-lg p-4 hover:bg-gray-50 transition">
                             <div className="flex items-start gap-3 flex-1">
                               <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                                 {session.device.includes('Windows') ? '💻' : 
@@ -521,7 +521,7 @@ const DealerManagerSettings = () => {
 
                 {/* HIỆU SUẤT */}
                 {activeSection === 'performance' && (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4">
+                  <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 space-y-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.performance.title}</h2>
                       <p className="text-gray-600">{t.performance.subtitle}</p>
@@ -531,7 +531,7 @@ const DealerManagerSettings = () => {
                     <div className="space-y-4">
                       <h3 className="font-semibold text-gray-900">{t.performance.interfaceTitle}</h3>
                       
-                      <div className="flex items-center justify-between bg-gray-50 border rounded-xl p-4">
+                      <div className="flex items-center justify-between bg-gray-50 border rounded-lg p-4">
                         <div>
                           <p className="font-medium text-gray-800">{t.performance.animationsTitle}</p>
                           <p className="text-sm text-gray-500">{t.performance.animationsDesc}</p>
@@ -548,7 +548,7 @@ const DealerManagerSettings = () => {
                         </button>
                       </div>
 
-                      <div className="flex items-center justify-between bg-gray-50 border rounded-xl p-4">
+                      <div className="flex items-center justify-between bg-gray-50 border rounded-lg p-4">
                         <div>
                           <p className="font-medium text-gray-800">{t.performance.autoLoadImagesTitle}</p>
                           <p className="text-sm text-gray-500">{t.performance.autoLoadImagesDesc}</p>
@@ -603,7 +603,7 @@ const DealerManagerSettings = () => {
                     {/* Cache */}
                     <div className="border-t pt-6">
                       <h3 className="font-semibold text-gray-900 mb-4">{t.performance.cacheTitle}</h3>
-                      <div className="bg-gray-50 border rounded-xl p-4">
+                      <div className="bg-gray-50 border rounded-lg p-4">
                         <div className="flex items-start gap-3 mb-4">
                           <div className="h-10 w-10 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
                             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -634,16 +634,16 @@ const DealerManagerSettings = () => {
 
                 {/* DỮ LIỆU */}
                 {activeSection === 'data' && (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 space-y-4">
+                  <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 space-y-4">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.data.title}</h2>
                       <p className="text-gray-600">{t.data.subtitle}</p>
                     </div>
 
                     {/* Xuất dữ liệu */}
-                    <div className="border border-blue-200 bg-blue-50 rounded-xl p-4">
+                    <div className="border border-blue-200 bg-blue-50 rounded-lg p-4">
                       <div className="flex items-start gap-4">
-                        <div className="h-12 w-12 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
+                        <div className="h-12 w-12 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0">
                           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                           </svg>
@@ -683,7 +683,7 @@ const DealerManagerSettings = () => {
                         <p className="text-sm text-gray-500 mt-1">{t.data.dataRetentionDesc}</p>
                       </div>
 
-                      <div className="flex items-center justify-between bg-gray-50 border rounded-xl p-4">
+                      <div className="flex items-center justify-between bg-gray-50 border rounded-lg p-4">
                         <div>
                           <p className="font-medium text-gray-800">{t.data.autoBackupTitle}</p>
                           <p className="text-sm text-gray-500">{t.data.autoBackupDesc}</p>
@@ -705,7 +705,7 @@ const DealerManagerSettings = () => {
                     <div className="border-t pt-6">
                       <h3 className="font-semibold text-gray-900 mb-4">{t.data.deleteDataTitle}</h3>
                       <div className="space-y-3">
-                        <div className="border border-orange-200 bg-orange-50 rounded-xl p-4">
+                        <div className="border border-orange-200 bg-orange-50 rounded-lg p-4">
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
                               <p className="font-medium text-gray-900 mb-1">{t.data.clearHistoryTitle}</p>
@@ -720,7 +720,7 @@ const DealerManagerSettings = () => {
                           </div>
                         </div>
 
-                        <div className="border border-red-200 bg-red-50 rounded-xl p-4">
+                        <div className="border border-red-200 bg-red-50 rounded-lg p-4">
                           <div className="flex items-start justify-between gap-4">
                             <div className="flex-1">
                               <p className="font-medium text-gray-900 mb-1">{t.data.deleteAccountTitle}</p>
@@ -739,7 +739,7 @@ const DealerManagerSettings = () => {
 
                     {/* GDPR Info */}
                     <div className="border-t pt-6">
-                      <div className="bg-gray-50 border rounded-xl p-4">
+                      <div className="bg-gray-50 border rounded-lg p-4">
                         <h4 className="font-medium text-gray-900 mb-2">{t.data.gdprInfoTitle}</h4>
                         <ul className="text-sm text-gray-600 space-y-1">
                           {t.data.gdprInfoList.map((item, idx) => (
@@ -754,25 +754,25 @@ const DealerManagerSettings = () => {
             </AnimatePresence>
 
             {/* Action Buttons */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6">
               <div className="flex items-center justify-between">
                 <button
                   onClick={handleReset}
-                  className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition"
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
                 >
                   {t.buttons.reset}
                 </button>
                 <div className="flex gap-3">
                   <button
                     onClick={() => window.location.reload()}
-                    className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition"
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
                   >
                     {t.buttons.cancel}
                   </button>
                   <button
                     onClick={handleSave}
                     disabled={!unsavedChanges}
-                    className={`px-6 py-3 rounded-xl transition ${
+                    className={`px-4 py-2 rounded-lg transition ${
                       unsavedChanges
                         ? 'bg-red-600 text-white hover:bg-red-700'
                         : 'bg-gray-300 text-gray-500 cursor-not-allowed'

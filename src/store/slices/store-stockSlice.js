@@ -73,6 +73,18 @@ export const updateStockPriceThunk = createAsyncThunk(
     }
 );
 
+// Update price by modelId and colorId
+export const updatePriceByModelColorThunk = createAsyncThunk(
+    'storeStocks/updatePriceByModelColor',
+    async ({ modelId, colorId, price }, { rejectWithValue }) => {
+        try {
+            return await storeStockService.updatePriceByModelColor(modelId, colorId, price);
+        } catch (err) {
+            return rejectWithValue(err.message || 'Failed to update price');
+        }
+    }
+);
+
 // Delete store stock
 export const deleteStoreStockThunk = createAsyncThunk(
     'storeStocks/delete',
@@ -223,6 +235,31 @@ const storeStockSlice = createSlice({
                 state.error = null;
             })
             .addCase(updateStockPriceThunk.rejected, (state, action) => {
+                state.status = 'failed';
+                state.error = action.payload;
+            })
+
+            // Update price by modelId and colorId
+            .addCase(updatePriceByModelColorThunk.pending, (state) => {
+                state.status = 'loading';
+                state.error = null;
+            })
+            .addCase(updatePriceByModelColorThunk.fulfilled, (state, action) => {
+                state.status = 'succeeded';
+                const updatedItem = action.payload?.data || action.payload;
+                if (updatedItem) {
+                    const index = state.items.findIndex(item => 
+                        item.modelId === updatedItem.modelId && 
+                        item.colorId === updatedItem.colorId &&
+                        item.storeId === updatedItem.storeId
+                    );
+                    if (index !== -1) {
+                        state.items[index] = updatedItem;
+                    }
+                }
+                state.error = null;
+            })
+            .addCase(updatePriceByModelColorThunk.rejected, (state, action) => {
                 state.status = 'failed';
                 state.error = action.payload;
             })

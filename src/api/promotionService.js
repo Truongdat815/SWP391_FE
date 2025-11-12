@@ -54,6 +54,25 @@ export async function createPromotion(promotionData) {
     });
 }
 
+// Create promotion for all models
+export async function createPromotionForAllModels(promotionData) {
+    return request('/api/promotions/create-for-all-models', {
+        method: 'POST',
+        body: {
+            promotionId: promotionData.promotionId || 0,
+            promotionName: promotionData.promotionName,
+            description: promotionData.description,
+            promotionType: promotionData.promotionType, // "PERCENTAGE" | "FIXED_AMOUNT"
+            amount: promotionData.amount,
+            startDate: formatToLocalDateTime(promotionData.startDate, false),
+            endDate: formatToLocalDateTime(promotionData.endDate, true),
+            modelId: promotionData.modelId || 0,
+            storeId: promotionData.storeId || 0,
+            active: promotionData.active !== undefined ? promotionData.active : true
+        }
+    });
+}
+
 // Get all promotions
 export async function getAllPromotions() {
     return request('/api/promotions/all', { method: 'GET' });

@@ -11,15 +11,33 @@ const ModernButton = ({
   disabled = false,
   className = '',
   type = 'button',
-  roleColor = 'emerald' // emerald, blue, purple, green
+  roleColor = 'emerald', // emerald, blue, purple, green
+  noHover = false
 }) => {
+  const getPrimaryVariant = () => {
+    const base = `bg-gradient-to-r text-white`;
+    const colorMap = {
+      emerald: 'from-emerald-500 to-teal-600',
+      blue: 'from-blue-500 to-indigo-600',
+      purple: 'from-purple-500 to-pink-600',
+      green: 'from-green-500 to-emerald-600'
+    };
+    const hoverMap = {
+      emerald: 'hover:from-emerald-600 hover:to-teal-700',
+      blue: 'hover:from-blue-600 hover:to-indigo-700',
+      purple: 'hover:from-purple-600 hover:to-pink-700',
+      green: 'hover:from-green-600 hover:to-emerald-700'
+    };
+    return `${base} ${colorMap[roleColor] || colorMap.emerald} ${noHover ? '' : hoverMap[roleColor] || hoverMap.emerald}`;
+  };
+
   const variants = {
-    primary: `bg-gradient-to-r from-${roleColor}-500 to-${roleColor === 'emerald' ? 'teal' : roleColor === 'blue' ? 'indigo' : roleColor === 'purple' ? 'pink' : 'emerald'}-600 text-white hover:from-${roleColor}-600 hover:to-${roleColor === 'emerald' ? 'teal' : roleColor === 'blue' ? 'indigo' : roleColor === 'purple' ? 'pink' : 'emerald'}-700`,
-    secondary: `bg-white border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300`,
-    ghost: `bg-transparent text-gray-700 hover:bg-gray-100`,
-    danger: `bg-gradient-to-r from-red-500 to-pink-500 text-white hover:from-red-600 hover:to-pink-600`,
-    success: `bg-gradient-to-r from-green-500 to-emerald-500 text-white hover:from-green-600 hover:to-emerald-600`,
-    glass: `bg-white/20 backdrop-blur-lg border border-white/20 text-white hover:bg-white/30`
+    primary: getPrimaryVariant(),
+    secondary: `bg-white border-2 border-gray-200 text-gray-700 ${noHover ? '' : 'hover:bg-gray-50 hover:border-gray-300'}`,
+    ghost: `bg-transparent text-gray-700 ${noHover ? '' : 'hover:bg-gray-100'}`,
+    danger: `bg-gradient-to-r from-red-500 to-pink-500 text-white ${noHover ? '' : 'hover:from-red-600 hover:to-pink-600'}`,
+    success: `bg-gradient-to-r from-green-500 to-emerald-500 text-white ${noHover ? '' : 'hover:from-green-600 hover:to-emerald-600'}`,
+    glass: `bg-white/20 backdrop-blur-lg border border-white/20 text-white ${noHover ? '' : 'hover:bg-white/30'}`
   };
 
   const sizes = {
@@ -33,12 +51,12 @@ const ModernButton = ({
       type={type}
       onClick={onClick}
       disabled={disabled || loading}
-      whileHover={{ scale: disabled || loading ? 1 : 1.02, y: disabled || loading ? 0 : -2 }}
-      whileTap={{ scale: disabled || loading ? 1 : 0.98 }}
+      whileHover={noHover || disabled || loading ? {} : { scale: 1.02, y: -2 }}
+      whileTap={noHover || disabled || loading ? {} : { scale: 0.98 }}
       className={`
         ${variants[variant]}
         ${sizes[size]}
-        rounded-xl font-medium shadow-lg hover:shadow-xl 
+        rounded-xl font-medium shadow-lg ${noHover ? '' : 'hover:shadow-xl'} 
         transition-all duration-300
         disabled:opacity-50 disabled:cursor-not-allowed
         flex items-center justify-center gap-2

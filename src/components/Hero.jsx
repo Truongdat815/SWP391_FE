@@ -147,29 +147,6 @@ const Hero = () => {
                         {slide.description}
                       </p>
                     </motion.div>
-                    
-                    <motion.div
-                      initial={{ opacity: 0, y: 30 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.8, duration: 0.6 }}
-                      className="flex flex-col sm:flex-row gap-4"
-                    >
-                      <motion.a
-                        href="/signin"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="bg-gradient-to-r bg-[#6CA12B] text-white px-8 py-4 rounded-full font-semibold text-lg shadow-xl hover:shadow-2xl transition-all duration-300 inline-block text-center"
-                      >
-                        Đăng nhập
-                      </motion.a>
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        className="border-2 border-white text-white px-8 py-4 rounded-full font-semibold text-lg hover:bg-white hover:text-gray-900 transition-all duration-300"
-                      >
-                        Xem video
-                      </motion.button>
-                    </motion.div>
                   </div>
                 </div>
               </div>

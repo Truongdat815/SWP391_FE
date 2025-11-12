@@ -48,6 +48,30 @@ function ProductManagement() {
     dispatch(getAllColorsThunk());
   }, [dispatch]);
 
+  // Format currency: 50000000 -> 50.000.000
+  const formatCurrency = (value) => {
+    if (!value && value !== 0) return '';
+    // Remove all non-digit characters
+    const numericValue = String(value).replace(/\D/g, '');
+    // Add dots as thousand separators
+    return numericValue.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  // Parse currency: "50.000.000" -> 50000000
+  const parseCurrency = (value) => {
+    if (!value) return '';
+    // Remove all non-digit characters
+    return value.replace(/\D/g, '');
+  };
+
+  // Handler for price input change
+  const handlePriceChange = (e) => {
+    const inputValue = e.target.value;
+    // Allow only digits and dots
+    const formatted = formatCurrency(inputValue);
+    setFormData({ ...formData, price: formatted });
+  };
+
   const resetForm = () => {
     setFormData({ modelId: '', colorId: '', price: '' });
     setSelectedImageFile(null);
@@ -65,7 +89,7 @@ function ProductManagement() {
     setFormData({
       modelId: item.modelId,
       colorId: item.colorId,
-      price: item.price || '',
+      price: item.price ? formatCurrency(item.price) : '',
     });
     setSelectedImageFile(null);
     setImagePreview(item.imagePath || null);
@@ -105,7 +129,8 @@ function ProductManagement() {
     try {
       const modelId = parseInt(formData.modelId, 10);
       const colorId = parseInt(formData.colorId, 10);
-      const price = parseFloat(formData.price) || 0;
+      // Parse price: remove dots and convert to number
+      const price = parseFloat(parseCurrency(formData.price)) || 0;
 
       if (editingItem) {
         // Update - không gửi imagePath, chỉ update price
@@ -278,7 +303,7 @@ function ProductManagement() {
   }, [modelColors, searchTerm, filterModel, filterColor, sortBy, sortOrder, models, colors]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-4 lg:p-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -302,16 +327,16 @@ function ProductManagement() {
       <div className="max-w-7xl mx-auto">
         {/* Modern Header */}
         <div className="mb-8">
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-8">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-xl border border-white/20 p-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
               <div className="flex items-center gap-4">
-                <div className="p-3 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-xl">
+                <div className="p-3 bg-gradient-to-r from-emerald-600 to-teal-600 rounded-lg">
                   <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
                 </div>
                 <div>
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
+                  <h1 className="text-2xl font-bold bg-gradient-to-r from-gray-800 to-gray-600 bg-clip-text text-transparent">
                     Quản lý sản phẩm
                   </h1>
                   <p className="text-gray-600 mt-1">Quản lý tổ hợp xe điện và màu sắc</p>
@@ -319,7 +344,7 @@ function ProductManagement() {
               </div>
               <button
                 onClick={handleOpenCreate}
-                className="group px-6 py-3 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-xl hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center gap-2"
+                className="group px-4 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-lg hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-md hover:shadow-xl flex items-center gap-2"
                 
               >
                 <svg className="w-5 h-5 group-hover:rotate-90 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -332,8 +357,8 @@ function ProductManagement() {
         </div>
 
         {/* Advanced Filters & Controls */}
-        <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 p-6 mb-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-end">
+        <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 p-4 mb-8">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-end">
             {/* Search */}
             <div className="lg:col-span-3">
               <label className="block text-sm font-medium text-gray-700 mb-2">Tìm kiếm</label>
@@ -348,7 +373,7 @@ function ProductManagement() {
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   placeholder="Tìm theo xe, màu hoặc hình ảnh..."
-                  className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50/50"
+                  className="block w-full pl-10 pr-3 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-gray-50/50"
                 />
               </div>
             </div>
@@ -415,12 +440,12 @@ function ProductManagement() {
             {/* View Mode Toggle */}
             <div className="lg:col-span-2">
               <label className="block text-sm font-medium text-gray-700 mb-2">Hiển thị</label>
-              <div className="flex rounded-xl bg-gray-100 p-1">
+              <div className="flex rounded-lg bg-gray-100 p-1">
                 <button
                   onClick={() => setViewMode('cards')}
                   className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     viewMode === 'cards' 
-                      ? 'bg-emerald-600 text-white shadow-lg' 
+                      ? 'bg-emerald-600 text-white shadow-md' 
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -432,7 +457,7 @@ function ProductManagement() {
                   onClick={() => setViewMode('table')}
                   className={`flex-1 px-3 py-2 rounded-lg text-sm font-medium transition-all duration-200 ${
                     viewMode === 'table' 
-                      ? 'bg-emerald-600 text-white shadow-lg' 
+                      ? 'bg-emerald-600 text-white shadow-md' 
                       : 'text-gray-600 hover:text-gray-900'
                   }`}
                 >
@@ -454,7 +479,7 @@ function ProductManagement() {
                   setSortBy('modelName');
                   setSortOrder('asc');
                 }}
-                className="w-full h-[48px] px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200 rounded-xl transition-all duration-200 flex items-center justify-center group"
+                className="w-full h-[48px] px-4 py-3 text-gray-600 hover:text-gray-900 hover:bg-gray-100 border border-gray-200 rounded-lg transition-all duration-200 flex items-center justify-center group"
                 
               >
                 <svg className="w-5 h-5 group-hover:rotate-180 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -467,7 +492,7 @@ function ProductManagement() {
 
         {/* Content Area */}
         {status === 'loading' && modelColors.length === 0 ? (
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 p-12">
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 p-4">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-100 rounded-full mb-4">
                 <svg className="w-8 h-8 text-emerald-600 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -480,7 +505,7 @@ function ProductManagement() {
             </div>
           </div>
         ) : filteredAndSortedItems.length === 0 ? (
-          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 p-12">
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 p-4">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
                 <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -488,10 +513,10 @@ function ProductManagement() {
                 </svg>
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">Không tìm thấy sản phẩm nào</h3>
-              <p className="text-gray-600 mb-6">Thử điều chỉnh bộ lọc hoặc thêm sản phẩm mới</p>
+              <p className="text-gray-600 mb-4">Thử điều chỉnh bộ lọc hoặc thêm sản phẩm mới</p>
               <button
                 onClick={handleOpenCreate}
-                className="px-6 py-3 bg-emerald-600 text-white rounded-xl hover:bg-emerald-700 transition-colors"
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
               >
                 Thêm sản phẩm đầu tiên
               </button>
@@ -501,7 +526,7 @@ function ProductManagement() {
           <>
             {viewMode === 'cards' ? (
               // Cards View
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 <AnimatePresence>
                   {filteredAndSortedItems.map((item, index) => (
                     <motion.div
@@ -510,7 +535,7 @@ function ProductManagement() {
                       animate={{ opacity: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95 }}
                       transition={{ delay: index * 0.05 }}
-                      className="group bg-white/90 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 hover:shadow-2xl transition-all duration-300 overflow-hidden"
+                      className="group bg-white/90 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 hover:shadow-2xl transition-all duration-300 overflow-hidden"
                     >
                       {/* Card Image */}
                       <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200">
@@ -533,7 +558,7 @@ function ProductManagement() {
                         
                         {/* Color Badge */}
                         <div className="absolute top-3 right-3">
-                          <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 shadow-lg">
+                          <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 shadow-md">
                             <div 
                               className="w-4 h-4 rounded-full border-2 border-white shadow"
                               style={{ backgroundColor: getColorCode(item.colorId) }}
@@ -544,7 +569,7 @@ function ProductManagement() {
                       </div>
 
                       {/* Card Content */}
-                      <div className="p-6">
+                      <div className="p-4">
                         <div className="mb-4">
                           <h3 className="text-lg font-bold text-gray-900 mb-2">{getModelName(item.modelId)}</h3>
                           <p className="text-sm text-gray-600">Màu {getColorName(item.colorId)}</p>
@@ -554,12 +579,12 @@ function ProductManagement() {
                         {(() => {
                           const modelDetails = getModelDetails(item.modelId);
                           return modelDetails ? (
-                            <div className="mb-6 space-y-3">
+                            <div className="mb-4 space-y-3">
                               {/* Price & Year */}
                               <div className="flex items-center justify-between p-3 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg">
                                 <div>
                                   <p className="text-xs text-gray-600">Giá bán</p>
-                                  <p className="text-lg font-bold text-emerald-600">{modelDetails.price?.toLocaleString('vi-VN')} VNĐ</p>
+                                  <p className="text-lg font-bold text-emerald-600">{item.price?.toLocaleString('vi-VN') || 'N/A'} VNĐ</p>
                                 </div>
                                 <div className="text-right">
                                   <p className="text-xs text-gray-600">Năm</p>
@@ -647,16 +672,16 @@ function ProductManagement() {
               </div>
             ) : (
               // Table View
-              <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-lg border border-white/20 overflow-hidden">
+              <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50/80 border-b border-gray-200">
                       <tr>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Xe & Màu sắc</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Thông số</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Giá & Năm</th>
-                        <th className="px-6 py-4 text-left text-sm font-semibold text-gray-700">Hình ảnh</th>
-                        <th className="px-6 py-4 text-right text-sm font-semibold text-gray-700">Thao tác</th>
+                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Xe & Màu sắc</th>
+                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Thông số</th>
+                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Giá & Năm</th>
+                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Hình ảnh</th>
+                        <th className="px-3 py-2.5 text-right text-sm font-semibold text-gray-700">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -671,7 +696,7 @@ function ProductManagement() {
                               exit={{ opacity: 0 }}
                               className="hover:bg-emerald-50/50 transition-colors"
                             >
-                              <td className="px-6 py-4">
+                              <td className="px-3 py-2.5">
                                 <div className="space-y-2">
                                   <div className="font-semibold text-gray-900">{getModelName(item.modelId)}</div>
                                   <div className="flex items-center gap-3">
@@ -693,7 +718,7 @@ function ProductManagement() {
                                   )}
                                 </div>
                               </td>
-                              <td className="px-6 py-4">
+                              <td className="px-3 py-2.5">
                                 {modelDetails ? (
                                   <div className="space-y-1 text-sm">
                                     <div className="flex items-center gap-2">
@@ -729,11 +754,11 @@ function ProductManagement() {
                                   <span className="text-gray-400 text-sm">Chưa có dữ liệu</span>
                                 )}
                               </td>
-                              <td className="px-6 py-4">
+                              <td className="px-3 py-2.5">
                                 {modelDetails ? (
                                   <div className="space-y-1">
                                     <div className="text-lg font-bold text-emerald-600">
-                                      {modelDetails.price?.toLocaleString('vi-VN')} VNĐ
+                                      {item.price?.toLocaleString('vi-VN') || 'N/A'} VNĐ
                                     </div>
                                     <div className="text-sm text-gray-600">
                                       Năm {modelDetails.modelYear}
@@ -743,7 +768,7 @@ function ProductManagement() {
                                   <span className="text-gray-400 text-sm">N/A</span>
                                 )}
                               </td>
-                              <td className="px-6 py-4">
+                              <td className="px-3 py-2.5">
                                 {item.imagePath ? (
                                   <div className="flex items-center gap-3">
                                     <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden">
@@ -761,7 +786,7 @@ function ProductManagement() {
                                   <span className="text-gray-400 text-sm">Chưa có hình ảnh</span>
                                 )}
                               </td>
-                              <td className="px-6 py-4 text-right">
+                              <td className="px-3 py-2.5 text-right">
                                 <div className="flex items-center justify-end gap-3">
                                   <button
                                     onClick={() => handleOpenEdit(item)}
@@ -798,7 +823,7 @@ function ProductManagement() {
                 animate={{ opacity: 1 }}
                 className="mt-6 text-center"
               >
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-lg rounded-xl border border-white/20">
+                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-lg rounded-lg border border-white/20">
                   <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
@@ -833,7 +858,7 @@ function ProductManagement() {
               <div className="relative bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 px-8 py-6">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="p-2 bg-white/20 rounded-xl">
+                    <div className="p-2 bg-white/20 rounded-lg">
                       <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={editingItem ? "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" : "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"} />
                       </svg>
@@ -849,7 +874,7 @@ function ProductManagement() {
                   </div>
                   <button
                     onClick={() => setIsModalOpen(false)}
-                    className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-xl transition-all duration-200"
+                    className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-lg transition-all duration-200"
                   >
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -867,9 +892,9 @@ function ProductManagement() {
                 <div className="space-y-8">
                   
                   {/* Product Selection Section */}
-                  <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-emerald-100 rounded-xl">
+                  <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-md">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-emerald-100 rounded-lg">
                         <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z" />
                         </svg>
@@ -877,7 +902,7 @@ function ProductManagement() {
                       <h4 className="text-lg font-semibold text-gray-800">Chọn sản phẩm</h4>
                     </div>
                     
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       {/* Model Select */}
                       <div>
                         <label className="block text-sm font-semibold text-gray-700 mb-3">
@@ -923,7 +948,7 @@ function ProductManagement() {
 
                     {/* Color Preview */}
                     {formData.colorId && (
-                      <div className="mt-6 p-4 bg-gray-50 rounded-xl">
+                      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
                         <div className="flex items-center gap-3">
                           <div 
                             className="w-8 h-8 rounded-full border-2 border-gray-300 shadow-sm"
@@ -938,9 +963,9 @@ function ProductManagement() {
                   </div>
 
                   {/* Price Section */}
-                  <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-green-100 rounded-xl">
+                  <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-md">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-green-100 rounded-lg">
                         <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
@@ -953,22 +978,20 @@ function ProductManagement() {
                         Giá (VNĐ) <span className="text-red-500">*</span>
                       </label>
                       <input
-                        type="number"
+                        type="text"
                         value={formData.price}
-                        onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                        className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200 placeholder-gray-400"
-                        placeholder="VD: 50000000"
+                        onChange={handlePriceChange}
+                        className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200 placeholder-gray-400"
+                        placeholder="VD: 50.000.000"
                         required
-                        min="0"
-                        step="1000"
                       />
                     </div>
                   </div>
 
                   {/* Image Section */}
-                  <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/20 shadow-lg">
-                    <div className="flex items-center gap-3 mb-6">
-                      <div className="p-2 bg-blue-100 rounded-xl">
+                  <div className="bg-white/70 backdrop-blur-sm rounded-2xl p-4 border border-white/20 shadow-md">
+                    <div className="flex items-center gap-3 mb-4">
+                      <div className="p-2 bg-blue-100 rounded-lg">
                         <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
@@ -985,7 +1008,7 @@ function ProductManagement() {
                           type="file"
                           accept="image/*"
                           onChange={handleImageFileChange}
-                          className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
+                          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white/80 backdrop-blur-sm transition-all duration-200 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100 cursor-pointer"
                         />
                         <p className="text-xs text-gray-500 mt-2">
                           💡 Chọn file ảnh sản phẩm (JPG, PNG, GIF - tối đa 5MB). {editingItem ? 'Chọn ảnh mới để thay thế ảnh hiện tại.' : 'Ảnh sẽ được upload sau khi tạo sản phẩm thành công.'}
@@ -996,7 +1019,7 @@ function ProductManagement() {
                           <label className="block text-sm font-semibold text-gray-700 mb-3">
                             Xem trước
                           </label>
-                          <div className="w-40 h-40 bg-gradient-to-br from-gray-100 to-gray-200 rounded-xl overflow-hidden border-2 border-gray-300 shadow-md">
+                          <div className="w-40 h-40 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg overflow-hidden border-2 border-gray-300 shadow-md">
                             <img
                               src={imagePreview || editingItem.imagePath}
                               alt="Preview"
@@ -1028,12 +1051,12 @@ function ProductManagement() {
                 </div>
 
                 {/* Modern Form Actions */}
-                <div className="sticky bottom-0 bg-gradient-to-r from-gray-50/90 to-white/90 backdrop-blur-xl border-t border-white/20 p-6 mt-8 -mx-8 -mb-8">
+                <div className="sticky bottom-0 bg-gradient-to-r from-gray-50/90 to-white/90 backdrop-blur-xl border-t border-white/20 p-4 mt-8 -mx-8 -mb-8">
                   <div className="flex gap-4">
                     <button
                       type="button"
                       onClick={() => setIsModalOpen(false)}
-                      className="flex-1 px-6 py-3 border-2 border-gray-200 rounded-xl text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center justify-center gap-2"
+                      className="flex-1 px-4 py-2 border-2 border-gray-200 rounded-lg text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center justify-center gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -1042,7 +1065,7 @@ function ProductManagement() {
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-6 py-3 rounded-xl font-medium hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
+                      className="flex-1 bg-gradient-to-r from-emerald-600 to-teal-600 text-white px-4 py-2 rounded-lg font-medium hover:from-emerald-700 hover:to-teal-700 transition-all duration-300 shadow-md hover:shadow-xl flex items-center justify-center gap-2"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d={editingItem ? "M5 13l4 4L19 7" : "M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"} />

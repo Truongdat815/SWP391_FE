@@ -159,34 +159,34 @@ function XuatBaoCao() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="max-w-7xl mx-auto p-4">
       {/* Header */}
-      <div className="mb-8">
+      <div className="mb-4">
         <div className="flex items-center">
-          <div className="p-3 bg-green-100 rounded-lg mr-4">
-            <svg className="h-8 w-8 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <div className="p-2 bg-green-100 rounded-lg mr-3">
+            <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Xuất báo cáo</h1>
-            <p className="text-gray-600">Xuất và chia sẻ báo cáo doanh nghiệp</p>
+            <h1 className="text-2xl font-bold text-gray-900">Xuất báo cáo</h1>
+            <p className="text-gray-600 text-sm">Xuất và chia sẻ báo cáo doanh nghiệp</p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {/* Report Selection */}
         <div className="lg:col-span-2">
           {/* Category Filter */}
-          <div className="bg-white rounded-lg shadow p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Danh mục báo cáo</h2>
+          <div className="bg-white rounded-lg shadow-md p-4 mb-4">
+            <h2 className="text-base font-semibold text-gray-900 mb-3">Danh mục báo cáo</h2>
             <div className="flex flex-wrap gap-2">
               {categories.map((category) => (
                 <button
                   key={category.id}
                   onClick={() => setSelectedCategory(category.id)}
-                  className={`px-4 py-2 rounded-lg border transition ${
+                  className={`px-3 py-1.5 rounded-lg border transition text-sm ${
                     selectedCategory === category.id
                       ? 'bg-green-600 text-white border-green-600'
                       : `${category.color} text-gray-700 border-gray-300 hover:bg-opacity-80`
@@ -200,9 +200,9 @@ function XuatBaoCao() {
 
           {/* Report List */}
           <div className="bg-white rounded-lg shadow">
-            <div className="px-6 py-4 border-b border-gray-200">
+            <div className="px-3 py-2.5 border-b border-gray-200">
               <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-gray-900">Chọn báo cáo</h2>
+                <h2 className="text-base font-semibold text-gray-900">Chọn báo cáo</h2>
                 <div className="flex items-center space-x-4">
                   <span className="text-sm text-gray-600">
                     Đã chọn: {selectedReports.length}/{filteredReports.length}
@@ -216,20 +216,20 @@ function XuatBaoCao() {
                 </div>
               </div>
             </div>
-            <div className="p-6">
-              <div className="space-y-4">
+            <div className="p-4">
+              <div className="space-y-3">
                 {filteredReports.map((report) => (
-                  <div key={report.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition">
+                  <div key={report.id} className="border border-gray-200 rounded-lg p-3 hover:bg-gray-50 transition">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center">
                         <input
                           type="checkbox"
                           checked={selectedReports.includes(report.id)}
                           onChange={() => handleReportToggle(report.id)}
-                          className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded mr-4"
+                          className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded mr-3"
                         />
                         <div className="flex items-center">
-                          <span className="text-2xl mr-3">{report.icon}</span>
+                          <span className="text-xl mr-2">{report.icon}</span>
                           <div>
                             <h3 className="font-medium text-gray-900">{report.name}</h3>
                             <p className="text-sm text-gray-500">{report.description}</p>
@@ -274,11 +274,11 @@ function XuatBaoCao() {
         </div>
 
         {/* Export Settings */}
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* Export Format */}
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Định dạng xuất</h3>
-            <div className="space-y-3">
+          <div className="bg-white rounded-lg shadow-md p-4">
+            <h3 className="text-base font-semibold text-gray-900 mb-3">Định dạng xuất</h3>
+            <div className="space-y-2">
               <label className="flex items-center">
                 <input
                   type="radio"

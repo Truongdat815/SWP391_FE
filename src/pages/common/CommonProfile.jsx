@@ -1,21 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
-import { get } from '@/api/client';
-import { updateUser } from '@/api/userService';
+import { updateUser, getCurrentUser } from '@/api/userService';
 import { getAllUsersThunk } from '@store/slices/userSlice';
-import { useAuth } from '../../contexts/AuthContext';
 
 const CommonProfile = () => {
   const location = useLocation();
   const dispatch = useDispatch();
-  const { user, isAuthenticated } = useAuth();
   const [formData, setFormData] = useState({
     name: 'User',
     email: 'user@electra.com',
     phone: '0900000000',
-    role: 'Nhân viên',
-    startDate: '2023-01-01'
+    role: 'Nhân viên'
   });
 
   const [userData, setUserData] = useState(null);
@@ -33,52 +29,37 @@ const CommonProfile = () => {
     return 'User';
   };
 
-  // Lấy thông tin user từ session
+  // Lấy thông tin user từ API /users/me
   useEffect(() => {
     const fetchUserInfo = async () => {
       try {
         setLoading(true);
         
-        // Use authenticated user data first
-        if (isAuthenticated && user) {
-          setUserData(user);
+        // Call API to get current user
+        const response = await getCurrentUser();
+        // API trả về { code, message, data: { userId, fullName, email, ... } }
+        const userData = response?.data;
+        
+        if (userData) {
+          setUserData(userData);
           
           setFormData({
-            name: user.fullName || 'User',
-            email: user.email || 'user@electra.com',
-            phone: user.phone || '0900000000',
-            role: user.roleName || 'Nhân viên',
-            startDate: user.createdAt ? new Date(user.createdAt).toISOString().split('T')[0] : '2023-01-01'
+            name: userData.fullName || 'User',
+            email: userData.email || 'user@electra.com',
+            phone: userData.phone || '0900000000',
+            role: userData.roleName || 'Nhân viên'
           });
-        } else {
-          // Fallback: try to get user from API if no session
-          const response = await get('/api/users/all');
-          const users = response?.data?.data || [];
-          
-          const currentRole = getRoleFromPath(location.pathname);
-          const userData = users.find(user => user.roleName === currentRole);
-          
-          if (userData) {
-            setUserData(userData);
-            
-            setFormData({
-              name: userData.fullName || 'User',
-              email: userData.email || 'user@electra.com',
-              phone: userData.phone || '0900000000',
-              role: userData.roleName || 'Nhân viên',
-              startDate: userData.createdAt ? new Date(userData.createdAt).toISOString().split('T')[0] : '2023-01-01'
-            });
-          }
         }
       } catch (error) {
         console.error('Lỗi lấy thông tin user:', error);
+        setErrorMessage('Không thể tải thông tin người dùng. Vui lòng thử lại.');
       } finally {
         setLoading(false);
       }
     };
 
     fetchUserInfo();
-  }, [location.pathname, isAuthenticated, user]);
+  }, []);
 
 
 
@@ -204,48 +185,18 @@ const CommonProfile = () => {
             />
             <p className="text-xs text-gray-500 mt-1">Thông tin này không thể chỉnh sửa</p>
           </div>
-          <div className="sm:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Ngày bắt đầu làm việc</label>
-            <input 
-              name="startDate"
-              type="date"
-              value={formData.startDate}
-              className="w-full border rounded-xl px-3 py-2 bg-gray-50 text-gray-500 cursor-not-allowed" 
-              disabled
-            />
-            <p className="text-xs text-gray-500 mt-1">Thông tin này không thể chỉnh sửa</p>
-          </div>
-        </div>
-
-        {/* Quyền hạn theo role */}
-        <div className="mt-8 border-t pt-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Quyền hạn hệ thống</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {getRoleFromPath(location.pathname) === 'Admin' && (
-              <>
-                <div className="flex items-center p-3 bg-red-50 rounded-lg">
-                  <svg className="h-5 w-5 text-red-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
-                  </svg>
-                  <span className="text-sm font-medium text-gray-700">Quản lý người dùng</span>
-                </div>
-                <div className="flex items-center p-3 bg-red-50 rounded-lg">
-                  <svg className="h-5 w-5 text-red-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                  </svg>
-                  <span className="text-sm font-medium text-gray-700">Quản lý cửa hàng</span>
-                </div>
-              </>
-            )}
-            {getRoleFromPath(location.pathname) !== 'Admin' && (
-              <div className="flex items-center p-3 bg-gray-50 rounded-lg">
-                <svg className="h-5 w-5 text-gray-600 mr-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-                <span className="text-sm font-medium text-gray-700">Quyền hạn theo vai trò</span>
-              </div>
-            )}
-          </div>
+          {(getRoleFromPath(location.pathname) === 'Dealer Staff' || getRoleFromPath(location.pathname) === 'Dealer Manager') && userData?.storeName && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Đại lý</label>
+              <input 
+                name="storeName"
+                value={userData.storeName}
+                className="w-full border rounded-xl px-3 py-2 bg-gray-50 text-gray-500 cursor-not-allowed" 
+                disabled
+              />
+              <p className="text-xs text-gray-500 mt-1">Thông tin này không thể chỉnh sửa</p>
+            </div>
+          )}
         </div>
 
         {/* Success/Error Messages */}
@@ -267,10 +218,7 @@ const CommonProfile = () => {
           </div>
         )}
 
-        <div className="mt-6 flex items-center justify-between">
-          <p className="text-sm text-gray-500">
-            {userData?.updatedAt ? `Cập nhật lần cuối: ${new Date(userData.updatedAt).toLocaleDateString('vi-VN')}` : 'Lần cập nhật gần nhất: hôm nay'}
-          </p>
+        <div className="mt-6 flex items-center justify-end">
           <button 
             onClick={handleSave}
             disabled={saving}

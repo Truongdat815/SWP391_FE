@@ -19,7 +19,7 @@ import { useConfirm } from '@/hooks/useConfirm';
 const TableSkeleton = () => (
   <div className="animate-pulse space-y-4">
     {[...Array(5)].map((_, i) => (
-      <div key={i} className="flex items-center space-x-4 px-6 py-4">
+      <div key={i} className="flex items-center space-x-3 px-3 py-2.5">
         <div className="h-12 w-12 bg-gray-200 rounded-full"></div>
         <div className="flex-1 space-y-2">
           <div className="h-4 bg-gray-200 rounded w-3/4"></div>
@@ -53,6 +53,10 @@ function StoreManagement() {
   const [editingStore, setEditingStore] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [storeToDelete, setStoreToDelete] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [storeToView, setStoreToView] = useState(null);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [imageToView, setImageToView] = useState(null);
 
   // State cho dependent dropdowns
   const [provinces, setProvinces] = useState([]);
@@ -146,11 +150,8 @@ function StoreManagement() {
   };
 
   const getStatusText = (status) => {
-    switch (status) {
-      case 'ACTIVE': return 'Hoạt động';
-      case 'INACTIVE': return 'Không hoạt động';
-      default: return status;
-    }
+    const upperStatus = String(status || '').toUpperCase();
+    return upperStatus || status;
   };
 
   const handleInputChange = (e) => {
@@ -558,6 +559,26 @@ function StoreManagement() {
     setStoreToDelete(null);
   };
 
+  const handleViewDetail = (store) => {
+    setStoreToView(store);
+    setShowDetailModal(true);
+  };
+
+  const handleCloseDetailModal = () => {
+    setShowDetailModal(false);
+    setStoreToView(null);
+  };
+
+  const handleViewImage = (imageUrl) => {
+    setImageToView(imageUrl);
+    setShowImageModal(true);
+  };
+
+  const handleCloseImageModal = () => {
+    setShowImageModal(false);
+    setImageToView(null);
+  };
+
   const handleCloseModal = () => {
     setFormData({
       storeName: '',
@@ -642,8 +663,7 @@ function StoreManagement() {
   const uniqueProvinces = [...new Set(allStoresList.map(store => store.provinceName).filter(Boolean))];
 
   const tabs = [
-    { id: 'stores', name: 'Danh sách cửa hàng', count: storesList.length },
-    { id: 'analytics', name: 'Thống kê & Báo cáo', count: 0 }
+    { id: 'stores', name: 'Danh sách cửa hàng', count: storesList.length }
   ];
 
   const renderStoresTable = () => (
@@ -658,22 +678,22 @@ function StoreManagement() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
             <tr>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                 Cửa hàng
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                 Chủ cửa hàng
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                 Địa điểm
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                 Trạng thái
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                 Doanh thu
               </th>
-              <th className="px-6 py-4 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">
+              <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                 Thao tác
               </th>
             </tr>
@@ -685,13 +705,17 @@ function StoreManagement() {
                 className={`transition-all duration-200 hover:bg-blue-50 hover:shadow-sm cursor-pointer
                   ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
               >
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="flex items-center">
                     {store.imagePath ? (
                       <img 
                         src={store.imagePath} 
                         alt={store.storeName}
-                        className="h-12 w-12 rounded-lg object-cover mr-4 shadow-md ring-2 ring-blue-100"
+                        className="h-10 w-10 rounded-lg object-cover mr-3 shadow-sm ring-2 ring-blue-100 cursor-pointer hover:opacity-80 transition-opacity"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleViewImage(store.imagePath);
+                        }}
                         onError={(e) => {
                           e.target.onerror = null;
                           e.target.style.display = 'none';
@@ -700,16 +724,16 @@ function StoreManagement() {
                       />
                     ) : null}
                     <div 
-                      className="h-12 w-12 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mr-4 shadow-lg ring-2 ring-blue-100"
+                      className="h-10 w-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mr-3 shadow-md ring-2 ring-blue-100"
                       style={{ display: store.imagePath ? 'none' : 'flex' }}
                     >
-                      <span className="text-white font-bold text-sm">
+                      <span className="text-white font-bold text-xs">
                         {(store.storeName || '').charAt(0)}
                       </span>
                     </div>
                     <div>
                       <div className="text-sm font-semibold text-gray-900">{store.storeName}</div>
-                      <div className="text-sm text-gray-500 flex items-center">
+                      <div className="text-xs text-gray-500 flex items-center">
                         <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
                         </svg>
@@ -718,25 +742,25 @@ function StoreManagement() {
                     </div>
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">{store.ownerName}</div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="text-sm font-medium text-gray-900">{store.provinceName}</div>
-                  <div className="text-sm text-gray-500 max-w-xs truncate">{store.address}</div>
+                  <div className="text-xs text-gray-500 max-w-xs truncate">{store.address}</div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusColor(store.status)}`}>
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  <span className={`px-2 py-0.5 inline-flex text-xs font-semibold rounded-md ${getStatusColor(store.status)}`}>
                     {getStatusText(store.status)}
                   </span>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-600">{store.totalOrders || 0} đơn hàng</div>
+                <td className="px-3 py-2.5 whitespace-nowrap">
+                  <div className="text-xs text-gray-600">{store.totalOrders || 0} đơn hàng</div>
                   <div className="text-sm font-bold text-green-600">
                     {(store.totalRevenue || 0).toLocaleString('vi-VN')} ₫
                   </div>
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
+                <td className="px-3 py-2.5 whitespace-nowrap">
                   <div className="flex items-center space-x-2">
                     <button 
                       onClick={() => handleEdit(store)}
@@ -759,6 +783,7 @@ function StoreManagement() {
                     </button>
                     
                     <button 
+                      onClick={() => handleViewDetail(store)}
                       className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
                       
                     >
@@ -803,7 +828,7 @@ function StoreManagement() {
                           setStatusFilter('');
                           setProvinceFilter('');
                         }}
-                        className="inline-flex items-center px-6 py-3 bg-white border-2 border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 transition shadow-md hover:shadow-lg"
+                        className="inline-flex items-center px-3 py-1.5 bg-white border-2 border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 transition shadow-sm hover:shadow-md text-sm"
                       >
                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -813,7 +838,7 @@ function StoreManagement() {
                     ) : (
                       <button
                         onClick={() => setShowAddModal(true)}
-                        className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                        className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm"
                       >
                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -831,76 +856,9 @@ function StoreManagement() {
     </div>
   );
 
-  const renderAnalytics = () => (
-    <div className="space-y-6">
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-          <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-white bg-opacity-20 backdrop-blur-sm">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-white text-opacity-90">Tổng số cửa hàng</p>
-              <p className="text-3xl font-bold text-white">{stores.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-          <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-white bg-opacity-20 backdrop-blur-sm">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-white text-opacity-90">Cửa hàng hoạt động</p>
-              <p className="text-3xl font-bold text-white">
-                {stores.filter(store => store.status === 'ACTIVE').length}
-              </p>
-            </div>
-          </div>
-        </div>
-
-
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
-          <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-white bg-opacity-20 backdrop-blur-sm">
-              <svg className="h-8 w-8 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-white text-opacity-90">Tổng doanh thu</p>
-              <p className="text-2xl font-bold text-white">
-                {stores.reduce((sum, store) => sum + (store.totalRevenue || 0), 0).toLocaleString('vi-VN')} ₫
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Chart Placeholder */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Biểu đồ doanh thu theo cửa hàng</h3>
-        <div className="h-64 flex items-center justify-center border-2 border-dashed border-gray-300 rounded-lg bg-gradient-to-br from-gray-50 to-gray-100">
-          <div className="text-center">
-            <svg className="h-16 w-16 text-gray-400 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <p className="text-gray-500 font-medium text-lg">Biểu đồ sẽ được hiển thị tại đây</p>
-            <p className="text-gray-400 text-sm mt-2">Tích hợp với Chart.js hoặc Recharts</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 
   return (
-    <div className="px-6 space-y-6">
+    <div className="px-4 space-y-4">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -924,7 +882,7 @@ function StoreManagement() {
       <div className="flex justify-end space-x-3">
         <button
           onClick={() => setShowAddModal(true)}
-          className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-5 py-2.5 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 flex items-center"
+          className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center text-sm"
           
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -932,19 +890,10 @@ function StoreManagement() {
           </svg>
           Thêm cửa hàng
         </button>
-        <button 
-          className="bg-white text-gray-700 px-5 py-2.5 rounded-lg hover:bg-gray-50 transition-all shadow-md hover:shadow-lg border border-gray-200 flex items-center"
-          
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-          </svg>
-          Xuất báo cáo
-        </button>
       </div>
 
       {/* Search and Filters */}
-      <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6">
+      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3">
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <div className="relative group">
@@ -985,7 +934,7 @@ function StoreManagement() {
             </select>
             <button
               onClick={handleSearch}
-              className="px-5 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg flex items-center"
+              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg flex items-center text-sm"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -1034,7 +983,6 @@ function StoreManagement() {
 
         <div className="p-6">
           {activeTab === 'stores' && renderStoresTable()}
-          {activeTab === 'analytics' && renderAnalytics()}
         </div>
       </div>
 
@@ -1371,7 +1319,7 @@ function StoreManagement() {
                     disabled={isCreatingStore}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-sm"
                   >
                     {isCreatingStore && (
                       <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
@@ -1410,7 +1358,7 @@ function StoreManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-[480px] p-6 border shadow-2xl rounded-xl bg-white"
+              className="w-[480px] p-4 border shadow-lg rounded-lg bg-white"
             >
               <div className="mt-3">
                 <div className="flex items-center justify-center w-16 h-16 mx-auto bg-gradient-to-br from-red-100 to-red-200 rounded-full mb-4 shadow-lg">
@@ -1495,7 +1443,7 @@ function StoreManagement() {
                     onClick={confirmDelete}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-lg hover:shadow-xl flex items-center"
+                    className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg flex items-center text-sm"
                   >
                     <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -1505,6 +1453,245 @@ function StoreManagement() {
                 </div>
               </div>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Store Detail Modal */}
+      <AnimatePresence>
+        {showDetailModal && storeToView && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={handleCloseDetailModal}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-2xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+            >
+              <div className="mt-3">
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                  <h3 className="text-2xl font-bold text-gray-900"> Chi tiết cửa hàng</h3>
+                  <button
+                    onClick={handleCloseDetailModal}
+                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
+                  >
+                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              
+              <div className="space-y-6">
+                {/* Store Avatar and Basic Info */}
+                <div className="flex items-center space-x-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+                  {storeToView.imagePath ? (
+                    <img 
+                      src={storeToView.imagePath} 
+                      alt={storeToView.storeName}
+                      className="h-20 w-20 rounded-xl object-cover shadow-lg ring-4 ring-opacity-20 ring-gray-300 cursor-pointer hover:opacity-80 transition-opacity"
+                      onClick={() => handleViewImage(storeToView.imagePath)}
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                        e.target.nextElementSibling.style.display = 'flex';
+                      }}
+                    />
+                  ) : null}
+                  <div 
+                    className="h-20 w-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg ring-4 ring-opacity-20 ring-gray-300"
+                    style={{ display: storeToView.imagePath ? 'none' : 'flex' }}
+                  >
+                    <span className="text-white font-bold text-2xl">
+                      {(storeToView.storeName || '').charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-2xl font-bold text-gray-900 mb-1">{storeToView.storeName}</h4>
+                    
+                    <div className="flex items-center space-x-4">
+                      <span className={`px-3 py-1 inline-flex text-sm font-semibold rounded-full ${getStatusColor(storeToView.status)}`}>
+                        {getStatusText(storeToView.status)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Detailed Information */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Store Information */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                      </svg>
+                      Thông tin cửa hàng
+                    </h5>
+                    <div className="space-y-3">
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                        </svg>
+                        <span className="text-sm text-gray-600">Tên cửa hàng:</span>
+                        <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.storeName}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                        </svg>
+                        <span className="text-sm text-gray-600">Số điện thoại:</span>
+                        <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.phone}</span>
+                      </div>
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span className="text-sm text-gray-600">Trạng thái:</span>
+                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(storeToView.status)}`}>
+                          {getStatusText(storeToView.status)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Location and Owner Information */}
+                  <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
+                    <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                      </svg>
+                      Thông tin địa điểm & chủ cửa hàng
+                    </h5>
+                    <div className="space-y-3">
+                      <div className="flex items-start">
+                        <svg className="w-4 h-4 mr-3 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                        </svg>
+                        <div className="flex-1">
+                          <span className="text-sm text-gray-600">Chủ cửa hàng:</span>
+                          <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.ownerName}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-start">
+                        <svg className="w-4 h-4 mr-3 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        <div className="flex-1">
+                          <span className="text-sm text-gray-600">Tỉnh/Thành phố:</span>
+                          <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.provinceName || 'N/A'}</span>
+                        </div>
+                      </div>
+                      <div className="flex items-start">
+                        <svg className="w-4 h-4 mr-3 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        <div className="flex-1">
+                          <span className="text-sm text-gray-600">Địa chỉ:</span>
+                          <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.address || 'N/A'}</span>
+                        </div>
+                      </div>
+                      {storeToView.contractStartDate && (
+                        <div className="flex items-start">
+                          <svg className="w-4 h-4 mr-3 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <div className="flex-1">
+                            <span className="text-sm text-gray-600">Hợp đồng:</span>
+                            <span className="ml-2 text-sm font-medium text-gray-900">
+                              {new Date(storeToView.contractStartDate).toLocaleDateString('vi-VN')} - {storeToView.contractEndDate ? new Date(storeToView.contractEndDate).toLocaleDateString('vi-VN') : 'N/A'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                  <motion.button
+                    onClick={handleCloseDetailModal}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-sm text-sm"
+                  >
+                    Đóng
+                  </motion.button>
+                  <motion.button
+                    onClick={() => {
+                      handleCloseDetailModal();
+                      handleEdit(storeToView);
+                    }}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    Chỉnh sửa
+                  </motion.button>
+                </div>
+              </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Image View Modal */}
+      <AnimatePresence>
+        {showImageModal && imageToView && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/90 overflow-y-auto h-full w-full z-[60] backdrop-blur-sm flex items-center justify-center p-4"
+            onClick={handleCloseImageModal}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative max-w-5xl max-h-[90vh] w-full"
+            >
+              <button
+                onClick={handleCloseImageModal}
+                className="absolute top-4 right-4 z-10 text-white hover:text-gray-300 hover:bg-black/50 rounded-full p-2 transition-all"
+              >
+                <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+              <img 
+                src={imageToView} 
+                alt="Store image"
+                className="w-full h-auto max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                onError={(e) => {
+                  e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect fill="%23ddd" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%23999" font-size="18"%3EKhông thể tải ảnh%3C/text%3E%3C/svg%3E';
+                }}
+              />
             </motion.div>
           </motion.div>
         )}

@@ -149,11 +149,11 @@ const EVMStaffSettings = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-blue-50 to-white border border-blue-100 rounded-2xl p-8 mb-6 shadow-sm">
-          <h1 className="text-3xl font-bold text-gray-900">{t.title}</h1>
+        <div className="bg-gradient-to-r from-blue-50 to-white border border-blue-100 rounded-lg p-4 mb-4 shadow-sm">
+          <h1 className="text-2xl font-bold text-gray-900">{t.title}</h1>
           <p className="text-gray-600 mt-2">{t.subtitle}</p>
           {unsavedChanges && (
             <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg text-sm font-medium">
@@ -165,10 +165,10 @@ const EVMStaffSettings = () => {
           )}
         </div>
 
-        <div className="grid grid-cols-12 gap-6">
+        <div className="grid grid-cols-12 gap-4">
           {/* Sidebar */}
           <div className="col-span-12 lg:col-span-3">
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sticky top-6">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 sticky top-4">
               <nav className="space-y-1">
                 {sections.map((section) => (
                   <button
@@ -200,7 +200,7 @@ const EVMStaffSettings = () => {
               >
                 {/* Same structure as AdminSettings/DealerStaffSettings but with blue theme */}
                 {activeSection === 'language' && (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 space-y-6">
+                  <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4 space-y-6">
                     <div>
                       <h2 className="text-2xl font-bold text-gray-900 mb-2">{t.language.title}</h2>
                       <p className="text-gray-600">{t.language.subtitle}</p>
@@ -250,7 +250,7 @@ const EVMStaffSettings = () => {
 
                 {/* Placeholder for other sections */}
                 {activeSection !== 'language' && (
-                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+                  <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-4">
                     <div className="text-center py-12">
                       <p className="text-gray-500">Section "{activeSection}" - Same structure as AdminSettings with blue theme</p>
                       <p className="text-sm text-gray-400 mt-2">Full implementation follows AdminSettings pattern</p>
@@ -261,16 +261,16 @@ const EVMStaffSettings = () => {
             </AnimatePresence>
 
             {/* Action Buttons */}
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6 mt-6">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-6 mt-6">
               <div className="flex items-center justify-between">
-                <button onClick={handleReset} className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition">
+                <button onClick={handleReset} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition">
                   {t.buttons.reset}
                 </button>
                 <div className="flex gap-3">
-                  <button onClick={() => window.location.reload()} className="px-6 py-3 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition">
+                  <button onClick={() => window.location.reload()} className="px-4 py-2 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 transition">
                     {t.buttons.cancel}
                   </button>
-                  <button onClick={handleSave} disabled={!unsavedChanges} className={`px-6 py-3 rounded-xl transition ${unsavedChanges ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>
+                  <button onClick={handleSave} disabled={!unsavedChanges} className={`px-4 py-2 rounded-xl transition ${unsavedChanges ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>
                     {t.buttons.save}
                   </button>
                 </div>

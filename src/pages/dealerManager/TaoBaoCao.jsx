@@ -49,7 +49,7 @@ function TaoBaoCao() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto p-4">
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center mb-4">
@@ -59,7 +59,7 @@ function TaoBaoCao() {
             </svg>
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Tạo báo cáo</h1>
+            <h1 className="text-2xl font-bold text-gray-900">Tạo báo cáo</h1>
             <p className="text-gray-600">Tạo báo cáo tùy chỉnh cho doanh nghiệp</p>
           </div>
         </div>
@@ -67,7 +67,7 @@ function TaoBaoCao() {
 
       <form onSubmit={handleSubmit} className="space-y-8">
         {/* Report Type Selection */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Loại báo cáo</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {reportTypes.map((type) => (
@@ -91,7 +91,7 @@ function TaoBaoCao() {
         </div>
 
         {/* Date Range */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Khoảng thời gian</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -122,7 +122,7 @@ function TaoBaoCao() {
         </div>
 
         {/* Metrics Selection */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Chọn chỉ số báo cáo</h2>
           <div className="space-y-3">
             {availableMetrics.map((metric) => (
@@ -143,7 +143,7 @@ function TaoBaoCao() {
         </div>
 
         {/* Report Details */}
-        <div className="bg-white rounded-lg shadow p-6">
+        <div className="bg-white rounded-lg shadow p-4">
           <h2 className="text-xl font-semibold text-gray-900 mb-4">Chi tiết báo cáo</h2>
           <div className="space-y-4">
             <div>
@@ -176,7 +176,7 @@ function TaoBaoCao() {
 
         {/* Preview Section */}
         {selectedMetrics.length > 0 && (
-          <div className="bg-white rounded-lg shadow p-6">
+          <div className="bg-white rounded-lg shadow p-4">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Xem trước báo cáo</h2>
             <div className="bg-gray-50 rounded-lg p-4">
               <div className="mb-2">
