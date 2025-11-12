@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import { getAllTransactionsThunk } from '../store/slices/inventoryTransactionSlice';
 import { getAllStoreStocksThunk } from '../store/slices/store-stockSlice';
 import { useAuth } from '../contexts/AuthContext';
+import logo from '../assets/images/logo.png';
 
 // Component hiển thị thời gian thực
 const RealTimeClock = ({ roleKey = 'dealer-manager' }) => {
@@ -604,7 +605,7 @@ const BaseLayout = ({
                 {/* Logo và text ở dưới */}
                 <div className="flex items-center justify-center mt-2">
                   <img 
-                    src="/src/assets/images/logo.png" 
+                    src={logo} 
                     alt="Electra Logo" 
                     className="h-8 w-auto mr-3 flex-shrink-0"
                     onError={(e) => {
@@ -628,7 +629,7 @@ const BaseLayout = ({
               >
                 <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
                   <img 
-                    src="/src/assets/images/logo.png" 
+                    src={logo} 
                     alt="Electra Logo" 
                     className="h-full w-full object-contain"
                     onError={(e) => {

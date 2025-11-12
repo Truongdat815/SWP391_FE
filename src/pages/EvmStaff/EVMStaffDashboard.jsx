@@ -75,7 +75,7 @@ const EVMStaffDashboard = () => {
     .slice(0, 5)
     .map(m => ({
       name: m.modelName || 'N/A',
-      variants: modelColors.filter(mc => mc.modelId === m.modelId).length,
+      variants: Math.floor(modelColors.filter(mc => mc.modelId === m.modelId).length),
     }));
 
   // Phân tích tồn kho theo cửa hàng
@@ -117,7 +117,7 @@ const EVMStaffDashboard = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Total Products */}
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
           <div className="flex items-center justify-between">
@@ -145,38 +145,6 @@ const EVMStaffDashboard = () => {
             <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Inventory */}
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-purple-100 text-xs font-medium">Tồn kho</p>
-              <h3 className="text-2xl font-bold mt-1.5">{inventoryStats.totalQuantity}</h3>
-              <p className="text-purple-100 text-xs mt-1.5">{inventoryStats.distributedStores} cửa hàng</p>
-            </div>
-            <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V7a2 2 0 00-2-2h-3V3H9v2H6a2 2 0 00-2 2v6m16 0v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4m16 0H4" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Active Models */}
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-orange-100 text-xs font-medium">Mẫu xe hoạt động</p>
-              <h3 className="text-2xl font-bold mt-1.5">{productStats.activeModels}</h3>
-              <p className="text-orange-100 text-xs mt-1.5">trong {productStats.totalModels} mẫu</p>
-            </div>
-            <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
               </svg>
             </div>
           </div>
@@ -237,7 +205,7 @@ const EVMStaffDashboard = () => {
       </div>
 
       {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         {/* Order Status Pie */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
           <div className="mb-4">
@@ -265,26 +233,6 @@ const EVMStaffDashboard = () => {
                 contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
               />
             </PieChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Stock Distribution */}
-        <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 shadow-md p-4">
-          <div className="mb-4">
-            <h3 className="text-base font-semibold text-gray-900">📦 Tồn kho theo cửa hàng</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Top 5 cửa hàng có tồn kho cao nhất</p>
-          </div>
-          <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={stockByStore}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="name" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
-              <Tooltip 
-                formatter={(value) => [`${value} sản phẩm`, 'Số lượng']}
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-              />
-              <Bar dataKey="quantity" fill="#10b981" radius={[8, 8, 0, 0]} />
-            </BarChart>
           </ResponsiveContainer>
         </div>
       </div>

@@ -9,6 +9,7 @@ import {
   formatPrice, 
   formatNumber 
 } from '../utils/modelHelpers';
+import logo from '../assets/images/logo.png';
 
 const ProductCard = ({ 
   model, 
@@ -33,7 +34,7 @@ const ProductCard = ({
 
   const handleImageError = (e) => {
     console.log('Image failed to load for model:', model.modelName);
-    if (e?.target) e.target.src = '/src/assets/images/logo.png';
+    if (e?.target) e.target.src = logo;
   };
 
   return (
