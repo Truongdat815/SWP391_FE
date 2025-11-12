@@ -125,6 +125,7 @@ function UserManagement() {
 
   const [activeTab, setActiveTab] = useState('dealer-staff');
   const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -165,13 +166,7 @@ function UserManagement() {
 
   const getStatusText = (status) => {
     const upperStatus = String(status || '').toUpperCase();
-    switch (upperStatus) {
-      case 'ACTIVE': return 'Hoạt động';
-      case 'INACTIVE': return 'Không hoạt động';
-      case 'PENDING': return 'Chờ duyệt';
-      case 'DISABLED': return 'Vô hiệu hóa';
-      default: return status;
-    }
+    return upperStatus || status;
   };
 
   const getRoleColor = (roleName) => {
@@ -560,7 +555,7 @@ function UserManagement() {
     setUserToView(null);
   };
 
-  // Hàm lọc người dùng theo search term
+  // Hàm lọc người dùng theo search term và status
   const getFilteredUsersByRole = (roleName) => {
     return usersList.filter(user => {
       const matchesRole = user.roleName === roleName;
@@ -568,7 +563,9 @@ function UserManagement() {
         (user.fullName && user.fullName.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
         (user.phone && user.phone.includes(searchTerm));
-      return matchesRole && matchesSearch;
+      const matchesStatus = !statusFilter || 
+        (user.status && user.status.toUpperCase() === statusFilter.toUpperCase());
+      return matchesRole && matchesSearch && matchesStatus;
     });
   };
 
@@ -773,15 +770,7 @@ function UserManagement() {
               </svg>
               Thêm người dùng
             </button>
-            <button 
-              className="bg-white text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-all shadow-sm hover:shadow-md border border-gray-200 flex items-center text-sm"
-              
-            >
-              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Xuất báo cáo
-            </button>
+            
           </div>
         </div>
       </div>
@@ -818,12 +807,28 @@ function UserManagement() {
             </div>
           </div>
           <div className="flex space-x-3">
-            <select className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm hover:shadow-md transition-all bg-white text-gray-900">
-              <option>Tất cả trạng thái</option>
-              <option>Hoạt động</option>
-              <option>Không hoạt động</option>
-              <option>Chờ duyệt</option>
+            <select 
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm hover:shadow-md transition-all bg-white text-gray-900"
+            >
+              <option value="">Tất cả trạng thái</option>
+              <option value="ACTIVE">ACTIVE</option>
+              <option value="INACTIVE">INACTIVE</option>
+              <option value="PENDING">PENDING</option>
+              <option value="DISABLED">DISABLED</option>
             </select>
+            {statusFilter && (
+              <button
+                onClick={() => setStatusFilter('')}
+                className="px-3 py-3 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
+                title="Xóa bộ lọc trạng thái"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -856,24 +861,62 @@ function UserManagement() {
         </div>
 
         <div className="p-3">
-          {/* Hiển thị thông tin tìm kiếm */}
-          {searchTerm && (
+          {/* Hiển thị thông tin tìm kiếm và filter */}
+          {(searchTerm || statusFilter) && (
             <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-              <div className="flex items-center">
+              <div className="flex items-center flex-wrap gap-2">
                 <svg className="w-5 h-5 text-blue-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
                 <span className="text-sm text-blue-700">
-                  Tìm kiếm: "<strong>{searchTerm}</strong>" - Tìm thấy {tabs.reduce((total, tab) => total + tab.count, 0)} kết quả
+                  {searchTerm && (
+                    <span className="mr-3">
+                      Tìm kiếm: "<strong>{searchTerm}</strong>"
+                    </span>
+                  )}
+                  {statusFilter && (
+                    <span className="mr-3">
+                      Trạng thái: <strong>{statusFilter}</strong>
+                    </span>
+                  )}
+                  - Tìm thấy {tabs.reduce((total, tab) => total + tab.count, 0)} kết quả
                 </span>
-                <button
-                  onClick={() => setSearchTerm('')}
-                  className="ml-auto text-blue-500 hover:text-blue-700 transition-colors"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
+                <div className="ml-auto flex gap-2">
+                  {searchTerm && (
+                    <button
+                      onClick={() => setSearchTerm('')}
+                      className="text-blue-500 hover:text-blue-700 transition-colors px-2 py-1 hover:bg-blue-100 rounded"
+                      title="Xóa tìm kiếm"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                  {statusFilter && (
+                    <button
+                      onClick={() => setStatusFilter('')}
+                      className="text-blue-500 hover:text-blue-700 transition-colors px-2 py-1 hover:bg-blue-100 rounded"
+                      title="Xóa bộ lọc trạng thái"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </button>
+                  )}
+                  {(searchTerm || statusFilter) && (
+                    <button
+                      onClick={() => {
+                        setSearchTerm('');
+                        setStatusFilter('');
+                      }}
+                      className="text-blue-500 hover:text-blue-700 transition-colors px-2 py-1 hover:bg-blue-100 rounded text-xs"
+                      title="Xóa tất cả bộ lọc"
+                    >
+                      Xóa tất cả
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -982,10 +1025,12 @@ function UserManagement() {
                       disabled={isRolesFetching}
                       options={[
                         { value: '', label: isRolesFetching ? 'Đang tải vai trò...' : 'Chọn vai trò' },
-                        ...roles.map(role => ({
-                          value: role.roleId.toString(),
-                          label: role.roleName
-                        }))
+                        ...roles
+                          .filter(role => role.roleName !== 'Quản trị viên' && role.roleName !== 'Admin')
+                          .map(role => ({
+                            value: role.roleId.toString(),
+                            label: role.roleName
+                          }))
                       ]}
                       className="w-full"
                     />
@@ -1063,7 +1108,7 @@ function UserManagement() {
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                     )}
-                    {isCreatingUser ? '⏳ Đang tạo...' : '✨ Tạo tài khoản'}
+                    {isCreatingUser ? '⏳ Đang tạo...' : ' Tạo tài khoản'}
                   </motion.button>
                 </div>
               </form>
@@ -1393,7 +1438,7 @@ function UserManagement() {
             >
               <div className="mt-3">
                 <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-                  <h3 className="text-2xl font-bold text-gray-900">👤 Chi tiết người dùng</h3>
+                  <h3 className="text-2xl font-bold text-gray-900"> Chi tiết người dùng</h3>
                   <button
                     onClick={handleCloseDetailModal}
                     className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
@@ -1490,13 +1535,6 @@ function UserManagement() {
                         <span className="ml-2 text-sm font-medium text-gray-900">
                           {userToView.roleName === 'Quản trị viên' || userToView.roleName === 'Admin' || userToView.roleName === 'Nhân viên hãng xe' || userToView.roleName === 'EVM Staff' ? 'Không thuộc cửa hàng' : (userToView.storeName || 'Chưa phân công')}
                         </span>
-                      </div>
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                        </svg>
-                        <span className="text-sm text-gray-600">User ID:</span>
-                        <span className="ml-2 text-sm font-mono text-gray-500">#{userToView.userId}</span>
                       </div>
                     </div>
                   </div>

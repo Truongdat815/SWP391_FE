@@ -169,6 +169,7 @@ function CreateOrder({ onBack }) {
   const [storeInfo, setStoreInfo] = useState(null); // Store information
   const [showConfirmDialog, setShowConfirmDialog] = useState(false); // Show confirmation snackbar
   const [pendingConfirmAction, setPendingConfirmAction] = useState(null); // Store pending confirm action
+  const [includeLicensePlateService, setIncludeLicensePlateService] = useState(true); // Include license plate service fee
   
   // Debounce timer ref
   const validationTimerRef = useRef(null);
@@ -475,6 +476,14 @@ function CreateOrder({ onBack }) {
       setStockInfo(null);
     }
   }, [formData.modelId, formData.colorId, filteredStoreStocks]);
+
+  // Clear orderDetailsResponse when includeLicensePlateService changes
+  // This ensures the quote will be recalculated with the new value
+  useEffect(() => {
+    if (orderDetailsResponse) {
+      setOrderDetailsResponse(null);
+    }
+  }, [includeLicensePlateService]);
 
   // Handle quantity blur - auto validate
   const handleQuantityBlur = () => {
@@ -1013,11 +1022,23 @@ function CreateOrder({ onBack }) {
 
       // Step 2: Call API /orders/create/quote with all selectedItems
       console.log('🚀 Calling /orders/create/quote with items:', selectedItems);
-      const quoteResponse = await createOrderDetailsInBatch(orderId, selectedItems);
+      console.log('📋 includeLicensePlateService:', includeLicensePlateService);
+      const quoteResponse = await createOrderDetailsInBatch(orderId, selectedItems, includeLicensePlateService);
       console.log('✅ Quote response:', quoteResponse);
 
-      // Extract response data
-      const responseData = quoteResponse.data || quoteResponse;
+      // Extract response data - handle both {code, message, data} and direct data structure
+      let responseData;
+      if (quoteResponse && quoteResponse.data) {
+        // Response has {code, message, data} structure
+        responseData = quoteResponse.data;
+      } else if (quoteResponse && quoteResponse.orderId) {
+        // Response is direct data structure
+        responseData = quoteResponse;
+      } else {
+        // Fallback
+        responseData = quoteResponse || {};
+      }
+      console.log('📊 Extracted responseData:', responseData);
       
       // Update selectedItems with response data for display
       if (responseData.getOrderDetailsResponses && responseData.getOrderDetailsResponses.length > 0) {
@@ -1063,6 +1084,7 @@ function CreateOrder({ onBack }) {
       setOrderDetailsResponse(orderDetailsData);
 
       // Step 3: Generate HTML content
+      console.log('📄 Generating HTML with orderDetailsData:', orderDetailsData);
       const htmlContent = generateOrderHTML(orderDetailsData);
       
       // Step 4: Open new window with order content
@@ -1128,8 +1150,20 @@ function CreateOrder({ onBack }) {
         });
       } else {
         // If no orderDetailsResponse, refresh by calling API again
-        const quoteResponse = await createOrderDetailsInBatch(orderId, selectedItems);
-        const responseData = quoteResponse.data || quoteResponse;
+        const quoteResponse = await createOrderDetailsInBatch(orderId, selectedItems, includeLicensePlateService);
+        
+        // Extract response data - handle both {code, message, data} and direct data structure
+        let responseData;
+        if (quoteResponse && quoteResponse.data) {
+          // Response has {code, message, data} structure
+          responseData = quoteResponse.data;
+        } else if (quoteResponse && quoteResponse.orderId) {
+          // Response is direct data structure
+          responseData = quoteResponse;
+        } else {
+          // Fallback
+          responseData = quoteResponse || {};
+        }
         
         setOrderResponse({
           orderId: responseData.orderId || orderId,
@@ -1534,6 +1568,28 @@ function CreateOrder({ onBack }) {
                     className="w-full"
                   />
                 </div>
+              </div>
+
+              {/* License Plate Service Checkbox */}
+              {/* When checked: includeLicensePlateService = true, when unchecked: includeLicensePlateService = false */}
+              <div className="mt-4 mb-3">
+                <label className="flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={includeLicensePlateService}
+                    onChange={(e) => {
+                      // e.target.checked is true when ticked, false when unticked
+                      setIncludeLicensePlateService(e.target.checked);
+                    }}
+                    className="w-4 h-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 focus:ring-2"
+                  />
+                  <span className="ml-2 text-sm font-medium text-gray-700">
+                    Bao gồm phí dịch vụ và biển số
+                  </span>
+                </label>
+                <p className="ml-6 text-xs text-gray-500 mt-1">
+                  Tích vào để tính phí đăng ký và biển số vào tổng giá trị đơn hàng
+                </p>
               </div>
 
               {/* Stock Info Display (when model+color selected, no quantity needed) */}

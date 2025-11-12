@@ -69,9 +69,10 @@ const Dealers = () => {
   const dealers = filteredStores.map(store => ({
     id: store.storeId,
     name: store.storeName,
+    storeName: store.storeName, // Add storeName for DealerCard compatibility
     address: store.address,
     phone: store.phone,
-    image: "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop", // Default image
+    image: store.imagePath || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop", // Use imagePath from admin, fallback to default
     description: `Đại lý chính thức Electra tại ${store.provinceName} với showroom hiện đại và đội ngũ tư vấn chuyên nghiệp.`,
     latitude: getLatitudeForProvince(store.provinceName),
     longitude: getLongitudeForProvince(store.provinceName),

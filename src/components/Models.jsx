@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedImage from '../components/Animated';
 import { Link } from 'react-router-dom';
-import { get } from '@/api/client';
+import { get, API_URL } from '@/api/client';
 import { getModelImage, formatNumber } from '../utils/modelHelpers';
 import Tooltip from './ui/Tooltip';
 
@@ -21,6 +21,7 @@ const BODY_TYPES = [
 const Models = () => {
   const [models, setModels] = useState([]);
   const [modelColors, setModelColors] = useState([]);
+  const [colors, setColors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedVehicles, setSelectedVehicles] = useState([]);
@@ -44,8 +45,6 @@ const Models = () => {
                 throw err;
             }
         }
-        console.log('📦 Raw API response:', res);
-        
         // Handle different response structures
         let modelsData = null;
         if (res?.data?.data && Array.isArray(res.data.data)) {
@@ -55,31 +54,36 @@ const Models = () => {
         } else if (Array.isArray(res)) {
           modelsData = res;
         } else {
-          console.warn('⚠️ Unexpected response structure:', res);
           modelsData = [];
         }
         
         if (modelsData && Array.isArray(modelsData)) {
-          console.log(`✅ Setting ${modelsData.length} models`);
           setModels(modelsData);
         } else {
-          console.warn('⚠️ Models data is not an array:', modelsData);
           setModels([]);
         }
 
-        // Fetch model-colors to get prices
+        // Fetch model-colors to get prices and images
+        // Note: This endpoint may require authentication, so we'll handle errors gracefully
         try {
           let modelColorsRes;
-          try {
-            modelColorsRes = await get('/api/model-colors');
-          } catch (err) {
-            // If 401, try as public endpoint
-            if (err.message && err.message.includes('401')) {
-              console.log('🔓 Trying model-colors as public endpoint...');
-              modelColorsRes = await get('/api/model-colors', { skipAuth: true });
-            } else {
-              throw err;
+          const token = localStorage.getItem('access_token') || localStorage.getItem('accessToken');
+          
+          if (token) {
+            // If user is logged in, try with auth first
+            try {
+              modelColorsRes = await get('/api/model-colors');
+            } catch (err) {
+              // If auth fails (e.g., token expired), silently fail
+              // Page will still work with models and default images
+              console.log('⚠️ Could not fetch model-colors (auth required):', err.message || 'Unauthorized');
+              modelColorsRes = { data: [] };
             }
+          } else {
+            // If no token, endpoint requires auth - skip silently
+            // Page will still work with models and default images
+            console.log('⚠️ Model-colors endpoint requires authentication (skipping)');
+            modelColorsRes = { data: [] };
           }
           
           let modelColorsData = null;
@@ -93,14 +97,78 @@ const Models = () => {
             modelColorsData = [];
           }
           
-          if (modelColorsData && Array.isArray(modelColorsData)) {
-            console.log(`✅ Setting ${modelColorsData.length} model-colors`);
+          if (modelColorsData && Array.isArray(modelColorsData) && modelColorsData.length > 0) {
             setModelColors(modelColorsData);
+          } else {
+            setModelColors([]);
           }
         } catch (err) {
-          console.warn('⚠️ Could not fetch model-colors:', err);
-          // Don't fail the whole component if model-colors fail
+          // Silently handle errors - page will still work
+          // Only log if it's not a 401 (expected when not authenticated)
+          if (err.status !== 401) {
+            console.warn('⚠️ Could not fetch model-colors:', err);
+          }
           setModelColors([]);
+        }
+
+        // Fetch colors to get color codes and names
+        // Try public endpoint first, then fallback to auth if needed
+        try {
+          let colorsRes;
+          const token = localStorage.getItem('access_token') || localStorage.getItem('accessToken');
+          
+          if (token) {
+            // If user is logged in, try with auth first
+            try {
+              colorsRes = await get('/api/colors/all');
+            } catch (err) {
+              // If auth fails, try without auth (public endpoint)
+              try {
+                colorsRes = await get('/api/colors/all', { skipAuth: true });
+              } catch (publicErr) {
+                // Silently fail if both fail
+                if (publicErr.status !== 401) {
+                  console.warn('⚠️ Could not fetch colors:', publicErr);
+                }
+                colorsRes = { data: [] };
+              }
+            }
+          } else {
+            // If no token, try public endpoint directly
+            try {
+              colorsRes = await get('/api/colors/all', { skipAuth: true });
+            } catch (err) {
+              // Silently fail if public endpoint doesn't exist or requires auth
+              if (err.status !== 401) {
+                console.warn('⚠️ Could not fetch colors:', err);
+              }
+              colorsRes = { data: [] };
+            }
+          }
+          
+          let colorsData = null;
+          if (colorsRes?.data?.data && Array.isArray(colorsRes.data.data)) {
+            colorsData = colorsRes.data.data;
+          } else if (colorsRes?.data && Array.isArray(colorsRes.data)) {
+            colorsData = colorsRes.data;
+          } else if (Array.isArray(colorsRes)) {
+            colorsData = colorsRes;
+          } else {
+            colorsData = [];
+          }
+          
+          if (colorsData && Array.isArray(colorsData) && colorsData.length > 0) {
+            setColors(colorsData);
+          } else {
+            setColors([]);
+          }
+        } catch (err) {
+          // Silently handle errors - page will still work
+          // Only log if it's not a 401 (expected when not authenticated)
+          if (err.status !== 401) {
+            console.warn('⚠️ Could not fetch colors:', err);
+          }
+          setColors([]);
         }
       } catch (err) {
         console.error('❌ Lỗi lấy danh sách model:', err);
@@ -114,17 +182,89 @@ const Models = () => {
     fetchData();
   }, []);
 
+  // Helper functions to get model/color names and details
+  const getModelName = (modelId) => {
+    const model = models.find(m => m.modelId === modelId);
+    return model?.modelName || modelColors.find(mc => mc.modelId === modelId)?.modelName || `Model #${modelId}`;
+  };
+
+  const getModelDetails = (modelId) => {
+    return models.find(m => m.modelId === modelId) || null;
+  };
+
+  const getColorName = (colorId) => {
+    const color = colors.find(c => c.colorId === colorId);
+    return color?.colorName || modelColors.find(mc => mc.colorId === colorId)?.colorName || `Color #${colorId}`;
+  };
+
+  const getColorCode = (colorId) => {
+    const color = colors.find(c => c.colorId === colorId);
+    return color?.colorCode || '#CCCCCC';
+  };
+
+  // Get image URL from model-color imagePath
+  const getImageUrl = (imagePath) => {
+    if (!imagePath || imagePath.trim() === '') {
+      return null;
+    }
+    
+    let url = imagePath.trim();
+    
+    // If imagePath is already a full URL (starts with http:// or https://), use it as is
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    // If imagePath is a relative path (starts with /), use it directly
+    // Browser will resolve it from current domain (works with proxy in dev)
+    // If API_URL is set, prepend it
+    if (url.startsWith('/')) {
+      if (API_URL && API_URL.trim() !== '') {
+        return `${API_URL}${url}`;
+      }
+      return url;
+    }
+    
+    // If it doesn't start with / or http, it might need API_URL
+    if (API_URL && API_URL.trim() !== '') {
+      return `${API_URL}/${url}`;
+    }
+    
+    return url;
+  };
+
+  // Filter model-colors: only show ones with models (active models)
+  const displayModelColors = modelColors.filter(mc => {
+    const model = models.find(m => m.modelId === mc.modelId);
+    return model !== undefined;
+  });
+
   // Transform model to vehicle format for comparison
   const transformModelToVehicle = (model) => {
     const features = model.description 
       ? model.description.split('.').map(f => f.trim()).filter(f => f.length > 0)
       : ['Tính năng tiêu chuẩn'];
     
+    // Get image from first model-color for this model
+    const modelColorWithImage = modelColors.find(
+      mc => String(mc.modelId) === String(model.modelId) && mc.imagePath && mc.imagePath.trim() !== ''
+    );
+    const imageUrl = modelColorWithImage 
+      ? getImageUrl(modelColorWithImage.imagePath) 
+      : getModelImage(model.modelName);
+    
+    // Get price from model-colors (lowest price)
+    const modelColorPrices = modelColors
+      .filter(mc => String(mc.modelId) === String(model.modelId) && mc.price)
+      .map(mc => Number(mc.price))
+      .filter(price => price > 0);
+    const price = modelColorPrices.length > 0 ? Math.min(...modelColorPrices) : 0;
+    
     return {
       id: model.modelId,
       name: model.modelName,
       category: BODY_TYPES.find(t => t.value === model.bodyType)?.label || model.bodyType,
-      price: getModelPrice(model.modelId),
+      price: price,
       range: model.range || 0,
       power: model.powerHp || 0,
       torque: model.torqueNm || 0,
@@ -132,7 +272,7 @@ const Models = () => {
       seating: model.seatingCapacity || 5,
       battery: model.batteryCapacity || 0,
       modelYear: model.modelYear || new Date().getFullYear(),
-      image: getModelImage(model.modelName),
+      image: imageUrl,
       features: features
     };
   };
@@ -184,20 +324,6 @@ const Models = () => {
     return selectedVehicles.length < 3 && !isVehicleSelected(modelId);
   };
 
-  // Get price from model-colors for a model (get lowest price or first available)
-  const getModelPrice = (modelId) => {
-    const modelColorPrices = modelColors
-      .filter(mc => String(mc.modelId) === String(modelId) && mc.price)
-      .map(mc => Number(mc.price))
-      .filter(price => price > 0);
-    
-    if (modelColorPrices.length > 0) {
-      // Return the lowest price
-      return Math.min(...modelColorPrices);
-    }
-    return 0;
-  };
-
   return (
     <section id="models" className="py-20 bg-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -220,7 +346,7 @@ const Models = () => {
               </h2>
             </div>
             <div className="flex-1 flex justify-center md:justify-end">
-              {models.length > 0 && (
+              {displayModelColors.length > 0 && (
                 <motion.button
                   onClick={() => setShowComparison(true)}
                   whileHover={{ scale: 1.05 }}
@@ -274,28 +400,32 @@ const Models = () => {
           </div>
         )}
 
-        {/* No Models Found */}
-        {!loading && !error && models.length === 0 && (
+        {/* No Model-Colors Found */}
+        {!loading && !error && displayModelColors.length === 0 && (
           <div className="text-center py-20">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
               <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
               </svg>
             </div>
-            <h3 className="text-xl font-semibold text-gray-900 mb-2">Chưa có mẫu xe nào</h3>
-            <p className="text-gray-600">Hiện tại chưa có mẫu xe nào trong hệ thống.</p>
+            <h3 className="text-xl font-semibold text-gray-900 mb-2">Chưa có sản phẩm nào</h3>
+            <p className="text-gray-600">Hiện tại chưa có sản phẩm nào trong hệ thống.</p>
           </div>
         )}
 
-        {/* Vehicle Grid */}
-        {!loading && !error && models.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-            {models.map((model, index) => (
+        {/* Vehicle Grid - Display Model-Colors */}
+        {!loading && !error && displayModelColors.length > 0 && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {displayModelColors.map((modelColor, index) => {
+              const modelDetails = getModelDetails(modelColor.modelId);
+              const imageUrl = getImageUrl(modelColor.imagePath) || getModelImage(getModelName(modelColor.modelId));
+              
+              return (
             <motion.div
-              key={model.modelId}
+              key={modelColor.modelColorId || `${modelColor.modelId}-${modelColor.colorId}-${index}`}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: index * 0.1 }}
+              transition={{ duration: 0.6, delay: index * 0.05 }}
               viewport={{ once: true }}
               whileHover={{ 
                 y: -8,
@@ -304,110 +434,150 @@ const Models = () => {
               className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100"
             >
               {/* Image Container */}
-              <div className="relative h-48 overflow-hidden">
-                <AnimatedImage
-                  src={getModelImage(model.modelName)}
-                  alt={model.modelName}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  onError={(e) => {
-                    console.log('Image failed to load for model:', model.modelName);
-                    if (e?.target) e.target.src = '/src/assets/images/logo.png';
-                  }}
-                />
+              <div className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
+                {imageUrl ? (
+                  <AnimatedImage
+                    src={imageUrl}
+                    alt={`${getModelName(modelColor.modelId)} - ${getColorName(modelColor.colorId)}`}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    onError={(e) => {
+                      console.log('Image failed to load, using fallback');
+                      const fallbackImage = getModelImage(getModelName(modelColor.modelId));
+                      if (e?.target && e.target.src !== fallbackImage) {
+                        e.target.src = fallbackImage;
+                      } else if (e?.target) {
+                        e.target.src = '/src/assets/images/logo.png';
+                      }
+                    }}
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                  </div>
+                )}
                 
-                {/* Category Badge */}
-                <div className="absolute top-4 left-4">
-                  <span className="bg-gradient-to-r from-green-600 to-green-800 text-white px-3 py-1 rounded-full text-xs font-semibold">
-                    {model.bodyType || 'EV'}
-                  </span>
+                {/* Body Type Badge */}
+                {modelDetails?.bodyType && (
+                  <div className="absolute top-4 left-4">
+                    <span className="bg-gradient-to-r from-green-600 to-green-800 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                      {modelDetails.bodyType}
+                    </span>
+                  </div>
+                )}
+
+                {/* Color Badge */}
+                <div className="absolute top-4 right-4">
+                  <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 shadow-md">
+                    <div 
+                      className="w-4 h-4 rounded-full border-2 border-white shadow-sm"
+                      style={{ backgroundColor: getColorCode(modelColor.colorId) }}
+                    />
+                    <span className="text-sm font-medium text-gray-700">{getColorName(modelColor.colorId)}</span>
+                  </div>
                 </div>
 
                 {/* Hover Overlay */}
-                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <motion.div
-                      initial={{ y: 20, opacity: 0 }}
-                      whileHover={{ y: 0, opacity: 1 }}
-                      className="text-white"
-                    >
-                      <div className="flex space-x-2">
-                        <span className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded text-xs">
-                          {model.batteryCapacity ? `Pin ${model.batteryCapacity}kWh` : 'Pin N/A'}
-                        </span>
-                        <span className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded text-xs">
-                          {model.range ? `Quãng đường ${model.range}km` : 'Quãng đường N/A'}
-                        </span>
-                        <span className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded text-xs">
-                          {model.powerHp ? `${model.powerHp} HP` : 'Công suất N/A'}
-                        </span>
-                      </div>
-                    </motion.div>
+                {modelDetails && (
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                    <div className="absolute bottom-4 left-4 right-4">
+                      <motion.div
+                        initial={{ y: 20, opacity: 0 }}
+                        whileHover={{ y: 0, opacity: 1 }}
+                        className="text-white"
+                      >
+                        <div className="flex space-x-2 flex-wrap gap-2">
+                          {modelDetails.batteryCapacity && (
+                            <span className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded text-xs">
+                              Pin {modelDetails.batteryCapacity}kWh
+                            </span>
+                          )}
+                          {modelDetails.range && (
+                            <span className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded text-xs">
+                              Quãng đường {modelDetails.range}km
+                            </span>
+                          )}
+                          {modelDetails.powerHp && (
+                            <span className="bg-white/20 backdrop-blur-sm px-2 py-1 rounded text-xs">
+                              {modelDetails.powerHp} HP
+                            </span>
+                          )}
+                        </div>
+                      </motion.div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Content */}
               <div className="p-6">
                 <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-green-600 transition-colors duration-300">
-                  {model.modelName}
+                  {getModelName(modelColor.modelId)}
                 </h3>
                 <p className="text-gray-600 text-sm mb-4">
-                  {model.modelYear ? `Model ${model.modelYear}` : 'Mẫu xe điện thông minh'}
-                  {model.bodyType && ` • ${model.bodyType}`}
+                  {modelDetails?.modelYear ? `Model ${modelDetails.modelYear}` : 'Mẫu xe điện thông minh'}
+                  {modelDetails?.bodyType && ` • ${modelDetails.bodyType}`}
                 </p>
                 
-                {/* Specifications Grid - Hiển thị thông số kỹ thuật */}
-                <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
-                  <div className="bg-gray-50 p-2 rounded">
-                    <div className="text-gray-500 mb-1">Pin</div>
-                    <div className="font-semibold text-gray-900">
-                      {model.batteryCapacity ? `${model.batteryCapacity} kWh` : 'N/A'}
+                {/* Model Details & Specs */}
+                {modelDetails ? (
+                  <>
+                    {/* Specifications Grid */}
+                    <div className="grid grid-cols-2 gap-2 mb-4 text-xs">
+                      <div className="bg-gray-50 p-2 rounded">
+                        <div className="text-gray-500 mb-1">Pin</div>
+                        <div className="font-semibold text-gray-900">
+                          {modelDetails.batteryCapacity ? `${modelDetails.batteryCapacity} kWh` : 'N/A'}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 p-2 rounded">
+                        <div className="text-gray-500 mb-1">Quãng đường</div>
+                        <div className="font-semibold text-gray-900">
+                          {modelDetails.range ? `${modelDetails.range} km` : 'N/A'}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 p-2 rounded">
+                        <div className="text-gray-500 mb-1">Công suất</div>
+                        <div className="font-semibold text-gray-900">
+                          {modelDetails.powerHp ? `${modelDetails.powerHp} HP` : 'N/A'}
+                        </div>
+                      </div>
+                      <div className="bg-gray-50 p-2 rounded">
+                        <div className="text-gray-500 mb-1">Mô-men xoắn</div>
+                        <div className="font-semibold text-gray-900">
+                          {modelDetails.torqueNm ? `${modelDetails.torqueNm} Nm` : 'N/A'}
+                        </div>
+                      </div>
+                      {modelDetails.acceleration && (
+                        <div className="bg-gray-50 p-2 rounded col-span-2">
+                          <div className="text-gray-500 mb-1">Tăng tốc (0-100km/h)</div>
+                          <div className="font-semibold text-gray-900">{modelDetails.acceleration}s</div>
+                        </div>
+                      )}
+                      {modelDetails.seatingCapacity && (
+                        <div className="bg-gray-50 p-2 rounded col-span-2">
+                          <div className="text-gray-500 mb-1">Số chỗ ngồi</div>
+                          <div className="font-semibold text-gray-900">{modelDetails.seatingCapacity} chỗ</div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  <div className="bg-gray-50 p-2 rounded">
-                    <div className="text-gray-500 mb-1">Quãng đường</div>
-                    <div className="font-semibold text-gray-900">
-                      {model.range ? `${model.range} km` : 'N/A'}
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 p-2 rounded">
-                    <div className="text-gray-500 mb-1">Công suất</div>
-                    <div className="font-semibold text-gray-900">
-                      {model.powerHp ? `${model.powerHp} HP` : 'N/A'}
-                    </div>
-                  </div>
-                  <div className="bg-gray-50 p-2 rounded">
-                    <div className="text-gray-500 mb-1">Mô-men xoắn</div>
-                    <div className="font-semibold text-gray-900">
-                      {model.torqueNm ? `${model.torqueNm} Nm` : 'N/A'}
-                    </div>
-                  </div>
-                  {model.acceleration && (
-                    <div className="bg-gray-50 p-2 rounded col-span-2">
-                      <div className="text-gray-500 mb-1">Tăng tốc (0-100km/h)</div>
-                      <div className="font-semibold text-gray-900">{model.acceleration}s</div>
-                    </div>
-                  )}
-                  {model.seatingCapacity && (
-                    <div className="bg-gray-50 p-2 rounded col-span-2">
-                      <div className="text-gray-500 mb-1">Số chỗ ngồi</div>
-                      <div className="font-semibold text-gray-900">{model.seatingCapacity} chỗ</div>
-                    </div>
-                  )}
-                </div>
+                  </>
+                ) : null}
                 
+                {/* Price */}
                 <div className="flex items-center justify-between mb-4">
-                  <span className="text-2xl font-bold text-gray-900">
-                    {(() => {
-                      const price = getModelPrice(model.modelId);
-                      return price > 0 ? `${Number(price).toLocaleString('vi-VN')} VNĐ` : '0 VNĐ';
-                    })()}
+                  <span className="text-2xl font-bold text-green-600">
+                    {modelColor.price && modelColor.price > 0 
+                      ? `${Number(modelColor.price).toLocaleString('vi-VN')} VNĐ` 
+                      : 'Liên hệ'}
                   </span>
                 </div>
 
+                {/* Actions */}
                 <div className="flex gap-2">
                   <Tooltip content="Xem thông số kỹ thuật chi tiết và hình ảnh của mẫu xe" placement="top">
-                    <Link to={`/car/${model.modelId}`} className="flex-1">
+                    <Link to={`/car/${modelColor.modelId}`} className="flex-1">
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -417,10 +587,10 @@ const Models = () => {
                       </motion.button>
                     </Link>
                   </Tooltip>
-                  {isVehicleSelected(model.modelId) ? (
+                  {isVehicleSelected(modelColor.modelId) ? (
                     <Tooltip content="Xóa khỏi danh sách so sánh" placement="top">
                       <motion.button
-                        onClick={() => removeVehicleFromComparison(model.modelId)}
+                        onClick={() => removeVehicleFromComparison(modelColor.modelId)}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         className="px-4 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-all duration-300"
@@ -432,16 +602,19 @@ const Models = () => {
                     </Tooltip>
                   ) : (
                     <Tooltip 
-                      content={canAddToComparison(model.modelId) ? "Thêm vào so sánh" : "Đã đạt tối đa 3 xe để so sánh"} 
+                      content={canAddToComparison(modelColor.modelId) ? "Thêm vào so sánh" : "Đã đạt tối đa 3 xe để so sánh"} 
                       placement="top"
                     >
                       <motion.button
-                        onClick={() => addVehicleToComparison(model)}
-                        disabled={!canAddToComparison(model.modelId)}
-                        whileHover={{ scale: canAddToComparison(model.modelId) ? 1.05 : 1 }}
-                        whileTap={{ scale: canAddToComparison(model.modelId) ? 0.95 : 1 }}
+                        onClick={() => {
+                          const model = models.find(m => m.modelId === modelColor.modelId);
+                          if (model) addVehicleToComparison(model);
+                        }}
+                        disabled={!canAddToComparison(modelColor.modelId)}
+                        whileHover={{ scale: canAddToComparison(modelColor.modelId) ? 1.05 : 1 }}
+                        whileTap={{ scale: canAddToComparison(modelColor.modelId) ? 0.95 : 1 }}
                         className={`px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                          canAddToComparison(model.modelId)
+                          canAddToComparison(modelColor.modelId)
                             ? 'bg-blue-500 text-white hover:bg-blue-600'
                             : 'bg-gray-300 text-gray-500 cursor-not-allowed'
                         }`}
@@ -455,12 +628,13 @@ const Models = () => {
                 </div>
               </div>
             </motion.div>
-            ))}
+              );
+            })}
           </div>
         )}
 
-        {/* CTA Section - Only show when there are models */}
-        {!loading && !error && models.length > 0 && (
+        {/* CTA Section - Only show when there are model-colors */}
+        {!loading && !error && displayModelColors.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}

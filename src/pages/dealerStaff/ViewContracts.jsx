@@ -5,7 +5,7 @@ import {
   uploadSignedContractThunk,
   fetchAllContractsThunk
 } from '../../store/slices/contractSlice';
-import { getContractHtml } from '../../api/contractService';
+import { getContractHtml, getContractDetail } from '../../api/contractService';
 import { getOrderById } from '../../api/orderService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -27,7 +27,9 @@ import {
   UserCircle,
   Receipt,
   Tag,
-  CreditCard
+  CreditCard,
+  Building2,
+  FileCheck
 } from 'lucide-react';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -110,6 +112,9 @@ function ViewContracts() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [orderDetails, setOrderDetails] = useState([]);
   const [loadingOrderDetails, setLoadingOrderDetails] = useState(false);
+  const [showContractDetailModal, setShowContractDetailModal] = useState(false);
+  const [contractDetail, setContractDetail] = useState(null);
+  const [loadingContractDetail, setLoadingContractDetail] = useState(false);
 
   // Fetch contracts on component mount
   useEffect(() => {
@@ -276,6 +281,43 @@ function ViewContracts() {
     });
   };
 
+  // Handle view contract detail
+  const handleViewContractDetail = async (contract) => {
+    setContractDetail(null);
+    setShowContractDetailModal(true);
+    setLoadingContractDetail(true);
+    
+    try {
+      const detail = await getContractDetail(contract.contractId);
+      setContractDetail(detail);
+    } catch (err) {
+      console.error('Error loading contract detail:', err);
+      
+      // Check for database/SQL errors
+      const errorMessage = err.message || '';
+      const isDatabaseError = errorMessage.includes('Invalid column') || 
+                             errorMessage.includes('JDBC') || 
+                             errorMessage.includes('SQL') ||
+                             errorMessage.includes('database');
+      
+      if (isDatabaseError) {
+        error('Lỗi cơ sở dữ liệu: ' + errorMessage + '. Vui lòng liên hệ quản trị viên để kiểm tra backend.');
+      } else {
+        error('Không thể tải chi tiết hợp đồng: ' + errorMessage);
+      }
+      
+      // Close modal on error
+      setShowContractDetailModal(false);
+    } finally {
+      setLoadingContractDetail(false);
+    }
+  };
+
+  const handleCloseContractDetailModal = () => {
+    setShowContractDetailModal(false);
+    setContractDetail(null);
+  };
+
 
   const getStatusText = (status) => {
     if (!status) return status || 'N/A';
@@ -429,8 +471,16 @@ function ViewContracts() {
                     <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium">
                       <div className="flex gap-2">
                         <button
+                          onClick={() => handleViewContractDetail(contract)}
+                          className="text-purple-600 hover:text-purple-900 transition-colors"
+                          title="Xem chi tiết hợp đồng"
+                        >
+                          <FileText className="h-4 w-4" />
+                        </button>
+                        <button
                           onClick={() => handleViewContract(contract)}
                           className="text-emerald-600 hover:text-emerald-900 transition-colors"
+                          title="Xem hợp đồng HTML"
                         >
                           <Eye className="h-4 w-4" />
                         </button>
@@ -440,6 +490,7 @@ function ViewContracts() {
                             onClick={() => handleUploadClick(contract)}
                             disabled={uploadingContract === contract.contractId}
                             className="text-blue-600 hover:text-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Upload hợp đồng đã ký"
                           >
                             {uploadingContract === contract.contractId ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -451,6 +502,7 @@ function ViewContracts() {
                           <button
                             onClick={() => handlePaymentClick(contract)}
                             className="text-green-600 hover:text-green-900 transition-colors"
+                            title="Quản lý thanh toán"
                           >
                             <CreditCard className="h-4 w-4" />
                           </button>
@@ -752,6 +804,405 @@ function ViewContracts() {
               <div className="flex justify-end pt-3 border-t border-gray-200 mt-3">
                 <button
                   onClick={handleCloseOrderModal}
+                  className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm"
+                >
+                  Đóng
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Contract Detail Modal */}
+      <AnimatePresence>
+        {showContractDetailModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
+            onClick={handleCloseContractDetailModal}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-6xl p-4 border shadow-lg rounded-lg bg-white max-h-[95vh] overflow-y-auto"
+            >
+              {/* Header */}
+              <div className="flex items-start justify-between mb-3 pb-3 border-b border-gray-200">
+                <div className="flex-1">
+                  <div className="flex items-center space-x-2 mb-1.5">
+                    <FileText className="h-6 w-6 text-purple-600" />
+                    <h3 className="text-xl font-bold text-gray-900">
+                      Chi tiết hợp đồng
+                    </h3>
+                  </div>
+                  {contractDetail && (
+                    <div className="flex items-center space-x-3 text-xs text-gray-600">
+                      <span className="flex items-center">
+                        <Tag className="h-3 w-3 mr-1" />
+                        Mã: <span className="font-semibold ml-1">{contractDetail.contractCode || 'N/A'}</span>
+                      </span>
+                      <span className="flex items-center">
+                        <Calendar className="h-3 w-3 mr-1" />
+                        {contractDetail.contractDate ? new Date(contractDetail.contractDate).toLocaleDateString('vi-VN', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric'
+                        }) : 'N/A'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={handleCloseContractDetailModal}
+                  className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-all"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              {loadingContractDetail ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-6 w-6 animate-spin text-purple-600 mr-2" />
+                  <span className="text-gray-600 font-medium text-sm">Đang tải chi tiết hợp đồng...</span>
+                </div>
+              ) : contractDetail ? (
+                <div className="space-y-3">
+                  {/* Contract Information */}
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg p-3 border border-purple-200">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <FileCheck className="h-4 w-4 text-purple-600" />
+                      <h4 className="font-bold text-purple-900 text-sm">Thông tin hợp đồng</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-purple-700">Mã hợp đồng</p>
+                        <p className="text-xs font-semibold text-purple-900">{contractDetail.contractCode || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-purple-700">Ngày tạo hợp đồng</p>
+                        <p className="text-xs font-semibold text-purple-900">
+                          {contractDetail.contractDate ? new Date(contractDetail.contractDate).toLocaleDateString('vi-VN') : 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-purple-700">Trạng thái</p>
+                        <div className="mt-0.5">
+                          <StatusBadge status={contractDetail.status || 'PENDING'} size="sm" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-purple-700">Người upload</p>
+                        <p className="text-xs font-semibold text-purple-900">{contractDetail.uploadedBy || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-purple-700">Tiền đặt cọc</p>
+                        <p className="text-xs font-semibold text-purple-900">
+                          {(contractDetail.depositPrice || 0).toLocaleString('vi-VN')} VNĐ
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-purple-700">Tổng thanh toán</p>
+                        <p className="text-xs font-semibold text-purple-900">
+                          {(contractDetail.totalPayment || 0).toLocaleString('vi-VN')} VNĐ
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-purple-700">Còn lại</p>
+                        <p className="text-xs font-semibold text-purple-900">
+                          {(contractDetail.remainPrice || 0).toLocaleString('vi-VN')} VNĐ
+                        </p>
+                      </div>
+                      {contractDetail.contractFileUrl && (
+                        <div>
+                          <p className="text-xs text-purple-700">File hợp đồng</p>
+                          <a 
+                            href={contractDetail.contractFileUrl} 
+                            target="_blank" 
+                            rel="noopener noreferrer"
+                            className="text-xs text-blue-600 hover:text-blue-900 underline"
+                          >
+                            Xem file
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                    {contractDetail.terms && (
+                      <div className="mt-3 pt-3 border-t border-purple-200">
+                        <p className="text-xs text-purple-700 mb-1">Điều khoản</p>
+                        <p className="text-xs text-purple-900 whitespace-pre-wrap">{contractDetail.terms}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Order Information */}
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Receipt className="h-4 w-4 text-blue-600" />
+                      <h4 className="font-bold text-blue-900 text-sm">Thông tin đơn hàng</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-blue-700">Mã đơn hàng</p>
+                        <p className="text-xs font-semibold text-blue-900">{contractDetail.orderCode || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-blue-700">Ngày đơn hàng</p>
+                        <p className="text-xs font-semibold text-blue-900">
+                          {contractDetail.orderDate ? new Date(contractDetail.orderDate).toLocaleDateString('vi-VN') : 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-blue-700">Trạng thái đơn hàng</p>
+                        <div className="mt-0.5">
+                          <StatusBadge status={contractDetail.orderStatus || 'PENDING'} size="sm" />
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-xs text-blue-700">Tổng giá đơn hàng</p>
+                        <p className="text-xs font-semibold text-blue-900">
+                          {(contractDetail.orderTotalPrice || 0).toLocaleString('vi-VN')} VNĐ
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-blue-700">Tổng thuế</p>
+                        <p className="text-xs font-semibold text-blue-900">
+                          {(contractDetail.orderTotalTaxPrice || 0).toLocaleString('vi-VN')} VNĐ
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-blue-700">Tổng khuyến mãi</p>
+                        <p className="text-xs font-semibold text-blue-900">
+                          {(contractDetail.orderTotalPromotionAmount || 0).toLocaleString('vi-VN')} VNĐ
+                        </p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-xs text-blue-700">Tổng thanh toán đơn hàng</p>
+                        <p className="text-xs font-bold text-blue-900">
+                          {(contractDetail.orderTotalPayment || 0).toLocaleString('vi-VN')} VNĐ
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Customer Information */}
+                  {contractDetail.customer && (
+                    <div className="bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg p-3 border border-emerald-200">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <User className="h-4 w-4 text-emerald-600" />
+                        <h4 className="font-bold text-emerald-900 text-sm">Thông tin khách hàng</h4>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-xs text-emerald-700">Họ và tên</p>
+                          <p className="text-xs font-semibold text-emerald-900">{contractDetail.customer.fullName || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-emerald-700">Số điện thoại</p>
+                          <p className="text-xs font-semibold text-emerald-900">{contractDetail.customer.phone || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-emerald-700">Email</p>
+                          <p className="text-xs font-semibold text-emerald-900">{contractDetail.customer.email || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-emerald-700">CMND/CCCD</p>
+                          <p className="text-xs font-semibold text-emerald-900">{contractDetail.customer.identificationNumber || 'N/A'}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-xs text-emerald-700">Địa chỉ</p>
+                          <p className="text-xs font-semibold text-emerald-900">{contractDetail.customer.address || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Store Information */}
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg p-3 border border-orange-200">
+                    <div className="flex items-center space-x-2 mb-2">
+                      <Building2 className="h-4 w-4 text-orange-600" />
+                      <h4 className="font-bold text-orange-900 text-sm">Thông tin cửa hàng</h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <p className="text-xs text-orange-700">Tên cửa hàng</p>
+                        <p className="text-xs font-semibold text-orange-900">{contractDetail.storeName || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-orange-700">Nhân viên</p>
+                        <p className="text-xs font-semibold text-orange-900">{contractDetail.staffName || 'N/A'}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <p className="text-xs text-orange-700">Địa chỉ cửa hàng</p>
+                        <p className="text-xs font-semibold text-orange-900">{contractDetail.storeAddress || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Order Details */}
+                  {contractDetail.orderDetails && contractDetail.orderDetails.length > 0 && (
+                    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                      <div className="bg-gradient-to-r from-purple-600 to-purple-700 px-4 py-2.5">
+                        <h4 className="font-bold text-white flex items-center text-sm">
+                          <ShoppingBag className="h-4 w-4 mr-1.5" />
+                          Chi tiết sản phẩm
+                        </h4>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Sản phẩm
+                              </th>
+                              <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Số lượng
+                              </th>
+                              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Đơn giá
+                              </th>
+                              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Giảm giá
+                              </th>
+                              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Thuế
+                              </th>
+                              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Thành tiền
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-100">
+                            {contractDetail.orderDetails.map((item, index) => (
+                              <tr key={index} className="hover:bg-purple-50 transition-colors">
+                                <td className="px-3 py-2">
+                                  <div className="flex items-center">
+                                    <div className="h-8 w-8 flex-shrink-0 bg-gradient-to-br from-purple-400 to-purple-600 rounded-lg flex items-center justify-center mr-2">
+                                      <Package className="h-4 w-4 text-white" />
+                                    </div>
+                                    <div>
+                                      <div className="font-semibold text-gray-900 text-sm">{item.modelName || 'N/A'}</div>
+                                      <div className="text-xs text-gray-500 flex items-center">
+                                        <Tag className="h-3 w-3 mr-1" />
+                                        {item.colorName || 'N/A'} - {item.modelYear || 'N/A'} - {item.bodyType || 'N/A'} - {item.seatingCapacity || 'N/A'} chỗ
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-3 py-2 text-center">
+                                  <span className="px-2 py-0.5 bg-purple-100 text-purple-800 rounded-md text-xs font-bold">
+                                    {item.quantity || 0}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 text-right text-xs font-semibold text-gray-900">
+                                  {(item.unitPrice || 0).toLocaleString('vi-VN')}đ
+                                </td>
+                                <td className="px-3 py-2 text-right text-xs font-semibold text-orange-600">
+                                  -{(item.discount || 0).toLocaleString('vi-VN')}đ
+                                </td>
+                                <td className="px-3 py-2 text-right text-xs font-semibold text-blue-600">
+                                  +{(item.totalTax || 0).toLocaleString('vi-VN')}đ
+                                </td>
+                                <td className="px-3 py-2 text-right text-xs font-bold text-purple-600">
+                                  {(item.totalPrice || 0).toLocaleString('vi-VN')}đ
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Payments */}
+                  {contractDetail.payments && contractDetail.payments.length > 0 && (
+                    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+                      <div className="bg-gradient-to-r from-green-600 to-green-700 px-4 py-2.5">
+                        <h4 className="font-bold text-white flex items-center text-sm">
+                          <CreditCard className="h-4 w-4 mr-1.5" />
+                          Lịch sử thanh toán
+                        </h4>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Mã thanh toán
+                              </th>
+                              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Loại
+                              </th>
+                              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Phương thức
+                              </th>
+                              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Số tiền
+                              </th>
+                              <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Còn lại
+                              </th>
+                              <th className="px-3 py-2 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Trạng thái
+                              </th>
+                              <th className="px-3 py-2 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                                Ngày tạo
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-100">
+                            {contractDetail.payments.map((payment, index) => (
+                              <tr key={index} className="hover:bg-green-50 transition-colors">
+                                <td className="px-3 py-2 text-xs font-semibold text-gray-900">
+                                  {payment.paymentCode || 'N/A'}
+                                </td>
+                                <td className="px-3 py-2 text-xs text-gray-900">
+                                  {payment.paymentType || 'N/A'}
+                                </td>
+                                <td className="px-3 py-2 text-xs text-gray-900">
+                                  {payment.paymentMethod || 'N/A'}
+                                </td>
+                                <td className="px-3 py-2 text-right text-xs font-semibold text-green-600">
+                                  {(payment.amount || 0).toLocaleString('vi-VN')}đ
+                                </td>
+                                <td className="px-3 py-2 text-right text-xs font-semibold text-gray-900">
+                                  {(payment.remainPrice || 0).toLocaleString('vi-VN')}đ
+                                </td>
+                                <td className="px-3 py-2 text-center">
+                                  <StatusBadge status={payment.status || 'PENDING'} size="sm" />
+                                </td>
+                                <td className="px-3 py-2 text-xs text-gray-900">
+                                  {payment.createdAt ? new Date(payment.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <AlertCircle className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-500 text-sm">Không thể tải chi tiết hợp đồng</p>
+                </div>
+              )}
+
+              {/* Close Button */}
+              <div className="flex justify-end pt-3 border-t border-gray-200 mt-3">
+                <button
+                  onClick={handleCloseContractDetailModal}
                   className="px-3 py-1.5 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors text-sm"
                 >
                   Đóng

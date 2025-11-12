@@ -18,8 +18,29 @@ async function request(path, { method = 'GET', body } = {}) {
     const data = isJson ? await res.json() : await res.text();
     
     if (!res.ok) {
-        const message = (isJson && data?.message) || res.statusText || 'Request failed';
-        throw new Error(message);
+        // Try to extract error message from various possible structures
+        let message = res.statusText || 'Request failed';
+        
+        if (isJson && data) {
+            // Check for different error message fields
+            message = data?.message || 
+                     data?.error || 
+                     data?.errorMessage ||
+                     (typeof data === 'string' ? data : message);
+            
+            // If it's a structured error response, try to get more details
+            if (data?.message && typeof data.message === 'string') {
+                message = data.message;
+            }
+        } else if (!isJson && typeof data === 'string') {
+            message = data;
+        }
+        
+        const error = new Error(message);
+        error.status = res.status;
+        error.response = data;
+        console.error(`API Error [${res.status}]: ${method} ${url}`, { message, data });
+        throw error;
     }
     return data;
 }
@@ -164,4 +185,29 @@ export async function uploadSignedContract(contractId, file) {
     }
     
     return data;
+}
+
+// Get contract detail (API: GET /api/contracts/detail/{id})
+export async function getContractDetail(contractId) {
+    try {
+        const response = await request(`/api/contracts/detail/${contractId}`, {
+            method: 'GET'
+        });
+        
+        // Handle response structure: { code, message, data } or direct data
+        if (response?.code === 0 && response?.data) {
+            return response.data;
+        }
+        if (response?.data) {
+            return response.data;
+        }
+        return response;
+    } catch (error) {
+        console.error('Error fetching contract detail:', error);
+        // Re-throw with more context
+        const errorMessage = error.message || 'Không thể tải chi tiết hợp đồng';
+        const enhancedError = new Error(errorMessage);
+        enhancedError.originalError = error;
+        throw enhancedError;
+    }
 }

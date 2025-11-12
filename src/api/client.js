@@ -16,7 +16,13 @@ export async function apiFetch(path, options = {}) {
 export async function getJson(path, options = {}) {
     const res = await apiFetch(path, { method: 'GET', ...options });
     if (!res.ok) {
-        throw new Error(`Request failed: ${res.status}`);
+        const error = new Error(`Request failed: ${res.status}`);
+        error.status = res.status;
+        const isJson = res.headers.get('content-type')?.includes('application/json');
+        const data = isJson ? await res.json() : await res.text();
+        error.response = data;
+        error.message = (isJson && data?.message) || res.statusText || `Request failed: ${res.status}`;
+        throw error;
     }
     return res.json();
 }

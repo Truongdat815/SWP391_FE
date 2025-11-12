@@ -46,9 +46,9 @@ async function request(path, { method = 'GET', body } = {}) {
 }
 
 // Create order detail - Match Swagger API schema
-// Expected body: { orderId: number, orderDetails: [{ modelId, colorId, quantity, promotionId }] }
+// Expected body: { orderId: number, orderDetails: [{ modelId, colorId, quantity, promotionId }], includeLicensePlateService: boolean }
 // Create order detail - sends single item in array format
-export async function createOrderDetail(orderDetailData) {
+export async function createOrderDetail(orderDetailData, includeLicensePlateService = true) {
     // Build single order detail item
     const orderDetailItem = {
         storeStockId: orderDetailData.storeStockId,
@@ -67,10 +67,11 @@ export async function createOrderDetail(orderDetailData) {
     if (orderDetailData.modelColorId) orderDetailItem.modelColorId = orderDetailData.modelColorId;
     if (orderDetailData.colorId) orderDetailItem.colorId = orderDetailData.colorId;
     
-    // Backend expects orderDetails array with orderId at top level
+    // Backend expects orderDetails array with orderId and includeLicensePlateService at top level
     const payload = {
         orderId: orderDetailData.orderId,
-        orderDetails: [orderDetailItem]
+        orderDetails: [orderDetailItem],
+        includeLicensePlateService: includeLicensePlateService
     };
     
     console.log('Creating order detail:', JSON.stringify(payload, null, 2));
@@ -83,7 +84,7 @@ export async function createOrderDetail(orderDetailData) {
 
 // Create multiple order details in one request
 // New simplified API: backend calculates all prices
-export async function createOrderDetailsInBatch(orderId, orderDetailsArray) {
+export async function createOrderDetailsInBatch(orderId, orderDetailsArray, includeLicensePlateService = true) {
     // Build order details array for backend - only send required fields
     const orderDetailsItems = orderDetailsArray.map(detail => ({
         modelId: detail.modelId,
@@ -92,10 +93,11 @@ export async function createOrderDetailsInBatch(orderId, orderDetailsArray) {
         promotionId: detail.promotionId || 0
     }));
     
-    // Backend expects orderDetails array with orderId at top level
+    // Backend expects orderDetails array with orderId and includeLicensePlateService at top level
     const payload = {
         orderId: orderId,
-        orderDetails: orderDetailsItems
+        orderDetails: orderDetailsItems,
+        includeLicensePlateService: includeLicensePlateService
     };
     
     console.log(`Creating ${orderDetailsItems.length} order details in batch:`, JSON.stringify(payload, null, 2));

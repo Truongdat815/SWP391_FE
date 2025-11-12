@@ -36,6 +36,14 @@ export async function getTransactionById(inventoryId) {
     return request(`/api/inventory-transactions/${encodeURIComponent(inventoryId)}`, { method: 'GET' });
 }
 
+export async function getTransactionsByDateRange(startDate, endDate) {
+    const params = new URLSearchParams();
+    if (startDate) params.append('startDate', startDate);
+    if (endDate) params.append('endDate', endDate);
+    const queryString = params.toString();
+    return request(`/api/inventory-transactions/date-range${queryString ? `?${queryString}` : ''}`, { method: 'GET' });
+}
+
 export async function createTransaction(payload) {
     // Backend example did not show status, but ERD indicates it exists; include if provided
     return request('/api/inventory-transactions/create', { method: 'POST', body: payload });
@@ -47,6 +55,22 @@ export async function updateTransaction(inventoryId, payload) {
 
 export async function deleteTransaction(inventoryId) {
     return request(`/api/inventory-transactions/delete/${encodeURIComponent(inventoryId)}`, { method: 'DELETE' });
+}
+
+export async function acceptTransaction(inventoryId) {
+    return request(`/api/inventory-transactions/accept/${encodeURIComponent(inventoryId)}`, { method: 'PUT' });
+}
+
+export async function rejectTransaction(inventoryId) {
+    return request(`/api/inventory-transactions/reject/${encodeURIComponent(inventoryId)}`, { method: 'PUT' });
+}
+
+export async function startShippingTransaction(inventoryId) {
+    return request(`/api/inventory-transactions/start-shipping/${encodeURIComponent(inventoryId)}`, { method: 'PUT' });
+}
+
+export async function confirmDeliveryTransaction(inventoryId) {
+    return request(`/api/inventory-transactions/confirm-delivery/${encodeURIComponent(inventoryId)}`, { method: 'PUT' });
 }
 
 

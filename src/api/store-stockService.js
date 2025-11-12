@@ -79,6 +79,23 @@ export async function updateStockPrice(stockId, priceOfStore) {
     });
 }
 
+// Update price by modelId and colorId (new API)
+export async function updatePriceByModelColor(modelId, colorId, price) {
+    console.log('updatePriceByModelColor called with:', { modelId, colorId, price });
+    
+    const response = await request('/api/store-stocks/update-price', {
+        method: 'PUT',
+        body: {
+            modelId: parseInt(modelId),
+            colorId: parseInt(colorId),
+            price: parseFloat(price)
+        }
+    });
+    
+    // Backend returns { code, message, data: { ... } }
+    return response?.data || response;
+}
+
 // Delete store stock
 export async function deleteStoreStock(stockId) {
     return request(`/api/store-stocks/${encodeURIComponent(stockId)}/delete`, { method: 'DELETE' });
