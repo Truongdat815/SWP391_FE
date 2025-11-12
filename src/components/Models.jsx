@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import { get, API_URL } from '@/api/client';
 import { getModelImage, formatNumber } from '../utils/modelHelpers';
 import Tooltip from './ui/Tooltip';
+import logo from '../assets/images/logo.png';
 
 // Body types mapping
 const BODY_TYPES = [
@@ -446,7 +447,7 @@ const Models = () => {
                       if (e?.target && e.target.src !== fallbackImage) {
                         e.target.src = fallbackImage;
                       } else if (e?.target) {
-                        e.target.src = '/src/assets/images/logo.png';
+                        e.target.src = logo;
                       }
                     }}
                   />
@@ -710,7 +711,7 @@ const Models = () => {
                               alt={selectedVehicles[index].name}
                               className="w-32 h-20 object-contain mx-auto mb-2"
                               onError={(e) => {
-                                e.target.src = '/src/assets/images/logo.png';
+                                e.target.src = logo;
                               }}
                             />
                             <h4 className="font-semibold text-gray-900">{selectedVehicles[index].name}</h4>
@@ -760,7 +761,7 @@ const Models = () => {
                                 alt={vehicle.name}
                                 className="w-full h-16 object-contain mb-2"
                                 onError={(e) => {
-                                  e.target.src = '/src/assets/images/logo.png';
+                                  e.target.src = logo;
                                 }}
                               />
                               <h4 className="font-semibold text-gray-900 text-sm">{vehicle.name}</h4>

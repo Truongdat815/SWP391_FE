@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useSelector, useDispatch } from 'react-redux';
 import { getAllStoresThunk } from '@store/slices/storeSlice';
 import { getAllUsersThunk } from '@store/slices/userSlice';
@@ -129,9 +129,9 @@ const AdminDashboard = () => {
       </div>
 
       {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         {/* Stores by Province */}
-        <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 shadow-md p-4">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
           <div className="mb-4">
             <h3 className="text-base font-semibold text-gray-900">🗺️ Phân bố cửa hàng theo tỉnh</h3>
             <p className="text-xs text-gray-500 mt-0.5">Top 8 tỉnh thành có nhiều cửa hàng nhất</p>
@@ -147,36 +147,6 @@ const AdminDashboard = () => {
               />
               <Bar dataKey="value" fill="#3b82f6" radius={[8, 8, 0, 0]} />
             </BarChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Store Status Pie */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-          <div className="mb-4">
-            <h3 className="text-base font-semibold text-gray-900">⚡ Trạng thái cửa hàng</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Phân loại theo trạng thái</p>
-          </div>
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={statusData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {statusData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip 
-                formatter={(value) => [`${value} cửa hàng`, 'Số lượng']}
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-              />
-            </PieChart>
           </ResponsiveContainer>
         </div>
       </div>
@@ -205,15 +175,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Footer Note */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex items-start gap-2">
-        <svg className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        <div>
-          <p className="text-xs font-medium text-blue-900">Lưu ý về dữ liệu</p>
-          <p className="text-xs text-blue-700 mt-0.5">Biểu đồ doanh thu và đơn hàng sử dụng dữ liệu mẫu để minh họa. Dữ liệu cửa hàng và người dùng là dữ liệu thực từ hệ thống.</p>
-        </div>
-      </div>
+    
     </div>
   );
 };
