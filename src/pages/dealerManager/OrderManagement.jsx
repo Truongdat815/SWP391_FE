@@ -553,7 +553,7 @@ function OrderManagement() {
 
                 {/* Order Items */}
                 <div className="bg-gray-50 rounded-lg p-4">
-                  <h4 className="font-semibold text-gray-900 mb-3">Chi tiết sản phẩm</h4>
+                  <h4 className="font-semibold text-gray-900 mb-3">Sản phẩm đã chọn</h4>
                   
                   {detailsLoading ? (
                     <div className="flex items-center justify-center py-4">
@@ -565,24 +565,28 @@ function OrderManagement() {
                       <table className="min-w-full">
                         <thead>
                           <tr className="border-b border-gray-200">
-                            <th className="text-left py-2 text-sm font-medium text-gray-700">Sản phẩm</th>
-                            <th className="text-left py-2 text-sm font-medium text-gray-700">Màu sắc</th>
+                            <th className="text-left py-2 text-sm font-medium text-gray-700">Xe - Màu</th>
                             <th className="text-left py-2 text-sm font-medium text-gray-700">Số lượng</th>
-                            <th className="text-left py-2 text-sm font-medium text-gray-700">Đơn giá</th>
-                            <th className="text-left py-2 text-sm font-medium text-gray-700">Thành tiền</th>
+                            <th className="text-left py-2 text-sm font-medium text-gray-700">Khuyến mãi</th>
                           </tr>
                         </thead>
                         <tbody>
                           {selectedOrderDetails.map((detail, index) => (
                             <tr key={index} className="border-b border-gray-100">
-                              <td className="py-2 text-sm text-gray-900">{detail.modelName || 'N/A'}</td>
-                              <td className="py-2 text-sm text-gray-900">{detail.colorName || 'N/A'}</td>
-                              <td className="py-2 text-sm text-gray-900">{detail.quantity || 0}</td>
                               <td className="py-2 text-sm text-gray-900">
-                                {(detail.unitPrice || 0).toLocaleString('vi-VN')} VNĐ
+                                {detail.modelName && detail.colorName 
+                                  ? `${detail.modelName} - ${detail.colorName}`
+                                  : detail.modelName || detail.colorName || 'N/A'}
                               </td>
-                              <td className="py-2 text-sm text-gray-900">
-                                {((detail.unitPrice || 0) * (detail.quantity || 0)).toLocaleString('vi-VN')} VNĐ
+                              <td className="py-2 text-sm text-gray-900">{detail.quantity || 0}</td>
+                              <td className="py-2 text-sm">
+                                {detail.promotionName ? (
+                                  <span className="inline-flex items-center px-2 py-1 bg-pink-100 text-pink-800 rounded-md text-xs font-medium">
+                                    {detail.promotionName}
+                                  </span>
+                                ) : (
+                                  <span className="text-gray-400">-</span>
+                                )}
                               </td>
                             </tr>
                           ))}

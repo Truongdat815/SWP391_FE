@@ -34,17 +34,13 @@ const Models = () => {
         setLoading(true);
         setError(null);
         
-        // Fetch models
+        // Fetch models - Public endpoint, no token needed
         let res;
         try {
-            res = await get('/api/models/all');
+            res = await get('/api/models/all', { skipAuth: true });
         } catch (err) {
-            if (err.message && err.message.includes('401')) {
-                console.log('🔓 Trying as public endpoint (no token)...');
-                res = await get('/api/models/all', { skipAuth: true });
-            } else {
-                throw err;
-            }
+            console.error('❌ Failed to fetch models:', err);
+            throw err;
         }
         // Handle different response structures
         let modelsData = null;
@@ -65,25 +61,20 @@ const Models = () => {
         }
 
         // Fetch model-colors to get prices and images
-        // Note: This endpoint may require authentication, so we'll handle errors gracefully
+        // Try public endpoint first, fallback gracefully if it requires auth
         try {
           let modelColorsRes;
-          const token = localStorage.getItem('access_token') || localStorage.getItem('accessToken');
-          
-          if (token) {
-            // If user is logged in, try with auth first
-            try {
-              modelColorsRes = await get('/api/model-colors');
-            } catch (err) {
-              // If auth fails (e.g., token expired), silently fail
-              // Page will still work with models and default images
-              console.log('⚠️ Could not fetch model-colors (auth required):', err.message || 'Unauthorized');
-              modelColorsRes = { data: [] };
-            }
-          } else {
-            // If no token, endpoint requires auth - skip silently
+          try {
+            // Try public endpoint first
+            modelColorsRes = await get('/api/model-colors', { skipAuth: true });
+          } catch (err) {
+            // If public endpoint fails (e.g., requires auth), silently fail
             // Page will still work with models and default images
-            console.log('⚠️ Model-colors endpoint requires authentication (skipping)');
+            if (err.status === 401 || err.status === 403) {
+              console.log('⚠️ Model-colors endpoint requires authentication (skipping)');
+            } else {
+              console.warn('⚠️ Could not fetch model-colors:', err.message || 'Unknown error');
+            }
             modelColorsRes = { data: [] };
           }
           
@@ -113,38 +104,20 @@ const Models = () => {
         }
 
         // Fetch colors to get color codes and names
-        // Try public endpoint first, then fallback to auth if needed
+        // Try public endpoint first, fallback gracefully if it requires auth
         try {
           let colorsRes;
-          const token = localStorage.getItem('access_token') || localStorage.getItem('accessToken');
-          
-          if (token) {
-            // If user is logged in, try with auth first
-            try {
-              colorsRes = await get('/api/colors/all');
-            } catch (err) {
-              // If auth fails, try without auth (public endpoint)
-              try {
-                colorsRes = await get('/api/colors/all', { skipAuth: true });
-              } catch (publicErr) {
-                // Silently fail if both fail
-                if (publicErr.status !== 401) {
-                  console.warn('⚠️ Could not fetch colors:', publicErr);
-                }
-                colorsRes = { data: [] };
-              }
+          try {
+            // Try public endpoint first
+            colorsRes = await get('/api/colors/all', { skipAuth: true });
+          } catch (err) {
+            // If public endpoint fails (e.g., requires auth), silently fail
+            if (err.status === 401 || err.status === 403) {
+              console.log('⚠️ Colors endpoint requires authentication (skipping)');
+            } else {
+              console.warn('⚠️ Could not fetch colors:', err.message || 'Unknown error');
             }
-          } else {
-            // If no token, try public endpoint directly
-            try {
-              colorsRes = await get('/api/colors/all', { skipAuth: true });
-            } catch (err) {
-              // Silently fail if public endpoint doesn't exist or requires auth
-              if (err.status !== 401) {
-                console.warn('⚠️ Could not fetch colors:', err);
-              }
-              colorsRes = { data: [] };
-            }
+            colorsRes = { data: [] };
           }
           
           let colorsData = null;

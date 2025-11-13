@@ -471,7 +471,16 @@ function InventoryManagement() {
   // Get available colors for selected model
   const getAvailableColors = () => {
     if (!createStockData.modelId) return [];
-    return modelColors.filter(mc => mc.modelId === parseInt(createStockData.modelId));
+    if (!modelColors || !Array.isArray(modelColors) || modelColors.length === 0) return [];
+    
+    const selectedModelId = String(createStockData.modelId);
+    const available = modelColors.filter(mc => {
+      // Handle both number and string modelId
+      const mcModelId = mc.modelId !== undefined ? String(mc.modelId) : null;
+      return mcModelId === selectedModelId;
+    });
+    
+    return available;
   };
 
   // Handle open update price modal
@@ -599,17 +608,27 @@ function InventoryManagement() {
               {/* Search Bar */}
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-2xl font-bold text-gray-900">Tồn kho hiện tại</h2>
-                <div className="relative w-80">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <Search className="h-5 w-5 text-gray-400" />
+                <div className="flex items-center gap-3">
+                  <div className="relative w-80">
+                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                      <Search className="h-5 w-5 text-gray-400" />
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Tìm kiếm theo model, màu sắc..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
+                    />
                   </div>
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm theo model, màu sắc..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
-                  />
+                  <ModernButton
+                    onClick={handleOpenCreateStock}
+                    icon={<Plus className="w-4 h-4" />}
+                    roleColor="emerald"
+                    size="md"
+                  >
+                    Thêm xe
+                  </ModernButton>
                 </div>
               </div>
 
@@ -1276,14 +1295,16 @@ function InventoryManagement() {
                   >
                     <option value="">-- Chọn màu sắc --</option>
                     {getAvailableColors().map(mc => (
-                      <option key={mc.colorId} value={mc.colorId}>
-                        {mc.colorName}
+                      <option key={mc.colorId || mc.id} value={mc.colorId || mc.id}>
+                        {mc.colorName || mc.name || `Màu #${mc.colorId || mc.id}`}
                       </option>
                     ))}
                   </select>
-                  {!createStockData.modelId && (
+                  {!createStockData.modelId ? (
                     <p className="mt-1 text-xs text-gray-500">Vui lòng chọn model trước</p>
-                  )}
+                  ) : getAvailableColors().length === 0 ? (
+                    <p className="mt-1 text-xs text-amber-600">⚠️ Model này chưa có màu sắc nào được cấu hình</p>
+                  ) : null}
                 </div>
 
                 {/* Price and Quantity */}

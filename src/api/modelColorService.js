@@ -25,7 +25,7 @@ async function request(path, { method = 'GET', body } = {}) {
 
 // Get all model-color combinations
 export async function getAllModelColors() {
-    return request('/api/model-colors', { method: 'GET' });
+    return request('/api/model-colors/all', { method: 'GET' });
 }
 
 // Get by ID
