@@ -19,8 +19,7 @@ const filesToUpdate = [
   'src/pages/dealerManager/InventoryManagement.jsx',
   'src/pages/dealerManager/OrderManagement.jsx',
   'src/pages/dealerManager/PromotionManagement.jsx',
-  'src/pages/dealerManager/QuanLyNhanVien.jsx',
-  'src/pages/dealerManager/QuanLyCongNo.jsx',
+  'src/pages/dealerManager/EmployeeManagement.jsx',
   
   // Admin pages
   'src/pages/admin/UserManagement.jsx',

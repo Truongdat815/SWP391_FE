@@ -73,4 +73,53 @@ export async function confirmDeliveryTransaction(inventoryId) {
     return request(`/api/inventory-transactions/confirm-delivery/${encodeURIComponent(inventoryId)}`, { method: 'PUT' });
 }
 
+export async function uploadReceipt(inventoryId, file) {
+    const token = getToken();
+    const url = `${API_URL}/api/inventory-transactions/${encodeURIComponent(inventoryId)}/upload-receipt`;
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    // Don't set Content-Type, let browser set it for multipart/form-data
+    
+    const res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: formData,
+    });
+    
+    const isJson = res.headers.get('content-type')?.includes('application/json');
+    const data = isJson ? await res.json() : await res.text();
+    
+    if (!res.ok) {
+        // Try to extract error message from different response formats
+        let message = 'Upload failed';
+        
+        if (isJson) {
+            // Check for nested error messages
+            message = data?.message || 
+                     data?.error || 
+                     data?.errorMessage || 
+                     (typeof data === 'string' ? data : JSON.stringify(data));
+        } else if (typeof data === 'string') {
+            message = data;
+        }
+        
+        // If no message found, use status text
+        if (!message || message === 'Upload failed') {
+            message = res.statusText || 'Upload failed';
+        }
+        
+        // Include full error details for debugging
+        const error = new Error(message);
+        error.status = res.status;
+        error.response = data;
+        throw error;
+    }
+    
+    return data;
+}
+
 

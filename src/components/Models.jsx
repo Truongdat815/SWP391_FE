@@ -34,73 +34,67 @@ const Models = () => {
         setLoading(true);
         setError(null);
         
-        // Fetch models - Public endpoint, no token needed
-        let res;
+        // Fetch model-colors first (main endpoint for displaying vehicles)
+        let modelColorsRes;
         try {
-            res = await get('/api/models/all', { skipAuth: true });
+          modelColorsRes = await get('/api/model-colors/all', { skipAuth: true });
         } catch (err) {
-            console.error('❌ Failed to fetch models:', err);
-            throw err;
+          // If public endpoint fails (e.g., requires auth), show error
+          if (err.status === 401 || err.status === 403) {
+            console.log('⚠️ Model-colors endpoint requires authentication');
+            setError('Yêu cầu đăng nhập để xem danh sách xe');
+          } else {
+            console.warn('⚠️ Could not fetch model-colors:', err.message || 'Unknown error');
+            setError(err.message || 'Không thể tải danh sách mẫu xe');
+          }
+          modelColorsRes = { data: [] };
         }
-        // Handle different response structures
-        let modelsData = null;
-        if (res?.data?.data && Array.isArray(res.data.data)) {
-          modelsData = res.data.data;
-        } else if (res?.data && Array.isArray(res.data)) {
-          modelsData = res.data;
-        } else if (Array.isArray(res)) {
-          modelsData = res;
+          
+        let modelColorsData = null;
+        if (modelColorsRes?.data?.data && Array.isArray(modelColorsRes.data.data)) {
+          modelColorsData = modelColorsRes.data.data;
+        } else if (modelColorsRes?.data && Array.isArray(modelColorsRes.data)) {
+          modelColorsData = modelColorsRes.data;
+        } else if (Array.isArray(modelColorsRes)) {
+          modelColorsData = modelColorsRes;
         } else {
-          modelsData = [];
+          modelColorsData = [];
         }
-        
-        if (modelsData && Array.isArray(modelsData)) {
-          setModels(modelsData);
+          
+        if (modelColorsData && Array.isArray(modelColorsData) && modelColorsData.length > 0) {
+          setModelColors(modelColorsData);
         } else {
-          setModels([]);
+          setModelColors([]);
         }
 
-        // Fetch model-colors to get prices and images
-        // Try public endpoint first, fallback gracefully if it requires auth
+        // Fetch models for additional details (optional, handle 401 gracefully)
         try {
-          let modelColorsRes;
-          try {
-            // Try public endpoint first
-            modelColorsRes = await get('/api/model-colors', { skipAuth: true });
-          } catch (err) {
-            // If public endpoint fails (e.g., requires auth), silently fail
-            // Page will still work with models and default images
-            if (err.status === 401 || err.status === 403) {
-              console.log('⚠️ Model-colors endpoint requires authentication (skipping)');
-            } else {
-              console.warn('⚠️ Could not fetch model-colors:', err.message || 'Unknown error');
-            }
-            modelColorsRes = { data: [] };
+          let res = await get('/api/models/all', { skipAuth: true });
+          // Handle different response structures
+          let modelsData = null;
+          if (res?.data?.data && Array.isArray(res.data.data)) {
+            modelsData = res.data.data;
+          } else if (res?.data && Array.isArray(res.data)) {
+            modelsData = res.data;
+          } else if (Array.isArray(res)) {
+            modelsData = res;
+          } else {
+            modelsData = [];
           }
           
-          let modelColorsData = null;
-          if (modelColorsRes?.data?.data && Array.isArray(modelColorsRes.data.data)) {
-            modelColorsData = modelColorsRes.data.data;
-          } else if (modelColorsRes?.data && Array.isArray(modelColorsRes.data)) {
-            modelColorsData = modelColorsRes.data;
-          } else if (Array.isArray(modelColorsRes)) {
-            modelColorsData = modelColorsRes;
+          if (modelsData && Array.isArray(modelsData)) {
+            setModels(modelsData);
           } else {
-            modelColorsData = [];
-          }
-          
-          if (modelColorsData && Array.isArray(modelColorsData) && modelColorsData.length > 0) {
-            setModelColors(modelColorsData);
-          } else {
-            setModelColors([]);
+            setModels([]);
           }
         } catch (err) {
-          // Silently handle errors - page will still work
-          // Only log if it's not a 401 (expected when not authenticated)
-          if (err.status !== 401) {
-            console.warn('⚠️ Could not fetch model-colors:', err);
+          // Silently handle 401 for models endpoint - we can still work with model-colors
+          if (err.status === 401 || err.status === 403) {
+            console.log('⚠️ Models endpoint requires authentication (skipping, using model-colors data only)');
+          } else {
+            console.warn('⚠️ Could not fetch models:', err.message || 'Unknown error');
           }
-          setModelColors([]);
+          setModels([]);
         }
 
         // Fetch colors to get color codes and names

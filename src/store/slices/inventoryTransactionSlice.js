@@ -124,6 +124,17 @@ export const confirmDeliveryTransactionThunk = createAsyncThunk(
     }
 );
 
+export const uploadReceiptThunk = createAsyncThunk(
+    'inventoryTransactions/uploadReceipt',
+    async ({ inventoryId, file }, { rejectWithValue }) => {
+        try {
+            return await inventoryTransactionService.uploadReceipt(inventoryId, file);
+        } catch (err) {
+            return rejectWithValue(err.message || 'Failed to upload receipt');
+        }
+    }
+);
+
 const initialState = {
     items: [],
     status: 'idle',
@@ -329,6 +340,28 @@ const inventoryTransactionSlice = createSlice({
                 }
             })
             .addCase(confirmDeliveryTransactionThunk.rejected, (state, action) => {
+                state.status = 'failed';
+                state.error = action.payload;
+            })
+            // upload receipt
+            .addCase(uploadReceiptThunk.pending, (state) => {
+                state.status = 'loading';
+                state.error = null;
+            })
+            .addCase(uploadReceiptThunk.fulfilled, (state, action) => {
+                state.status = 'succeeded';
+                const updated = action.payload?.data || action.payload;
+                if (updated) {
+                    const idx = state.items.findIndex(t => (t.inventoryId ?? t.id) === (updated.inventoryId ?? updated.id));
+                    if (idx !== -1) {
+                        state.items[idx] = updated;
+                    } else {
+                        // If transaction not found, add it to the list
+                        state.items.push(updated);
+                    }
+                }
+            })
+            .addCase(uploadReceiptThunk.rejected, (state, action) => {
                 state.status = 'failed';
                 state.error = action.payload;
             });
