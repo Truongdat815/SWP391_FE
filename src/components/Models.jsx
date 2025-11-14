@@ -367,37 +367,13 @@ const Models = () => {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4">
-            <div className="flex-1"></div>
-            <div className="flex-1 text-center">
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-                Dòng xe{' '}
-                <span className="bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent">
-                  <span className="text-green-600">Electra</span>
-                </span>
-              </h2>
-            </div>
-            <div className="flex-1 flex justify-center md:justify-end">
-              {displayModelColors.length > 0 && (
-                <motion.button
-                  onClick={() => setShowComparison(true)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-green-600 to-green-800 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-300 flex items-center gap-2 text-sm md:text-base"
-                >
-                  <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <span className="hidden sm:inline">So sánh xe</span>
-                  <span className="sm:hidden">So sánh</span>
-                  {selectedVehicles.length > 0 && (
-                    <span className="bg-white text-green-600 rounded-full px-2 py-0.5 text-xs font-bold">
-                      {selectedVehicles.length}
-                    </span>
-                  )}
-                </motion.button>
-              )}
-            </div>
+          <div className="text-center mb-6">
+            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+              Dòng xe{' '}
+              <span className="bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent">
+                <span className="text-green-600">Electra</span>
+              </span>
+            </h2>
           </div>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Khám phá bộ sưu tập xe điện đa dạng, từ xe đô thị nhỏ gọn đến SUV cao cấp, 
