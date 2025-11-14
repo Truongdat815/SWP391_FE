@@ -83,11 +83,10 @@ function PaymentManagement() {
       setContracts(contractsData);
     } catch (error) {
       console.error('Error fetching contracts:', error);
-      showError('Không thể tải danh sách hợp đồng: ' + (error.message || error));
     } finally {
       setLoading(false);
     }
-  }, [showError]);
+  }, []);
 
   // Fetch all payments
   const fetchAllPayments = useCallback(async () => {
@@ -97,9 +96,8 @@ function PaymentManagement() {
         setAllPayments(paymentsData);
       } catch (error) {
       console.error('Error fetching payments:', error);
-        showError('Không thể tải danh sách thanh toán: ' + (error.message || error));
       }
-  }, [showError]);
+  }, []);
 
   // Handle payment callback
   const handlePaymentCallback = useCallback(async (paymentId, status, vnpResponseCode) => {
@@ -122,8 +120,6 @@ function PaymentManagement() {
           // Show success message if payment completed
           if (paymentData.status === 'COMPLETED' || paymentData.status === 'SUCCESS' || paymentData.status === 'PAID') {
             success('Thanh toán đã hoàn tất thành công!');
-          } else if (paymentData.status === 'FAILED' || paymentData.status === 'CANCELLED') {
-            showError('Thanh toán đã bị hủy hoặc thất bại.');
           }
         }
       } else if (vnpResponseCode === '00') {
@@ -133,17 +129,15 @@ function PaymentManagement() {
         await fetchAllPayments();
       } else if (vnpResponseCode) {
         // VNPay error response
-        showError('Thanh toán đã bị hủy hoặc thất bại.');
         await fetchContracts();
         await fetchAllPayments();
       }
     } catch (error) {
       console.error('Error handling payment callback:', error);
-      showError('Không thể xử lý kết quả thanh toán: ' + (error.message || error));
     } finally {
       setLoadingPaymentDetail(false);
     }
-  }, [fetchContracts, fetchAllPayments, success, showError]);
+  }, [fetchContracts, fetchAllPayments, success]);
 
   // Fetch data on mount
   useEffect(() => {
@@ -265,7 +259,6 @@ function PaymentManagement() {
           return; // Don't close modal or show success yet - user will be redirected
         } else {
           console.error('Invalid payment URL response:', response);
-          showError('Không thể lấy URL thanh toán VNPay. Vui lòng thử lại.');
         }
       } else if (paymentForm.paymentMethod === 'CASH') {
         // For cash payments, show success immediately
@@ -304,7 +297,6 @@ function PaymentManagement() {
 
     } catch (error) {
       console.error('Error creating payment:', error);
-      showError('Không thể tạo thanh toán: ' + (error.message || error));
     } finally {
       setProcessingPayment(null);
     }

@@ -3,6 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAllStoreStocksThunk, createStoreStockThunk, updateStockQuantityThunk, updateStockPriceThunk, deleteStoreStockThunk } from '../../store/slices/store-stockSlice';
 import { createTransactionThunk } from '../../store/slices/inventoryTransactionSlice';
+import { getAllModelsThunk } from '../../store/slices/modelSlice';
+import { getAllModelColorsThunk } from '../../store/slices/modelColorSlice';
 import { showSuccess, showError, showWarning } from '../../store/slices/snackbarSlice';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -19,6 +21,8 @@ function Inventory() {
   const storeStocks = useSelector((state) => state.storeStocks.items);
   const storeStocksStatus = useSelector((state) => state.storeStocks.status);
   const storeStocksError = useSelector((state) => state.storeStocks.error);
+  const models = useSelector((state) => state.models.items);
+  const modelColors = useSelector((state) => state.modelColors.items);
   
   const [inventory, setInventory] = useState([]);
   const [filteredInventory, setFilteredInventory] = useState([]);
@@ -42,12 +46,8 @@ function Inventory() {
     expectedDelivery: ''
   });
   const [createData, setCreateData] = useState({
-    storeId: '',
-    storeName: '',
     modelId: '',
-    modelName: '',
     colorId: '',
-    colorName: '',
     priceOfStore: '',
     quantity: ''
   });
@@ -59,6 +59,8 @@ function Inventory() {
   // Fetch all store stocks from API
   useEffect(() => {
     dispatch(getAllStoreStocksThunk());
+    dispatch(getAllModelsThunk());
+    dispatch(getAllModelColorsThunk());
   }, [dispatch]);
 
   // Transform API data to match UI format
@@ -232,15 +234,25 @@ function Inventory() {
     });
   };
 
+  // Get available colors for selected model
+  const getAvailableColors = () => {
+    if (!createData.modelId) return [];
+    if (!modelColors || !Array.isArray(modelColors) || modelColors.length === 0) return [];
+    
+    const selectedModelId = String(createData.modelId);
+    const available = modelColors.filter(mc => {
+      const mcModelId = mc.modelId !== undefined ? String(mc.modelId) : null;
+      return mcModelId === selectedModelId;
+    });
+    
+    return available;
+  };
+
   // Create Store Stock handlers
   const handleOpenCreateModal = () => {
     setCreateData({
-      storeId: user?.storeId || '',
-      storeName: user?.storeName || '',
       modelId: '',
-      modelName: '',
       colorId: '',
-      colorName: '',
       priceOfStore: '',
       quantity: ''
     });
@@ -250,29 +262,35 @@ function Inventory() {
   const handleCloseCreateModal = () => {
     setCreateModal(false);
     setCreateData({
-      storeId: '',
-      storeName: '',
       modelId: '',
-      modelName: '',
       colorId: '',
-      colorName: '',
       priceOfStore: '',
       quantity: ''
     });
   };
 
   const handleCreateDataChange = (field, value) => {
-    setCreateData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setCreateData(prev => {
+      // If changing modelId, reset colorId
+      if (field === 'modelId') {
+        return {
+          ...prev,
+          modelId: value,
+          colorId: ''
+        };
+      }
+      return {
+        ...prev,
+        [field]: value
+      };
+    });
   };
 
   const handleSubmitCreate = async (e) => {
     e.preventDefault();
     
     // Validation
-    if (!createData.storeId || !createData.modelId || !createData.colorId || 
+    if (!createData.modelId || !createData.colorId || 
         !createData.priceOfStore || !createData.quantity) {
       dispatch(showWarning({ message: 'Vui lòng điền đầy đủ thông tin!' }));
       return;
@@ -289,7 +307,7 @@ function Inventory() {
     }
 
     try {
-      // Prepare payload according to new API: modelId, colorId, priceOfStore, quantity
+      // Prepare payload according to API: modelId, colorId, priceOfStore, quantity
       const payload = {
         modelId: parseInt(createData.modelId),
         colorId: parseInt(createData.colorId),
@@ -525,12 +543,19 @@ function Inventory() {
                 </p>
               )}
             </div>
-            {/* Dealer Staff cannot create stock */}
+            <button
+              onClick={handleOpenCreateModal}
+              className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              Thêm xe
+            </button>
           </div>
         </div>
 
         {/* Search Bar */}
-
         <div className="mb-4">
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -653,7 +678,7 @@ function Inventory() {
             <p className="mt-1 text-sm text-gray-500">
               {searchTerm 
                 ? 'Thử thay đổi từ khóa tìm kiếm.' 
-                : 'Kho hàng hiện tại chưa có xe nào. Vui lòng liên hệ quản lý để thêm xe vào kho.'
+                : 'Kho hàng hiện tại chưa có xe nào. Nhấn nút "Thêm xe" để thêm xe vào kho.'
               }
             </p>
           </div>
@@ -679,125 +704,82 @@ function Inventory() {
             </div>
 
             <form onSubmit={handleSubmitCreate} className="space-y-4">
-              {/* Store Information */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-3">Thông tin cửa hàng</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ID Cửa hàng *
-                    </label>
-                    <input
-                      type="number"
-                      value={createData.storeId}
-                      onChange={(e) => handleCreateDataChange('storeId', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tên cửa hàng *
-                    </label>
-                    <input
-                      type="text"
-                      value={createData.storeName}
-                      onChange={(e) => handleCreateDataChange('storeName', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                </div>
+              {/* Model Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Model <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={createData.modelId}
+                  onChange={(e) => handleCreateDataChange('modelId', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  required
+                >
+                  <option value="">-- Chọn model --</option>
+                  {models && models.map(model => (
+                    <option key={model.modelId} value={model.modelId}>
+                      {model.modelName}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              {/* Vehicle Information */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-3">Thông tin xe</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ID Model *
-                    </label>
-                    <input
-                      type="number"
-                      value={createData.modelId}
-                      onChange={(e) => handleCreateDataChange('modelId', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tên model *
-                    </label>
-                    <input
-                      type="text"
-                      value={createData.modelName}
-                      onChange={(e) => handleCreateDataChange('modelName', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      ID Màu sắc *
-                    </label>
-                    <input
-                      type="number"
-                      value={createData.colorId}
-                      onChange={(e) => handleCreateDataChange('colorId', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Tên màu sắc *
-                    </label>
-                    <input
-                      type="text"
-                      value={createData.colorName}
-                      onChange={(e) => handleCreateDataChange('colorName', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                      required
-                    />
-                  </div>
-                </div>
+              {/* Color Selection */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Màu sắc <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={createData.colorId}
+                  onChange={(e) => handleCreateDataChange('colorId', e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  required
+                  disabled={!createData.modelId}
+                >
+                  <option value="">-- Chọn màu sắc --</option>
+                  {getAvailableColors().map(mc => (
+                    <option key={mc.colorId || mc.id} value={mc.colorId || mc.id}>
+                      {mc.colorName || mc.name || `Màu #${mc.colorId || mc.id}`}
+                    </option>
+                  ))}
+                </select>
+                {!createData.modelId ? (
+                  <p className="mt-1 text-xs text-gray-500">Vui lòng chọn model trước</p>
+                ) : getAvailableColors().length === 0 ? (
+                  <p className="mt-1 text-xs text-amber-600">⚠️ Model này chưa có màu sắc nào được cấu hình</p>
+                ) : null}
               </div>
 
               {/* Price and Quantity */}
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h4 className="font-semibold text-gray-900 mb-3">Giá bán và số lượng</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Giá bán (VNĐ) *
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1000"
-                      value={createData.priceOfStore}
-                      onChange={(e) => handleCreateDataChange('priceOfStore', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                      placeholder="Ví dụ: 320000000"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Số lượng *
-                    </label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={createData.quantity}
-                      onChange={(e) => handleCreateDataChange('quantity', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                      placeholder="Ví dụ: 5"
-                      required
-                    />
-                  </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Giá bán (VNĐ) <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    step="1000"
+                    value={createData.priceOfStore}
+                    onChange={(e) => handleCreateDataChange('priceOfStore', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    placeholder="Ví dụ: 320000000"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Số lượng <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={createData.quantity}
+                    onChange={(e) => handleCreateDataChange('quantity', e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                    placeholder="Ví dụ: 5"
+                    required
+                  />
                 </div>
               </div>
 

@@ -9,7 +9,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
 
-function QuanLyNhanVien() {
+function EmployeeManagement() {
   const dispatch = useDispatch();
   const { user } = useAuth();
   const { toast, success, showError, hideToast } = useToast();
@@ -541,4 +541,8 @@ function QuanLyNhanVien() {
   );
 }
 
-export default QuanLyNhanVien;
+export default EmployeeManagement;
+
+
+
+

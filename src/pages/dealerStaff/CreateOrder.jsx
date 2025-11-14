@@ -708,6 +708,11 @@ function CreateOrder({ onBack }) {
       hour: '2-digit',
       minute: '2-digit'
     });
+    
+    // Calculate total registration fee + license plate fee from details
+    const totalRegistrationAndLicenseFee = details.reduce((sum, detail) => 
+      sum + (detail.registrationFee || 0) + (detail.licensePlateFee || 0), 0
+    );
 
     return `
 <!DOCTYPE html>
@@ -946,8 +951,8 @@ function CreateOrder({ onBack }) {
                 <span>${(orderData?.totalPrice || 0).toLocaleString('vi-VN')}đ</span>
             </div>
             <div class="total-row">
-                <span>Phí dịch vụ + biển số:</span>
-                <span>+${(orderData?.totalTaxPrice || 0).toLocaleString('vi-VN')}đ</span>
+                <span>Phí đăng ký + biển số:</span>
+                <span>+${totalRegistrationAndLicenseFee.toLocaleString('vi-VN')}đ</span>
             </div>
             <div class="total-row">
                 <span>Khuyến mãi:</span>
@@ -1704,40 +1709,21 @@ function CreateOrder({ onBack }) {
                     <div key={index} className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-lg p-3">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <div className="font-medium text-gray-900 mb-1">
+                          <div className="font-medium text-gray-900 mb-2">
                             {item.modelName || 'N/A'} - {item.colorName || 'N/A'}
                           </div>
-                          <div className="grid grid-cols-2 gap-2 text-sm text-gray-600 mt-2">
+                          <div className="space-y-1 text-sm text-gray-600">
                             <div>
                               <span className="font-semibold">Số lượng:</span> {item.quantity || 0}
                             </div>
-                            <div>
-                              <span className="font-semibold">Đơn giá:</span> {(item.unitPrice || 0).toLocaleString('vi-VN')}đ
-                            </div>
-                            <div>
-                              <span className="font-semibold">Phí đăng ký:</span> {(item.registrationFee || 0).toLocaleString('vi-VN')}đ
-                            </div>
-                            <div>
-                              <span className="font-semibold">Phí biển số:</span> {(item.licensePlateFee || 0).toLocaleString('vi-VN')}đ
-                            </div>
                             {item.promotionName && item.promotionName !== 'Không áp dụng' && (
                               <div>
-                                <span className="font-semibold">Khuyến mãi:</span> {item.promotionName}
+                                <span className="font-semibold">Khuyến mãi:</span>{' '}
+                                <span className="inline-flex items-center px-2 py-0.5 bg-pink-100 text-pink-800 rounded-md text-xs font-medium ml-1">
+                                  {item.promotionName}
+                                </span>
                               </div>
                             )}
-                            {item.discountAmount > 0 && (
-                              <div>
-                                <span className="font-semibold">Giảm giá:</span> -{(item.discountAmount || 0).toLocaleString('vi-VN')}đ
-                              </div>
-                            )}
-                          </div>
-                          <div className="mt-2 pt-2 border-t border-gray-300">
-                            <div className="flex justify-between items-center">
-                              <span className="text-sm font-semibold text-gray-700">Thành tiền:</span>
-                              <span className="text-base font-bold text-emerald-600">
-                                {(item.totalPrice || 0).toLocaleString('vi-VN')}đ
-                              </span>
-                            </div>
                           </div>
                         </div>
                         <button
@@ -1768,9 +1754,21 @@ function CreateOrder({ onBack }) {
                         </span>
                       </div>
                       <div className="flex justify-between">
-                        <span className="text-emerald-700">Phí dịch vụ + biển số:</span>
+                        <span className="text-emerald-700">Phí đăng ký + biển số:</span>
                         <span className="font-semibold text-orange-600">
-                          +{(orderDetailsResponse.totalTaxPrice || 0).toLocaleString('vi-VN')}đ
+                          +{(() => {
+                            // Calculate total from selectedItems or orderDetailsResponse.getOrderDetailsResponses
+                            if (selectedItems && selectedItems.length > 0) {
+                              return selectedItems.reduce((sum, item) => 
+                                sum + (item.registrationFee || 0) + (item.licensePlateFee || 0), 0
+                              );
+                            } else if (orderDetailsResponse?.getOrderDetailsResponses) {
+                              return orderDetailsResponse.getOrderDetailsResponses.reduce((sum, detail) => 
+                                sum + (detail.registrationFee || 0) + (detail.licensePlateFee || 0), 0
+                              );
+                            }
+                            return 0;
+                          })().toLocaleString('vi-VN')}đ
                         </span>
                       </div>
                       <div className="flex justify-between">

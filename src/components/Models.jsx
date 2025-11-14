@@ -34,117 +34,84 @@ const Models = () => {
         setLoading(true);
         setError(null);
         
-        // Fetch models
-        let res;
+        // Fetch model-colors first (main endpoint for displaying vehicles)
+        let modelColorsRes;
         try {
-            res = await get('/api/models/all');
+          modelColorsRes = await get('/api/model-colors/all', { skipAuth: true });
         } catch (err) {
-            if (err.message && err.message.includes('401')) {
-                console.log('🔓 Trying as public endpoint (no token)...');
-                res = await get('/api/models/all', { skipAuth: true });
-            } else {
-                throw err;
-            }
+          // If public endpoint fails (e.g., requires auth), show error
+          if (err.status === 401 || err.status === 403) {
+            console.log('⚠️ Model-colors endpoint requires authentication');
+            setError('Yêu cầu đăng nhập để xem danh sách xe');
+          } else {
+            console.warn('⚠️ Could not fetch model-colors:', err.message || 'Unknown error');
+            setError(err.message || 'Không thể tải danh sách mẫu xe');
+          }
+          modelColorsRes = { data: [] };
         }
-        // Handle different response structures
-        let modelsData = null;
-        if (res?.data?.data && Array.isArray(res.data.data)) {
-          modelsData = res.data.data;
-        } else if (res?.data && Array.isArray(res.data)) {
-          modelsData = res.data;
-        } else if (Array.isArray(res)) {
-          modelsData = res;
+          
+        let modelColorsData = null;
+        if (modelColorsRes?.data?.data && Array.isArray(modelColorsRes.data.data)) {
+          modelColorsData = modelColorsRes.data.data;
+        } else if (modelColorsRes?.data && Array.isArray(modelColorsRes.data)) {
+          modelColorsData = modelColorsRes.data;
+        } else if (Array.isArray(modelColorsRes)) {
+          modelColorsData = modelColorsRes;
         } else {
-          modelsData = [];
+          modelColorsData = [];
         }
-        
-        if (modelsData && Array.isArray(modelsData)) {
-          setModels(modelsData);
+          
+        if (modelColorsData && Array.isArray(modelColorsData) && modelColorsData.length > 0) {
+          setModelColors(modelColorsData);
         } else {
-          setModels([]);
-        }
-
-        // Fetch model-colors to get prices and images
-        // Note: This endpoint may require authentication, so we'll handle errors gracefully
-        try {
-          let modelColorsRes;
-          const token = localStorage.getItem('access_token') || localStorage.getItem('accessToken');
-          
-          if (token) {
-            // If user is logged in, try with auth first
-            try {
-              modelColorsRes = await get('/api/model-colors');
-            } catch (err) {
-              // If auth fails (e.g., token expired), silently fail
-              // Page will still work with models and default images
-              console.log('⚠️ Could not fetch model-colors (auth required):', err.message || 'Unauthorized');
-              modelColorsRes = { data: [] };
-            }
-          } else {
-            // If no token, endpoint requires auth - skip silently
-            // Page will still work with models and default images
-            console.log('⚠️ Model-colors endpoint requires authentication (skipping)');
-            modelColorsRes = { data: [] };
-          }
-          
-          let modelColorsData = null;
-          if (modelColorsRes?.data?.data && Array.isArray(modelColorsRes.data.data)) {
-            modelColorsData = modelColorsRes.data.data;
-          } else if (modelColorsRes?.data && Array.isArray(modelColorsRes.data)) {
-            modelColorsData = modelColorsRes.data;
-          } else if (Array.isArray(modelColorsRes)) {
-            modelColorsData = modelColorsRes;
-          } else {
-            modelColorsData = [];
-          }
-          
-          if (modelColorsData && Array.isArray(modelColorsData) && modelColorsData.length > 0) {
-            setModelColors(modelColorsData);
-          } else {
-            setModelColors([]);
-          }
-        } catch (err) {
-          // Silently handle errors - page will still work
-          // Only log if it's not a 401 (expected when not authenticated)
-          if (err.status !== 401) {
-            console.warn('⚠️ Could not fetch model-colors:', err);
-          }
           setModelColors([]);
         }
 
+        // Fetch models for additional details (optional, handle 401 gracefully)
+        try {
+          let res = await get('/api/models/all', { skipAuth: true });
+          // Handle different response structures
+          let modelsData = null;
+          if (res?.data?.data && Array.isArray(res.data.data)) {
+            modelsData = res.data.data;
+          } else if (res?.data && Array.isArray(res.data)) {
+            modelsData = res.data;
+          } else if (Array.isArray(res)) {
+            modelsData = res;
+          } else {
+            modelsData = [];
+          }
+          
+          if (modelsData && Array.isArray(modelsData)) {
+            setModels(modelsData);
+          } else {
+            setModels([]);
+          }
+        } catch (err) {
+          // Silently handle 401 for models endpoint - we can still work with model-colors
+          if (err.status === 401 || err.status === 403) {
+            console.log('⚠️ Models endpoint requires authentication (skipping, using model-colors data only)');
+          } else {
+            console.warn('⚠️ Could not fetch models:', err.message || 'Unknown error');
+          }
+          setModels([]);
+        }
+
         // Fetch colors to get color codes and names
-        // Try public endpoint first, then fallback to auth if needed
+        // Try public endpoint first, fallback gracefully if it requires auth
         try {
           let colorsRes;
-          const token = localStorage.getItem('access_token') || localStorage.getItem('accessToken');
-          
-          if (token) {
-            // If user is logged in, try with auth first
-            try {
-              colorsRes = await get('/api/colors/all');
-            } catch (err) {
-              // If auth fails, try without auth (public endpoint)
-              try {
-                colorsRes = await get('/api/colors/all', { skipAuth: true });
-              } catch (publicErr) {
-                // Silently fail if both fail
-                if (publicErr.status !== 401) {
-                  console.warn('⚠️ Could not fetch colors:', publicErr);
-                }
-                colorsRes = { data: [] };
-              }
+          try {
+            // Try public endpoint first
+            colorsRes = await get('/api/colors/all', { skipAuth: true });
+          } catch (err) {
+            // If public endpoint fails (e.g., requires auth), silently fail
+            if (err.status === 401 || err.status === 403) {
+              console.log('⚠️ Colors endpoint requires authentication (skipping)');
+            } else {
+              console.warn('⚠️ Could not fetch colors:', err.message || 'Unknown error');
             }
-          } else {
-            // If no token, try public endpoint directly
-            try {
-              colorsRes = await get('/api/colors/all', { skipAuth: true });
-            } catch (err) {
-              // Silently fail if public endpoint doesn't exist or requires auth
-              if (err.status !== 401) {
-                console.warn('⚠️ Could not fetch colors:', err);
-              }
-              colorsRes = { data: [] };
-            }
+            colorsRes = { data: [] };
           }
           
           let colorsData = null;

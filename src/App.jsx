@@ -25,11 +25,8 @@ import CommonHelp from './pages/common/CommonHelp'
 
 // Dealer Manager Sub Pages
 import DealerManagerDashboard from './pages/dealerManager/DealerManagerDashboard'
-import TaoBaoCao from './pages/dealerManager/TaoBaoCao'
 import BaoCaoDoanhSo from './pages/dealerManager/BaoCaoDoanhSo'
-import XuatBaoCao from './pages/dealerManager/XuatBaoCao'
-import QuanLyNhanVien from './pages/dealerManager/QuanLyNhanVien'
-import QuanLyCongNo from './pages/dealerManager/QuanLyCongNo'
+import EmployeeManagement from './pages/dealerManager/EmployeeManagement'
 import DealerManagerInventory from './pages/dealerManager/InventoryManagement'
 import DealerManagerSettings from './pages/dealerManager/DealerManagerSettings'
 import DealerManagerOrders from './pages/dealerManager/OrderManagement'
@@ -172,11 +169,8 @@ function AnimatedRoutes() {
             <Route path="inventory" element={<DealerManagerInventory />} />
             <Route path="orders" element={<DealerManagerOrders />} />
             <Route path="promotion-management" element={<PromotionManagement />} />
-            <Route path="tao-bao-cao" element={<TaoBaoCao />} />
             <Route path="bao-cao-doanh-so" element={<BaoCaoDoanhSo />} />
-            <Route path="quan-ly-nhan-vien" element={<QuanLyNhanVien />} />
-            <Route path="quan-ly-cong-no" element={<QuanLyCongNo />} />
-            <Route path="xuat-bao-cao" element={<XuatBaoCao />} />
+            <Route path="quan-ly-nhan-vien" element={<EmployeeManagement />} />
             <Route path="profile" element={<CommonProfile />} />
             <Route path="settings" element={<DealerManagerSettings />} />
             <Route path="help" element={<CommonHelp />} />
