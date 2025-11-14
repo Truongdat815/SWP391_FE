@@ -4,31 +4,84 @@ import { motion } from 'framer-motion';
 import { getModelImage, getModelPoster, formatPrice, formatNumber } from '../../utils/modelHelpers';
 import logo from '../../assets/images/logo.png';
 import Tooltip from '@/components/ui/Tooltip';
-import { get } from '@/api/client';
+import { get, API_URL } from '@/api/client';
 
 function CarDetail() {
   const { modelId } = useParams();
   
   const [currentModel, setCurrentModel] = useState(null)
+  const [modelColors, setModelColors] = useState([])
+  const [colors, setColors] = useState([])
+  const [selectedColorId, setSelectedColorId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [selectedImage, setSelectedImage] = useState('main')
   const [activeTab, setActiveTab] = useState('overview')
 
+  // Get image URL from model-color imagePath
+  const getImageUrl = (imagePath) => {
+    if (!imagePath || imagePath.trim() === '') {
+      return null;
+    }
+    
+    let url = imagePath.trim();
+    
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      return url;
+    }
+    
+    if (url.startsWith('/')) {
+      if (API_URL && API_URL.trim() !== '') {
+        return `${API_URL}${url}`;
+      }
+      return url;
+    }
+    
+    if (API_URL && API_URL.trim() !== '') {
+      return `${API_URL}/${url}`;
+    }
+    
+    return url;
+  };
+
+  const getColorName = (colorId) => {
+    const color = colors.find(c => c.colorId === colorId);
+    return color?.colorName || modelColors.find(mc => mc.colorId === colorId)?.colorName || `Color #${colorId}`;
+  };
+
+  const getColorCode = (colorId) => {
+    const color = colors.find(c => c.colorId === colorId);
+    return color?.colorCode || '#CCCCCC';
+  };
+
+  // Get current model-color based on selected color
+  const getCurrentModelColor = () => {
+    if (!modelColors || modelColors.length === 0) return null;
+    
+    const modelColorsForModel = modelColors.filter(mc => mc.modelId === parseInt(modelId));
+    if (modelColorsForModel.length === 0) return null;
+    
+    if (selectedColorId) {
+      const selected = modelColorsForModel.find(mc => mc.colorId === selectedColorId);
+      if (selected) return selected;
+    }
+    
+    return modelColorsForModel[0];
+  };
+
   useEffect(() => {
     window.scrollTo(0, 0)
     
-    const fetchModels = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true)
         setError(null)
         
-        // Try with token first, if fails with 401, try without token (public endpoint)
+        // Fetch model
         let res;
         try {
             res = await get('/api/models/all');
         } catch (err) {
-            // If 401, try as public endpoint
             if (err.message && err.message.includes('401')) {
                 console.log('🔓 Trying as public endpoint (no token)...');
                 res = await get('/api/models/all', { skipAuth: true });
@@ -37,7 +90,6 @@ function CarDetail() {
             }
         }
         
-        // Handle different response structures
         let data = null;
         if (res?.data?.data && Array.isArray(res.data.data)) {
             data = res.data.data;
@@ -53,21 +105,66 @@ function CarDetail() {
           ? data.find(m => m.modelId === parseInt(modelId))
           : null;
         
-        if (foundModel) {
-          setCurrentModel(foundModel);
-        } else {
+        if (!foundModel) {
           throw new Error(`Không tìm thấy xe với ID: ${modelId}`);
         }
         
+        setCurrentModel(foundModel);
+
+        // Fetch model-colors
+        try {
+          let modelColorsRes = await get('/api/model-colors/all', { skipAuth: true });
+          let modelColorsData = null;
+          if (modelColorsRes?.data?.data && Array.isArray(modelColorsRes.data.data)) {
+            modelColorsData = modelColorsRes.data.data;
+          } else if (modelColorsRes?.data && Array.isArray(modelColorsRes.data)) {
+            modelColorsData = modelColorsRes.data;
+          } else if (Array.isArray(modelColorsRes)) {
+            modelColorsData = modelColorsRes;
+          } else {
+            modelColorsData = [];
+          }
+          
+          const modelColorsForModel = modelColorsData.filter(mc => mc.modelId === parseInt(modelId));
+          setModelColors(modelColorsForModel);
+          
+          // Set default selected color to first available
+          if (modelColorsForModel.length > 0 && !selectedColorId) {
+            setSelectedColorId(modelColorsForModel[0].colorId);
+          }
+        } catch (err) {
+          console.warn('Could not fetch model-colors:', err);
+          setModelColors([]);
+        }
+
+        // Fetch colors
+        try {
+          let colorsRes = await get('/api/colors/all', { skipAuth: true });
+          let colorsData = null;
+          if (colorsRes?.data?.data && Array.isArray(colorsRes.data.data)) {
+            colorsData = colorsRes.data.data;
+          } else if (colorsRes?.data && Array.isArray(colorsRes.data)) {
+            colorsData = colorsRes.data;
+          } else if (Array.isArray(colorsRes)) {
+            colorsData = colorsRes;
+          } else {
+            colorsData = [];
+          }
+          setColors(colorsData);
+        } catch (err) {
+          console.warn('Could not fetch colors:', err);
+          setColors([]);
+        }
+        
       } catch (error) {
-        console.error('Error fetching models:', error)
+        console.error('Error fetching data:', error)
         setError(error.message || 'Không thể tải thông tin xe')
       } finally {
         setLoading(false)
       }
     }
     
-    fetchModels()
+    fetchData()
   }, [modelId])
 
   // Loading state
@@ -198,72 +295,73 @@ function CarDetail() {
               <div className="relative group">
                 <div className="absolute -inset-4 bg-gradient-to-r from-emerald-400/20 to-blue-400/20 rounded-3xl blur-xl group-hover:blur-2xl transition-all duration-500"></div>
                 <div className="relative bg-white rounded-3xl shadow-2xl overflow-hidden border border-gray-100">
-                  <img 
-                    src={selectedImage === 'main' ? getModelImage(currentModel.modelName) : getModelPoster(currentModel.modelName)}
-                    alt={currentModel.modelName}
-                    className="w-full h-[500px] object-cover group-hover:scale-105 transition-transform duration-700"
-                    onError={(e) => e.target.src = logo}
-                  />
+                  {(() => {
+                    const currentModelColor = getCurrentModelColor();
+                    const imageUrl = currentModelColor 
+                      ? getImageUrl(currentModelColor.imagePath) 
+                      : (selectedImage === 'main' ? getModelImage(currentModel.modelName) : getModelPoster(currentModel.modelName));
+                    
+                    return (
+                      <img 
+                        key={selectedColorId || 'default'}
+                        src={imageUrl || logo}
+                        alt={currentModel.modelName}
+                        className="w-full h-[500px] object-cover group-hover:scale-105 transition-transform duration-700"
+                        onError={(e) => {
+                          if (e.target.src !== logo) {
+                            e.target.src = logo;
+                          }
+                        }}
+                      />
+                    );
+                  })()}
                   
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="absolute bottom-6 left-6 right-6">
-                      <div className="flex space-x-3">
-                        <Tooltip content="Xem hình ảnh chính của xe" placement="top">
-                          <button
-                            onClick={() => setSelectedImage('main')}
-                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                              selectedImage === 'main' 
-                                ? 'bg-white text-emerald-600 shadow-lg' 
-                                : 'bg-white/80 text-gray-600 hover:bg-white'
-                            }`}
-                          >
-                            Hình chính
-                          </button>
-                        </Tooltip>
-                        <Tooltip content="Xem poster quảng cáo của xe" placement="top">
-                          <button
-                            onClick={() => setSelectedImage('poster')}
-                            className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                              selectedImage === 'poster' 
-                                ? 'bg-white text-emerald-600 shadow-lg' 
-                                : 'bg-white/80 text-gray-600 hover:bg-white'
-                            }`}
-                          >
-                            Poster
-                          </button>
-                        </Tooltip>
+                  {/* Color Badge */}
+                  {getCurrentModelColor() && (
+                    <div className="absolute top-6 right-6">
+                      <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg">
+                        <div 
+                          className="w-5 h-5 rounded-full border-2 border-white shadow-sm"
+                          style={{ backgroundColor: getColorCode(getCurrentModelColor().colorId) }}
+                        />
+                        <span className="text-sm font-semibold text-gray-700">
+                          {getColorName(getCurrentModelColor().colorId)}
+                        </span>
                       </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
-              <div className="flex space-x-4 justify-center">
-                <button
-                  onClick={() => setSelectedImage('main')}
-                  className={`w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
-                    selectedImage === 'main' ? 'border-emerald-500 shadow-lg' : 'border-gray-200 hover:border-emerald-300'
-                  }`}
-                >
-                  <img 
-                    src={getModelImage(currentModel.modelName)} 
-                    alt="Main view"
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-                <button
-                  onClick={() => setSelectedImage('poster')}
-                  className={`w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${
-                    selectedImage === 'poster' ? 'border-emerald-500 shadow-lg' : 'border-gray-200 hover:border-emerald-300'
-                  }`}
-                >
-                  <img 
-                    src={getModelPoster(currentModel.modelName)} 
-                    alt="Poster view"
-                    className="w-full h-full object-cover"
-                  />
-                </button>
-              </div>
+              {/* Color Selection */}
+              {modelColors.length > 1 && (
+                <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-lg">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Chọn màu xe</h3>
+                  <div className="flex flex-wrap gap-3">
+                    {modelColors.map((mc) => (
+                      <button
+                        key={mc.modelColorId || `${mc.modelId}-${mc.colorId}`}
+                        onClick={() => setSelectedColorId(mc.colorId)}
+                        className={`flex items-center gap-2 px-4 py-2 rounded-xl border-2 transition-all ${
+                          selectedColorId === mc.colorId
+                            ? 'border-emerald-500 bg-emerald-50 shadow-md'
+                            : 'border-gray-200 hover:border-emerald-300 bg-white'
+                        }`}
+                      >
+                        <div 
+                          className="w-6 h-6 rounded-full border-2 border-white shadow-sm"
+                          style={{ backgroundColor: getColorCode(mc.colorId) }}
+                        />
+                        <span className={`text-sm font-medium ${
+                          selectedColorId === mc.colorId ? 'text-emerald-700' : 'text-gray-700'
+                        }`}>
+                          {getColorName(mc.colorId)}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </motion.div>
 
             {/* Product Info - CHỈ HIỂN THỊ THÔNG TIN THỰC TỪ API */}
@@ -284,8 +382,8 @@ function CarDetail() {
                 <h1 className="text-6xl font-bold text-gray-900 mb-4 leading-tight">
                   {currentModel.modelName}
                 </h1>
-                <p className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-emerald-700 bg-clip-text text-transparent">
-                  {formatPrice(currentModel.price)}
+                <p className="text-xl font-medium text-gray-600">
+                  Vui lòng liên hệ hãng để biết thêm thông tin
                 </p>
               </div>
 
