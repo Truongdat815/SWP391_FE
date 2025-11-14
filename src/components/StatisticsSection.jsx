@@ -45,9 +45,9 @@ const StatisticsSection = () => {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+          <h2 className="text-4xl md:text-5xl font-extrabold text-white mb-6 tracking-tight">
             Tác động{' '}
-            <span className="text-green-300">môi trường</span>
+            <span className="bg-gradient-to-r from-emerald-300 via-sky-300 to-emerald-300 bg-clip-text text-transparent">môi trường</span>
           </h2>
           <p className="text-xl text-gray-200 max-w-3xl mx-auto">
             Cùng Electra góp phần bảo vệ môi trường và xây dựng tương lai xanh bền vững
@@ -65,7 +65,7 @@ const StatisticsSection = () => {
               viewport={{ once: true }}
               className="text-center"
             >
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-8 border border-white/20 hover:bg-white/15 transition-all duration-300">
+              <div className="bg-white/10 backdrop-blur-md rounded-2xl p-8 border border-white/20 hover:bg-white/15 hover:border-emerald-400/40 transition-all duration-300 shadow-xl">
                 <h3 className="text-lg font-semibold text-white mb-4 tracking-wide">
                   {stat.label}
                 </h3>

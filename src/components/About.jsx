@@ -32,11 +32,12 @@ const About = () => {
   ];
 
   return (
-    <section className="relative py-24 bg-white overflow-hidden">
-      {/* Background decorative elements */}
+    <section id="about" className="relative py-24 bg-gradient-to-b from-slate-50 via-white to-slate-50 overflow-hidden">
+      {/* Background decorative elements - Professional subtle gradients */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-green-100 rounded-full blur-3xl opacity-30"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-100 rounded-full blur-3xl opacity-30"></div>
+        <div className="absolute -top-40 -right-40 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute top-1/2 -left-40 w-96 h-96 bg-sky-500/5 rounded-full blur-3xl"></div>
+        <div className="absolute -bottom-40 right-1/3 w-80 h-80 bg-amber-500/5 rounded-full blur-3xl"></div>
       </div>
 
       <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -48,14 +49,14 @@ const About = () => {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <div className="inline-block mb-4">
-            <span className="text-sm font-semibold text-green-600 uppercase tracking-wider">
+          <div className="inline-block mb-6">
+            <span className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-sm font-bold text-emerald-700 uppercase tracking-wider">
               Về chúng tôi
             </span>
           </div>
-          <h2 className="text-5xl md:text-6xl font-extrabold text-gray-900 mb-6 leading-tight">
+          <h2 className="text-5xl md:text-6xl font-extrabold text-slate-900 mb-6 leading-tight tracking-tight">
             Electra
-            <span className="block text-3xl md:text-4xl font-normal text-gray-600 mt-2">
+            <span className="block text-3xl md:text-4xl font-semibold bg-gradient-to-r from-emerald-600 to-sky-600 bg-clip-text text-transparent mt-3">
               Di chuyển thông minh cho tương lai
             </span>
           </h2>
@@ -103,8 +104,8 @@ const About = () => {
               viewport={{ once: true }}
               className="group relative"
             >
-              <div className="relative h-full bg-gradient-to-br from-gray-50 to-white rounded-2xl p-6 border border-gray-100 hover:border-green-200 transition-all duration-300 hover:shadow-lg">
-                <div className="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-green-50 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="relative h-full bg-white rounded-2xl p-6 border border-slate-200/60 hover:border-emerald-300/60 transition-all duration-300 hover:shadow-xl hover:shadow-emerald-500/5">
+                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-emerald-500/10 via-sky-500/5 to-transparent rounded-bl-full opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
                 
                 <div className="relative">
                   <div className="flex items-start justify-between mb-3">
@@ -112,7 +113,7 @@ const About = () => {
                       {item.title}
                     </h3>
                   </div>
-                  <div className="inline-block px-3 py-1 bg-green-100 text-green-700 text-xs font-semibold rounded-full mb-3">
+                  <div className="inline-block px-3 py-1.5 bg-gradient-to-r from-emerald-500/10 to-sky-500/10 border border-emerald-500/20 text-emerald-700 text-xs font-bold rounded-full mb-3">
                     {item.detail}
                   </div>
                   <p className="text-sm text-gray-600 leading-relaxed">
@@ -132,7 +133,7 @@ const About = () => {
           viewport={{ once: true }}
           className="mt-20 text-center"
         >
-          <div className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 rounded-full text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105">
+          <div className="inline-flex items-center gap-2 px-8 py-4 bg-gradient-to-r from-emerald-600 via-emerald-500 to-sky-500 rounded-xl text-white font-bold shadow-xl shadow-emerald-500/30 hover:shadow-2xl hover:shadow-emerald-500/40 transition-all duration-300 hover:scale-105">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>

@@ -368,12 +368,17 @@ const Models = () => {
           className="text-center mb-16"
         >
           <div className="text-center mb-6">
-            <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
-              Dòng xe{' '}
-              <span className="bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent">
-                <span className="text-green-600">Electra</span>
-              </span>
-            </h2>
+              <div className="inline-block mb-4">
+                <span className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-sm font-bold text-emerald-700 uppercase tracking-wider">
+                  Sản phẩm
+                </span>
+              </div>
+              <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-6 tracking-tight">
+                Dòng xe{' '}
+                <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-sky-600 bg-clip-text text-transparent">
+                  Electra
+                </span>
+              </h2>
           </div>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Khám phá bộ sưu tập xe điện đa dạng, từ xe đô thị nhỏ gọn đến SUV cao cấp, 
@@ -443,7 +448,7 @@ const Models = () => {
                 y: -8,
                 transition: { duration: 0.3, ease: "easeOut" }
               }}
-              className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100"
+              className="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-500 overflow-hidden border border-slate-200/60 hover:border-emerald-300/60"
             >
               {/* Image Container */}
               <div className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
@@ -474,7 +479,7 @@ const Models = () => {
                 {/* Body Type Badge */}
                 {modelDetails?.bodyType && (
                   <div className="absolute top-4 left-4">
-                    <span className="bg-gradient-to-r from-green-600 to-green-800 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                    <span className="bg-gradient-to-r from-slate-900/90 to-slate-800/90 backdrop-blur-sm text-white px-4 py-1.5 rounded-full text-xs font-bold tracking-wide border border-white/10">
                       {modelDetails.bodyType}
                     </span>
                   </div>
@@ -585,7 +590,7 @@ const Models = () => {
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className="w-full bg-[#6CA12B] text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-300"
+                        className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 transition-all duration-300"
                       >
                         Xem chi tiết
                       </motion.button>
@@ -661,11 +666,11 @@ const Models = () => {
           viewport={{ once: true }}
           className="text-center mt-16"
         >
-          <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-2xl p-8 text-white">
+          <div className="bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 rounded-2xl p-8 text-white border border-emerald-500/20 shadow-2xl">
             <h3 className="text-3xl font-bold mb-4">
               Chưa tìm thấy mẫu xe phù hợp?
             </h3>
-            <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
+            <p className="text-slate-200 mb-6 max-w-2xl mx-auto text-lg">
               Liên hệ với đội ngũ tư vấn chuyên nghiệp của chúng tôi để được hỗ trợ 
               tìm kiếm mẫu xe phù hợp nhất với nhu cầu của bạn.
             </p>
@@ -673,7 +678,7 @@ const Models = () => {
               href="/signin"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="bg-white text-green-600 px-8 py-4 rounded-full font-semibold hover:shadow-lg transition-all duration-300 inline-block text-center"
+              className="bg-white text-emerald-600 px-8 py-4 rounded-xl font-bold shadow-xl hover:shadow-2xl transition-all duration-300 inline-block text-center"
             >
               Liên hệ với đại lí 
             </motion.a>
