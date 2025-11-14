@@ -124,8 +124,9 @@ const Hero = () => {
                 />
               </div>
               
-              {/* Overlay */}
-              <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
+              {/* Overlay - Professional gradient */}
+              <div className="absolute inset-0 bg-gradient-to-r from-slate-900/85 via-slate-800/60 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-emerald-900/20 via-transparent to-transparent" />
               
               {/* Content */}
               <div className="relative h-full flex items-center">
@@ -137,15 +138,27 @@ const Hero = () => {
                       transition={{ delay: 0.5, duration: 0.8 }}
                       className="mb-6"
                     >
-                      <h1 className="text-5xl md:text-7xl font-bold text-white mb-4 leading-tight">
+                      <div className="inline-block mb-4">
+                        <span className="px-4 py-2 bg-emerald-500/20 backdrop-blur-sm border border-emerald-400/30 rounded-full text-emerald-300 text-sm font-semibold tracking-wide">
+                          XE ĐIỆN TƯƠNG LAI
+                        </span>
+                      </div>
+                      <h1 className="text-5xl md:text-7xl font-extrabold text-white mb-4 leading-tight tracking-tight">
                         {slide.title}
                       </h1>
-                      <h2 className="text-2xl md:text-3xl text-blue-300 font-semibold mb-6">
+                      <h2 className="text-2xl md:text-3xl text-emerald-400 font-semibold mb-6">
                         {slide.subtitle}
                       </h2>
-                      <p className="text-lg md:text-xl text-gray-200 leading-relaxed mb-8">
+                      <p className="text-lg md:text-xl text-slate-200 leading-relaxed mb-8 max-w-xl">
                         {slide.description}
                       </p>
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        className="px-8 py-4 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white font-bold rounded-xl shadow-2xl shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all duration-300"
+                      >
+                        Khám phá ngay
+                      </motion.button>
                     </motion.div>
                   </div>
                 </div>
@@ -185,7 +198,7 @@ const Hero = () => {
         }
         
         .hero-swiper .swiper-pagination-bullet-active {
-          background: #3b82f6;
+          background: #10b981;
           transform: scale(1.2);
         }
         
