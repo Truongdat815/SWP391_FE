@@ -29,6 +29,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import StatusBadge from '../../components/ui/StatusBadge';
 import EmptyState from '../../components/ui/EmptyState';
 import ModernButton from '../../components/ui/ModernButton';
+import OrderStatusStepper from '../../components/ui/OrderStatusStepper';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
 import { 
@@ -63,6 +64,17 @@ function InventoryManagement() {
   const promotionsStatus = useSelector((s) => s.promotions.loading);
 
   const myStoreId = user?.storeId;
+
+  // Debug: Log user info to verify storeId
+  useEffect(() => {
+    console.log('User Info:', { 
+      userId: user?.userId,
+      username: user?.username, 
+      role: user?.role, 
+      storeId: user?.storeId,
+      fullUser: user 
+    });
+  }, [user]);
 
   // Tab state
   const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' or 'transactions'
@@ -108,11 +120,29 @@ function InventoryManagement() {
   const [newPrice, setNewPrice] = useState('');
 
   useEffect(() => {
+    // Initial load
     dispatch(getAllStoreStocksThunk());
     dispatch(getAllTransactionsThunk());
     dispatch(getAllModelColorsThunk());
     dispatch(getAllModelsThunk());
     dispatch(fetchActivePromotions());
+
+    // Auto-refresh transactions every 10 seconds to catch updates from EVM staff
+    const refreshInterval = setInterval(() => {
+      dispatch(getAllTransactionsThunk());
+    }, 10000); // Refresh every 10 seconds
+
+    // Also refresh when window regains focus (user switches back to tab)
+    const handleFocus = () => {
+      dispatch(getAllTransactionsThunk());
+      dispatch(getAllStoreStocksThunk());
+    };
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      clearInterval(refreshInterval);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [dispatch]);
 
   // Transform API data to match UI format (inventory view)
@@ -178,27 +208,75 @@ function InventoryManagement() {
 
   // Get my store's transactions (filtered by storeId)
   const myTransactions = useMemo(() => {
-    if (!myStoreId || !transactions || transactions.length === 0) return [];
+    if (!myStoreId) {
+      console.log('No storeId found for user');
+      return [];
+    }
     
+    if (!transactions || transactions.length === 0) {
+      console.log('No transactions available');
+      return [];
+    }
+    
+    console.log('Total transactions:', transactions.length);
+    console.log('My storeId:', myStoreId);
+    
+    // Get all stock IDs that belong to this store
     const myStockIds = new Set(
       storeStocks
         .filter(s => s.storeId === myStoreId)
         .map(s => s.stockId)
     );
     
-    return transactions
+    console.log('My stock IDs:', Array.from(myStockIds));
+    
+    const filtered = transactions
       .filter(t => {
-        // Check if transaction belongs to my store
-        const belongsToMyStore = myStockIds.has(t.storeStockId) || 
-                                 (t.storeStock && t.storeStock.storeId === myStoreId);
-        return belongsToMyStore;
+        // Method 1: Check if transaction has storeId field directly
+        if (t.storeId && t.storeId === myStoreId) {
+          console.log('Transaction matched by storeId:', t.inventoryId || t.id, 'status:', t.status);
+          return true;
+        }
+        
+        // Method 2: Check if transaction has storeStockId that belongs to my store
+        if (t.storeStockId && myStockIds.has(t.storeStockId)) {
+          console.log('Transaction matched by storeStockId:', t.inventoryId || t.id, 'status:', t.status);
+          return true;
+        }
+        
+        // Method 3: Check if transaction has populated storeStock object
+        if (t.storeStock && t.storeStock.storeId === myStoreId) {
+          console.log('Transaction matched by storeStock.storeId:', t.inventoryId || t.id, 'status:', t.status);
+          return true;
+        }
+        
+        // Method 4: Check if transaction was created by this store (via modelId/colorId match)
+        // This handles cases where transaction is created but storeStock doesn't exist yet
+        if (t.modelId && t.colorId) {
+          const matchingStock = storeStocks.find(s => 
+            s.storeId === myStoreId &&
+            s.modelId === t.modelId &&
+            s.colorId === t.colorId
+          );
+          if (matchingStock) {
+            console.log('Transaction matched by modelId/colorId:', t.inventoryId || t.id, 'status:', t.status);
+            return true;
+          }
+        }
+        
+        return false;
       })
       .sort((a, b) => {
         // Sort by transaction date (newest first)
-        const dateA = new Date(a.transactionDate || a.createdAt || 0);
-        const dateB = new Date(b.transactionDate || b.createdAt || 0);
+        const dateA = new Date(a.orderDate || a.transactionDate || a.createdAt || 0);
+        const dateB = new Date(b.orderDate || b.transactionDate || b.createdAt || 0);
         return dateB - dateA;
       });
+    
+    console.log('Filtered transactions for my store:', filtered.length);
+    console.log('Transaction statuses:', filtered.map(t => ({ id: t.inventoryId || t.id, status: t.status })));
+    
+    return filtered;
   }, [transactions, storeStocks, myStoreId]);
 
   // Calculate statistics
@@ -272,6 +350,8 @@ function InventoryManagement() {
       'ACCEPTED': 'bg-blue-100 text-blue-800 border-blue-300',
       'APPROVED': 'bg-blue-100 text-blue-800 border-blue-300',
       'CONFIRMED': 'bg-blue-100 text-blue-800 border-blue-300',
+      'FILE_UPLOADED': 'bg-amber-100 text-amber-800 border-amber-300',
+      'PAYMENT_CONFIRMED': 'bg-teal-100 text-teal-800 border-teal-300',
       'SHIPPING': 'bg-purple-100 text-purple-800 border-purple-300',
       'IN_TRANSIT': 'bg-purple-100 text-purple-800 border-purple-300',
       'COMPLETED': 'bg-green-100 text-green-800 border-green-300',
@@ -316,12 +396,40 @@ function InventoryManagement() {
       return;
     }
 
+    if (!myStoreId) {
+      dispatch(showError({ message: 'Không tìm thấy thông tin cửa hàng. Vui lòng đăng nhập lại.' }));
+      return;
+    }
+
     try {
-      const payload = {
+      // Find the corresponding storeStock entry
+      const stockEntry = storeStocks.find(s => 
+        s.storeId === myStoreId &&
+        s.modelId === parseInt(requestData.modelId) &&
+        s.colorId === parseInt(requestData.colorId)
+      );
+
+      console.log('Found stock entry:', stockEntry);
+      console.log('User storeId:', myStoreId);
+      console.log('Selected modelId:', requestData.modelId, 'colorId:', requestData.colorId);
+
+      // Backend might need storeStockId (ID of existing stock entry)
+      // Try sending both storeStockId and other info for backend flexibility
+      const payload = stockEntry ? {
+        storeStockId: stockEntry.stockId,
+        storeId: myStoreId,
+        modelId: parseInt(requestData.modelId),
+        colorId: parseInt(requestData.colorId),
+        importQuantity: parseInt(requestData.importQuantity)
+      } : {
+        // If no stock entry exists, send all info for backend to create
+        storeId: myStoreId,
         modelId: parseInt(requestData.modelId),
         colorId: parseInt(requestData.colorId),
         importQuantity: parseInt(requestData.importQuantity)
       };
+
+      console.log('Creating transaction with payload:', payload);
 
       await dispatch(createTransactionThunk(payload)).unwrap();
       
@@ -407,6 +515,20 @@ function InventoryManagement() {
     setUploadReceiptModal(true);
   };
 
+  // Get status message for transaction
+  const getStatusMessage = (statusUpper) => {
+    const messages = {
+      'PENDING': 'Đang chờ EVM xử lý yêu cầu',
+      'CONFIRMED': 'Đã được EVM chấp nhận. Vui lòng upload biên lai thanh toán.',
+      'FILE_UPLOADED': 'Đã upload biên lai. Đang chờ EVM xác nhận thanh toán.',
+      'PAYMENT_CONFIRMED': 'Thanh toán đã được xác nhận. Đang chờ EVM bắt đầu vận chuyển.',
+      'IN_TRANSIT': 'Đang vận chuyển. Vui lòng xác nhận khi nhận được hàng.',
+      'DELIVERED': 'Đã hoàn thành và cập nhật vào kho',
+      'REJECTED': 'Yêu cầu đã bị từ chối bởi EVM'
+    };
+    return messages[statusUpper] || '';
+  };
+
   // Handle close upload receipt modal
   const handleCloseUploadReceipt = () => {
     setUploadReceiptModal(false);
@@ -444,8 +566,18 @@ function InventoryManagement() {
       return;
     }
 
+    const inventoryId = selectedReceiptTransaction.inventoryId || selectedReceiptTransaction.id;
+    
+    // Validate inventory ID
+    if (!inventoryId) {
+      dispatch(showError({ message: 'Lỗi: Không tìm thấy ID của transaction. Vui lòng thử lại.' }));
+      return;
+    }
+
     try {
-      const inventoryId = selectedReceiptTransaction.inventoryId || selectedReceiptTransaction.id;
+      // Refresh transaction data first to ensure we have the latest info
+      console.log('Uploading receipt for transaction ID:', inventoryId);
+      
       await dispatch(uploadReceiptThunk({ inventoryId, file: receiptFile })).unwrap();
       dispatch(showSuccess({ 
         message: '✅ Đã upload biên lai thanh toán thành công! Vui lòng chờ EVM xác nhận.' 
@@ -456,7 +588,23 @@ function InventoryManagement() {
       // Refresh transactions to show updated status
       dispatch(getAllTransactionsThunk());
     } catch (error) {
-      dispatch(showError({ message: error?.message || 'Không thể upload biên lai' }));
+      console.error('Upload receipt error:', error);
+      
+      // Handle specific database duplicate error
+      const errorMessage = error?.message || '';
+      if (errorMessage.includes('Query did not return a unique result') || 
+          errorMessage.includes('nhiều bản ghi trùng lặp') ||
+          errorMessage.includes('8 results were returned') ||
+          errorMessage.includes('results were returned')) {
+        
+        dispatch(showError({ 
+          message: `❌ Lỗi database: Tìm thấy nhiều bản ghi trùng lặp với Transaction ID ${inventoryId} trong database. Đây là lỗi backend cần được sửa. Vui lòng liên hệ admin/backend team để: 1) Kiểm tra duplicate records trong bảng inventory_transactions, 2) Xóa hoặc merge các bản ghi trùng lặp, 3) Đảm bảo inventoryId là unique constraint.` 
+        }));
+      } else {
+        dispatch(showError({ 
+          message: errorMessage || 'Không thể upload biên lai. Vui lòng thử lại sau.' 
+        }));
+      }
     }
   };
 
@@ -501,8 +649,14 @@ function InventoryManagement() {
       return;
     }
 
+    if (!myStoreId) {
+      dispatch(showError({ message: 'Không tìm thấy thông tin cửa hàng. Vui lòng đăng nhập lại.' }));
+      return;
+    }
+
     try {
       const payload = {
+        storeId: myStoreId,
         modelId: parseInt(createStockData.modelId),
         colorId: parseInt(createStockData.colorId),
         priceOfStore: parseFloat(createStockData.priceOfStore),
@@ -878,22 +1032,15 @@ function InventoryManagement() {
                   roleColor="blue"
                 />
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {myTransactions.map((transaction, index) => {
                     const stock = getStockInfoForTransaction(transaction);
                     const statusUpper = (transaction.status || '').toUpperCase();
-                    const canConfirmDelivery = statusUpper === 'SHIPPING' || statusUpper === 'IN_TRANSIT';
-                    const canUploadReceipt = statusUpper === 'ACCEPTED' || statusUpper === 'APPROVED' || statusUpper === 'CONFIRMED';
-                    
-                    // Get status icon
-                    const getStatusIcon = () => {
-                      if (statusUpper === 'PENDING') return <Clock className="w-5 h-5" />;
-                      if (statusUpper === 'CONFIRMED' || statusUpper === 'ACCEPTED' || statusUpper === 'APPROVED') return <CheckCircle2 className="w-5 h-5" />;
-                      if (statusUpper === 'SHIPPING' || statusUpper === 'IN_TRANSIT') return <Truck className="w-5 h-5" />;
-                      if (statusUpper === 'COMPLETED' || statusUpper === 'DELIVERED' || statusUpper === 'FINISH') return <CheckCircle2 className="w-5 h-5" />;
-                      if (statusUpper === 'REJECTED') return <XCircle className="w-5 h-5" />;
-                      return <FileText className="w-5 h-5" />;
-                    };
+                    const canConfirmDelivery = statusUpper === 'IN_TRANSIT';
+                    // Allow upload receipt for CONFIRMED, ACCEPTED, or APPROVED status
+                    const canUploadReceipt = statusUpper === 'CONFIRMED' || 
+                                            statusUpper === 'ACCEPTED' || 
+                                            statusUpper === 'APPROVED';
                     
                     return (
                       <motion.div
@@ -901,141 +1048,172 @@ function InventoryManagement() {
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-md border border-gray-200 p-6"
+                        className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200 overflow-hidden"
                       >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1">
-                            {/* Header with Status */}
-                            <div className="flex items-center gap-3 mb-4">
-                              <div className={`p-2 rounded-lg ${getStatusColor(transaction.status)}`}>
-                                {getStatusIcon()}
+                        {/* Order Header with ID and Date */}
+                        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-white/20 rounded-lg">
+                                <FileText className="w-6 h-6" />
                               </div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-1">
-                                  <span className={`px-3 py-1 rounded-full text-xs font-bold border ${getStatusColor(transaction.status)}`}>
-                                    {statusUpper}
-                                  </span>
-                                  <span className="text-sm text-gray-500 font-medium">
-                                    #{transaction.inventoryId || transaction.id}
-                                  </span>
-                                  <span className="text-sm text-gray-500 flex items-center gap-1">
-                                    <Calendar className="w-4 h-4" />
-                                    {transaction.transactionDate 
-                                      ? new Date(transaction.transactionDate).toLocaleDateString('vi-VN', {
-                                          year: 'numeric',
-                                          month: 'short',
-                                          day: 'numeric',
-                                          hour: '2-digit',
-                                          minute: '2-digit'
-                                        })
-                                      : 'N/A'
-                                    }
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                            
-                            {/* Transaction Details Grid */}
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                                <p className="text-xs text-gray-500 mb-2 font-medium">Model • Màu</p>
-                                <p className="text-sm font-bold text-gray-900">
-                                  {stock ? `${stock.modelName} • ${stock.colorName}` : 'N/A'}
-                                </p>
-                              </div>
-                              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                                <p className="text-xs text-gray-500 mb-2 font-medium">Số lượng</p>
-                                <p className="text-sm font-bold text-emerald-600 flex items-center gap-1">
-                                  <Package className="w-4 h-4" />
-                                  {transaction.importQuantity} xe
-                                </p>
-                              </div>
-                              <div className="bg-white rounded-lg p-4 border border-gray-200">
-                                <p className="text-xs text-gray-500 mb-2 font-medium">Ngày giao dự kiến</p>
-                                <p className="text-sm font-bold text-gray-900 flex items-center gap-1">
-                                  <Calendar className="w-4 h-4 text-blue-600" />
-                                  {transaction.deliveryDate 
-                                    ? new Date(transaction.deliveryDate).toLocaleDateString('vi-VN')
-                                    : 'Chưa xác định'
+                              <div>
+                                <h3 className="text-lg font-bold">Đơn hàng #{transaction.inventoryId || transaction.id}</h3>
+                                <p className="text-sm text-blue-100">
+                                  {transaction.orderDate 
+                                    ? new Date(transaction.orderDate).toLocaleDateString('vi-VN', {
+                                        year: 'numeric',
+                                        month: 'long',
+                                        day: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })
+                                    : 'N/A'
                                   }
                                 </p>
                               </div>
-                              {transaction.totalPrice > 0 && (
-                                <div className="bg-white rounded-lg p-4 border border-gray-200">
-                                  <p className="text-xs text-gray-500 mb-2 font-medium">Tổng giá</p>
-                                  <p className="text-sm font-bold text-gray-900 flex items-center gap-1">
-                                    <DollarSign className="w-4 h-4 text-emerald-600" />
-                                    {formatPrice(transaction.totalPrice)} VNĐ
-                                  </p>
+                            </div>
+                            <StatusBadge status={transaction.status} size="md" />
+                          </div>
+                        </div>
+
+                        <div className="p-6 space-y-6">
+                          {/* Order Status Stepper */}
+                          <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border border-gray-200">
+                            <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
+                              <TrendingUp className="w-4 h-4 text-blue-600" />
+                              Tiến trình đơn hàng
+                            </h4>
+                            <OrderStatusStepper currentStatus={transaction.status} size="sm" />
+                          </div>
+                          
+                          {/* Transaction Details Grid */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                              <p className="text-xs text-gray-500 mb-2 font-medium">Model • Màu</p>
+                              <p className="text-sm font-bold text-gray-900">
+                                {stock ? `${stock.modelName} • ${stock.colorName}` : 'N/A'}
+                              </p>
+                            </div>
+                            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                              <p className="text-xs text-gray-500 mb-2 font-medium">Số lượng</p>
+                              <p className="text-sm font-bold text-emerald-600 flex items-center gap-1">
+                                <Package className="w-4 h-4" />
+                                {transaction.importQuantity} xe
+                              </p>
+                            </div>
+                            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                              <p className="text-xs text-gray-500 mb-2 font-medium">Ngày giao dự kiến</p>
+                              <p className="text-sm font-bold text-gray-900 flex items-center gap-1">
+                                <Calendar className="w-4 h-4 text-blue-600" />
+                                {transaction.deliveryDate 
+                                  ? new Date(transaction.deliveryDate).toLocaleDateString('vi-VN')
+                                  : 'Chưa xác định'
+                                }
+                              </p>
+                            </div>
+                            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                              <p className="text-xs text-gray-500 mb-2 font-medium">Tổng giá</p>
+                              <p className="text-sm font-bold text-gray-900 flex items-center gap-1">
+                                <DollarSign className="w-4 h-4 text-emerald-600" />
+                                {transaction.totalPrice > 0 ? formatPrice(transaction.totalPrice) : 'N/A'} VNĐ
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Price Breakdown (if available) */}
+                          {transaction.totalPrice > 0 && (transaction.unitBasePrice || transaction.discountPercentage > 0) && (
+                            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-5 border border-emerald-200">
+                              <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                                <DollarSign className="w-4 h-4 text-emerald-600" />
+                                Chi tiết giá
+                              </h4>
+                              <div className="space-y-2">
+                                {transaction.unitBasePrice && (
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Đơn giá:</span>
+                                    <span className="font-medium text-gray-900">{formatPrice(transaction.unitBasePrice)} VNĐ</span>
+                                  </div>
+                                )}
+                                {transaction.totalBasePrice && (
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-600">Tổng cơ bản:</span>
+                                    <span className="font-medium text-gray-900">{formatPrice(transaction.totalBasePrice)} VNĐ</span>
+                                  </div>
+                                )}
+                                {transaction.discountPercentage > 0 && (
+                                  <div className="flex justify-between text-sm text-orange-600">
+                                    <span>Giảm giá ({transaction.discountPercentage}%):</span>
+                                    <span className="font-medium">-{formatPrice(transaction.discountAmount)} VNĐ</span>
+                                  </div>
+                                )}
+                                <div className="pt-2 border-t-2 border-emerald-200 flex justify-between">
+                                  <span className="text-sm font-bold text-gray-900">Tổng thanh toán:</span>
+                                  <span className="text-lg font-bold text-emerald-600">{formatPrice(transaction.totalPrice)} VNĐ</span>
                                 </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Status Message */}
+                          {getStatusMessage(statusUpper) && (
+                            <div className={`rounded-xl p-4 flex items-center gap-3 ${
+                              statusUpper === 'PENDING' ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200' :
+                              statusUpper === 'CONFIRMED' ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200' :
+                              statusUpper === 'FILE_UPLOADED' ? 'bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200' :
+                              statusUpper === 'PAYMENT_CONFIRMED' ? 'bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200' :
+                              statusUpper === 'IN_TRANSIT' ? 'bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200' :
+                              statusUpper === 'DELIVERED' ? 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200' :
+                              statusUpper === 'REJECTED' ? 'bg-gradient-to-r from-red-50 to-pink-50 border border-red-200' :
+                              'bg-gray-50 border border-gray-200'
+                            }`}>
+                              {statusUpper === 'PENDING' && <Clock className="w-5 h-5 text-yellow-600" />}
+                              {statusUpper === 'CONFIRMED' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
+                              {statusUpper === 'FILE_UPLOADED' && <Upload className="w-5 h-5 text-amber-600" />}
+                              {statusUpper === 'PAYMENT_CONFIRMED' && <CheckCircle2 className="w-5 h-5 text-teal-600" />}
+                              {statusUpper === 'IN_TRANSIT' && <Truck className="w-5 h-5 text-purple-600" />}
+                              {statusUpper === 'DELIVERED' && <CheckCircle2 className="w-5 h-5 text-green-600" />}
+                              {statusUpper === 'REJECTED' && <XCircle className="w-5 h-5 text-red-600" />}
+                              <p className={`text-sm font-medium ${
+                                statusUpper === 'PENDING' ? 'text-yellow-800' :
+                                statusUpper === 'CONFIRMED' ? 'text-blue-800' :
+                                statusUpper === 'FILE_UPLOADED' ? 'text-amber-800' :
+                                statusUpper === 'PAYMENT_CONFIRMED' ? 'text-teal-800' :
+                                statusUpper === 'IN_TRANSIT' ? 'text-purple-800' :
+                                statusUpper === 'DELIVERED' ? 'text-green-800' :
+                                statusUpper === 'REJECTED' ? 'text-red-800' :
+                                'text-gray-800'
+                              }`}>
+                                {getStatusMessage(statusUpper)}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Action Buttons */}
+                          {(canUploadReceipt || canConfirmDelivery) && (
+                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                              {canUploadReceipt && (
+                                <ModernButton
+                                  onClick={() => handleOpenUploadReceipt(transaction)}
+                                  icon={<Upload className="w-4 h-4" />}
+                                  roleColor="blue"
+                                  size="md"
+                                >
+                                  Upload biên lai
+                                </ModernButton>
+                              )}
+                              {canConfirmDelivery && (
+                                <ModernButton
+                                  onClick={() => handleOpenConfirmDelivery(transaction)}
+                                  icon={<CheckCircle2 className="w-4 h-4" />}
+                                  roleColor="green"
+                                  size="md"
+                                >
+                                  Xác nhận nhận hàng
+                                </ModernButton>
                               )}
                             </div>
-
-                            {/* Status-specific information */}
-                            {statusUpper === 'PENDING' && (
-                              <div className="bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200 rounded-xl p-4 mb-3 flex items-center gap-3">
-                                <Clock className="w-5 h-5 text-yellow-600" />
-                                <p className="text-sm font-medium text-yellow-800">
-                                  Đang chờ EVM xử lý yêu cầu
-                                </p>
-                              </div>
-                            )}
-                            {(statusUpper === 'ACCEPTED' || statusUpper === 'APPROVED' || statusUpper === 'CONFIRMED') && (
-                              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-4 mb-3 flex items-center gap-3">
-                                <CheckCircle2 className="w-5 h-5 text-blue-600" />
-                                <p className="text-sm font-medium text-blue-800">
-                                  Đã được EVM chấp nhận. Vui lòng upload biên lai thanh toán để tiếp tục.
-                                </p>
-                              </div>
-                            )}
-                            {(statusUpper === 'SHIPPING' || statusUpper === 'IN_TRANSIT') && (
-                              <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4 mb-3 flex items-center gap-3">
-                                <Truck className="w-5 h-5 text-purple-600" />
-                                <p className="text-sm font-medium text-purple-800">
-                                  Đang vận chuyển, vui lòng xác nhận khi nhận được hàng
-                                </p>
-                              </div>
-                            )}
-                            {(statusUpper === 'COMPLETED' || statusUpper === 'DELIVERED' || statusUpper === 'FINISH') && (
-                              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-xl p-4 mb-3 flex items-center gap-3">
-                                <CheckCircle2 className="w-5 h-5 text-green-600" />
-                                <p className="text-sm font-medium text-green-800">
-                                  Đã hoàn thành và cập nhật vào kho
-                                </p>
-                              </div>
-                            )}
-                            {statusUpper === 'REJECTED' && (
-                              <div className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-xl p-4 mb-3 flex items-center gap-3">
-                                <XCircle className="w-5 h-5 text-red-600" />
-                                <p className="text-sm font-medium text-red-800">
-                                  Yêu cầu đã bị từ chối bởi EVM
-                                </p>
-                              </div>
-                            )}
-                          </div>
-
-                          <div className="flex-shrink-0 flex flex-col gap-2">
-                            {canUploadReceipt && (
-                              <ModernButton
-                                onClick={() => handleOpenUploadReceipt(transaction)}
-                                icon={<Upload className="w-4 h-4" />}
-                                roleColor="blue"
-                                size="md"
-                              >
-                                Upload biên lai
-                              </ModernButton>
-                            )}
-                            {canConfirmDelivery && (
-                              <ModernButton
-                                onClick={() => handleOpenConfirmDelivery(transaction)}
-                                icon={<CheckCircle2 className="w-4 h-4" />}
-                                roleColor="green"
-                                size="md"
-                              >
-                                Xác nhận nhận hàng
-                              </ModernButton>
-                            )}
-                          </div>
+                          )}
                         </div>
                       </motion.div>
                     );

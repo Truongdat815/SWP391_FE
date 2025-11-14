@@ -4,10 +4,38 @@ import * as inventoryTransactionService from '@api/inventory-transactionService'
 // Thunks
 export const getAllTransactionsThunk = createAsyncThunk(
     'inventoryTransactions/getAll',
-    async (_, { rejectWithValue }) => {
+    async (_, { rejectWithValue, getState }) => {
         try {
-            return await inventoryTransactionService.getAllTransactions();
+            // Get user role from auth state to determine if we need all transactions
+            const state = getState();
+            const user = state.auth?.user;
+            const userRole = user?.roleId || user?.roleName?.toLowerCase() || '';
+            
+            // EVM Staff (roleId: 2) and Admin (roleId: 1) don't have storeId, need all transactions
+            const isEvmStaff = userRole === 2 || userRole === 'evm-staff' || 
+                              (typeof userRole === 'string' && userRole.includes('nhân viên hãng xe'));
+            const isAdmin = userRole === 1 || userRole === 'admin' || 
+                           (typeof userRole === 'string' && userRole.includes('quản trị viên'));
+            
+            // If user is EVM Staff or Admin, request all transactions without store filter
+            const options = (isEvmStaff || isAdmin) ? { all: true } : {};
+            
+            return await inventoryTransactionService.getAllTransactions(options);
         } catch (err) {
+            // Handle specific error code 1004 (store not found) for EVM Staff
+            const errorCode = err.code || (err.response?.code);
+            const errorMessage = err.message || '';
+            
+            if (errorCode === 1004 || errorMessage.includes('Không tìm thấy store') || errorMessage.includes('1004')) {
+                // User is likely EVM Staff/Admin without storeId, retry with all=true
+                console.log('Store not found error (1004), retrying with all=true for EVM Staff/Admin');
+                try {
+                    return await inventoryTransactionService.getAllTransactions({ all: true });
+                } catch (retryErr) {
+                    console.error('Retry failed:', retryErr);
+                    return rejectWithValue(retryErr.message || 'Failed to fetch inventory transactions');
+                }
+            }
             return rejectWithValue(err.message || 'Failed to fetch inventory transactions');
         }
     }
@@ -120,6 +148,17 @@ export const confirmDeliveryTransactionThunk = createAsyncThunk(
             return await inventoryTransactionService.confirmDeliveryTransaction(inventoryId);
         } catch (err) {
             return rejectWithValue(err.message || 'Failed to confirm delivery');
+        }
+    }
+);
+
+export const confirmPaymentTransactionThunk = createAsyncThunk(
+    'inventoryTransactions/confirmPayment',
+    async (inventoryId, { rejectWithValue }) => {
+        try {
+            return await inventoryTransactionService.confirmPaymentTransaction(inventoryId);
+        } catch (err) {
+            return rejectWithValue(err.message || 'Failed to confirm payment');
         }
     }
 );
@@ -340,6 +379,27 @@ const inventoryTransactionSlice = createSlice({
                 }
             })
             .addCase(confirmDeliveryTransactionThunk.rejected, (state, action) => {
+                state.status = 'failed';
+                state.error = action.payload;
+            })
+            // confirm payment
+            .addCase(confirmPaymentTransactionThunk.pending, (state) => {
+                state.status = 'loading';
+                state.error = null;
+            })
+            .addCase(confirmPaymentTransactionThunk.fulfilled, (state, action) => {
+                state.status = 'succeeded';
+                const updated = action.payload?.data || action.payload;
+                if (updated) {
+                    const idx = state.items.findIndex(t => (t.inventoryId ?? t.id) === (updated.inventoryId ?? updated.id));
+                    if (idx !== -1) {
+                        state.items[idx] = updated;
+                    } else {
+                        state.items.push(updated);
+                    }
+                }
+            })
+            .addCase(confirmPaymentTransactionThunk.rejected, (state, action) => {
                 state.status = 'failed';
                 state.error = action.payload;
             })

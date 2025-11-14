@@ -84,11 +84,41 @@ export const statusColors = {
     light: 'bg-blue-100',
     dot: 'bg-blue-500'
   },
+  FILE_UPLOADED: {
+    bg: 'bg-gradient-to-r from-amber-500 to-orange-500',
+    text: 'text-white',
+    light: 'bg-amber-100',
+    dot: 'bg-amber-500'
+  },
+  PAYMENT_CONFIRMED: {
+    bg: 'bg-gradient-to-r from-teal-500 to-cyan-500',
+    text: 'text-white',
+    light: 'bg-teal-100',
+    dot: 'bg-teal-500'
+  },
+  IN_TRANSIT: {
+    bg: 'bg-gradient-to-r from-purple-500 to-indigo-500',
+    text: 'text-white',
+    light: 'bg-purple-100',
+    dot: 'bg-purple-500'
+  },
+  DELIVERED: {
+    bg: 'bg-gradient-to-r from-green-600 to-emerald-600',
+    text: 'text-white',
+    light: 'bg-green-100',
+    dot: 'bg-green-600'
+  },
   COMPLETED: {
     bg: 'bg-gradient-to-r from-green-500 to-teal-500',
     text: 'text-white',
     light: 'bg-green-100',
     dot: 'bg-green-500'
+  },
+  REJECTED: {
+    bg: 'bg-gradient-to-r from-red-500 to-pink-500',
+    text: 'text-white',
+    light: 'bg-red-100',
+    dot: 'bg-red-500'
   },
   CANCELLED: {
     bg: 'bg-gradient-to-r from-red-500 to-pink-500',

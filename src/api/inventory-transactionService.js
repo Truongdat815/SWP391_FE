@@ -18,13 +18,38 @@ async function request(path, { method = 'GET', body } = {}) {
     const data = isJson ? await res.json() : await res.text();
     if (!res.ok) {
         const message = (isJson && data?.message) || res.statusText || 'Request failed';
-        throw new Error(message);
+        const error = new Error(message);
+        error.status = res.status;
+        error.code = isJson && data?.code ? data.code : null;
+        error.response = data;
+        throw error;
     }
     return data;
 }
 
 // Inventory Transactions API
-export async function getAllTransactions() {
+export async function getAllTransactions(options = {}) {
+    // For EVM Staff or Admin (users without storeId), try different approaches
+    if (options.all === true || options.includeAll === true) {
+        // Try with query parameter first
+        try {
+            const params = new URLSearchParams();
+            params.append('all', 'true');
+            const url = `/api/inventory-transactions/all?${params.toString()}`;
+            return await request(url, { method: 'GET' });
+        } catch (err) {
+            // If query parameter doesn't work, try admin endpoint
+            try {
+                return await request('/api/inventory-transactions/admin/all', { method: 'GET' });
+            } catch (adminErr) {
+                // If admin endpoint doesn't exist, try without store filter
+                // Backend should handle based on JWT token role
+                return await request('/api/inventory-transactions/all', { method: 'GET' });
+            }
+        }
+    }
+    
+    // Default: regular endpoint (for dealer manager/staff with storeId)
     return request('/api/inventory-transactions/all', { method: 'GET' });
 }
 
@@ -73,6 +98,10 @@ export async function confirmDeliveryTransaction(inventoryId) {
     return request(`/api/inventory-transactions/confirm-delivery/${encodeURIComponent(inventoryId)}`, { method: 'PUT' });
 }
 
+export async function confirmPaymentTransaction(inventoryId) {
+    return request(`/api/inventory-transactions/${encodeURIComponent(inventoryId)}/confirm-payment`, { method: 'PUT' });
+}
+
 export async function uploadReceipt(inventoryId, file) {
     const token = getToken();
     const url = `${API_URL}/api/inventory-transactions/${encodeURIComponent(inventoryId)}/upload-receipt`;
@@ -103,6 +132,12 @@ export async function uploadReceipt(inventoryId, file) {
                      data?.error || 
                      data?.errorMessage || 
                      (typeof data === 'string' ? data : JSON.stringify(data));
+            
+            // Handle specific database errors
+            if (message.includes('Query did not return a unique result') || 
+                message.includes('8 results were returned')) {
+                message = 'Lỗi database: Tìm thấy nhiều bản ghi trùng lặp với ID này. Vui lòng liên hệ admin để kiểm tra database.';
+            }
         } else if (typeof data === 'string') {
             message = data;
         }
@@ -115,6 +150,7 @@ export async function uploadReceipt(inventoryId, file) {
         // Include full error details for debugging
         const error = new Error(message);
         error.status = res.status;
+        error.code = isJson && data?.code ? data.code : null;
         error.response = data;
         throw error;
     }
