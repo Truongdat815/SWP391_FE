@@ -431,7 +431,30 @@ function InventoryManagement() {
 
       console.log('Creating transaction with payload:', payload);
 
-      await dispatch(createTransactionThunk(payload)).unwrap();
+      const response = await dispatch(createTransactionThunk(payload)).unwrap();
+      const createdTransaction = response?.data || response;
+      
+      console.log('Transaction created successfully:', {
+        inventoryId: createdTransaction.inventoryId || createdTransaction.id,
+        modelId: createdTransaction.modelId,
+        colorId: createdTransaction.colorId,
+        storeStockId: createdTransaction.storeStockId,
+        storeId: createdTransaction.storeId,
+        importQuantity: createdTransaction.importQuantity,
+        fullResponse: createdTransaction
+      });
+      
+      // Verify the created transaction has correct modelId and colorId
+      if (createdTransaction.modelId !== parseInt(requestData.modelId) || 
+          createdTransaction.colorId !== parseInt(requestData.colorId)) {
+        console.error('⚠️ WARNING: Created transaction has mismatched model/color!', {
+          expected: { modelId: parseInt(requestData.modelId), colorId: parseInt(requestData.colorId) },
+          actual: { modelId: createdTransaction.modelId, colorId: createdTransaction.colorId }
+        });
+        dispatch(showWarning({ 
+          message: `⚠️ Cảnh báo: Transaction được tạo nhưng model/color có thể không khớp. Vui lòng kiểm tra lại.` 
+        }));
+      }
       
       // Get model and color names for success message
       const selectedModel = models.find(m => m.modelId === parseInt(requestData.modelId));
@@ -476,15 +499,89 @@ function InventoryManagement() {
   const handleConfirmDelivery = async () => {
     if (!selectedTransaction) return;
 
+    // Validate transaction has required info
+    const inventoryId = selectedTransaction.inventoryId || selectedTransaction.id;
+    const modelId = selectedTransaction.modelId;
+    const colorId = selectedTransaction.colorId;
+    const storeStockId = selectedTransaction.storeStockId;
+    const storeId = selectedTransaction.storeId || myStoreId;
+
+    console.log('Confirming delivery for transaction:', {
+      inventoryId,
+      modelId,
+      colorId,
+      storeStockId,
+      storeId,
+      importQuantity: selectedTransaction.importQuantity,
+      fullTransaction: selectedTransaction
+    });
+
+    // Validate required fields
+    if (!inventoryId) {
+      dispatch(showError({ message: 'Lỗi: Không tìm thấy ID của transaction' }));
+      return;
+    }
+
+    if (!modelId || !colorId) {
+      dispatch(showError({ 
+        message: `Lỗi: Transaction thiếu thông tin model (${modelId}) hoặc color (${colorId}). Vui lòng liên hệ admin.` 
+      }));
+      return;
+    }
+
     // Get current stock info before confirmation
     const stock = getStockInfoForTransaction(selectedTransaction);
-    const currentQuantity = stock?.quantity || 0;
+    
+    // If storeStockId exists, verify it matches the model/color
+    if (storeStockId && stock) {
+      if (stock.modelId !== modelId || stock.colorId !== colorId) {
+        dispatch(showError({ 
+          message: `⚠️ Cảnh báo: storeStockId (${storeStockId}) không khớp với model/color của transaction. Model: ${stock.modelName} (${stock.modelId}) vs ${modelId}, Color: ${stock.colorName} (${stock.colorId}) vs ${colorId}. Vui lòng kiểm tra lại.` 
+        }));
+        // Still proceed but log the mismatch
+        console.warn('StoreStock mismatch:', {
+          transactionModelId: modelId,
+          transactionColorId: colorId,
+          stockModelId: stock.modelId,
+          stockColorId: stock.colorId
+        });
+      }
+    }
+
+    // Find the correct stock entry by modelId + colorId + storeId
+    const correctStock = storeStocks.find(s => 
+      s.storeId === storeId &&
+      s.modelId === modelId &&
+      s.colorId === colorId
+    );
+
+    if (!correctStock && !storeStockId) {
+      dispatch(showError({ 
+        message: `Lỗi: Không tìm thấy stock entry cho Model ID ${modelId}, Color ID ${colorId}, Store ID ${storeId}. Vui lòng tạo stock entry trước.` 
+      }));
+      return;
+    }
+
+    const currentQuantity = correctStock?.quantity || stock?.quantity || 0;
     const newQuantity = currentQuantity + selectedTransaction.importQuantity;
 
+    console.log('Stock info:', {
+      foundStock: stock,
+      correctStock,
+      currentQuantity,
+      newQuantity,
+      willUpdateStockId: correctStock?.stockId || storeStockId
+    });
+
     try {
-      await dispatch(confirmDeliveryTransactionThunk(selectedTransaction.inventoryId || selectedTransaction.id)).unwrap();
+      await dispatch(confirmDeliveryTransactionThunk(inventoryId)).unwrap();
+      
+      const stockName = correctStock ? `${correctStock.modelName} • ${correctStock.colorName}` : 
+                       stock ? `${stock.modelName} • ${stock.colorName}` : 
+                       `Model ${modelId} • Color ${colorId}`;
+      
       dispatch(showSuccess({ 
-        message: `✅ Đã xác nhận nhận hàng thành công! Đã cập nhật +${selectedTransaction.importQuantity} xe vào kho (từ ${currentQuantity} → ${newQuantity} xe)` 
+        message: `✅ Đã xác nhận nhận hàng thành công! Đã cập nhật +${selectedTransaction.importQuantity} xe vào kho ${stockName} (từ ${currentQuantity} → ${newQuantity} xe)` 
       }));
       
       setConfirmDeliveryModal(false);
@@ -494,6 +591,7 @@ function InventoryManagement() {
       dispatch(getAllStoreStocksThunk());
       dispatch(getAllTransactionsThunk());
     } catch (error) {
+      console.error('Confirm delivery error:', error);
       dispatch(showError({ message: error?.message || 'Không thể xác nhận giao hàng' }));
     }
   };
@@ -1392,49 +1490,111 @@ function InventoryManagement() {
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Model • Màu:</span>
-                    <span className="text-sm font-medium text-gray-900">
-                      {(() => {
-                        const stock = getStockInfoForTransaction(selectedTransaction);
-                        return stock ? `${stock.modelName} • ${stock.colorName}` : 'N/A';
-                      })()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Số lượng nhận:</span>
-                    <span className="text-sm font-medium text-gray-900">{selectedTransaction.importQuantity} xe</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Tồn kho hiện tại:</span>
-                    <span className="text-sm font-medium text-gray-900">
-                      {(() => {
-                        const stock = getStockInfoForTransaction(selectedTransaction);
-                        return stock ? `${stock.quantity} xe` : 'N/A';
-                      })()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Tồn kho sau khi nhận:</span>
-                    <span className="text-sm font-bold text-green-600">
-                      {(() => {
-                        const stock = getStockInfoForTransaction(selectedTransaction);
-                        const currentQty = stock?.quantity || 0;
-                        return `${currentQty + selectedTransaction.importQuantity} xe`;
-                      })()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Ngày giao dự kiến:</span>
-                    <span className="text-sm font-medium text-gray-900">
-                      {selectedTransaction.deliveryDate 
-                        ? new Date(selectedTransaction.deliveryDate).toLocaleDateString('vi-VN')
-                        : 'N/A'
-                      }
-                    </span>
-                  </div>
-                </div>
+                {(() => {
+                  const stock = getStockInfoForTransaction(selectedTransaction);
+                  const transactionModelId = selectedTransaction.modelId;
+                  const transactionColorId = selectedTransaction.colorId;
+                  const transactionStoreStockId = selectedTransaction.storeStockId;
+                  
+                  // Find correct stock by modelId + colorId
+                  const correctStock = storeStocks.find(s => 
+                    s.storeId === myStoreId &&
+                    s.modelId === transactionModelId &&
+                    s.colorId === transactionColorId
+                  );
+                  
+                  const hasMismatch = stock && (
+                    stock.modelId !== transactionModelId || 
+                    stock.colorId !== transactionColorId
+                  );
+                  
+                  return (
+                    <>
+                      {hasMismatch && (
+                        <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4">
+                          <p className="text-sm font-bold text-red-900 mb-2">⚠️ CẢNH BÁO: Mismatch phát hiện!</p>
+                          <div className="space-y-1 text-xs text-red-800">
+                            <p>• Transaction Model ID: {transactionModelId}, Color ID: {transactionColorId}</p>
+                            <p>• StoreStock ID {transactionStoreStockId} có Model ID: {stock.modelId}, Color ID: {stock.colorId}</p>
+                            <p className="font-semibold mt-2">Số lượng có thể được cập nhật vào SAI model/color. Vui lòng kiểm tra kỹ!</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Model • Màu (từ Transaction):</span>
+                          <span className="text-sm font-medium text-gray-900">
+                            {(() => {
+                              const model = models.find(m => m.modelId === transactionModelId);
+                              const color = modelColors.find(mc => 
+                                mc.modelId === transactionModelId && 
+                                mc.colorId === transactionColorId
+                              );
+                              return model && color 
+                                ? `${model.modelName} • ${color.colorName}` 
+                                : `Model ID: ${transactionModelId}, Color ID: ${transactionColorId}`;
+                            })()}
+                          </span>
+                        </div>
+                        
+                        {stock && (
+                          <div className="flex justify-between">
+                            <span className="text-sm text-gray-600">Model • Màu (từ StoreStock):</span>
+                            <span className={`text-sm font-medium ${hasMismatch ? 'text-red-600' : 'text-gray-900'}`}>
+                              {stock.modelName} • {stock.colorName}
+                              {hasMismatch && ' ⚠️'}
+                            </span>
+                          </div>
+                        )}
+                        
+                        {correctStock && correctStock.stockId !== transactionStoreStockId && (
+                          <div className="flex justify-between">
+                            <span className="text-sm text-gray-600">Stock đúng (sẽ cập nhật vào):</span>
+                            <span className="text-sm font-bold text-green-600">
+                              {correctStock.modelName} • {correctStock.colorName} (Stock ID: {correctStock.stockId})
+                            </span>
+                          </div>
+                        )}
+                        
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Số lượng nhận:</span>
+                          <span className="text-sm font-medium text-gray-900">{selectedTransaction.importQuantity} xe</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Tồn kho hiện tại:</span>
+                          <span className="text-sm font-medium text-gray-900">
+                            {correctStock ? `${correctStock.quantity} xe` : stock ? `${stock.quantity} xe` : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Tồn kho sau khi nhận:</span>
+                          <span className="text-sm font-bold text-green-600">
+                            {(() => {
+                              const currentQty = correctStock?.quantity || stock?.quantity || 0;
+                              return `${currentQty + selectedTransaction.importQuantity} xe`;
+                            })()}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">StoreStock ID:</span>
+                          <span className="text-sm font-mono text-gray-600">
+                            {transactionStoreStockId || 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-gray-600">Ngày giao dự kiến:</span>
+                          <span className="text-sm font-medium text-gray-900">
+                            {selectedTransaction.deliveryDate 
+                              ? new Date(selectedTransaction.deliveryDate).toLocaleDateString('vi-VN')
+                              : 'N/A'
+                            }
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()}
 
                 <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
                   <motion.button 

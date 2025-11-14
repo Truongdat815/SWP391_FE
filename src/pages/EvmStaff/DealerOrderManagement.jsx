@@ -27,7 +27,6 @@ import { getAllStoreStocksThunk } from '../../store/slices/store-stockSlice';
 import { showError, showSuccess, showWarning } from '../../store/slices/snackbarSlice';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
-import PaymentReviewModal from '../../components/ui/PaymentReviewModal';
 import OrderStatusStepper from '../../components/ui/OrderStatusStepper';
 import ModernButton from '../../components/ui/ModernButton';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -47,8 +46,6 @@ function DealerOrderManagement() {
   const storeStocks = useSelector((s) => s.storeStocks.items);
 
   const [activeTab, setActiveTab] = useState('pending'); // pending, payment_review, processing, in_transit, completed
-  const [paymentReviewModal, setPaymentReviewModal] = useState(false);
-  const [selectedPaymentTransaction, setSelectedPaymentTransaction] = useState(null);
 
   useEffect(() => {
     // Initial load
@@ -154,39 +151,23 @@ function DealerOrderManagement() {
     }
   };
 
-  // Handle open payment review modal
-  const handleOpenPaymentReview = (order) => {
-    setSelectedPaymentTransaction(order);
-    setPaymentReviewModal(true);
-  };
-
   // Handle confirm payment
   const handleConfirmPayment = async (transaction) => {
+    const confirmed = await showConfirm({
+      message: `Bạn có chắc chắn muốn xác nhận thanh toán cho đơn hàng #${transaction.inventoryId || transaction.id}?`,
+      type: 'info'
+    });
+    if (!confirmed) return;
+
     try {
       await dispatch(confirmPaymentTransactionThunk(transaction.inventoryId || transaction.id)).unwrap();
       dispatch(showSuccess({ message: '✅ Đã xác nhận thanh toán thành công!' }));
-      setPaymentReviewModal(false);
-      setSelectedPaymentTransaction(null);
       dispatch(getAllTransactionsThunk());
     } catch (error) {
       dispatch(showError({ message: error?.message || 'Không thể xác nhận thanh toán' }));
-      throw error;
     }
   };
 
-  // Handle reject payment
-  const handleRejectPayment = async (transaction) => {
-    try {
-      await dispatch(rejectTransactionThunk(transaction.inventoryId || transaction.id)).unwrap();
-      dispatch(showSuccess({ message: '❌ Đã từ chối thanh toán.' }));
-      setPaymentReviewModal(false);
-      setSelectedPaymentTransaction(null);
-      dispatch(getAllTransactionsThunk());
-    } catch (error) {
-      dispatch(showError({ message: error?.message || 'Không thể từ chối thanh toán' }));
-      throw error;
-    }
-  };
 
   // Get store stock info for transaction
   const getStockForTransaction = (transaction) => {
@@ -307,12 +288,12 @@ function DealerOrderManagement() {
             )}
             {statusUpper === 'FILE_UPLOADED' && (
               <ModernButton
-                onClick={() => handleOpenPaymentReview(order)}
-                roleColor="blue"
+                onClick={() => handleConfirmPayment(order)}
+                roleColor="teal"
                 size="md"
-                icon={<CreditCard className="w-4 h-4" />}
+                icon={<CheckCircle className="w-4 h-4" />}
               >
-                Xem biên lai
+                Xác nhận
               </ModernButton>
             )}
             {(statusUpper === 'CONFIRMED' || statusUpper === 'PAYMENT_CONFIRMED') && (
@@ -350,18 +331,6 @@ function DealerOrderManagement() {
           cancelText={confirm.cancelText}
           onConfirm={confirm.onConfirm}
           onCancel={confirm.onCancel}
-        />
-
-        <PaymentReviewModal
-          show={paymentReviewModal}
-          transaction={selectedPaymentTransaction}
-          storeStock={selectedPaymentTransaction ? getStockForTransaction(selectedPaymentTransaction) : null}
-          onConfirm={handleConfirmPayment}
-          onReject={handleRejectPayment}
-          onClose={() => {
-            setPaymentReviewModal(false);
-            setSelectedPaymentTransaction(null);
-          }}
         />
 
         {/* Header */}
@@ -404,10 +373,10 @@ function DealerOrderManagement() {
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-amber-100">Xem biên lai</p>
+                <p className="text-sm font-medium text-amber-100">Xác nhận thanh toán</p>
                 <p className="text-3xl font-bold mt-1">{paymentReviewOrders.length}</p>
               </div>
-              <Upload className="w-10 h-10 text-white/80" />
+              <CreditCard className="w-10 h-10 text-white/80" />
             </div>
           </motion.div>
 
@@ -494,8 +463,8 @@ function DealerOrderManagement() {
               }`}
             >
               <div className="flex items-center justify-center gap-2">
-                <Upload className="w-5 h-5" />
-                <span>Xem biên lai</span>
+                <CreditCard className="w-5 h-5" />
+                <span>Xác nhận thanh toán</span>
                 {paymentReviewOrders.length > 0 && (
                   <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
                     activeTab === 'payment_review' ? 'bg-white/30' : 'bg-amber-100 text-amber-600'
@@ -638,9 +607,9 @@ function DealerOrderManagement() {
                 </div>
               ) : paymentReviewOrders.length === 0 ? (
                 <EmptyState
-                  title="Không có biên lai cần xem"
-                  description="Các biên lai thanh toán cần duyệt sẽ xuất hiện ở đây"
-                  icon="upload"
+                  title="Không có thanh toán cần xác nhận"
+                  description="Các đơn hàng đã upload biên lai cần xác nhận sẽ xuất hiện ở đây"
+                  icon="credit-card"
                   roleColor="green"
                 />
               ) : (
