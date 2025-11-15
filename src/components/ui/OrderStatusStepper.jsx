@@ -11,6 +11,7 @@ const OrderStatusStepper = ({
   const statuses = [
     { key: 'PENDING', label: 'Chờ xử lý', icon: Clock, color: 'yellow' },
     { key: 'CONFIRMED', label: 'Đã chấp nhận', icon: CheckCircle, color: 'blue' },
+    { key: 'CONTRACT_SIGNED', label: 'Đã ký hợp đồng', icon: CheckCircle, color: 'indigo' },
     { key: 'FILE_UPLOADED', label: 'Đã upload', icon: Upload, color: 'amber' },
     { key: 'PAYMENT_CONFIRMED', label: 'Đã thanh toán', icon: CreditCard, color: 'teal' },
     { key: 'IN_TRANSIT', label: 'Vận chuyển', icon: Truck, color: 'purple' },
@@ -67,6 +68,12 @@ const OrderStatusStepper = ({
       green: {
         completed: 'bg-green-600 text-white border-green-600',
         current: 'bg-gradient-to-r from-green-600 to-emerald-600 text-white border-green-600 shadow-lg shadow-green-600/50',
+        upcoming: 'bg-gray-100 text-gray-400 border-gray-300',
+        rejected: 'bg-gray-100 text-gray-400 border-gray-300'
+      },
+      indigo: {
+        completed: 'bg-indigo-500 text-white border-indigo-500',
+        current: 'bg-gradient-to-r from-indigo-500 to-blue-500 text-white border-indigo-500 shadow-lg shadow-indigo-500/50',
         upcoming: 'bg-gray-100 text-gray-400 border-gray-300',
         rejected: 'bg-gray-100 text-gray-400 border-gray-300'
       }

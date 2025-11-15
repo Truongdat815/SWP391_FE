@@ -426,7 +426,7 @@ function InventoryManagement() {
           case 'pending':
             return statusUpper === 'PENDING';
           case 'accepted':
-            return statusUpper === 'ACCEPTED' || statusUpper === 'APPROVED' || statusUpper === 'CONFIRMED';
+            return statusUpper === 'ACCEPTED' || statusUpper === 'APPROVED' || statusUpper === 'CONFIRMED' || statusUpper === 'CONTRACT_SIGNED';
           case 'uploaded':
             return statusUpper === 'FILE_UPLOADED';
           case 'paid':
@@ -603,12 +603,12 @@ function InventoryManagement() {
   };
 
   // Handle open request modal
-  const handleOpenRequest = () => {
+  const handleOpenRequest = (modelId = null, colorId = null) => {
     setRequestData({
       storeStockId: '',
       stockInfo: null,
-      modelId: '',
-      colorId: '',
+      modelId: modelId || '',
+      colorId: colorId || '',
       importQuantity: ''
     });
     setRequestModal(true);
@@ -836,7 +836,7 @@ function InventoryManagement() {
   // Handle open upload receipt modal
   const handleOpenUploadReceipt = (transaction) => {
     const statusUpper = (transaction.status || '').toUpperCase();
-    if (statusUpper !== 'ACCEPTED' && statusUpper !== 'APPROVED' && statusUpper !== 'CONFIRMED') {
+    if (statusUpper !== 'ACCEPTED' && statusUpper !== 'APPROVED' && statusUpper !== 'CONFIRMED' && statusUpper !== 'CONTRACT_SIGNED') {
       dispatch(showWarning({ message: 'Chỉ có thể upload biên lai khi yêu cầu đã được EVM chấp nhận' }));
       return;
     }
@@ -850,11 +850,19 @@ function InventoryManagement() {
     const messages = {
       'PENDING': 'Đang chờ EVM xử lý yêu cầu',
       'CONFIRMED': 'Đã được EVM chấp nhận. Vui lòng upload biên lai thanh toán.',
+      'CONTRACT_SIGNED': 'Đã ký hợp đồng. Vui lòng upload biên lai thanh toán.',
+      'ACCEPTED': 'Đã được EVM chấp nhận. Vui lòng upload biên lai thanh toán.',
+      'APPROVED': 'Đã được EVM duyệt. Vui lòng upload biên lai thanh toán.',
       'FILE_UPLOADED': 'Đã upload biên lai. Đang chờ EVM xác nhận thanh toán.',
       'PAYMENT_CONFIRMED': 'Thanh toán đã được xác nhận. Đang chờ EVM bắt đầu vận chuyển.',
       'IN_TRANSIT': 'Đang vận chuyển. Vui lòng xác nhận khi nhận được hàng.',
+      'SHIPPING': 'Đang vận chuyển. Vui lòng xác nhận khi nhận được hàng.',
       'DELIVERED': 'Đã hoàn thành và cập nhật vào kho',
-      'REJECTED': 'Yêu cầu đã bị từ chối bởi EVM'
+      'COMPLETED': 'Đã hoàn thành và cập nhật vào kho',
+      'FINISH': 'Đã hoàn thành và cập nhật vào kho',
+      'REJECTED': 'Yêu cầu đã bị từ chối bởi EVM',
+      'CANCELLED': 'Yêu cầu đã bị hủy',
+      'CANCELED': 'Yêu cầu đã bị hủy'
     };
     return messages[statusUpper] || '';
   };
@@ -1276,20 +1284,16 @@ function InventoryManagement() {
                               </span>
                             </ModernTableCell>
                             <ModernTableCell>
-                              <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold text-gray-900">
+                              <button
+                                onClick={() => handleOpenUpdatePrice(item)}
+                                className="group relative px-3 py-2 rounded-lg bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200 hover:from-amber-100 hover:to-yellow-100 hover:border-amber-300 hover:shadow-md transition-all duration-200 flex items-center gap-2 cursor-pointer"
+                                title="Click để sửa giá"
+                              >
+                                <span className="text-sm font-semibold text-gray-900 group-hover:text-amber-700 transition-colors">
                                   {formatPrice(item.price)} VNĐ
                                 </span>
-                                <ModernButton
-                                  onClick={() => handleOpenUpdatePrice(item)}
-                                  size="sm"
-                                  variant="secondary"
-                                  icon={<Edit className="w-3 h-3" />}
-                                  roleColor="yellow"
-                                >
-                                  Sửa
-                                </ModernButton>
-                              </div>
+                                <Edit className="w-3.5 h-3.5 text-amber-600 opacity-0 group-hover:opacity-100 transition-all duration-200 transform group-hover:scale-110" />
+                              </button>
                             </ModernTableCell>
                             <ModernTableCell>
                               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
@@ -1302,7 +1306,7 @@ function InventoryManagement() {
                             </ModernTableCell>
                             <ModernTableCell>
                               <ModernButton
-                                onClick={handleOpenRequest}
+                                onClick={() => handleOpenRequest(item.modelId, item.colorId)}
                                 size="sm"
                                 icon={<ShoppingCart className="w-4 h-4" />}
                                 roleColor="blue"
@@ -1374,7 +1378,7 @@ function InventoryManagement() {
               </div>
 
               {/* Status Filter Tabs */}
-              <div className="flex items-center gap-2 mb-6 flex-wrap">
+              <div className="flex items-center gap-2 mb-6 w-full">
                 {[
                   { key: 'all', label: 'Tất cả', count: stats.totalTransactions },
                   { key: 'pending', label: 'Chờ xử lý', count: stats.pendingCount },
@@ -1387,7 +1391,7 @@ function InventoryManagement() {
                   <button
                     key={tab.key}
                     onClick={() => setTransactionStatusFilter(tab.key)}
-                    className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                    className={`flex-1 px-4 py-2 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
                       transactionStatusFilter === tab.key
                         ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md'
                         : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
@@ -1424,7 +1428,7 @@ function InventoryManagement() {
                   <ModernTable>
                     <ModernTableHead>
                       <tr>
-                        <ModernTableHeader>
+                        <ModernTableHeader className="text-left">
                           <div className="flex items-center justify-between w-full">
                             <span className="flex-1">MÃ ĐƠN</span>
                             <button
@@ -1537,13 +1541,13 @@ function InventoryManagement() {
                             </div>
                           </div>
                         </ModernTableHeader>
-                        <ModernTableHeader>Màu</ModernTableHeader>
-                        <ModernTableHeader>Số lượng</ModernTableHeader>
-                        <ModernTableHeader>Tổng giá</ModernTableHeader>
-                        <ModernTableHeader>Trạng thái</ModernTableHeader>
-                        <ModernTableHeader className="text-center">Ngày đặt hàng</ModernTableHeader>
-                        <ModernTableHeader className="text-center">Ngày giao hàng</ModernTableHeader>
-                        <ModernTableHeader>Thao tác</ModernTableHeader>
+                        <ModernTableHeader className="text-left">Màu</ModernTableHeader>
+                        <ModernTableHeader className="text-left">Số lượng</ModernTableHeader>
+                        <ModernTableHeader className="text-left">Tổng giá</ModernTableHeader>
+                        <ModernTableHeader className="text-left">Trạng thái</ModernTableHeader>
+                        <ModernTableHeader className="text-left">Ngày đặt hàng</ModernTableHeader>
+                        <ModernTableHeader className="text-left">Ngày giao hàng</ModernTableHeader>
+                        <ModernTableHeader className="text-left">Thao tác</ModernTableHeader>
                       </tr>
                     </ModernTableHead>
                     <ModernTableBody>
@@ -1553,7 +1557,8 @@ function InventoryManagement() {
                         const canConfirmDelivery = statusUpper === 'IN_TRANSIT';
                         const canUploadReceipt = statusUpper === 'CONFIRMED' || 
                                                 statusUpper === 'ACCEPTED' || 
-                                                statusUpper === 'APPROVED';
+                                                statusUpper === 'APPROVED' ||
+                                                statusUpper === 'CONTRACT_SIGNED';
                         
                         // Get model and color names from transaction
                         const transactionModel = models.find(m => m.modelId === transaction.modelId);
@@ -1577,45 +1582,45 @@ function InventoryManagement() {
                             className="cursor-pointer hover:bg-blue-50"
                             onClick={() => handleOpenOrderDetail(transaction)}
                           >
-                            <ModernTableCell>
-                              <span className="text-sm font-semibold text-gray-900">
+                            <ModernTableCell className="text-left">
+                              <span className="text-sm font-semibold text-gray-900 pr-1">
                                 #{transaction.inventoryId || transaction.id}
                               </span>
                             </ModernTableCell>
-                            <ModernTableCell>
+                            <ModernTableCell className="text-left">
                               <span className="text-sm text-gray-900">{modelName}</span>
                             </ModernTableCell>
-                            <ModernTableCell>
+                            <ModernTableCell className="text-left">
                               <span className="text-sm text-gray-900">{colorName}</span>
                             </ModernTableCell>
-                            <ModernTableCell>
+                            <ModernTableCell className="text-left">
                               <span className="text-sm font-medium text-emerald-600">
                                 {transaction.importQuantity} xe
                               </span>
                             </ModernTableCell>
-                            <ModernTableCell>
+                            <ModernTableCell className="text-left">
                               <span className="text-sm font-semibold text-gray-900">
                                 {transaction.totalPrice > 0 ? formatPrice(transaction.totalPrice) : 'N/A'} VNĐ
                               </span>
                             </ModernTableCell>
-                            <ModernTableCell>
+                            <ModernTableCell className="text-left">
                               <StatusBadge status={transaction.status} size="sm" />
                             </ModernTableCell>
-                            <ModernTableCell>
-                              <span className="text-sm text-gray-600 text-center block">
+                            <ModernTableCell className="text-left">
+                              <span className="text-sm text-gray-600">
                                 {formatDateWithTime(transaction.orderDate || transaction.createdAt || transaction.transactionDate)}
                               </span>
                             </ModernTableCell>
-                            <ModernTableCell>
-                              <span className="text-sm text-gray-600 text-center block">
+                            <ModernTableCell className="text-left">
+                              <span className="text-sm text-gray-600">
                                 {deliveryDate 
                                   ? formatDateWithTime(deliveryDate)
                                   : '-'
                                 }
                               </span>
                             </ModernTableCell>
-                            <ModernTableCell onClick={(e) => e.stopPropagation()}>
-                              <div className="flex items-center justify-center gap-2">
+                            <ModernTableCell className="text-left" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center gap-2">
                                 {(canUploadReceipt || canConfirmDelivery) && (
                                   <>
                                     {canUploadReceipt && (
@@ -1628,7 +1633,7 @@ function InventoryManagement() {
                                         roleColor="blue"
                                         size="sm"
                                       >
-                                        Upload
+                                        Đẩy lên
                                       </ModernButton>
                                     )}
                                     {canConfirmDelivery && (
@@ -1647,7 +1652,7 @@ function InventoryManagement() {
                                   </>
                                 )}
                                 {!canUploadReceipt && !canConfirmDelivery && (
-                                  <span className="text-sm text-gray-400 text-center">-</span>
+                                  <span className="text-sm text-gray-400">-</span>
                                 )}
                               </div>
                             </ModernTableCell>
@@ -1842,7 +1847,8 @@ function InventoryManagement() {
                         {(() => {
                           const detailCanUploadReceipt = detailStatusUpper === 'CONFIRMED' || 
                                                           detailStatusUpper === 'ACCEPTED' || 
-                                                          detailStatusUpper === 'APPROVED';
+                                                          detailStatusUpper === 'APPROVED' ||
+                                                          detailStatusUpper === 'CONTRACT_SIGNED';
                           const detailCanConfirmDelivery = detailStatusUpper === 'IN_TRANSIT';
 
                           if (detailCanUploadReceipt || detailCanConfirmDelivery) {
@@ -1936,8 +1942,11 @@ function InventoryManagement() {
                     <select
                       value={requestData.modelId}
                       onChange={(e) => setRequestData({ ...requestData, modelId: e.target.value, colorId: '' })}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      className={`w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                        requestData.modelId && requestData.colorId ? 'bg-gray-100 cursor-not-allowed' : ''
+                      }`}
                       required
+                      disabled={requestData.modelId && requestData.colorId}
                     >
                       <option value="">-- Chọn model --</option>
                       {models.map(model => (
@@ -1955,9 +1964,11 @@ function InventoryManagement() {
                     <select
                       value={requestData.colorId}
                       onChange={(e) => setRequestData({ ...requestData, colorId: e.target.value })}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      className={`w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                        requestData.modelId && requestData.colorId ? 'bg-gray-100 cursor-not-allowed' : ''
+                      }`}
                       required
-                      disabled={!requestData.modelId}
+                      disabled={!requestData.modelId || (requestData.modelId && requestData.colorId)}
                     >
                       <option value="">-- Chọn màu sắc --</option>
                       {getAvailableColorsForRequest().map(mc => (

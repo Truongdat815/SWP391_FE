@@ -131,6 +131,42 @@ export const statusColors = {
     text: 'text-white',
     light: 'bg-gray-100',
     dot: 'bg-gray-400'
+  },
+  CONTRACT_SIGNED: {
+    bg: 'bg-gradient-to-r from-indigo-500 to-blue-500',
+    text: 'text-white',
+    light: 'bg-indigo-100',
+    dot: 'bg-indigo-500'
+  },
+  ACCEPTED: {
+    bg: 'bg-gradient-to-r from-green-500 to-emerald-500',
+    text: 'text-white',
+    light: 'bg-green-100',
+    dot: 'bg-green-500'
+  },
+  APPROVED: {
+    bg: 'bg-gradient-to-r from-blue-500 to-cyan-500',
+    text: 'text-white',
+    light: 'bg-blue-100',
+    dot: 'bg-blue-500'
+  },
+  SHIPPING: {
+    bg: 'bg-gradient-to-r from-purple-500 to-indigo-500',
+    text: 'text-white',
+    light: 'bg-purple-100',
+    dot: 'bg-purple-500'
+  },
+  FINISH: {
+    bg: 'bg-gradient-to-r from-green-500 to-teal-500',
+    text: 'text-white',
+    light: 'bg-green-100',
+    dot: 'bg-green-500'
+  },
+  PROCESSING: {
+    bg: 'bg-gradient-to-r from-yellow-500 to-orange-500',
+    text: 'text-white',
+    light: 'bg-yellow-100',
+    dot: 'bg-yellow-500'
   }
 };
 
