@@ -51,7 +51,7 @@ function OrderManagement() {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
   
   // Bulk delete state
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
