@@ -29,18 +29,18 @@ export const roleColors = {
     border: 'border-blue-500'
   },
   admin: {
-    primary: 'purple',
-    gradient: 'from-purple-500 to-pink-600',
-    gradientHover: 'from-purple-600 to-pink-700',
-    light: 'purple-50',
-    dark: 'purple-900',
-    accent: 'pink-500',
-    ring: 'ring-purple-500',
-    focus: 'focus:ring-purple-500',
-    bg: 'bg-purple-500',
-    bgHover: 'hover:bg-purple-600',
-    text: 'text-purple-600',
-    border: 'border-purple-500'
+    primary: 'red',
+    gradient: 'from-red-500 to-red-600',
+    gradientHover: 'from-red-600 to-red-700',
+    light: 'red-50',
+    dark: 'red-900',
+    accent: 'red-500',
+    ring: 'ring-red-500',
+    focus: 'focus:ring-red-500',
+    bg: 'bg-red-500',
+    bgHover: 'hover:bg-red-600',
+    text: 'text-red-600',
+    border: 'border-red-500'
   },
   evmStaff: {
     primary: 'green',

@@ -76,3 +76,7 @@ export async function uploadStoreImage(storeId, file) {
     }
     return data;
 }
+
+export async function getStoresRevenueMonthly() {
+    return request('/api/stores/revenue/monthly', { method: 'GET' });
+}
