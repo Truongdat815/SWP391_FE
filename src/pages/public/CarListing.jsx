@@ -1,9 +1,12 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import { get } from '@/api/client'
+import Pagination from '../../components/ui/Pagination'
 
 function CarListing() {
   const [models, setModels] = useState([])
+  const [currentPage, setCurrentPage] = useState(1)
+  const itemsPerPage = 9 // 3 columns x 3 rows
 
   useEffect(() => {
     const fetchModels = async () => {
@@ -44,6 +47,24 @@ function CarListing() {
     fetchModels();
   }, [])
 
+  // Calculate pagination
+  const totalPages = Math.ceil(models.length / itemsPerPage)
+  const paginatedModels = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage
+    const endIndex = startIndex + itemsPerPage
+    return models.slice(startIndex, endIndex)
+  }, [models, currentPage, itemsPerPage])
+
+  // Reset to page 1 when models change
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [models.length])
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section */}
@@ -60,8 +81,14 @@ function CarListing() {
 
       {/* Cars Grid */}
       <div className="max-w-7xl mx-auto px-4 lg:px-6 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {models.map((model) => (
+        {models.length === 0 ? (
+          <div className="text-center py-20">
+            <p className="text-gray-600 text-lg">Chưa có xe nào trong hệ thống.</p>
+          </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+              {paginatedModels.map((model) => (
             <div key={model.modelId} className="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 overflow-hidden group">
               {/* Car Image */}
               <div className="relative overflow-hidden">
@@ -112,8 +139,20 @@ function CarListing() {
                 </div>
               </div>
             </div>
-          ))}
-        </div>
+              ))}
+            </div>
+
+            {/* Pagination */}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              itemsPerPage={itemsPerPage}
+              totalItems={models.length}
+              showInfo={true}
+            />
+          </>
+        )}
       </div>
 
       {/* CTA Section */}

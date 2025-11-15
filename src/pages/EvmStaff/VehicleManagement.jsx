@@ -9,6 +9,7 @@ import {
 } from '@store/slices/modelSlice';
 import Toast from '@/components/ui/Toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Pagination from '@/components/ui/Pagination';
 import { useToast } from '@/hooks/useToast';
 import { useConfirm } from '@/hooks/useConfirm';
 
@@ -43,6 +44,8 @@ function VehicleManagement() {
   const [sortBy, setSortBy] = useState('modelName');
   const [sortOrder, setSortOrder] = useState('asc');
   const [filterBodyType, setFilterBodyType] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
 
   const [formData, setFormData] = useState({
     modelName: '',
@@ -185,6 +188,24 @@ function VehicleManagement() {
 
     return filtered;
   }, [models, searchTerm, filterBodyType, sortBy, sortOrder]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredAndSortedModels.length / itemsPerPage);
+  const paginatedModels = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredAndSortedModels.slice(startIndex, endIndex);
+  }, [filteredAndSortedModels, currentPage, itemsPerPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, filterBodyType, sortBy, sortOrder]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
@@ -394,9 +415,10 @@ function VehicleManagement() {
           <>
             {viewMode === 'cards' ? (
               // Cards View
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <AnimatePresence>
-                  {filteredAndSortedModels.map((model, index) => (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <AnimatePresence>
+                    {paginatedModels.map((model, index) => (
                     <motion.div
                       key={model.modelId}
                       initial={{ opacity: 0, y: 20 }}
@@ -482,9 +504,21 @@ function VehicleManagement() {
                   ))}
                 </AnimatePresence>
               </div>
+
+              {/* Pagination for Cards View */}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                itemsPerPage={itemsPerPage}
+                totalItems={filteredAndSortedModels.length}
+                showInfo={true}
+              />
+            </>
             ) : (
               // Table View
-              <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 overflow-hidden">
+              <>
+                <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50/80 border-b border-gray-200">
@@ -545,26 +579,37 @@ function VehicleManagement() {
                   </table>
                 </div>
               </div>
-            )}
 
-            {/* Results Summary */}
-            {filteredAndSortedModels.length > 0 && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mt-6 text-center"
-              >
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-lg rounded-lg border border-white/20">
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <span className="text-sm text-gray-600">
-                    Hiển thị <span className="font-semibold text-emerald-600">{filteredAndSortedModels.length}</span> trong tổng số <span className="font-semibold">{models.length}</span> xe
-                  </span>
-                </div>
-              </motion.div>
+              {/* Pagination for Table View */}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                itemsPerPage={itemsPerPage}
+                totalItems={filteredAndSortedModels.length}
+                showInfo={true}
+              />
+            </>
             )}
           </>
+        )}
+
+        {/* Results Summary */}
+        {filteredAndSortedModels.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-6 text-center"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-lg rounded-lg border border-white/20">
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <span className="text-sm text-gray-600">
+                Hiển thị <span className="font-semibold text-emerald-600">{filteredAndSortedModels.length}</span> trong tổng số <span className="font-semibold">{models.length}</span> xe
+              </span>
+            </div>
+          </motion.div>
         )}
       </div>
 

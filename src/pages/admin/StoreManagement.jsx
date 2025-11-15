@@ -12,6 +12,7 @@ import { uploadStoreImage } from '@/api/storeService';
 import { motion, AnimatePresence } from 'framer-motion';
 import Toast from '@/components/ui/Toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Pagination from '@/components/ui/Pagination';
 import { useToast } from '@/hooks/useToast';
 import { useConfirm } from '@/hooks/useConfirm';
 
@@ -69,6 +70,8 @@ function StoreManagement() {
   const [detailAddress, setDetailAddress] = useState(''); // Địa chỉ chi tiết (số nhà, tên đường)
   const [selectedImageFile, setSelectedImageFile] = useState(null); // File ảnh được chọn
   const [imagePreview, setImagePreview] = useState(null); // Preview ảnh
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     if (storesStatus === 'idle') {
@@ -128,6 +131,23 @@ function StoreManagement() {
     
     return matchesSearch && matchesStatus && matchesProvince;
   });
+
+  // Calculate pagination
+  const totalPages = Math.ceil(storesList.length / itemsPerPage);
+  const paginatedStores = storesList.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, provinceFilter]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   
   const [formData, setFormData] = useState({
     storeName: '',
@@ -699,7 +719,7 @@ function StoreManagement() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {storesList.map((store, index) => (
+            {paginatedStores.map((store, index) => (
               <tr 
                 key={store.storeId || `store-${index}-${store.storeName || 'unknown'}`}
                 className={`transition-all duration-200 hover:bg-blue-50 hover:shadow-sm cursor-pointer
@@ -796,7 +816,7 @@ function StoreManagement() {
                 </td>
               </tr>
             ))}
-            {storesList.length === 0 && !isStoresFetching && (
+            {paginatedStores.length === 0 && !isStoresFetching && (
               <tr>
                 <td colSpan="6" className="px-6 py-16">
                   <div className="text-center">
@@ -852,6 +872,18 @@ function StoreManagement() {
             )}
           </tbody>
         </table>
+      )}
+      
+      {/* Pagination */}
+      {!isStoresFetching && storesList.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          itemsPerPage={itemsPerPage}
+          totalItems={storesList.length}
+          showInfo={true}
+        />
       )}
     </div>
   );

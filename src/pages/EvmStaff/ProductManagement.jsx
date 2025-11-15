@@ -13,6 +13,7 @@ import { uploadModelColorImage } from '@/api/modelColorService';
 import AnimatedSelect from '@/components/ui/AnimatedSelect';
 import Toast from '@/components/ui/Toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Pagination from '@/components/ui/Pagination';
 import { useToast } from '@/hooks/useToast';
 import { useConfirm } from '@/hooks/useConfirm';
 
@@ -33,6 +34,8 @@ function ProductManagement() {
   const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
   const [sortBy, setSortBy] = useState('modelName');
   const [sortOrder, setSortOrder] = useState('asc');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12; // 3 columns x 4 rows for cards, 12 rows for table
 
   const [formData, setFormData] = useState({
     modelId: '',
@@ -526,9 +529,10 @@ function ProductManagement() {
           <>
             {viewMode === 'cards' ? (
               // Cards View
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <AnimatePresence>
-                  {filteredAndSortedItems.map((item, index) => (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <AnimatePresence>
+                    {paginatedItems.map((item, index) => (
                     <motion.div
                       key={item.modelColorId || `${item.modelId}-${item.colorId}-${index}`}
                       initial={{ opacity: 0, y: 20 }}
@@ -670,9 +674,21 @@ function ProductManagement() {
                   ))}
                 </AnimatePresence>
               </div>
+
+              {/* Pagination for Cards View */}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                itemsPerPage={itemsPerPage}
+                totalItems={filteredAndSortedItems.length}
+                showInfo={true}
+              />
+            </>
             ) : (
               // Table View
-              <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 overflow-hidden">
+              <>
+                <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50/80 border-b border-gray-200">
@@ -686,7 +702,7 @@ function ProductManagement() {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                       <AnimatePresence>
-                        {filteredAndSortedItems.map((item, index) => {
+                        {paginatedItems.map((item, index) => {
                           const modelDetails = getModelDetails(item.modelId);
                           return (
                             <motion.tr 
@@ -814,26 +830,37 @@ function ProductManagement() {
                   </table>
                 </div>
               </div>
-            )}
 
-            {/* Results Summary */}
-            {filteredAndSortedItems.length > 0 && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className="mt-6 text-center"
-              >
-                <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-lg rounded-lg border border-white/20">
-                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <span className="text-sm text-gray-600">
-                    Hiển thị <span className="font-semibold text-emerald-600">{filteredAndSortedItems.length}</span> trong tổng số <span className="font-semibold">{modelColors.length}</span> sản phẩm
-                  </span>
-                </div>
-              </motion.div>
+              {/* Pagination for Table View */}
+              <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={handlePageChange}
+                itemsPerPage={itemsPerPage}
+                totalItems={filteredAndSortedItems.length}
+                showInfo={true}
+              />
+            </>
             )}
           </>
+        )}
+
+        {/* Results Summary */}
+        {filteredAndSortedItems.length > 0 && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="mt-6 text-center"
+          >
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/60 backdrop-blur-lg rounded-lg border border-white/20">
+              <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              <span className="text-sm text-gray-600">
+                Hiển thị <span className="font-semibold text-emerald-600">{filteredAndSortedItems.length}</span> trong tổng số <span className="font-semibold">{modelColors.length}</span> sản phẩm
+              </span>
+            </div>
+          </motion.div>
         )}
       </div>
 

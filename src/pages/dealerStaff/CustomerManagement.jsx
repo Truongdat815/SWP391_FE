@@ -9,6 +9,7 @@ import { SkeletonTable } from '../../components/ui/Skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import Pagination from '../../components/ui/Pagination';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
 
@@ -105,6 +106,8 @@ function CustomerManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
   const [showAddModal, setShowAddModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Tự động mở modal thêm khách hàng nếu có query param add=new
   useEffect(() => {
@@ -620,6 +623,23 @@ function CustomerManagement() {
 
   const filteredCustomers = sortCustomers(getFilteredCustomers(), sortMode);
 
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
+  const paginatedCustomers = filteredCustomers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortMode]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div>
       {/* Toast Notifications */}
@@ -797,7 +817,7 @@ function CustomerManagement() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredCustomers.map((customer, index) => (
+                {paginatedCustomers.map((customer, index) => (
                 <motion.tr 
                   key={customer.customerId}
                   initial={{ opacity: 0, y: 10 }}
@@ -890,7 +910,7 @@ function CustomerManagement() {
                   </td>
                 </motion.tr>
               ))}
-                {filteredCustomers.length === 0 && (
+                {paginatedCustomers.length === 0 && (
                   <tr>
                     <td colSpan="4" className="px-3 py-12">
                     <div className="text-center">
@@ -920,6 +940,18 @@ function CustomerManagement() {
                 )}
               </tbody>
             </table>
+          )}
+          
+          {/* Pagination */}
+          {!isCustomersFetching && filteredCustomers.length > 0 && (
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              itemsPerPage={itemsPerPage}
+              totalItems={filteredCustomers.length}
+              showInfo={true}
+            />
           )}
         </div>
       </div>
