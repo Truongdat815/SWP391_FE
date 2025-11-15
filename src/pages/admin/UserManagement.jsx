@@ -9,6 +9,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedSelect from '@/components/ui/AnimatedSelect';
 import Toast from '@/components/ui/Toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Pagination from '@/components/ui/Pagination';
 import { useToast } from '@/hooks/useToast';
 import { useConfirm } from '@/hooks/useConfirm';
 
@@ -125,6 +126,8 @@ function UserManagement() {
 
   const [activeTab, setActiveTab] = useState('dealer-staff');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState({});
+  const itemsPerPage = 10;
   const [statusFilter, setStatusFilter] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -578,6 +581,22 @@ function UserManagement() {
   const renderUserTable = (roleName, roleColor) => {
     // Lọc người dùng theo role và search term
     const filteredUsers = getFilteredUsersByRole(roleName);
+    
+    // Pagination state per role
+    const roleKey = roleName.toLowerCase().replace(/\s+/g, '-');
+    const pageKey = `page-${roleKey}`;
+    const currentPageForRole = currentPage[pageKey] || 1;
+    
+    // Calculate pagination
+    const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+    const startIndex = (currentPageForRole - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+    
+    const handlePageChange = (page) => {
+      setCurrentPage(prev => ({ ...prev, [pageKey]: page }));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     return (
       <div className="overflow-x-auto">
@@ -604,7 +623,7 @@ function UserManagement() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.map((u, index) => (
+              {paginatedUsers.map((u, index) => (
               <tr 
                 key={u.userId}
                 className={`transition-all duration-200 hover:bg-red-50 hover:shadow-sm cursor-pointer
@@ -683,7 +702,7 @@ function UserManagement() {
                 </td>
               </tr>
             ))}
-              {filteredUsers.length === 0 && (
+              {paginatedUsers.length === 0 && (
                 <tr>
                   <td colSpan={roleName === 'Quản trị viên' || roleName === 'Admin' || roleName === 'Nhân viên hãng xe' || roleName === 'EVM Staff' ? "4" : "5"} className="px-6 py-16">
                   <div className="text-center">
@@ -713,6 +732,18 @@ function UserManagement() {
               )}
             </tbody>
           </table>
+        )}
+        
+        {/* Pagination */}
+        {!isUsersFetching && !usersError && filteredUsers.length > 0 && (
+          <Pagination
+            currentPage={currentPageForRole}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            itemsPerPage={itemsPerPage}
+            totalItems={filteredUsers.length}
+            showInfo={true}
+          />
         )}
       </div>
     );

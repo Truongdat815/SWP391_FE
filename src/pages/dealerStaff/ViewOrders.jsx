@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import Pagination from '../../components/ui/Pagination';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -152,6 +153,8 @@ function ViewOrders() {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showDateFilter, setShowDateFilter] = useState(false);
@@ -320,7 +323,20 @@ function ViewOrders() {
     }
 
     setFilteredOrders(sorted);
+    setCurrentPage(1); // Reset to page 1 when filters change
   }, [searchTerm, orders, sortMode, statusFilter]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const paginatedOrders = filteredOrders.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const getStatusColor = (status) => {
     if (!status) return 'bg-gray-100 text-gray-800';
@@ -927,7 +943,7 @@ function ViewOrders() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredOrders.map((order) => (
+                {paginatedOrders.map((order) => (
                   <tr key={order.orderId} className="hover:bg-gray-50">
                     <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-gray-900">
                       {order.orderCode || 'N/A'}
@@ -1047,6 +1063,18 @@ function ViewOrders() {
               </tbody>
             </table>
           </div>
+        )}
+        
+        {/* Pagination */}
+        {!loading && filteredOrders.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            itemsPerPage={itemsPerPage}
+            totalItems={filteredOrders.length}
+            showInfo={true}
+          />
         )}
       </div>
 

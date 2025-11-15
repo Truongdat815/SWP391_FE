@@ -24,6 +24,7 @@ import {
 
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import Pagination from '../../components/ui/Pagination';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -47,6 +48,8 @@ function OrderManagement() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   
   // Bulk delete state
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
@@ -93,7 +96,20 @@ function OrderManagement() {
     
     // Clear selections when filters change
     setSelectedOrderIds([]);
+    setCurrentPage(1); // Reset to page 1 when filters change
   }, [searchTerm, statusFilter, orders]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const paginatedOrders = filteredOrders.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const getStatusColor = (status) => {
     if (!status) return 'bg-gray-100 text-gray-800';
@@ -424,7 +440,7 @@ function OrderManagement() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredOrders.map((order) => (
+                {paginatedOrders.map((order) => (
                   <tr 
                     key={order.orderId} 
                     className={`hover:bg-gray-50 transition-colors ${
@@ -481,6 +497,18 @@ function OrderManagement() {
               </tbody>
             </table>
           </div>
+        )}
+        
+        {/* Pagination */}
+        {!loading && filteredOrders.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            itemsPerPage={itemsPerPage}
+            totalItems={filteredOrders.length}
+            showInfo={true}
+          />
         )}
       </div>
 

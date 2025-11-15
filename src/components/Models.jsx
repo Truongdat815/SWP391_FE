@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedImage from '../components/Animated';
 import { Link } from 'react-router-dom';
 import { get, API_URL } from '@/api/client';
 import { getModelImage, formatNumber } from '../utils/modelHelpers';
 import Tooltip from './ui/Tooltip';
+import Pagination from './ui/Pagination';
 import logo from '../assets/images/logo.png';
 
 // Body types mapping
@@ -31,6 +32,9 @@ const Models = () => {
   const [selectedColors, setSelectedColors] = useState({});
   // State để hiển thị dropdown chọn màu cho model nào
   const [showColorPicker, setShowColorPicker] = useState(null);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8; // 4 columns x 2 rows
 
   useEffect(() => {
     const fetchData = async () => {
@@ -225,6 +229,24 @@ const Models = () => {
     });
     return Array.from(modelMap.values());
   }, [displayModelColors]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(uniqueModels.length / itemsPerPage);
+  const paginatedUniqueModels = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return uniqueModels.slice(startIndex, endIndex);
+  }, [uniqueModels, currentPage, itemsPerPage]);
+
+  // Reset to page 1 when uniqueModels change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [uniqueModels.length]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Lấy modelColor hiện tại dựa trên màu đã chọn (hoặc màu đầu tiên)
   const getCurrentModelColor = (modelId) => {
@@ -428,8 +450,9 @@ const Models = () => {
 
         {/* Vehicle Grid - Display Unique Models */}
         {!loading && !error && uniqueModels.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {uniqueModels.map((modelGroup, index) => {
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {paginatedUniqueModels.map((modelGroup, index) => {
               const currentModelColor = getCurrentModelColor(modelGroup.modelId);
               if (!currentModelColor) return null;
               
@@ -654,7 +677,18 @@ const Models = () => {
             </motion.div>
               );
             })}
-          </div>
+            </div>
+
+            {/* Pagination */}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              itemsPerPage={itemsPerPage}
+              totalItems={uniqueModels.length}
+              showInfo={true}
+            />
+          </>
         )}
 
         {/* CTA Section - Only show when there are models */}
