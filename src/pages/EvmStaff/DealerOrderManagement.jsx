@@ -14,7 +14,8 @@ import {
   Calendar,
   TrendingUp,
   Building2,
-  RefreshCw
+  RefreshCw,
+  ArrowUpDown
 } from 'lucide-react';
 import { 
   getAllTransactionsThunk,
@@ -24,6 +25,8 @@ import {
   confirmPaymentTransactionThunk,
 } from '../../store/slices/inventoryTransactionSlice';
 import { getAllStoreStocksThunk } from '../../store/slices/store-stockSlice';
+import { getAllModelsThunk } from '../../store/slices/modelSlice';
+import { getAllModelColorsThunk } from '../../store/slices/modelColorSlice';
 import { showError, showSuccess, showWarning } from '../../store/slices/snackbarSlice';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -44,58 +47,124 @@ function DealerOrderManagement() {
   const transactionsStatus = useSelector((s) => s.inventoryTransactions.status);
   const transactionsError = useSelector((s) => s.inventoryTransactions.error);
   const storeStocks = useSelector((s) => s.storeStocks.items);
+  const models = useSelector((s) => s.models.items);
+  const modelColors = useSelector((s) => s.modelColors.items);
 
   const [activeTab, setActiveTab] = useState('pending'); // pending, payment_review, processing, in_transit, completed
+  const [sortOrder, setSortOrder] = useState('updated'); // 'newest', 'oldest', or 'updated'
 
   useEffect(() => {
-    // Initial load
+    // Initial load only - no auto-refresh, no polling
     dispatch(getAllTransactionsThunk());
     dispatch(getAllStoreStocksThunk());
-
-    // Auto-refresh transactions every 10 seconds to catch updates
-    const refreshInterval = setInterval(() => {
-      dispatch(getAllTransactionsThunk());
-    }, 10000); // Refresh every 10 seconds
-
-    // Also refresh when window regains focus (user switches back to tab)
-    const handleFocus = () => {
-      dispatch(getAllTransactionsThunk());
-      dispatch(getAllStoreStocksThunk());
-    };
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      clearInterval(refreshInterval);
-      window.removeEventListener('focus', handleFocus);
-    };
+    dispatch(getAllModelsThunk());
+    dispatch(getAllModelColorsThunk());
   }, [dispatch]);
 
-  // Filter orders by status
+  // Filter and sort orders by status
   const pendingOrders = useMemo(() => {
-    return transactions.filter(t => (t.status || '').toUpperCase() === 'PENDING');
-  }, [transactions]);
+    const filtered = transactions.filter(t => (t.status || '').toUpperCase() === 'PENDING');
+    return [...filtered].sort((a, b) => {
+      if (sortOrder === 'updated') {
+        // Sort by updatedAt (most recent update first), fallback to createdAt
+        const dateA = new Date(a.updatedAt || a.createdAt || a.orderDate || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.updatedAt || b.createdAt || b.orderDate || b.transactionDate || 0).getTime();
+        return dateB - dateA; // Most recently updated first
+      } else if (sortOrder === 'newest') {
+        // Sort by creation date (newest first)
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateB - dateA; // Newest first
+      } else {
+        // Sort by creation date (oldest first)
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateA - dateB; // Oldest first
+      }
+    });
+  }, [transactions, sortOrder]);
 
   const paymentReviewOrders = useMemo(() => {
-    return transactions.filter(t => (t.status || '').toUpperCase() === 'FILE_UPLOADED');
-  }, [transactions]);
+    const filtered = transactions.filter(t => (t.status || '').toUpperCase() === 'FILE_UPLOADED');
+    return [...filtered].sort((a, b) => {
+      if (sortOrder === 'updated') {
+        const dateA = new Date(a.updatedAt || a.createdAt || a.orderDate || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.updatedAt || b.createdAt || b.orderDate || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else if (sortOrder === 'newest') {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateA - dateB;
+      }
+    });
+  }, [transactions, sortOrder]);
 
   const processingOrders = useMemo(() => {
-    return transactions.filter(t => {
+    const filtered = transactions.filter(t => {
       const statusUpper = (t.status || '').toUpperCase();
       return statusUpper === 'CONFIRMED' || statusUpper === 'PAYMENT_CONFIRMED';
     });
-  }, [transactions]);
+    return [...filtered].sort((a, b) => {
+      if (sortOrder === 'updated') {
+        const dateA = new Date(a.updatedAt || a.createdAt || a.orderDate || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.updatedAt || b.createdAt || b.orderDate || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else if (sortOrder === 'newest') {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateA - dateB;
+      }
+    });
+  }, [transactions, sortOrder]);
 
   const inTransitOrders = useMemo(() => {
-    return transactions.filter(t => (t.status || '').toUpperCase() === 'IN_TRANSIT');
-  }, [transactions]);
+    const filtered = transactions.filter(t => (t.status || '').toUpperCase() === 'IN_TRANSIT');
+    return [...filtered].sort((a, b) => {
+      if (sortOrder === 'updated') {
+        const dateA = new Date(a.updatedAt || a.createdAt || a.orderDate || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.updatedAt || b.createdAt || b.orderDate || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else if (sortOrder === 'newest') {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateA - dateB;
+      }
+    });
+  }, [transactions, sortOrder]);
 
   const completedOrders = useMemo(() => {
-    return transactions.filter(t => {
+    const filtered = transactions.filter(t => {
       const statusUpper = (t.status || '').toUpperCase();
       return statusUpper === 'DELIVERED' || statusUpper === 'COMPLETED';
     });
-  }, [transactions]);
+    return [...filtered].sort((a, b) => {
+      if (sortOrder === 'updated') {
+        const dateA = new Date(a.updatedAt || a.createdAt || a.orderDate || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.updatedAt || b.createdAt || b.orderDate || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else if (sortOrder === 'newest') {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateA - dateB;
+      }
+    });
+  }, [transactions, sortOrder]);
 
   // Handle accept transaction
   const handleAccept = async (order) => {
@@ -107,11 +176,8 @@ function DealerOrderManagement() {
 
     try {
       await dispatch(acceptTransactionThunk(order.inventoryId || order.id)).unwrap();
-      
-      // Refresh transactions to get updated status from server
-      await dispatch(getAllTransactionsThunk()).unwrap();
-      
       dispatch(showSuccess({ message: '✅ Đã chấp nhận đơn hàng!' }));
+      // No manual refresh - polling will update automatically
     } catch (error) {
       dispatch(showError({ message: error?.message || 'Không thể chấp nhận đơn hàng' }));
     }
@@ -128,7 +194,7 @@ function DealerOrderManagement() {
     try {
       await dispatch(rejectTransactionThunk(order.inventoryId || order.id)).unwrap();
       dispatch(showSuccess({ message: '❌ Đã từ chối đơn hàng.' }));
-      dispatch(getAllTransactionsThunk());
+      // No manual refresh - polling will update automatically
     } catch (error) {
       dispatch(showError({ message: error?.message || 'Không thể từ chối đơn hàng' }));
     }
@@ -145,7 +211,7 @@ function DealerOrderManagement() {
     try {
       await dispatch(startShippingTransactionThunk(order.inventoryId || order.id)).unwrap();
       dispatch(showSuccess({ message: '🚚 Đã bắt đầu vận chuyển đơn hàng!' }));
-      dispatch(getAllTransactionsThunk());
+      // No manual refresh - polling will update automatically
     } catch (error) {
       dispatch(showError({ message: error?.message || 'Không thể bắt đầu vận chuyển' }));
     }
@@ -162,7 +228,7 @@ function DealerOrderManagement() {
     try {
       await dispatch(confirmPaymentTransactionThunk(transaction.inventoryId || transaction.id)).unwrap();
       dispatch(showSuccess({ message: '✅ Đã xác nhận thanh toán thành công!' }));
-      dispatch(getAllTransactionsThunk());
+      // No manual refresh - polling will update automatically
     } catch (error) {
       dispatch(showError({ message: error?.message || 'Không thể xác nhận thanh toán' }));
     }
@@ -186,6 +252,15 @@ function DealerOrderManagement() {
   const renderOrderCard = (order, index) => {
     const stock = getStockForTransaction(order);
     const statusUpper = (order.status || '').toUpperCase();
+    
+    // Get model and color names from transaction
+    const transactionModel = models.find(m => m.modelId === order.modelId);
+    const transactionColor = modelColors.find(mc => 
+      mc.modelId === order.modelId && 
+      mc.colorId === order.colorId
+    );
+    const modelName = transactionModel?.modelName || stock?.modelName || 'N/A';
+    const colorName = transactionColor?.colorName || stock?.colorName || 'N/A';
     
     return (
       <motion.div
@@ -229,7 +304,7 @@ function DealerOrderManagement() {
             <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
               <p className="text-xs text-gray-500 mb-2">Model • Màu</p>
               <p className="text-sm font-bold text-gray-900">
-                {stock ? `${stock.modelName} • ${stock.colorName}` : 'N/A'}
+                {modelName} - {colorName}
               </p>
             </div>
             <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
@@ -251,14 +326,49 @@ function DealerOrderManagement() {
             </div>
           </div>
 
-          {/* Price Info */}
-          {order.totalPrice > 0 && (
+          {/* Price Breakdown (if available) */}
+          {order.totalPrice > 0 && (order.unitBasePrice || order.discountPercentage > 0) && (
+            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-5 border border-emerald-200">
+              <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                <DollarSign className="w-4 h-4 text-emerald-600" />
+                Chi tiết giá
+              </h4>
+              <div className="space-y-2">
+                {order.unitBasePrice && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Đơn giá:</span>
+                    <span className="font-medium text-gray-900">{formatPrice(order.unitBasePrice)} VNĐ</span>
+                  </div>
+                )}
+                {order.totalBasePrice && (
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Tổng cơ bản:</span>
+                    <span className="font-medium text-gray-900">{formatPrice(order.totalBasePrice)} VNĐ</span>
+                  </div>
+                )}
+                {order.discountPercentage > 0 && order.totalBasePrice && (
+                  <div className="flex justify-between text-sm text-orange-600">
+                    <span>Giảm giá ({order.discountPercentage}%):</span>
+                    <span className="font-medium">
+                      -{formatPrice(Math.round(order.totalBasePrice * (order.discountPercentage / 100)))} VNĐ
+                    </span>
+                  </div>
+                )}
+                <div className="pt-2 border-t-2 border-emerald-200 flex justify-between">
+                  <span className="text-sm font-bold text-gray-900">Tổng thanh toán:</span>
+                  <span className="text-lg font-bold text-emerald-600">{formatPrice(order.totalPrice)} VNĐ</span>
+                </div>
+              </div>
+            </div>
+          )}
+          
+          {/* Simple Price Info (if no breakdown available) */}
+          {order.totalPrice > 0 && !order.unitBasePrice && order.discountPercentage === 0 && (
             <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-200">
               <div className="flex justify-between items-center">
                 <span className="text-sm font-medium text-gray-700">Tổng giá trị:</span>
-                <span className="text-lg font-bold text-emerald-600 flex items-center gap-1">
-                  <DollarSign className="w-5 h-5" />
-                  {formatPrice(order.totalPrice)} VNĐ
+                <span className="text-lg font-bold text-gray-900 flex items-center gap-1">
+                  $ {formatPrice(order.totalPrice)} VNĐ
                 </span>
               </div>
             </div>
@@ -293,10 +403,10 @@ function DealerOrderManagement() {
                 size="md"
                 icon={<CheckCircle className="w-4 h-4" />}
               >
-                Xác nhận
+                Xác nhận thanh toán
               </ModernButton>
             )}
-            {(statusUpper === 'CONFIRMED' || statusUpper === 'PAYMENT_CONFIRMED') && (
+            {statusUpper === 'PAYMENT_CONFIRMED' && (
               <ModernButton
                 onClick={() => handleStartShipping(order)}
                 roleColor="purple"
@@ -339,13 +449,29 @@ function DealerOrderManagement() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl">
-              <Package className="w-8 h-8 text-white" />
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl">
+                  <Package className="w-8 h-8 text-white" />
+                </div>
+                Quản lý đơn hàng từ đại lý
+              </h1>
+              <p className="text-gray-600 mt-2 ml-[60px]">Xử lý yêu cầu nhập hàng từ Dealer Manager và Staff</p>
             </div>
-            Quản lý đơn hàng từ đại lý
-          </h1>
-          <p className="text-gray-600 mt-2 ml-[60px]">Xử lý yêu cầu nhập hàng từ Dealer Manager và Staff</p>
+            <div className="relative">
+              <ArrowUpDown className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white text-sm min-w-[180px]"
+              >
+                <option value="updated">Cập nhật mới nhất</option>
+                <option value="newest">Mới nhất</option>
+                <option value="oldest">Cũ nhất</option>
+              </select>
+            </div>
+          </div>
         </motion.div>
 
         {/* Statistics Cards */}

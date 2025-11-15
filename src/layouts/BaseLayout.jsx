@@ -106,11 +106,10 @@ const NotificationBell = ({ brandColor = 'red', basePath = '', onNotificationCli
       }
     };
 
+    // Initial load only - no auto-polling, using realtime updates instead
     loadNotifications();
     
-    // Poll every 30 seconds for new notifications
-    const interval = setInterval(loadNotifications, 30000);
-    return () => clearInterval(interval);
+    // Removed polling interval - using realtime updates instead
   }, [dispatch]);
 
   // Tính notification count và list dựa trên role

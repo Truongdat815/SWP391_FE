@@ -18,13 +18,29 @@ async function request(path, { method = 'GET', body } = {}) {
     const data = isJson ? await res.json() : await res.text();
     if (!res.ok) {
         const message = (isJson && data?.message) || res.statusText || 'Request failed';
-        throw new Error(message);
+        const error = new Error(message);
+        error.status = res.status;
+        error.code = isJson && data?.code ? data.code : null;
+        error.response = data;
+        throw error;
     }
     return data;
 }
 
 // Get all model-color combinations
-export async function getAllModelColors() {
+export async function getAllModelColors(options = {}) {
+    // Try with query parameter if all=true is specified (for EVM Staff/Admin)
+    // Otherwise use regular endpoint
+    if (options.all === true || options.includeAll === true) {
+        const params = new URLSearchParams();
+        params.append('all', 'true');
+        const url = `/api/model-colors/all?${params.toString()}`;
+        return request(url, { method: 'GET' });
+    }
+    
+    // Default: regular endpoint (backend should handle based on JWT token role)
+    // For EVM Staff/Admin without storeId, backend should handle gracefully
+    // For Dealer Manager/Staff with storeId, backend should filter by storeId
     return request('/api/model-colors/all', { method: 'GET' });
 }
 
