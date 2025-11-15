@@ -47,4 +47,8 @@ export async function getCurrentUser() {
     return request('/api/users/me', { method: 'GET' });
 }
 
+export async function updateUserStatus(userId, status) {
+    return request(`/api/users/${encodeURIComponent(userId)}/status`, { method: 'PUT', body: { status } });
+}
+
 
