@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { 
+import {
   Package, 
   ShoppingCart, 
   TrendingUp, 
@@ -19,7 +19,11 @@ import {
   Send,
   Edit,
   Upload,
-  ArrowUpDown
+  ArrowUpDown,
+  X,
+  ChevronDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -75,8 +79,16 @@ function InventoryManagement() {
     });
   }, [user]);
 
-  // Tab state
-  const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' or 'transactions'
+  // Tab state - load from localStorage or default to 'inventory'
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedTab = localStorage.getItem('inventoryActiveTab');
+    return savedTab || 'inventory';
+  });
+  
+  // Save activeTab to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('inventoryActiveTab', activeTab);
+  }, [activeTab]);
 
   // Inventory table states
   const [flatInventory, setFlatInventory] = useState([]); // Flattened inventory data (each row = model-color combination)
@@ -93,6 +105,41 @@ function InventoryManagement() {
   const [transactionStatusFilter, setTransactionStatusFilter] = useState('all'); // 'all', 'pending', 'accepted', 'uploaded', 'paid', 'shipping', 'delivered'
   const [transactionsCurrentPage, setTransactionsCurrentPage] = useState(1);
   const [transactionsItemsPerPage] = useState(5);
+  const [orderIdSortOrder, setOrderIdSortOrder] = useState(null); // 'asc', 'desc', or null
+  const [modelSortOrder, setModelSortOrder] = useState(null); // 'a-z', 'z-a', or null
+  const [showModelSortMenu, setShowModelSortMenu] = useState(false);
+  const [modelSortMenuPosition, setModelSortMenuPosition] = useState({ top: 0, left: 0 });
+
+  // Calculate position for model sort menu
+  useEffect(() => {
+    if (showModelSortMenu) {
+      const button = document.querySelector('.model-sort-button');
+      if (button) {
+        const rect = button.getBoundingClientRect();
+        setModelSortMenuPosition({
+          top: rect.bottom + 4,
+          left: rect.right - 144 // w-36 = 9rem = 144px
+        });
+      }
+    }
+  }, [showModelSortMenu]);
+
+  // Close sort menus when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showModelSortMenu) {
+        const target = event.target;
+        if (!target.closest('.sort-menu-container')) {
+          setShowModelSortMenu(false);
+        }
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showModelSortMenu]);
 
   // Request modal states
   const [requestModal, setRequestModal] = useState(false);
@@ -113,6 +160,10 @@ function InventoryManagement() {
   // Confirm delivery modal states
   const [confirmDeliveryModal, setConfirmDeliveryModal] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState(null);
+
+  // Order detail modal states
+  const [selectedOrderDetail, setSelectedOrderDetail] = useState(null);
+  const [showOrderDetailModal, setShowOrderDetailModal] = useState(false);
 
   // Create initial stock modal states
   const [createStockModal, setCreateStockModal] = useState(false);
@@ -312,6 +363,33 @@ function InventoryManagement() {
         return false;
       })
       .sort((a, b) => {
+        // Priority 1: Sort by Order ID if selected
+        if (orderIdSortOrder) {
+          const idA = a.inventoryId || a.id || 0;
+          const idB = b.inventoryId || b.id || 0;
+          
+          if (orderIdSortOrder === 'asc') {
+            return idA - idB; // Từ dưới lên (nhỏ đến lớn)
+          } else if (orderIdSortOrder === 'desc') {
+            return idB - idA; // Từ trên xuống (lớn đến nhỏ)
+          }
+        }
+        
+        // Priority 2: Sort by Model name if selected
+        if (modelSortOrder) {
+          const modelA = models.find(m => m.modelId === a.modelId);
+          const modelB = models.find(m => m.modelId === b.modelId);
+          const nameA = modelA?.modelName || '';
+          const nameB = modelB?.modelName || '';
+          
+          if (modelSortOrder === 'a-z') {
+            return nameA.localeCompare(nameB, 'vi');
+          } else if (modelSortOrder === 'z-a') {
+            return nameB.localeCompare(nameA, 'vi');
+          }
+        }
+        
+        // Default: Sort by transactionsSortOrder
         if (transactionsSortOrder === 'updated') {
           // Sort by updatedAt (most recent update first), fallback to createdAt
           const dateA = new Date(a.updatedAt || a.createdAt || a.orderDate || a.transactionDate || 0).getTime();
@@ -334,7 +412,7 @@ function InventoryManagement() {
     console.log('Transaction statuses:', filtered.map(t => ({ id: t.inventoryId || t.id, status: t.status })));
     
     return filtered;
-  }, [transactions, storeStocks, myStoreId, transactionsSortOrder]);
+  }, [transactions, storeStocks, myStoreId, transactionsSortOrder, orderIdSortOrder, modelSortOrder, models]);
 
   // Filter transactions by status
   const filteredTransactions = useMemo(() => {
@@ -436,6 +514,52 @@ function InventoryManagement() {
     if (isNaN(numPrice)) return '0';
     // Format with dots as thousand separators
     return Math.round(numPrice).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  };
+
+  // Format date with time
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    return `lúc ${hours}:${minutes} ${day} tháng ${month}, ${year}`;
+  };
+
+  // Format date short (vắn tắt)
+  const formatDateShort = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
+  // Format date with time (giờ phút + ngày)
+  const formatDateWithTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    return `${hours}:${minutes} ${day}/${month}/${year}`;
+  };
+
+  // Handle open order detail modal
+  const handleOpenOrderDetail = (transaction) => {
+    setSelectedOrderDetail(transaction);
+    setShowOrderDetailModal(true);
+  };
+
+  // Handle close order detail modal
+  const handleCloseOrderDetail = () => {
+    setShowOrderDetailModal(false);
+    setSelectedOrderDetail(null);
   };
 
 
@@ -1070,47 +1194,6 @@ function InventoryManagement() {
                 </div>
               </div>
 
-              {/* Date Range Filter */}
-              <div className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-200">
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-5 h-5 text-gray-400" />
-                  <span className="text-sm font-medium text-gray-700">Lọc theo ngày:</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="date"
-                    value={startDate}
-                    onChange={(e) => {
-                      setStartDate(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
-                  />
-                  <span className="text-gray-500">đến</span>
-                  <input
-                    type="date"
-                    value={endDate}
-                    onChange={(e) => {
-                      setEndDate(e.target.value);
-                      setCurrentPage(1);
-                    }}
-                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
-                  />
-                  {(startDate || endDate) && (
-                    <button
-                      onClick={() => {
-                        setStartDate('');
-                        setEndDate('');
-                        setCurrentPage(1);
-                      }}
-                      className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
-                    >
-                      Xóa
-                    </button>
-                  )}
-                </div>
-              </div>
-
               {/* Status Tabs */}
               <div className="flex items-center gap-2 mb-6">
                 {[
@@ -1194,8 +1277,7 @@ function InventoryManagement() {
                             </ModernTableCell>
                             <ModernTableCell>
                               <div className="flex items-center gap-2">
-                                <span className="text-sm font-semibold text-gray-900 flex items-center gap-1">
-                                  <DollarSign className="w-4 h-4 text-emerald-600" />
+                                <span className="text-sm font-semibold text-gray-900">
                                   {formatPrice(item.price)} VNĐ
                                 </span>
                                 <ModernButton
@@ -1339,212 +1421,241 @@ function InventoryManagement() {
                 />
               ) : (
                 <>
-                  <div className="space-y-6">
-                    {paginatedTransactions.map((transaction, index) => {
-                    const stock = getStockInfoForTransaction(transaction);
-                    const statusUpper = (transaction.status || '').toUpperCase();
-                    const canConfirmDelivery = statusUpper === 'IN_TRANSIT';
-                    // Allow upload receipt for CONFIRMED, ACCEPTED, or APPROVED status
-                    const canUploadReceipt = statusUpper === 'CONFIRMED' || 
-                                            statusUpper === 'ACCEPTED' || 
-                                            statusUpper === 'APPROVED';
-                    
-                    // Get model and color names from transaction
-                    const transactionModel = models.find(m => m.modelId === transaction.modelId);
-                    const transactionColor = modelColors.find(mc => 
-                      mc.modelId === transaction.modelId && 
-                      mc.colorId === transaction.colorId
-                    );
-                    const modelName = transactionModel?.modelName || stock?.modelName || 'N/A';
-                    const colorName = transactionColor?.colorName || stock?.colorName || 'N/A';
-                    
-                    // Determine delivery date - if delivered, show actual delivery date, otherwise show estimated
-                    const isDelivered = statusUpper === 'DELIVERED' || statusUpper === 'COMPLETED' || statusUpper === 'FINISH';
-                    const deliveryDate = isDelivered 
-                      ? (transaction.deliveredDate || transaction.completedDate || transaction.updatedAt || transaction.deliveryDate)
-                      : transaction.deliveryDate;
-                    
-                    return (
-                      <motion.div
-                        key={transaction.inventoryId || transaction.id || index}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200 overflow-hidden"
-                      >
-                        {/* Order Header with ID and Date */}
-                        <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-4">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-white/20 rounded-lg">
-                                <FileText className="w-6 h-6" />
-                              </div>
-                              <div>
-                                <h3 className="text-lg font-bold">Đơn hàng #{transaction.inventoryId || transaction.id}</h3>
-                                <p className="text-sm text-blue-100">
-                                  {transaction.orderDate 
-                                    ? new Date(transaction.orderDate).toLocaleDateString('vi-VN', {
-                                        year: 'numeric',
-                                        month: 'long',
-                                        day: 'numeric',
-                                        hour: '2-digit',
-                                        minute: '2-digit'
-                                      })
-                                    : 'N/A'
-                                  }
-                                </p>
-                              </div>
-                            </div>
-                            <StatusBadge status={transaction.status} size="md" />
-                          </div>
-                        </div>
-
-                        <div className="p-6 space-y-6">
-                          {/* Order Status Stepper */}
-                          <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border border-gray-200">
-                            <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-                              <TrendingUp className="w-4 h-4 text-blue-600" />
-                              Tiến trình đơn hàng
-                            </h4>
-                            <OrderStatusStepper currentStatus={transaction.status} size="sm" />
-                          </div>
-                          
-                          {/* Transaction Details Grid */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                              <p className="text-xs text-gray-500 mb-2 font-medium">Model • Màu</p>
-                              <p className="text-sm font-bold text-gray-900">
-                                {modelName} - {colorName}
-                              </p>
-                            </div>
-                            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                              <p className="text-xs text-gray-500 mb-2 font-medium">Số lượng</p>
-                              <p className="text-sm font-bold text-emerald-600 flex items-center gap-1">
-                                <Package className="w-4 h-4" />
-                                {transaction.importQuantity} xe
-                              </p>
-                            </div>
-                            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                              <p className="text-xs text-gray-500 mb-2 font-medium">
-                                {isDelivered ? 'Ngày giao hàng' : 'Ngày giao hàng dự kiến'}
-                              </p>
-                              <p className="text-sm font-bold text-gray-900 flex items-center gap-1">
-                                <Calendar className="w-4 h-4 text-blue-600" />
-                                {deliveryDate 
-                                  ? new Date(deliveryDate).toLocaleDateString('vi-VN')
-                                  : 'Chưa xác định'
+                  <ModernTable>
+                    <ModernTableHead>
+                      <tr>
+                        <ModernTableHeader>
+                          <div className="flex items-center justify-between w-full">
+                            <span className="flex-1">MÃ ĐƠN</span>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                // Toggle: null -> 'asc' -> 'desc' -> null
+                                if (orderIdSortOrder === null) {
+                                  setOrderIdSortOrder('asc');
+                                } else if (orderIdSortOrder === 'asc') {
+                                  setOrderIdSortOrder('desc');
+                                } else {
+                                  setOrderIdSortOrder(null);
                                 }
-                              </p>
-                            </div>
-                            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                              <p className="text-xs text-gray-500 mb-2 font-medium">Tổng giá</p>
-                              <p className="text-sm font-bold text-gray-900 flex items-center gap-1">
-                                <DollarSign className="w-4 h-4 text-emerald-600" />
-                                {transaction.totalPrice > 0 ? formatPrice(transaction.totalPrice) : 'N/A'} VNĐ
-                              </p>
+                                setShowModelSortMenu(false);
+                              }}
+                              className="p-1.5 hover:bg-gray-200 rounded transition-colors flex items-center justify-center ml-2"
+                              title={
+                                orderIdSortOrder === 'asc' ? 'Từ dưới lên' :
+                                orderIdSortOrder === 'desc' ? 'Từ trên xuống' :
+                                'Sắp xếp'
+                              }
+                            >
+                              {orderIdSortOrder === 'asc' ? (
+                                <ArrowUp className="w-4 h-4 text-blue-600" />
+                              ) : orderIdSortOrder === 'desc' ? (
+                                <ArrowDown className="w-4 h-4 text-blue-600" />
+                              ) : (
+                                <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                              )}
+                            </button>
+                          </div>
+                        </ModernTableHeader>
+                        <ModernTableHeader>
+                          <div className="flex items-center justify-between w-full">
+                            <span className="flex-1">MẪU XE</span>
+                            <div className="relative sort-menu-container ml-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setShowModelSortMenu(!showModelSortMenu);
+                                  setShowOrderIdSortMenu(false);
+                                }}
+                                className="model-sort-button p-1.5 hover:bg-gray-200 rounded transition-colors flex items-center justify-center"
+                              >
+                                <ArrowUpDown className="w-4 h-4 text-gray-500" />
+                              </button>
+                              <AnimatePresence>
+                                {showModelSortMenu && (
+                                  <>
+                                    {/* Backdrop to close menu */}
+                                    <motion.div
+                                      initial={{ opacity: 0 }}
+                                      animate={{ opacity: 1 }}
+                                      exit={{ opacity: 0 }}
+                                      className="fixed inset-0 z-[99]"
+                                      onClick={() => setShowModelSortMenu(false)}
+                                    />
+                                    <motion.div
+                                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                                      transition={{ duration: 0.2 }}
+                                      className="fixed w-36 bg-white rounded-md shadow-xl border border-gray-200 overflow-hidden z-[100]"
+                                      style={{
+                                        top: `${modelSortMenuPosition.top}px`,
+                                        left: `${modelSortMenuPosition.left}px`
+                                      }}
+                                      onClick={(e) => e.stopPropagation()}
+                                    >
+                                    <div className="py-0.5">
+                                      <button
+                                        onClick={() => {
+                                          setModelSortOrder('a-z');
+                                          setShowModelSortMenu(false);
+                                        }}
+                                        className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 transition-colors flex items-center gap-2 ${
+                                          modelSortOrder === 'a-z' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700'
+                                        }`}
+                                      >
+                                        <ArrowUp className="w-3 h-3" />
+                                        A → Z
+                                      </button>
+                                      <button
+                                        onClick={() => {
+                                          setModelSortOrder('z-a');
+                                          setShowModelSortMenu(false);
+                                        }}
+                                        className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 transition-colors flex items-center gap-2 ${
+                                          modelSortOrder === 'z-a' ? 'bg-blue-50 text-blue-700 font-semibold' : 'text-gray-700'
+                                        }`}
+                                      >
+                                        <ArrowDown className="w-3 h-3" />
+                                        Z → A
+                                      </button>
+                                      <div className="border-t border-gray-200 my-0.5"></div>
+                                      <button
+                                        onClick={() => {
+                                          setModelSortOrder(null);
+                                          setShowModelSortMenu(false);
+                                        }}
+                                        className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-100 transition-colors text-gray-500"
+                                      >
+                                        Bỏ sort
+                                      </button>
+                                    </div>
+                                  </motion.div>
+                                  </>
+                                )}
+                              </AnimatePresence>
                             </div>
                           </div>
-
-                          {/* Price Breakdown (if available) */}
-                          {transaction.totalPrice > 0 && (transaction.unitBasePrice || transaction.discountPercentage > 0) && (
-                            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-5 border border-emerald-200">
-                              <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                                <DollarSign className="w-4 h-4 text-emerald-600" />
-                                Chi tiết giá
-                              </h4>
-                              <div className="space-y-2">
-                                {transaction.unitBasePrice && (
-                                  <div className="flex justify-between text-sm">
-                                    <span className="text-gray-600">Đơn giá:</span>
-                                    <span className="font-medium text-gray-900">{formatPrice(transaction.unitBasePrice)} VNĐ</span>
-                                  </div>
+                        </ModernTableHeader>
+                        <ModernTableHeader>Màu</ModernTableHeader>
+                        <ModernTableHeader>Số lượng</ModernTableHeader>
+                        <ModernTableHeader>Tổng giá</ModernTableHeader>
+                        <ModernTableHeader>Trạng thái</ModernTableHeader>
+                        <ModernTableHeader className="text-center">Ngày đặt hàng</ModernTableHeader>
+                        <ModernTableHeader className="text-center">Ngày giao hàng</ModernTableHeader>
+                        <ModernTableHeader>Thao tác</ModernTableHeader>
+                      </tr>
+                    </ModernTableHead>
+                    <ModernTableBody>
+                      {paginatedTransactions.map((transaction, index) => {
+                        const stock = getStockInfoForTransaction(transaction);
+                        const statusUpper = (transaction.status || '').toUpperCase();
+                        const canConfirmDelivery = statusUpper === 'IN_TRANSIT';
+                        const canUploadReceipt = statusUpper === 'CONFIRMED' || 
+                                                statusUpper === 'ACCEPTED' || 
+                                                statusUpper === 'APPROVED';
+                        
+                        // Get model and color names from transaction
+                        const transactionModel = models.find(m => m.modelId === transaction.modelId);
+                        const transactionColor = modelColors.find(mc => 
+                          mc.modelId === transaction.modelId && 
+                          mc.colorId === transaction.colorId
+                        );
+                        const modelName = transactionModel?.modelName || stock?.modelName || 'N/A';
+                        const colorName = transactionColor?.colorName || stock?.colorName || 'N/A';
+                        
+                        // Determine delivery date
+                        const isDelivered = statusUpper === 'DELIVERED' || statusUpper === 'COMPLETED' || statusUpper === 'FINISH';
+                        const deliveryDate = isDelivered 
+                          ? (transaction.deliveredDate || transaction.completedDate || transaction.updatedAt || transaction.deliveryDate)
+                          : transaction.deliveryDate;
+                        
+                        return (
+                          <ModernTableRow 
+                            key={transaction.inventoryId || transaction.id || index} 
+                            index={index}
+                            className="cursor-pointer hover:bg-blue-50"
+                            onClick={() => handleOpenOrderDetail(transaction)}
+                          >
+                            <ModernTableCell>
+                              <span className="text-sm font-semibold text-gray-900">
+                                #{transaction.inventoryId || transaction.id}
+                              </span>
+                            </ModernTableCell>
+                            <ModernTableCell>
+                              <span className="text-sm text-gray-900">{modelName}</span>
+                            </ModernTableCell>
+                            <ModernTableCell>
+                              <span className="text-sm text-gray-900">{colorName}</span>
+                            </ModernTableCell>
+                            <ModernTableCell>
+                              <span className="text-sm font-medium text-emerald-600">
+                                {transaction.importQuantity} xe
+                              </span>
+                            </ModernTableCell>
+                            <ModernTableCell>
+                              <span className="text-sm font-semibold text-gray-900">
+                                {transaction.totalPrice > 0 ? formatPrice(transaction.totalPrice) : 'N/A'} VNĐ
+                              </span>
+                            </ModernTableCell>
+                            <ModernTableCell>
+                              <StatusBadge status={transaction.status} size="sm" />
+                            </ModernTableCell>
+                            <ModernTableCell>
+                              <span className="text-sm text-gray-600 text-center block">
+                                {formatDateWithTime(transaction.orderDate || transaction.createdAt || transaction.transactionDate)}
+                              </span>
+                            </ModernTableCell>
+                            <ModernTableCell>
+                              <span className="text-sm text-gray-600 text-center block">
+                                {deliveryDate 
+                                  ? formatDateWithTime(deliveryDate)
+                                  : '-'
+                                }
+                              </span>
+                            </ModernTableCell>
+                            <ModernTableCell onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-center gap-2">
+                                {(canUploadReceipt || canConfirmDelivery) && (
+                                  <>
+                                    {canUploadReceipt && (
+                                      <ModernButton
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenUploadReceipt(transaction);
+                                        }}
+                                        icon={<Upload className="w-3 h-3" />}
+                                        roleColor="blue"
+                                        size="sm"
+                                      >
+                                        Upload
+                                      </ModernButton>
+                                    )}
+                                    {canConfirmDelivery && (
+                                      <ModernButton
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleOpenConfirmDelivery(transaction);
+                                        }}
+                                        icon={<CheckCircle2 className="w-3 h-3" />}
+                                        roleColor="green"
+                                        size="sm"
+                                      >
+                                        Xác nhận
+                                      </ModernButton>
+                                    )}
+                                  </>
                                 )}
-                                {transaction.totalBasePrice && (
-                                  <div className="flex justify-between text-sm">
-                                    <span className="text-gray-600">Tổng cơ bản:</span>
-                                    <span className="font-medium text-gray-900">{formatPrice(transaction.totalBasePrice)} VNĐ</span>
-                                  </div>
+                                {!canUploadReceipt && !canConfirmDelivery && (
+                                  <span className="text-sm text-gray-400 text-center">-</span>
                                 )}
-                                {transaction.discountPercentage > 0 && transaction.totalBasePrice && (
-                                  <div className="flex justify-between text-sm text-orange-600">
-                                    <span>Giảm giá ({transaction.discountPercentage}%):</span>
-                                    <span className="font-medium">
-                                      -{formatPrice(Math.round(transaction.totalBasePrice * (transaction.discountPercentage / 100)))} VNĐ
-                                    </span>
-                                  </div>
-                                )}
-                                <div className="pt-2 border-t-2 border-emerald-200 flex justify-between">
-                                  <span className="text-sm font-bold text-gray-900">Tổng thanh toán:</span>
-                                  <span className="text-lg font-bold text-emerald-600">{formatPrice(transaction.totalPrice)} VNĐ</span>
-                                </div>
                               </div>
-                            </div>
-                          )}
-
-                          {/* Status Message */}
-                          {getStatusMessage(statusUpper) && (
-                            <div className={`rounded-xl p-4 flex items-center gap-3 ${
-                              statusUpper === 'PENDING' ? 'bg-gradient-to-r from-yellow-50 to-amber-50 border border-yellow-200' :
-                              statusUpper === 'CONFIRMED' ? 'bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200' :
-                              statusUpper === 'FILE_UPLOADED' ? 'bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200' :
-                              statusUpper === 'PAYMENT_CONFIRMED' ? 'bg-gradient-to-r from-teal-50 to-cyan-50 border border-teal-200' :
-                              statusUpper === 'IN_TRANSIT' ? 'bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200' :
-                              statusUpper === 'DELIVERED' ? 'bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200' :
-                              statusUpper === 'REJECTED' ? 'bg-gradient-to-r from-red-50 to-pink-50 border border-red-200' :
-                              'bg-gray-50 border border-gray-200'
-                            }`}>
-                              {statusUpper === 'PENDING' && <Clock className="w-5 h-5 text-yellow-600" />}
-                              {statusUpper === 'CONFIRMED' && <CheckCircle2 className="w-5 h-5 text-blue-600" />}
-                              {statusUpper === 'FILE_UPLOADED' && <Upload className="w-5 h-5 text-amber-600" />}
-                              {statusUpper === 'PAYMENT_CONFIRMED' && <CheckCircle2 className="w-5 h-5 text-teal-600" />}
-                              {statusUpper === 'IN_TRANSIT' && <Truck className="w-5 h-5 text-purple-600" />}
-                              {statusUpper === 'DELIVERED' && <CheckCircle2 className="w-5 h-5 text-green-600" />}
-                              {statusUpper === 'REJECTED' && <XCircle className="w-5 h-5 text-red-600" />}
-                              <p className={`text-sm font-medium ${
-                                statusUpper === 'PENDING' ? 'text-yellow-800' :
-                                statusUpper === 'CONFIRMED' ? 'text-blue-800' :
-                                statusUpper === 'FILE_UPLOADED' ? 'text-amber-800' :
-                                statusUpper === 'PAYMENT_CONFIRMED' ? 'text-teal-800' :
-                                statusUpper === 'IN_TRANSIT' ? 'text-purple-800' :
-                                statusUpper === 'DELIVERED' ? 'text-green-800' :
-                                statusUpper === 'REJECTED' ? 'text-red-800' :
-                                'text-gray-800'
-                              }`}>
-                                {getStatusMessage(statusUpper)}
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Action Buttons */}
-                          {(canUploadReceipt || canConfirmDelivery) && (
-                            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-                              {canUploadReceipt && (
-                                <ModernButton
-                                  onClick={() => handleOpenUploadReceipt(transaction)}
-                                  icon={<Upload className="w-4 h-4" />}
-                                  roleColor="blue"
-                                  size="md"
-                                >
-                                  Upload biên lai
-                                </ModernButton>
-                              )}
-                              {canConfirmDelivery && (
-                                <ModernButton
-                                  onClick={() => handleOpenConfirmDelivery(transaction)}
-                                  icon={<CheckCircle2 className="w-4 h-4" />}
-                                  roleColor="green"
-                                  size="md"
-                                >
-                                  Xác nhận nhận hàng
-                                </ModernButton>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                  </div>
+                            </ModernTableCell>
+                          </ModernTableRow>
+                        );
+                      })}
+                    </ModernTableBody>
+                  </ModernTable>
 
                   {/* Pagination for Transactions */}
                   {Math.ceil(filteredTransactions.length / transactionsItemsPerPage) > 1 && (
@@ -1561,6 +1672,218 @@ function InventoryManagement() {
                   )}
                 </>
               )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Order Detail Modal */}
+        <AnimatePresence>
+          {showOrderDetailModal && selectedOrderDetail && (
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
+              onClick={handleCloseOrderDetail}
+            >
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0, y: 20 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.95, opacity: 0, y: 10 }}
+                transition={{ 
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+              >
+                {/* Header */}
+                <div className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-white/20 rounded-lg">
+                        <FileText className="w-6 h-6" />
+                      </div>
+                      <div>
+                        <h3 className="text-lg font-bold">Đơn hàng #{selectedOrderDetail.inventoryId || selectedOrderDetail.id}</h3>
+                        <p className="text-sm text-blue-100">
+                          {formatDateTime(selectedOrderDetail.orderDate || selectedOrderDetail.createdAt || selectedOrderDetail.transactionDate)}
+                        </p>
+                      </div>
+                    </div>
+                    {(selectedOrderDetail.status || '').toUpperCase() === 'DELIVERED' || (selectedOrderDetail.status || '').toUpperCase() === 'COMPLETED' ? (
+                      <div className="px-4 py-2 bg-green-500 rounded-lg text-white font-semibold text-sm">
+                        Đã giao hàng
+                      </div>
+                    ) : null}
+                    <button
+                      onClick={handleCloseOrderDetail}
+                      className="text-white/80 hover:text-white transition-colors"
+                    >
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-6 space-y-5">
+                  {/* Order Status Stepper */}
+                  <div className="bg-white rounded-xl p-5 border border-gray-200">
+                    <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-blue-600" />
+                      Tiến trình đơn hàng
+                    </h4>
+                    <OrderStatusStepper currentStatus={selectedOrderDetail.status} size="sm" />
+                  </div>
+
+                  {/* Order Details */}
+                  {(() => {
+                    const detailStock = getStockInfoForTransaction(selectedOrderDetail);
+                    const detailStatusUpper = (selectedOrderDetail.status || '').toUpperCase();
+                    const detailTransactionModel = models.find(m => m.modelId === selectedOrderDetail.modelId);
+                    const detailTransactionColor = modelColors.find(mc => 
+                      mc.modelId === selectedOrderDetail.modelId && 
+                      mc.colorId === selectedOrderDetail.colorId
+                    );
+                    const detailModelName = detailTransactionModel?.modelName || detailStock?.modelName || 'N/A';
+                    const detailColorName = detailTransactionColor?.colorName || detailStock?.colorName || 'N/A';
+                    const detailIsDelivered = detailStatusUpper === 'DELIVERED' || detailStatusUpper === 'COMPLETED' || detailStatusUpper === 'FINISH';
+                    const detailDeliveryDate = detailIsDelivered 
+                      ? (selectedOrderDetail.deliveredDate || selectedOrderDetail.completedDate || selectedOrderDetail.updatedAt || selectedOrderDetail.deliveryDate)
+                      : selectedOrderDetail.deliveryDate;
+
+                    return (
+                      <>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                            <p className="text-xs text-gray-500 mb-2">Model • Màu</p>
+                            <p className="text-sm font-bold text-gray-900">
+                              {detailModelName} - {detailColorName}
+                            </p>
+                          </div>
+                          <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                            <p className="text-xs text-gray-500 mb-2">Số lượng</p>
+                            <p className="text-sm font-bold text-emerald-600 flex items-center gap-1">
+                              <Package className="w-4 h-4" />
+                              {selectedOrderDetail.importQuantity} xe
+                            </p>
+                          </div>
+                          <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                            <p className="text-xs text-gray-500 mb-2">Ngày giao hàng</p>
+                            <p className="text-sm font-bold text-gray-900 flex items-center gap-1">
+                              <Calendar className="w-4 h-4 text-blue-600" />
+                              <span className="text-gray-500">
+                                {detailDeliveryDate 
+                                  ? new Date(detailDeliveryDate).toLocaleDateString('vi-VN')
+                                  : 'Chưa xác định'
+                                }
+                              </span>
+                            </p>
+                          </div>
+                          <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                            <p className="text-xs text-gray-500 mb-2">Tổng giá</p>
+                            <p className="text-sm font-bold text-emerald-600 flex items-center gap-1">
+                              <DollarSign className="w-4 h-4" />
+                              {selectedOrderDetail.totalPrice > 0 ? formatPrice(selectedOrderDetail.totalPrice) : 'N/A'} VNĐ
+                            </p>
+                          </div>
+                        </div>
+
+                        {/* Price Breakdown */}
+                        {selectedOrderDetail.totalPrice > 0 && (selectedOrderDetail.unitBasePrice || selectedOrderDetail.discountPercentage > 0) && (
+                          <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-5 border border-emerald-200">
+                            <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                              <DollarSign className="w-4 h-4 text-emerald-600" />
+                              Chi tiết giá
+                            </h4>
+                            <div className="space-y-2">
+                              {selectedOrderDetail.unitBasePrice && (
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Đơn giá:</span>
+                                  <span className="font-medium text-gray-900">{formatPrice(selectedOrderDetail.unitBasePrice)} VNĐ</span>
+                                </div>
+                              )}
+                              {selectedOrderDetail.totalBasePrice && (
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-600">Tổng cơ bản:</span>
+                                  <span className="font-medium text-gray-900">{formatPrice(selectedOrderDetail.totalBasePrice)} VNĐ</span>
+                                </div>
+                              )}
+                              {selectedOrderDetail.discountPercentage > 0 && selectedOrderDetail.totalBasePrice && (
+                                <div className="flex justify-between text-sm text-orange-600">
+                                  <span>Giảm giá ({selectedOrderDetail.discountPercentage}%):</span>
+                                  <span className="font-medium">
+                                    -{formatPrice(Math.round(selectedOrderDetail.totalBasePrice * (selectedOrderDetail.discountPercentage / 100)))} VNĐ
+                                  </span>
+                                </div>
+                              )}
+                              <div className="pt-2 border-t-2 border-emerald-200 flex justify-between">
+                                <span className="text-sm font-bold text-gray-900">Tổng thanh toán:</span>
+                                <span className="text-lg font-bold text-emerald-600">{formatPrice(selectedOrderDetail.totalPrice)} VNĐ</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Completion Status */}
+                        {(detailStatusUpper === 'DELIVERED' || detailStatusUpper === 'COMPLETED') && (
+                          <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-200">
+                            <div className="flex items-center gap-2">
+                              <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                              <span className="text-sm font-semibold text-gray-900">
+                                Đã hoàn thành và cập nhật vào kho
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        {(() => {
+                          const detailCanUploadReceipt = detailStatusUpper === 'CONFIRMED' || 
+                                                          detailStatusUpper === 'ACCEPTED' || 
+                                                          detailStatusUpper === 'APPROVED';
+                          const detailCanConfirmDelivery = detailStatusUpper === 'IN_TRANSIT';
+
+                          if (detailCanUploadReceipt || detailCanConfirmDelivery) {
+                            return (
+                              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                                {detailCanUploadReceipt && (
+                                  <ModernButton
+                                    onClick={() => {
+                                      handleCloseOrderDetail();
+                                      handleOpenUploadReceipt(selectedOrderDetail);
+                                    }}
+                                    icon={<Upload className="w-4 h-4" />}
+                                    roleColor="blue"
+                                    size="md"
+                                  >
+                                    Upload biên lai
+                                  </ModernButton>
+                                )}
+                                {detailCanConfirmDelivery && (
+                                  <ModernButton
+                                    onClick={() => {
+                                      handleCloseOrderDetail();
+                                      handleOpenConfirmDelivery(selectedOrderDetail);
+                                    }}
+                                    icon={<CheckCircle2 className="w-4 h-4" />}
+                                    roleColor="green"
+                                    size="md"
+                                  >
+                                    Xác nhận nhận hàng
+                                  </ModernButton>
+                                )}
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </>
+                    );
+                  })()}
+                </div>
+              </motion.div>
             </motion.div>
           )}
         </AnimatePresence>
