@@ -135,6 +135,9 @@ function OrderManagement() {
       case 'confirmed':
       case 'đã xác nhận':
         return 'bg-blue-100 text-blue-800';
+      case 'contract_signed':
+      case 'đã ký hợp đồng':
+        return 'bg-indigo-100 text-indigo-800';
       case 'processing':
       case 'đang xử lý':
         return 'bg-purple-100 text-purple-800';
@@ -155,9 +158,11 @@ function OrderManagement() {
     switch (lowerStatus) {
       case 'pending': return 'Chờ duyệt';
       case 'confirmed': return 'Đã xác nhận';
+      case 'contract_signed': return 'Đã ký hợp đồng';
       case 'processing': return 'Đang xử lý';
       case 'completed': return 'Hoàn thành';
       case 'cancelled': return 'Đã hủy';
+      case 'canceled': return 'Đã hủy';
       default: return status;
     }
   };

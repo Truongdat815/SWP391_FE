@@ -11,6 +11,7 @@ const getStatusText = (status) => {
     'ACCEPTED': 'Đã chấp nhận',
     'APPROVED': 'Đã duyệt',
     'CONFIRMED': 'Đã xác nhận',
+    'CONTRACT_SIGNED': 'Đã ký hợp đồng',
     'FILE_UPLOADED': 'Đã upload',
     'PAYMENT_CONFIRMED': 'Đã thanh toán',
     'SHIPPING': 'Đang vận chuyển',
@@ -20,7 +21,9 @@ const getStatusText = (status) => {
     'FINISH': 'Hoàn thành',
     'REJECTED': 'Đã từ chối',
     'CANCELLED': 'Đã hủy',
-    'CANCELED': 'Đã hủy'
+    'CANCELED': 'Đã hủy',
+    'DRAFT': 'Bản nháp',
+    'PROCESSING': 'Đang xử lý'
   };
   
   return statusMap[upperStatus] || status;
@@ -42,7 +45,7 @@ const StatusBadge = ({ status, size = 'md' }) => {
     <motion.span
       whileHover={{ scale: 1.05 }}
       className={`
-        inline-flex items-center gap-2 rounded-full font-medium shadow-lg
+        inline-flex items-center justify-center gap-2 rounded-full font-medium shadow-lg
         ${colorConfig.bg} ${colorConfig.text} ${sizes[size]}
       `}
     >
