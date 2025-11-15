@@ -11,18 +11,15 @@ import {
   Clock, 
   Truck, 
   XCircle,
-  Plus,
   RefreshCw,
   Search,
-  ChevronDown,
-  ChevronUp,
   Calendar,
   DollarSign,
-  Box,
   FileText,
   Send,
   Edit,
-  Upload
+  Upload,
+  ArrowUpDown
 } from 'lucide-react';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -30,6 +27,8 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import EmptyState from '../../components/ui/EmptyState';
 import ModernButton from '../../components/ui/ModernButton';
 import OrderStatusStepper from '../../components/ui/OrderStatusStepper';
+import { ModernTable, ModernTableHead, ModernTableHeader, ModernTableBody, ModernTableRow, ModernTableCell } from '../../components/ui/ModernTable';
+import Pagination from '../../components/ui/Pagination';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
 import { 
@@ -79,11 +78,21 @@ function InventoryManagement() {
   // Tab state
   const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' or 'transactions'
 
-  // Inventory view states
-  const [inventory, setInventory] = useState([]);
-  const [filteredInventory, setFilteredInventory] = useState([]);
+  // Inventory table states
+  const [flatInventory, setFlatInventory] = useState([]); // Flattened inventory data (each row = model-color combination)
   const [searchTerm, setSearchTerm] = useState('');
-  const [expandedModels, setExpandedModels] = useState(new Set());
+  const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'in_stock', 'low_stock', 'out_of_stock'
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+  const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' }); // { key: 'model'|'stock'|'price', direction: 'asc'|'desc' }
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
+  
+  // Transactions sort state
+  const [transactionsSortOrder, setTransactionsSortOrder] = useState('updated'); // 'newest', 'oldest', or 'updated'
+  const [transactionStatusFilter, setTransactionStatusFilter] = useState('all'); // 'all', 'pending', 'accepted', 'uploaded', 'paid', 'shipping', 'delivered'
+  const [transactionsCurrentPage, setTransactionsCurrentPage] = useState(1);
+  const [transactionsItemsPerPage] = useState(5);
 
   // Request modal states
   const [requestModal, setRequestModal] = useState(false);
@@ -120,91 +129,127 @@ function InventoryManagement() {
   const [newPrice, setNewPrice] = useState('');
 
   useEffect(() => {
-    // Initial load
+    // Initial load only - no auto-refresh, using realtime updates instead
     dispatch(getAllStoreStocksThunk());
     dispatch(getAllTransactionsThunk());
     dispatch(getAllModelColorsThunk());
     dispatch(getAllModelsThunk());
     dispatch(fetchActivePromotions());
 
-    // Auto-refresh transactions every 10 seconds to catch updates from EVM staff
-    const refreshInterval = setInterval(() => {
-      dispatch(getAllTransactionsThunk());
-    }, 10000); // Refresh every 10 seconds
-
-    // Also refresh when window regains focus (user switches back to tab)
-    const handleFocus = () => {
-      dispatch(getAllTransactionsThunk());
-      dispatch(getAllStoreStocksThunk());
-    };
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      clearInterval(refreshInterval);
-      window.removeEventListener('focus', handleFocus);
-    };
+    // Removed auto-refresh interval - using realtime updates instead
+    // Removed window focus refresh - using realtime updates instead
   }, [dispatch]);
 
-  // Transform API data to match UI format (inventory view)
+  // Transform API data to flat list format (each row = model-color combination)
   useEffect(() => {
     if (storeStocksStatus === 'succeeded') {
       if (storeStocks.length > 0) {
-        // Filter by my store
+        // Filter by my store and flatten to table rows
         const myStoreStocks = storeStocks.filter(s => s.storeId === myStoreId);
         
-        // Group by model
-        const groupedByModel = myStoreStocks.reduce((acc, stock) => {
-          const modelName = stock.modelName;
-          
-          if (!acc[modelName]) {
-            acc[modelName] = {
-              id: stock.modelId,
-              model: modelName,
-              totalStock: 0,
-              colors: []
-            };
-          }
-          
-          acc[modelName].totalStock += stock.quantity;
-          acc[modelName].colors.push({
-            color: stock.colorName,
-            stock: stock.quantity,
-            price: stock.priceOfStore,
-            stockId: stock.stockId,
-            storeName: stock.storeName,
-            storeId: stock.storeId,
-            modelId: stock.modelId,
-            colorId: stock.colorId
-          });
-          
-          return acc;
-        }, {});
+        const flattened = myStoreStocks.map(stock => ({
+          id: stock.stockId,
+          stockId: stock.stockId,
+          modelId: stock.modelId,
+          colorId: stock.colorId,
+          model: stock.modelName,
+          color: stock.colorName,
+          stock: stock.quantity,
+          price: stock.priceOfStore,
+          storeName: stock.storeName,
+          storeId: stock.storeId,
+          updatedAt: stock.updatedAt || stock.createdAt || new Date().toISOString()
+        }));
         
-        const transformedInventory = Object.values(groupedByModel);
-        setInventory(transformedInventory);
-        setFilteredInventory(transformedInventory);
+        setFlatInventory(flattened);
       } else {
-        setInventory([]);
-        setFilteredInventory([]);
+        setFlatInventory([]);
       }
     }
   }, [storeStocks, storeStocksStatus, myStoreId]);
 
-  // Filter inventory based on search term
-  useEffect(() => {
-    if (searchTerm.trim() === '') {
-      setFilteredInventory(inventory);
-    } else {
-      const filtered = inventory.filter(vehicle =>
-        vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        vehicle.colors.some(colorItem => 
-          colorItem.color.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          colorItem.storeName?.toLowerCase().includes(searchTerm.toLowerCase())
-        )
+  // Filter, sort and paginate inventory data
+  const filteredAndSortedInventory = useMemo(() => {
+    let result = [...flatInventory];
+
+    // Filter by search term
+    if (searchTerm.trim()) {
+      const term = searchTerm.toLowerCase();
+      result = result.filter(item =>
+        item.model.toLowerCase().includes(term) ||
+        item.color.toLowerCase().includes(term) ||
+        item.storeName?.toLowerCase().includes(term)
       );
-      setFilteredInventory(filtered);
     }
-  }, [searchTerm, inventory]);
+
+    // Filter by status
+    if (statusFilter !== 'all') {
+      result = result.filter(item => {
+        if (statusFilter === 'out_of_stock') return item.stock === 0;
+        if (statusFilter === 'low_stock') return item.stock > 0 && item.stock <= 3;
+        if (statusFilter === 'in_stock') return item.stock > 3;
+        return true;
+      });
+    }
+
+    // Filter by date range
+    if (startDate || endDate) {
+      result = result.filter(item => {
+        const itemDate = new Date(item.updatedAt);
+        if (startDate && itemDate < new Date(startDate)) return false;
+        if (endDate && itemDate > new Date(endDate + 'T23:59:59')) return false;
+        return true;
+      });
+    }
+
+    // Sort
+    if (sortConfig.key) {
+      result.sort((a, b) => {
+        let aVal, bVal;
+        if (sortConfig.key === 'model') {
+          aVal = a.model.toLowerCase();
+          bVal = b.model.toLowerCase();
+        } else if (sortConfig.key === 'stock') {
+          aVal = a.stock;
+          bVal = b.stock;
+        } else if (sortConfig.key === 'price') {
+          aVal = a.price || 0;
+          bVal = b.price || 0;
+        } else {
+          return 0;
+        }
+
+        if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return result;
+  }, [flatInventory, searchTerm, statusFilter, startDate, endDate, sortConfig]);
+
+  // Paginated inventory
+  const paginatedInventory = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredAndSortedInventory.slice(startIndex, endIndex);
+  }, [filteredAndSortedInventory, currentPage, itemsPerPage]);
+
+  // Handle sort
+  const handleSort = (key) => {
+    setSortConfig(prev => ({
+      key,
+      direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc'
+    }));
+    setCurrentPage(1); // Reset to first page when sorting
+  };
+
+  // Get status for inventory item
+  const getStockStatus = (stock) => {
+    if (stock === 0) return { label: 'Hết hàng', color: 'red' };
+    if (stock <= 3) return { label: 'Sắp hết', color: 'yellow' };
+    return { label: 'Còn hàng', color: 'green' };
+  };
 
   // Get my store's transactions (filtered by storeId)
   const myTransactions = useMemo(() => {
@@ -267,27 +312,96 @@ function InventoryManagement() {
         return false;
       })
       .sort((a, b) => {
-        // Sort by transaction date (newest first)
-        const dateA = new Date(a.orderDate || a.transactionDate || a.createdAt || 0);
-        const dateB = new Date(b.orderDate || b.transactionDate || b.createdAt || 0);
-        return dateB - dateA;
+        if (transactionsSortOrder === 'updated') {
+          // Sort by updatedAt (most recent update first), fallback to createdAt
+          const dateA = new Date(a.updatedAt || a.createdAt || a.orderDate || a.transactionDate || 0).getTime();
+          const dateB = new Date(b.updatedAt || b.createdAt || b.orderDate || b.transactionDate || 0).getTime();
+          return dateB - dateA; // Most recently updated first
+        } else if (transactionsSortOrder === 'newest') {
+          // Sort by creation date (newest first)
+          const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+          const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+          return dateB - dateA; // Newest first
+        } else {
+          // Sort by creation date (oldest first)
+          const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+          const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+          return dateA - dateB; // Oldest first
+        }
       });
     
     console.log('Filtered transactions for my store:', filtered.length);
     console.log('Transaction statuses:', filtered.map(t => ({ id: t.inventoryId || t.id, status: t.status })));
     
     return filtered;
-  }, [transactions, storeStocks, myStoreId]);
+  }, [transactions, storeStocks, myStoreId, transactionsSortOrder]);
+
+  // Filter transactions by status
+  const filteredTransactions = useMemo(() => {
+    let result = myTransactions;
+    
+    if (transactionStatusFilter !== 'all') {
+      result = myTransactions.filter(t => {
+        const statusUpper = (t.status || '').toUpperCase();
+        
+        switch (transactionStatusFilter) {
+          case 'pending':
+            return statusUpper === 'PENDING';
+          case 'accepted':
+            return statusUpper === 'ACCEPTED' || statusUpper === 'APPROVED' || statusUpper === 'CONFIRMED';
+          case 'uploaded':
+            return statusUpper === 'FILE_UPLOADED';
+          case 'paid':
+            return statusUpper === 'PAYMENT_CONFIRMED';
+          case 'shipping':
+            return statusUpper === 'SHIPPING' || statusUpper === 'IN_TRANSIT';
+          case 'delivered':
+            return statusUpper === 'COMPLETED' || statusUpper === 'DELIVERED' || statusUpper === 'FINISH';
+          default:
+            return true;
+        }
+      });
+    }
+    
+    return result;
+  }, [myTransactions, transactionStatusFilter]);
+
+  // Paginated transactions
+  const paginatedTransactions = useMemo(() => {
+    const startIndex = (transactionsCurrentPage - 1) * transactionsItemsPerPage;
+    const endIndex = startIndex + transactionsItemsPerPage;
+    return filteredTransactions.slice(startIndex, endIndex);
+  }, [filteredTransactions, transactionsCurrentPage, transactionsItemsPerPage]);
+
+  // Reset to page 1 when filter changes
+  useEffect(() => {
+    setTransactionsCurrentPage(1);
+  }, [transactionStatusFilter]);
 
   // Calculate statistics
   const stats = useMemo(() => {
-    const totalStock = inventory.reduce((sum, v) => sum + v.totalStock, 0);
-    const totalModels = inventory.length;
-    const totalColors = inventory.reduce((sum, v) => sum + v.colors.length, 0);
+    const totalStock = flatInventory.reduce((sum, item) => sum + item.stock, 0);
+    const totalModels = new Set(flatInventory.map(item => item.modelId)).size;
+    const totalColors = flatInventory.length;
     
     const pendingCount = myTransactions.filter(t => {
       const status = (t.status || '').toUpperCase();
       return status === 'PENDING';
+    }).length;
+    
+    const acceptedCount = myTransactions.filter(t => {
+      const status = (t.status || '').toUpperCase();
+      return status === 'ACCEPTED' || status === 'APPROVED' || status === 'CONFIRMED';
+    }).length;
+    
+    const uploadedCount = myTransactions.filter(t => {
+      const status = (t.status || '').toUpperCase();
+      return status === 'FILE_UPLOADED';
+    }).length;
+    
+    const paidCount = myTransactions.filter(t => {
+      const status = (t.status || '').toUpperCase();
+      return status === 'PAYMENT_CONFIRMED';
     }).length;
     
     const shippingCount = myTransactions.filter(t => {
@@ -305,11 +419,14 @@ function InventoryManagement() {
       totalModels,
       totalColors,
       pendingCount,
+      acceptedCount,
+      uploadedCount,
+      paidCount,
       shippingCount,
       completedCount,
       totalTransactions: myTransactions.length
     };
-  }, [inventory, myTransactions]);
+  }, [flatInventory, myTransactions]);
 
   // Helper functions
   const formatPrice = (price) => {
@@ -321,15 +438,6 @@ function InventoryManagement() {
     return Math.round(numPrice).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   };
 
-  const toggleExpanded = (modelId) => {
-    const newExpanded = new Set(expandedModels);
-    if (newExpanded.has(modelId)) {
-      newExpanded.delete(modelId);
-    } else {
-      newExpanded.add(modelId);
-    }
-    setExpandedModels(newExpanded);
-  };
 
   const getColorPreview = (colorName) => {
     const colorMap = {
@@ -806,15 +914,15 @@ function InventoryManagement() {
   };
 
   // Handle open update price modal
-  const handleOpenUpdatePrice = (colorItem, vehicle) => {
+  const handleOpenUpdatePrice = (item) => {
     setSelectedPriceItem({
-      modelId: colorItem.modelId,
-      colorId: colorItem.colorId,
-      modelName: vehicle.model,
-      colorName: colorItem.color,
-      currentPrice: colorItem.price
+      modelId: item.modelId,
+      colorId: item.colorId,
+      modelName: item.model,
+      colorName: item.color,
+      currentPrice: item.price
     });
-    setNewPrice(colorItem.price?.toString() || '');
+    setNewPrice(item.price?.toString() || '');
     setUpdatePriceModal(true);
   };
 
@@ -927,9 +1035,14 @@ function InventoryManagement() {
               transition={{ duration: 0.3 }}
               className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6"
             >
-              {/* Search Bar */}
+              {/* Header */}
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Tồn kho hiện tại</h2>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Tồn kho hiện tại</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {filteredAndSortedInventory.length} {filteredAndSortedInventory.length === 1 ? 'sản phẩm' : 'sản phẩm'} tìm thấy
+                  </p>
+                </div>
                 <div className="flex items-center gap-3">
                   <div className="relative w-80">
                     <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -939,7 +1052,10 @@ function InventoryManagement() {
                       type="text"
                       placeholder="Tìm kiếm theo model, màu sắc..."
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e) => {
+                        setSearchTerm(e.target.value);
+                        setCurrentPage(1);
+                      }}
                       className="w-full pl-12 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all"
                     />
                   </div>
@@ -951,150 +1067,189 @@ function InventoryManagement() {
                   >
                     Đặt hàng từ EVM
                   </ModernButton>
-                  <ModernButton
-                    onClick={handleOpenCreateStock}
-                    icon={<Plus className="w-4 h-4" />}
-                    roleColor="emerald"
-                    size="md"
-                  >
-                    Thêm xe
-                  </ModernButton>
                 </div>
               </div>
 
-              {/* Vehicle Cards Grid */}
-              <div className="space-y-4">
-                {filteredInventory.length === 0 && storeStocksStatus === 'succeeded' ? (
-                  <EmptyState
-                    title={searchTerm ? 'Không tìm thấy xe nào' : 'Không có dữ liệu kho hàng'}
-                    description={searchTerm ? 'Thử thay đổi từ khóa tìm kiếm.' : 'Kho hàng hiện tại chưa có xe nào.'}
-                    icon="package"
-                    action={!searchTerm ? handleOpenCreateStock : undefined}
-                    actionText={!searchTerm ? 'Tạo dữ liệu xe ban đầu' : undefined}
-                    roleColor="emerald"
+              {/* Date Range Filter */}
+              <div className="flex items-center gap-4 mb-4 pb-4 border-b border-gray-200">
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-5 h-5 text-gray-400" />
+                  <span className="text-sm font-medium text-gray-700">Lọc theo ngày:</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => {
+                      setStartDate(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
                   />
-                ) : (
-                  filteredInventory.map((vehicle) => (
-                    <motion.div
-                      key={vehicle.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="bg-gradient-to-br from-white to-gray-50 rounded-xl shadow-md border border-gray-200 p-6"
+                  <span className="text-gray-500">đến</span>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => {
+                      setEndDate(e.target.value);
+                      setCurrentPage(1);
+                    }}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm"
+                  />
+                  {(startDate || endDate) && (
+                    <button
+                      onClick={() => {
+                        setStartDate('');
+                        setEndDate('');
+                        setCurrentPage(1);
+                      }}
+                      className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 transition-colors"
                     >
-                      {/* Vehicle Header */}
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-4">
-                          <div className="w-16 h-16 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl flex items-center justify-center shadow-lg">
-                            <Package className="w-8 h-8 text-white" />
-                          </div>
-                          <div>
-                            <h3 className="text-xl font-bold text-gray-900 mb-1">{vehicle.model}</h3>
-                            <p className="text-gray-600 flex items-center gap-2">
-                              <span>Tổng tồn:</span>
-                              <span className="font-bold text-emerald-600 text-lg">{vehicle.totalStock} xe</span>
-                            </p>
-                          </div>
-                        </div>
-                        <ModernButton
-                          onClick={() => toggleExpanded(vehicle.id)}
-                          variant="secondary"
-                          icon={expandedModels.has(vehicle.id) ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-                        >
-                          {expandedModels.has(vehicle.id) ? 'Ẩn chi tiết' : 'Xem chi tiết màu'}
-                        </ModernButton>
-                      </div>
-
-                      {/* Color Details Table */}
-                      {expandedModels.has(vehicle.id) && (
-                        <motion.div 
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          className="mt-4 overflow-hidden"
-                        >
-                          <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border border-gray-200">
-                            <h4 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
-                              <Box className="w-5 h-5 text-emerald-600" />
-                              Chi tiết màu sắc
-                            </h4>
-                            <div className="overflow-x-auto">
-                              <table className="min-w-full">
-                                <thead>
-                                  <tr className="border-b-2 border-gray-200">
-                                    <th className="text-left py-4 px-4 text-sm font-bold text-gray-700">Màu sắc</th>
-                                    <th className="text-left py-4 px-4 text-sm font-bold text-gray-700">Số lượng tồn</th>
-                                    <th className="text-left py-4 px-4 text-sm font-bold text-gray-700">Giá bán</th>
-                                    <th className="text-left py-4 px-4 text-sm font-bold text-gray-700">Thao tác</th>
-                                  </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                  {vehicle.colors.map((colorItem, index) => (
-                                    <motion.tr 
-                                      key={index} 
-                                      initial={{ opacity: 0, x: -10 }}
-                                      animate={{ opacity: 1, x: 0 }}
-                                      transition={{ delay: index * 0.05 }}
-                                      className=""
-                                    >
-                                      <td className="py-4 px-4">
-                                        <div className="flex items-center gap-3">
-                                          <div className={`w-6 h-6 rounded-full border-2 border-white shadow-md ${getColorPreview(colorItem.color)}`}></div>
-                                          <span className="text-sm font-medium text-gray-900">{colorItem.color}</span>
-                                        </div>
-                                      </td>
-                                      <td className="py-4 px-4">
-                                        <span className={`text-sm font-bold flex items-center gap-2 ${
-                                          colorItem.stock === 0 ? 'text-red-600' :
-                                          colorItem.stock <= 3 ? 'text-yellow-600' :
-                                          'text-green-600'
-                                        }`}>
-                                          {colorItem.stock === 0 && <AlertCircle className="w-4 h-4" />}
-                                          {colorItem.stock > 0 && colorItem.stock <= 3 && <AlertCircle className="w-4 h-4" />}
-                                          {colorItem.stock} xe
-                                          {colorItem.stock === 0 && ' (Hết hàng)'}
-                                          {colorItem.stock > 0 && colorItem.stock <= 3 && ' (Sắp hết)'}
-                                        </span>
-                                      </td>
-                                      <td className="py-4 px-4">
-                                        <div className="flex items-center gap-2">
-                                          <span className="text-sm font-semibold text-gray-900 flex items-center gap-1">
-                                            <DollarSign className="w-4 h-4 text-emerald-600" />
-                                            {formatPrice(colorItem.price)} VNĐ
-                                          </span>
-                                          <ModernButton
-                                            onClick={() => handleOpenUpdatePrice(colorItem, vehicle)}
-                                            size="sm"
-                                            variant="secondary"
-                                            icon={<Edit className="w-3 h-3" />}
-                                            roleColor="yellow"
-                                          >
-                                            Sửa
-                                          </ModernButton>
-                                        </div>
-                                      </td>
-                                      <td className="py-4 px-4">
-                                        <ModernButton
-                                          onClick={handleOpenRequest}
-                                          size="sm"
-                                          icon={<ShoppingCart className="w-4 h-4" />}
-                                          roleColor="blue"
-                                          noHover={true}
-                                        >
-                                          Đặt hàng
-                                        </ModernButton>
-                                      </td>
-                                    </motion.tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </motion.div>
-                  ))
-                )}
+                      Xóa
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {/* Status Tabs */}
+              <div className="flex items-center gap-2 mb-6">
+                {[
+                  { key: 'all', label: 'Tất cả' },
+                  { key: 'in_stock', label: 'Còn hàng' },
+                  { key: 'low_stock', label: 'Sắp hết' },
+                  { key: 'out_of_stock', label: 'Hết hàng' }
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => {
+                      setStatusFilter(tab.key);
+                      setCurrentPage(1);
+                    }}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all ${
+                      statusFilter === tab.key
+                        ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Inventory Table */}
+              {storeStocksStatus === 'loading' ? (
+                <div className="text-center py-16">
+                  <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-emerald-500 border-t-transparent"></div>
+                  <p className="mt-4 text-gray-600 font-medium">Đang tải dữ liệu...</p>
+                </div>
+              ) : filteredAndSortedInventory.length === 0 ? (
+                <EmptyState
+                  title={searchTerm || statusFilter !== 'all' || startDate || endDate ? 'Không tìm thấy sản phẩm nào' : 'Không có dữ liệu kho hàng'}
+                  description={searchTerm || statusFilter !== 'all' || startDate || endDate ? 'Thử thay đổi bộ lọc hoặc từ khóa tìm kiếm.' : 'Kho hàng hiện tại chưa có sản phẩm nào.'}
+                  icon="package"
+                  roleColor="emerald"
+                />
+              ) : (
+                <>
+                  <ModernTable>
+                    <ModernTableHead>
+                      <tr>
+                        <ModernTableHeader sortable onSort={() => handleSort('model')}>
+                          Model • Màu sắc
+                        </ModernTableHeader>
+                        <ModernTableHeader sortable onSort={() => handleSort('stock')}>
+                          Số lượng tồn
+                        </ModernTableHeader>
+                        <ModernTableHeader sortable onSort={() => handleSort('price')}>
+                          Giá bán
+                        </ModernTableHeader>
+                        <ModernTableHeader>Trạng thái</ModernTableHeader>
+                        <ModernTableHeader>Thao tác</ModernTableHeader>
+                      </tr>
+                    </ModernTableHead>
+                    <ModernTableBody>
+                      {paginatedInventory.map((item, index) => {
+                        const stockStatus = getStockStatus(item.stock);
+                        return (
+                          <ModernTableRow key={item.id} index={index}>
+                            <ModernTableCell>
+                              <div className="flex items-center gap-3">
+                                <div className={`w-6 h-6 rounded-full border-2 border-white shadow-md ${getColorPreview(item.color)}`}></div>
+                                <div>
+                                  <div className="font-medium text-gray-900">{item.model}</div>
+                                  <div className="text-sm text-gray-500">{item.color}</div>
+                                </div>
+                              </div>
+                            </ModernTableCell>
+                            <ModernTableCell>
+                              <span className={`text-sm font-bold flex items-center gap-2 ${
+                                item.stock === 0 ? 'text-red-600' :
+                                item.stock <= 3 ? 'text-yellow-600' :
+                                'text-green-600'
+                              }`}>
+                                {item.stock === 0 && <AlertCircle className="w-4 h-4" />}
+                                {item.stock > 0 && item.stock <= 3 && <AlertCircle className="w-4 h-4" />}
+                                {item.stock} xe
+                              </span>
+                            </ModernTableCell>
+                            <ModernTableCell>
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-gray-900 flex items-center gap-1">
+                                  <DollarSign className="w-4 h-4 text-emerald-600" />
+                                  {formatPrice(item.price)} VNĐ
+                                </span>
+                                <ModernButton
+                                  onClick={() => handleOpenUpdatePrice(item)}
+                                  size="sm"
+                                  variant="secondary"
+                                  icon={<Edit className="w-3 h-3" />}
+                                  roleColor="yellow"
+                                >
+                                  Sửa
+                                </ModernButton>
+                              </div>
+                            </ModernTableCell>
+                            <ModernTableCell>
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                stockStatus.color === 'red' ? 'bg-red-100 text-red-800' :
+                                stockStatus.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
+                                'bg-green-100 text-green-800'
+                              }`}>
+                                {stockStatus.label}
+                              </span>
+                            </ModernTableCell>
+                            <ModernTableCell>
+                              <ModernButton
+                                onClick={handleOpenRequest}
+                                size="sm"
+                                icon={<ShoppingCart className="w-4 h-4" />}
+                                roleColor="blue"
+                                noHover={true}
+                              >
+                                Đặt hàng
+                              </ModernButton>
+                            </ModernTableCell>
+                          </ModernTableRow>
+                        );
+                      })}
+                    </ModernTableBody>
+                  </ModernTable>
+
+                  {/* Pagination */}
+                  {Math.ceil(filteredAndSortedInventory.length / itemsPerPage) > 1 && (
+                    <div className="mt-6">
+                      <Pagination
+                        currentPage={currentPage}
+                        totalPages={Math.ceil(filteredAndSortedInventory.length / itemsPerPage)}
+                        onPageChange={setCurrentPage}
+                        itemsPerPage={itemsPerPage}
+                        totalItems={filteredAndSortedInventory.length}
+                        showInfo={true}
+                      />
+                    </div>
+                  )}
+                </>
+              )}
             </motion.div>
           )}
 
@@ -1108,13 +1263,66 @@ function InventoryManagement() {
               className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6"
             >
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Lịch sử yêu cầu đặt hàng</h2>
-                <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-xl">
-                  <FileText className="w-5 h-5 text-blue-600" />
-                  <span className="text-sm font-semibold text-blue-600">
-                    Tổng: {stats.totalTransactions} yêu cầu
-                  </span>
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900">Lịch sử yêu cầu đặt hàng</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    {filteredTransactions.length} {filteredTransactions.length === 1 ? 'yêu cầu' : 'yêu cầu'} tìm thấy
+                  </p>
                 </div>
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <ArrowUpDown className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <select
+                      value={transactionsSortOrder}
+                      onChange={(e) => setTransactionsSortOrder(e.target.value)}
+                      className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent appearance-none bg-white text-sm min-w-[180px]"
+                    >
+                      <option value="updated">Cập nhật mới nhất</option>
+                      <option value="newest">Mới nhất</option>
+                      <option value="oldest">Cũ nhất</option>
+                    </select>
+                  </div>
+                  <div className="flex items-center gap-2 px-4 py-2 bg-blue-50 rounded-xl">
+                    <FileText className="w-5 h-5 text-blue-600" />
+                    <span className="text-sm font-semibold text-blue-600">
+                      Tổng: {stats.totalTransactions} yêu cầu
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Status Filter Tabs */}
+              <div className="flex items-center gap-2 mb-6 flex-wrap">
+                {[
+                  { key: 'all', label: 'Tất cả', count: stats.totalTransactions },
+                  { key: 'pending', label: 'Chờ xử lý', count: stats.pendingCount },
+                  { key: 'accepted', label: 'Đã chấp nhận', count: stats.acceptedCount },
+                  { key: 'uploaded', label: 'Đã upload', count: stats.uploadedCount },
+                  { key: 'paid', label: 'Đã thanh toán', count: stats.paidCount },
+                  { key: 'shipping', label: 'Vận chuyển', count: stats.shippingCount },
+                  { key: 'delivered', label: 'Đã giao', count: stats.completedCount }
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setTransactionStatusFilter(tab.key)}
+                    className={`px-4 py-2 rounded-lg font-medium transition-all flex items-center gap-2 ${
+                      transactionStatusFilter === tab.key
+                        ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md'
+                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                  >
+                    <span>{tab.label}</span>
+                    {tab.count > 0 && (
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                        transactionStatusFilter === tab.key
+                          ? 'bg-white/20 text-white'
+                          : 'bg-blue-100 text-blue-600'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
               </div>
 
               {transactionsStatus === 'loading' ? (
@@ -1122,16 +1330,17 @@ function InventoryManagement() {
                   <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
                   <p className="mt-4 text-gray-600 font-medium">Đang tải dữ liệu...</p>
                 </div>
-              ) : myTransactions.length === 0 ? (
+              ) : filteredTransactions.length === 0 ? (
                 <EmptyState
-                  title="Chưa có yêu cầu nào"
-                  description="Các yêu cầu đặt hàng sẽ hiển thị ở đây"
+                  title={transactionStatusFilter !== 'all' ? 'Không tìm thấy yêu cầu nào với trạng thái này' : 'Chưa có yêu cầu nào'}
+                  description={transactionStatusFilter !== 'all' ? 'Thử chọn trạng thái khác hoặc xem tất cả yêu cầu.' : 'Các yêu cầu đặt hàng sẽ hiển thị ở đây'}
                   icon="file"
                   roleColor="blue"
                 />
               ) : (
-                <div className="space-y-6">
-                  {myTransactions.map((transaction, index) => {
+                <>
+                  <div className="space-y-6">
+                    {paginatedTransactions.map((transaction, index) => {
                     const stock = getStockInfoForTransaction(transaction);
                     const statusUpper = (transaction.status || '').toUpperCase();
                     const canConfirmDelivery = statusUpper === 'IN_TRANSIT';
@@ -1139,6 +1348,21 @@ function InventoryManagement() {
                     const canUploadReceipt = statusUpper === 'CONFIRMED' || 
                                             statusUpper === 'ACCEPTED' || 
                                             statusUpper === 'APPROVED';
+                    
+                    // Get model and color names from transaction
+                    const transactionModel = models.find(m => m.modelId === transaction.modelId);
+                    const transactionColor = modelColors.find(mc => 
+                      mc.modelId === transaction.modelId && 
+                      mc.colorId === transaction.colorId
+                    );
+                    const modelName = transactionModel?.modelName || stock?.modelName || 'N/A';
+                    const colorName = transactionColor?.colorName || stock?.colorName || 'N/A';
+                    
+                    // Determine delivery date - if delivered, show actual delivery date, otherwise show estimated
+                    const isDelivered = statusUpper === 'DELIVERED' || statusUpper === 'COMPLETED' || statusUpper === 'FINISH';
+                    const deliveryDate = isDelivered 
+                      ? (transaction.deliveredDate || transaction.completedDate || transaction.updatedAt || transaction.deliveryDate)
+                      : transaction.deliveryDate;
                     
                     return (
                       <motion.div
@@ -1190,7 +1414,7 @@ function InventoryManagement() {
                             <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
                               <p className="text-xs text-gray-500 mb-2 font-medium">Model • Màu</p>
                               <p className="text-sm font-bold text-gray-900">
-                                {stock ? `${stock.modelName} • ${stock.colorName}` : 'N/A'}
+                                {modelName} - {colorName}
                               </p>
                             </div>
                             <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
@@ -1201,11 +1425,13 @@ function InventoryManagement() {
                               </p>
                             </div>
                             <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-                              <p className="text-xs text-gray-500 mb-2 font-medium">Ngày giao dự kiến</p>
+                              <p className="text-xs text-gray-500 mb-2 font-medium">
+                                {isDelivered ? 'Ngày giao hàng' : 'Ngày giao hàng dự kiến'}
+                              </p>
                               <p className="text-sm font-bold text-gray-900 flex items-center gap-1">
                                 <Calendar className="w-4 h-4 text-blue-600" />
-                                {transaction.deliveryDate 
-                                  ? new Date(transaction.deliveryDate).toLocaleDateString('vi-VN')
+                                {deliveryDate 
+                                  ? new Date(deliveryDate).toLocaleDateString('vi-VN')
                                   : 'Chưa xác định'
                                 }
                               </p>
@@ -1239,10 +1465,12 @@ function InventoryManagement() {
                                     <span className="font-medium text-gray-900">{formatPrice(transaction.totalBasePrice)} VNĐ</span>
                                   </div>
                                 )}
-                                {transaction.discountPercentage > 0 && (
+                                {transaction.discountPercentage > 0 && transaction.totalBasePrice && (
                                   <div className="flex justify-between text-sm text-orange-600">
                                     <span>Giảm giá ({transaction.discountPercentage}%):</span>
-                                    <span className="font-medium">-{formatPrice(transaction.discountAmount)} VNĐ</span>
+                                    <span className="font-medium">
+                                      -{formatPrice(Math.round(transaction.totalBasePrice * (transaction.discountPercentage / 100)))} VNĐ
+                                    </span>
                                   </div>
                                 )}
                                 <div className="pt-2 border-t-2 border-emerald-200 flex justify-between">
@@ -1316,7 +1544,22 @@ function InventoryManagement() {
                       </motion.div>
                     );
                   })}
-                </div>
+                  </div>
+
+                  {/* Pagination for Transactions */}
+                  {Math.ceil(filteredTransactions.length / transactionsItemsPerPage) > 1 && (
+                    <div className="mt-6">
+                      <Pagination
+                        currentPage={transactionsCurrentPage}
+                        totalPages={Math.ceil(filteredTransactions.length / transactionsItemsPerPage)}
+                        onPageChange={setTransactionsCurrentPage}
+                        itemsPerPage={transactionsItemsPerPage}
+                        totalItems={filteredTransactions.length}
+                        showInfo={true}
+                      />
+                    </div>
+                  )}
+                </>
               )}
             </motion.div>
           )}
@@ -1494,7 +1737,6 @@ function InventoryManagement() {
                   const stock = getStockInfoForTransaction(selectedTransaction);
                   const transactionModelId = selectedTransaction.modelId;
                   const transactionColorId = selectedTransaction.colorId;
-                  const transactionStoreStockId = selectedTransaction.storeStockId;
                   
                   // Find correct stock by modelId + colorId
                   const correctStock = storeStocks.find(s => 
@@ -1503,96 +1745,65 @@ function InventoryManagement() {
                     s.colorId === transactionColorId
                   );
                   
-                  const hasMismatch = stock && (
-                    stock.modelId !== transactionModelId || 
-                    stock.colorId !== transactionColorId
+                  // Get model and color names
+                  const transactionModel = models.find(m => m.modelId === transactionModelId);
+                  const transactionColor = modelColors.find(mc => 
+                    mc.modelId === transactionModelId && 
+                    mc.colorId === transactionColorId
                   );
+                  const modelName = transactionModel?.modelName || correctStock?.modelName || stock?.modelName || 'N/A';
+                  const colorName = transactionColor?.colorName || correctStock?.colorName || stock?.colorName || 'N/A';
+                  
+                  // Get store name
+                  const storeName = correctStock?.storeName || stock?.storeName || 'N/A';
+                  
+                  // Get current stock quantity
+                  const currentQty = correctStock?.quantity || stock?.quantity || 0;
+                  const newQty = currentQty + selectedTransaction.importQuantity;
+                  
+                  // Delivery date - show current date when confirming (actual delivery date)
+                  const deliveryDate = new Date();
                   
                   return (
-                    <>
-                      {hasMismatch && (
-                        <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4">
-                          <p className="text-sm font-bold text-red-900 mb-2">⚠️ CẢNH BÁO: Mismatch phát hiện!</p>
-                          <div className="space-y-1 text-xs text-red-800">
-                            <p>• Transaction Model ID: {transactionModelId}, Color ID: {transactionColorId}</p>
-                            <p>• StoreStock ID {transactionStoreStockId} có Model ID: {stock.modelId}, Color ID: {stock.colorId}</p>
-                            <p className="font-semibold mt-2">Số lượng có thể được cập nhật vào SAI model/color. Vui lòng kiểm tra kỹ!</p>
-                          </div>
-                        </div>
-                      )}
-                      
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Model • Màu (từ Transaction):</span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {(() => {
-                              const model = models.find(m => m.modelId === transactionModelId);
-                              const color = modelColors.find(mc => 
-                                mc.modelId === transactionModelId && 
-                                mc.colorId === transactionColorId
-                              );
-                              return model && color 
-                                ? `${model.modelName} • ${color.colorName}` 
-                                : `Model ID: ${transactionModelId}, Color ID: ${transactionColorId}`;
-                            })()}
-                          </span>
-                        </div>
-                        
-                        {stock && (
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Model • Màu (từ StoreStock):</span>
-                            <span className={`text-sm font-medium ${hasMismatch ? 'text-red-600' : 'text-gray-900'}`}>
-                              {stock.modelName} • {stock.colorName}
-                              {hasMismatch && ' ⚠️'}
-                            </span>
-                          </div>
-                        )}
-                        
-                        {correctStock && correctStock.stockId !== transactionStoreStockId && (
-                          <div className="flex justify-between">
-                            <span className="text-sm text-gray-600">Stock đúng (sẽ cập nhật vào):</span>
-                            <span className="text-sm font-bold text-green-600">
-                              {correctStock.modelName} • {correctStock.colorName} (Stock ID: {correctStock.stockId})
-                            </span>
-                          </div>
-                        )}
-                        
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Số lượng nhận:</span>
-                          <span className="text-sm font-medium text-gray-900">{selectedTransaction.importQuantity} xe</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Tồn kho hiện tại:</span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {correctStock ? `${correctStock.quantity} xe` : stock ? `${stock.quantity} xe` : 'N/A'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Tồn kho sau khi nhận:</span>
-                          <span className="text-sm font-bold text-green-600">
-                            {(() => {
-                              const currentQty = correctStock?.quantity || stock?.quantity || 0;
-                              return `${currentQty + selectedTransaction.importQuantity} xe`;
-                            })()}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">StoreStock ID:</span>
-                          <span className="text-sm font-mono text-gray-600">
-                            {transactionStoreStockId || 'N/A'}
-                          </span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-gray-600">Ngày giao dự kiến:</span>
-                          <span className="text-sm font-medium text-gray-900">
-                            {selectedTransaction.deliveryDate 
-                              ? new Date(selectedTransaction.deliveryDate).toLocaleDateString('vi-VN')
-                              : 'N/A'
-                            }
-                          </span>
-                        </div>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Mẫu xe:</span>
+                        <span className="text-sm font-medium text-gray-900">
+                          {modelName} - {colorName}
+                        </span>
                       </div>
-                    </>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Tên cửa hàng:</span>
+                        <span className="text-sm font-medium text-gray-900">{storeName}</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Số lượng nhận:</span>
+                        <span className="text-sm font-medium text-gray-900">{selectedTransaction.importQuantity} xe</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Tồn kho hiện tại:</span>
+                        <span className="text-sm font-medium text-gray-900">{currentQty} xe</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Tồn kho sau khi nhận:</span>
+                        <span className="text-sm font-bold text-green-600">{newQty} xe</span>
+                      </div>
+                      
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600">Ngày giao hàng:</span>
+                        <span className="text-sm font-medium text-gray-900">
+                          {deliveryDate.toLocaleDateString('vi-VN', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric'
+                          })}
+                        </span>
+                      </div>
+                    </div>
                   );
                 })()}
 

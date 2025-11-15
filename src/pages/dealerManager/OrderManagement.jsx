@@ -18,7 +18,8 @@ import {
   CheckCircle,
   X,
   Package,
-  FileText
+  FileText,
+  ArrowUpDown
 } from 'lucide-react';
 
 
@@ -46,6 +47,7 @@ function OrderManagement() {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('newest'); // 'newest' or 'oldest'
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
@@ -92,12 +94,24 @@ function OrderManagement() {
       });
     }
 
+    // Sort by date (newest first by default)
+    filtered.sort((a, b) => {
+      const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
+      const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
+      
+      if (sortOrder === 'newest') {
+        return dateB - dateA; // Newest first
+      } else {
+        return dateA - dateB; // Oldest first
+      }
+    });
+
     setFilteredOrders(filtered);
     
     // Clear selections when filters change
     setSelectedOrderIds([]);
     setCurrentPage(1); // Reset to page 1 when filters change
-  }, [searchTerm, statusFilter, orders]);
+  }, [searchTerm, statusFilter, sortOrder, orders]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
@@ -354,6 +368,19 @@ function OrderManagement() {
                 <option value="completed">Hoàn thành</option>
                 <option value="cancelled">Đã hủy</option>
               </select>
+            </div>
+            <div className="sm:w-48">
+              <div className="relative">
+                <ArrowUpDown className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="newest">Mới nhất trước</option>
+                  <option value="oldest">Cũ nhất trước</option>
+                </select>
+              </div>
             </div>
           </div>
 
