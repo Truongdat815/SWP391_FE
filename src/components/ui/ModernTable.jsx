@@ -21,9 +21,22 @@ export const ModernTableHead = ({ children }) => {
 };
 
 export const ModernTableHeader = ({ children, sortable = false, onSort, className = '' }) => {
+  // If className contains text-right or text-center, use it; otherwise default to text-left
+  const textAlignClass = className.includes('text-right') || className.includes('text-center') 
+    ? '' 
+    : 'text-left';
+  
+  // Determine justify class based on alignment
+  let justifyClass = '';
+  if (className.includes('text-right')) {
+    justifyClass = 'justify-end';
+  } else if (className.includes('text-center')) {
+    justifyClass = 'justify-center';
+  }
+  
   return (
-    <th className={`px-3 py-2.5 text-left ${className}`}>
-      <div className={`flex items-center gap-2 ${sortable ? 'group cursor-pointer' : ''}`} onClick={onSort}>
+    <th className={`px-3 py-2.5 ${textAlignClass} ${className}`}>
+      <div className={`flex items-center gap-2 ${justifyClass} ${sortable ? 'group cursor-pointer' : ''}`} onClick={onSort}>
         <span className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
           {children}
         </span>

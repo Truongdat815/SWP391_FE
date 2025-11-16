@@ -7,7 +7,8 @@ const Pagination = ({
   onPageChange, 
   itemsPerPage = 12,
   totalItems = 0,
-  showInfo = true 
+  showInfo = true,
+  itemLabel = 'kết quả'
 }) => {
   // Don't show pagination if there's only one page or no pages
   if (totalPages <= 1) return null;
@@ -62,7 +63,7 @@ const Pagination = ({
       {/* Info text */}
       {showInfo && totalItems > 0 && (
         <p className="text-sm text-gray-600">
-          Hiển thị <span className="font-semibold text-emerald-600">{startItem}</span> - <span className="font-semibold text-emerald-600">{endItem}</span> trong tổng số <span className="font-semibold text-emerald-600">{totalItems}</span> kết quả
+          Hiển thị <span className="font-semibold text-emerald-600">{startItem}</span> - <span className="font-semibold text-emerald-600">{endItem}</span> trong tổng số <span className="font-semibold text-emerald-600">{totalItems}</span> {itemLabel}
         </p>
       )}
 

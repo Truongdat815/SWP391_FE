@@ -35,8 +35,7 @@ import {
   Tag,
   CreditCard,
   Plus,
-  FileText,
-  PlusCircle
+  FileText
 } from 'lucide-react';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -135,7 +134,7 @@ const aggregateOrderDetails = (details) => {
   return result;
 };
 
-function ViewOrders() {
+function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWithContracts: parentOrdersWithContracts = {} }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -153,7 +152,7 @@ function ViewOrders() {
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(defaultStatusFilter);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [startDate, setStartDate] = useState('');
@@ -165,10 +164,8 @@ function ViewOrders() {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [ordersWithContracts, setOrdersWithContracts] = useState({}); // Map orderId -> contract
   const [creatingContract, setCreatingContract] = useState(null);
-  // Thêm state và hàm sort
-  const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest'
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  // Sort mode - always newest (auto sorted)
+  const sortMode = 'newest';
   const sortOrders = (arr, mode = 'newest') => {
     const getTime = (o) => new Date(o.orderDate || 0).getTime();
     const getId = (o) => Number(o.orderId || 0);
@@ -224,9 +221,11 @@ function ViewOrders() {
     dispatch(fetchAllContractsThunk());
   }, [dispatch]);
 
-  // Map contracts to orders
+  // Map contracts to orders - use parent prop if available, otherwise use Redux
   useEffect(() => {
-    if (contracts && contracts.length > 0) {
+    if (Object.keys(parentOrdersWithContracts).length > 0) {
+      setOrdersWithContracts(parentOrdersWithContracts);
+    } else if (contracts && contracts.length > 0) {
       const contractMap = {};
       contracts.forEach(contract => {
         if (contract.orderId) {
@@ -235,7 +234,7 @@ function ViewOrders() {
       });
       setOrdersWithContracts(contractMap);
     }
-  }, [contracts]);
+  }, [contracts, parentOrdersWithContracts]);
 
   // Initial fetch: only fetch once on mount
   const hasInitialFetchRef = React.useRef(false);
@@ -287,20 +286,11 @@ function ViewOrders() {
     }
   }, [reduxOrders]);
 
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!event.target.closest('.dropdown-container')) {
-        setShowStatusDropdown(false);
-        setShowSortDropdown(false);
-      }
-    };
 
-    if (showStatusDropdown || showSortDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showStatusDropdown, showSortDropdown]);
+  // Update status filter when prop changes (from parent tab change)
+  useEffect(() => {
+    setStatusFilter(defaultStatusFilter);
+  }, [defaultStatusFilter]);
 
   // Update filtered orders when orders or search term changes (client-side search only)
   // Memoize the filtering logic to prevent unnecessary recalculations
@@ -312,13 +302,22 @@ function ViewOrders() {
     
     let filtered = Array.isArray(orders) ? [...orders] : [];
     
-    // Show all orders except CANCELLED (including orders that have been converted to contracts)
-    // This ensures orders remain visible even after being converted to contracts
-    filtered = filtered.filter(order => {
-      const status = order.status?.toUpperCase();
-      // Include all statuses except CANCELLED to show orders even after contract creation
-      return status !== 'CANCELLED';
-    });
+    // If activeTab is 'cancelled', show only CANCELLED orders
+    // Otherwise, exclude CANCELLED by default (unless 'all' tab)
+    if (activeTab === 'cancelled') {
+      filtered = filtered.filter(order => {
+        const status = (order.status || '').toUpperCase();
+        return status === 'CANCELLED';
+      });
+    } else {
+      // Show all orders except CANCELLED (including orders that have been converted to contracts)
+      // This ensures orders remain visible even after being converted to contracts
+      filtered = filtered.filter(order => {
+        const status = (order.status || '').toUpperCase();
+        // Include all statuses except CANCELLED to show orders even after contract creation
+        return status !== 'CANCELLED';
+      });
+    }
 
     // Filter by search term (client-side)
     if (searchTerm) {
@@ -343,25 +342,19 @@ function ViewOrders() {
     // Sort orders: if statusFilter is selected, prioritize that status first
     let sorted = sortOrders(filtered, sortMode);
     
-    // If a specific status is selected, filter first, then sort
-    if (statusFilter !== 'all') {
+    // If a specific status is selected, filter by that status only
+    if (statusFilter !== 'all' && activeTab !== 'cancelled') {
       const selectedStatusUpper = statusFilter.toUpperCase();
-      // First filter by status
-      const statusFiltered = sorted.filter(order => {
+      // Filter by status - only show matching status
+      sorted = sorted.filter(order => {
         const orderStatus = (order.status || '').toUpperCase();
         return orderStatus === selectedStatusUpper;
       });
-      // Then add non-matching orders
-      const nonMatching = sorted.filter(order => {
-        const orderStatus = (order.status || '').toUpperCase();
-        return orderStatus !== selectedStatusUpper;
-      });
-      sorted = [...statusFiltered, ...nonMatching];
     }
 
     setFilteredOrders(sorted);
     setCurrentPage(1); // Reset to page 1 when filters change
-  }, [searchTerm, orders, sortMode, statusFilter]);
+  }, [searchTerm, orders, sortMode, statusFilter, activeTab]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
@@ -633,23 +626,7 @@ function ViewOrders() {
         onCancel={confirm.onCancel}
       />
 
-      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-2">
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">Quản lý đơn hàng</h2>
-            <p className="text-gray-600 mt-0.5 text-xs">Danh sách các đơn hàng đã tạo</p>
-          </div>
-          <motion.button
-            onClick={() => navigate('/dealer-staff/create-order')}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-md font-medium"
-          >
-            <PlusCircle className="h-5 w-5 mr-2" />
-            Tạo đơn hàng
-          </motion.button>
-        </div>
-
+      <div className="w-full">
         {/* Loading State - Only show on initial load */}
         {loading && (!reduxOrders || reduxOrders.length === 0) && (
           <div className="flex items-center justify-center py-6">
@@ -672,153 +649,6 @@ function ViewOrders() {
                     className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
                   />
                 </div>
-              </div>
-              {/* Status Filter Dropdown */}
-              <div className="sm:w-48 relative dropdown-container">
-                <motion.button
-                  onClick={() => {
-                    setShowStatusDropdown(!showStatusDropdown);
-                    setShowSortDropdown(false);
-                  }}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-left flex items-center justify-between transition-all text-sm"
-                >
-                  <span className="text-gray-700 text-sm">
-                    {statusFilter === 'all' ? 'Tất cả trạng thái' :
-                     statusFilter === 'draft' ? 'DRAFT' :
-                     statusFilter === 'approved' ? 'APPROVED' :
-                     statusFilter === 'pending' ? 'PENDING' :
-                     statusFilter === 'confirmed' ? 'CONFIRMED' :
-                     statusFilter === 'processing' ? 'PROCESSING' :
-                     statusFilter === 'completed' ? 'COMPLETED' :
-                     statusFilter === 'cancelled' ? 'CANCELLED' : 'Tất cả trạng thái'}
-                  </span>
-                  <motion.svg
-                    animate={{ rotate: showStatusDropdown ? 180 : 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="h-4 w-4 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </motion.svg>
-                </motion.button>
-                
-                <AnimatePresence>
-                  {showStatusDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      transition={{ 
-                        duration: 0.2,
-                        ease: [0.4, 0, 0.2, 1]
-                      }}
-                      className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden z-50 origin-top"
-                    >
-                      <div className="py-1 max-h-60 overflow-y-auto">
-                        {[
-                          { value: 'all', label: 'Tất cả trạng thái' },
-                          { value: 'draft', label: 'DRAFT' },
-                          { value: 'approved', label: 'APPROVED' },
-                          { value: 'pending', label: 'PENDING' },
-                          { value: 'confirmed', label: 'CONFIRMED' },
-                          { value: 'processing', label: 'PROCESSING' },
-                          { value: 'completed', label: 'COMPLETED' },
-                          { value: 'cancelled', label: 'CANCELLED' }
-                        ].map((option, index) => (
-                          <motion.button
-                            key={option.value}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.03, duration: 0.2 }}
-                            onClick={() => {
-                              setStatusFilter(option.value);
-                              setShowStatusDropdown(false);
-                            }}
-                            className={`w-full px-3 py-2 text-left text-xs hover:bg-emerald-50 transition-colors ${
-                              statusFilter === option.value 
-                                ? 'bg-emerald-50 text-emerald-700 font-medium' 
-                                : 'text-gray-700'
-                            }`}
-                          >
-                            {option.label}
-                          </motion.button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Sort Dropdown */}
-              <div className="sm:w-60 relative dropdown-container">
-                <motion.button
-                  onClick={() => {
-                    setShowSortDropdown(!showSortDropdown);
-                    setShowStatusDropdown(false);
-                  }}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-left flex items-center justify-between transition-all text-sm"
-                >
-                  <span className="text-gray-700 text-sm">
-                    {sortMode === 'newest' ? 'Đơn hàng mới nhất' :
-                     sortMode === 'oldest' ? 'Đơn hàng cũ nhất' : 'Đơn hàng mới nhất'}
-                  </span>
-                  <motion.svg
-                    animate={{ rotate: showSortDropdown ? 180 : 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="h-4 w-4 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </motion.svg>
-                </motion.button>
-                
-                <AnimatePresence>
-                  {showSortDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      transition={{ 
-                        duration: 0.2,
-                        ease: [0.4, 0, 0.2, 1]
-                      }}
-                      className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden z-50 origin-top"
-                    >
-                      <div className="py-1">
-                        {[
-                          { value: 'newest', label: 'Đơn hàng mới nhất' },
-                          { value: 'oldest', label: 'Đơn hàng cũ nhất' }
-                        ].map((option, index) => (
-                          <motion.button
-                            key={option.value}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.03, duration: 0.2 }}
-                            onClick={() => {
-                              setSortMode(option.value);
-                              setShowSortDropdown(false);
-                            }}
-                            className={`w-full px-3 py-2 text-left text-xs hover:bg-emerald-50 transition-colors ${
-                              sortMode === option.value 
-                                ? 'bg-emerald-50 text-emerald-700 font-medium' 
-                                : 'text-gray-700'
-                            }`}
-                          >
-                            {option.label}
-                          </motion.button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
               <motion.button
                 onClick={() => setShowDateFilter(!showDateFilter)}
