@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
@@ -133,19 +133,48 @@ function ViewContracts() {
 
 
   // Filter contracts by search
-  const filteredContracts = (contracts || [])
-    .filter(contract => 
-      contract.contractId?.toString().includes(searchTerm) ||
-      contract.contractCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contract.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contract.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-      // Sort from newest to oldest by contractDate or createdAt
-      const dateA = new Date(a.contractDate || a.createdAt || 0);
-      const dateB = new Date(b.contractDate || b.createdAt || 0);
-      return dateB - dateA; // Descending order (newest first)
+  const filteredContracts = useMemo(() => {
+    return (contracts || [])
+      .filter(contract => 
+        contract.contractId?.toString().includes(searchTerm) ||
+        contract.contractCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contract.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contract.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .sort((a, b) => {
+        // Sort from newest to oldest by contractDate or createdAt
+        const dateA = new Date(a.contractDate || a.createdAt || 0);
+        const dateB = new Date(b.contractDate || b.createdAt || 0);
+        return dateB - dateA; // Descending order (newest first)
+      });
+  }, [contracts, searchTerm]);
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const total = (contracts || []).length;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayContracts = (contracts || []).filter(c => {
+      if (!c.contractDate && !c.createdAt) return false;
+      const contractDate = new Date(c.contractDate || c.createdAt);
+      contractDate.setHours(0, 0, 0, 0);
+      return contractDate.getTime() === today.getTime();
     });
+
+    const uploaded = (contracts || []).filter(c => 
+      c.signedContractFileUrl || c.contractFileUrl
+    ).length;
+
+    const pendingUpload = total - uploaded;
+
+    return {
+      total,
+      today: todayContracts.length,
+      uploaded,
+      pendingUpload
+    };
+  }, [contracts]);
 
   // Handle view contract HTML
   const handleViewContract = async (contract) => {
@@ -347,7 +376,7 @@ function ViewContracts() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -368,32 +397,110 @@ function ViewContracts() {
         onCancel={confirm.onCancel}
       />
 
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3 mb-3">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-              <FileText className="h-6 w-6 text-emerald-600 mr-2" />
-              Quản Lý Hợp Đồng
-            </h1>
-            <p className="text-gray-600 mt-0.5 text-sm">
-              Danh sách hợp đồng đã tạo - Xem và upload hợp đồng đã ký
-            </p>
-          </div>
+      {/* Main Container */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 py-4">
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+          {/* Total Contracts */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="p-1 bg-blue-100 rounded-lg">
+                <FileText className="h-3.5 w-3.5 text-blue-600" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-600 mb-0.5">Tổng số hợp đồng</p>
+            <p className="text-lg font-bold text-gray-900">{stats.total}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Hợp đồng</p>
+          </motion.div>
+
+          {/* Today Contracts */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="p-1 bg-emerald-100 rounded-lg">
+                <Calendar className="h-3.5 w-3.5 text-emerald-600" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-600 mb-0.5">Hợp đồng hôm nay</p>
+            <p className="text-lg font-bold text-gray-900">{stats.today}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Hợp đồng mới</p>
+          </motion.div>
+
+          {/* Uploaded */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="p-1 bg-green-100 rounded-lg">
+                <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-600 mb-0.5">Đã upload</p>
+            <p className="text-lg font-bold text-gray-900">{stats.uploaded}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Hợp đồng</p>
+          </motion.div>
+
+          {/* Pending Upload */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="p-1 bg-orange-100 rounded-lg">
+                <AlertCircle className="h-3.5 w-3.5 text-orange-600" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-600 mb-0.5">Chờ upload</p>
+            <p className="text-lg font-bold text-gray-900">{stats.pendingUpload}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Hợp đồng</p>
+          </motion.div>
         </div>
 
-        {/* Search */}
-        <div className="flex-1 relative">
-          <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm theo mã hợp đồng, mã đơn hàng, khách hàng..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+        {/* Main Content Card */}
+        <ModernCard className="overflow-hidden">
+          <ModernCardHeader
+            title="Quản lý hợp đồng"
+            subtitle={`${filteredContracts.length} hợp đồng`}
+            icon={<FileText className="w-5 h-5" />}
+            roleColor="emerald"
           />
-        </div>
-      </div>
+
+          <ModernCardContent>
+            {/* Search Bar */}
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm theo mã hợp đồng, mã đơn hàng, khách hàng..."
+                  className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
 
       {/* Contracts Table */}
       <div className="bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden">
@@ -536,6 +643,9 @@ function ViewContracts() {
             </table>
           </div>
         )}
+      </div>
+          </ModernCardContent>
+        </ModernCard>
       </div>
 
       {/* Upload Modal */}

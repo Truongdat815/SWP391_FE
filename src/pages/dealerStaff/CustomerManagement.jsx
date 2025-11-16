@@ -1,17 +1,42 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { get, fetchExternalApi } from '@/api/client';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAllCustomersThunk, createCustomerThunk, deleteCustomerThunk, updateCustomerThunk } from '@store/slices/customerSlice';
 import { fetchOrdersByCustomer } from '@store/slices/orderSlice';
 import { useAuth } from '../../contexts/AuthContext';
-import { SkeletonTable } from '../../components/ui/Skeleton';
 import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  Users, 
+  UserPlus, 
+  Search, 
+  Filter, 
+  Edit, 
+  Eye, 
+  Trash2, 
+  FileText, 
+  ChevronDown,
+  Calendar,
+  TrendingUp,
+  X,
+  Phone,
+  Mail,
+  MapPin,
+  CreditCard,
+  CheckCircle,
+  Loader2,
+  AlertTriangle
+} from 'lucide-react';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import Pagination from '../../components/ui/Pagination';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
+import { ModernTable, ModernTableHead, ModernTableHeader, ModernTableBody, ModernTableRow, ModernTableCell } from '../../components/ui/ModernTable';
+import { ModernCard, ModernCardHeader, ModernCardContent } from '../../components/ui/ModernCard';
+import ModernButton from '../../components/ui/ModernButton';
+import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
+import EmptyState from '../../components/ui/EmptyState';
 
 
 function CustomerManagement() {
@@ -623,25 +648,35 @@ function CustomerManagement() {
 
   const filteredCustomers = sortCustomers(getFilteredCustomers(), sortMode);
 
-  // Calculate pagination
-  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
-  const paginatedCustomers = filteredCustomers.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  );
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const total = finalCustomersList.length;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayCustomers = finalCustomersList.filter(c => {
+      if (!c.createdAt) return false;
+      const createdDate = new Date(c.createdAt);
+      createdDate.setHours(0, 0, 0, 0);
+      return createdDate.getTime() === today.getTime();
+    });
 
-  // Reset to page 1 when filters change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, sortMode]);
+    const thisMonth = finalCustomersList.filter(c => {
+      if (!c.createdAt) return false;
+      const createdDate = new Date(c.createdAt);
+      return createdDate.getMonth() === today.getMonth() && 
+             createdDate.getFullYear() === today.getFullYear();
+    });
 
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
+    return {
+      total,
+      today: todayCustomers.length,
+      thisMonth: thisMonth.length
+    };
+  }, [finalCustomersList]);
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -662,298 +697,265 @@ function CustomerManagement() {
         onCancel={confirm.onCancel}
       />
 
-      <div className="space-y-4">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-white to-gray-50 rounded-lg shadow-md border border-gray-100 p-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-              Quản lý khách hàng
-            </h1>
-            <p className="text-gray-600 mt-1 flex items-center text-sm">
-              <svg className="w-3 h-3 mr-1.5" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-              </svg>
-              Quản lý thông tin khách hàng và đơn hàng
-            </p>
-          </div>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center text-sm"
-              
-            >
-              <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-              </svg>
-              Thêm khách hàng
-            </button>
-            {/* Custom Dropdown */}
-            <div className="relative" ref={sortDropdownRef}>
-              <button
-                onClick={() => setShowSortDropdown(!showSortDropdown)}
-                className="bg-white text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all shadow-sm hover:shadow-md border border-gray-200 flex items-center text-sm"
-              >
-                <span className="text-sm">
-                  {sortMode === 'newest' && 'Khách hàng mới nhất'}
-                  {sortMode === 'oldest' && 'Khách hàng cũ nhất'}
-                  {sortMode === 'name-asc' && 'Tên A → Z'}
-                  {sortMode === 'name-desc' && 'Tên Z → A'}
-                </span>
-                <svg 
-                  className={`ml-1.5 h-3.5 w-3.5 transition-transform duration-200 ${showSortDropdown ? 'rotate-180' : ''}`}
-                  fill="none" 
-                  stroke="currentColor" 
-                  viewBox="0 0 24 24"
-                >
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              
-              <AnimatePresence>
-                {showSortDropdown && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    transition={{ 
-                      duration: 0.2,
-                      ease: [0.4, 0, 0.2, 1]
-                    }}
-                    className="absolute right-0 mt-2 w-full min-w-[200px] bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden z-50"
-                  >
-                    <div className="py-1">
-                      {[
-                        { value: 'newest', label: 'Khách hàng mới nhất' },
-                        { value: 'oldest', label: 'Khách hàng cũ nhất' },
-                        { value: 'name-asc', label: 'Tên A → Z' },
-                        { value: 'name-desc', label: 'Tên Z → A' }
-                      ].map((option, index) => (
-                        <motion.button
-                          key={option.value}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.03, duration: 0.2 }}
-                          onClick={() => {
-                            setSortMode(option.value);
-                            setShowSortDropdown(false);
-                          }}
-                          className={`w-full px-3 py-2 text-left text-xs hover:bg-gray-50 transition-colors ${
-                            sortMode === option.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
-                          }`}
-                        >
-                          {option.label}
-                        </motion.button>
-                      ))}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-            <button 
-              className="bg-white text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-all shadow-sm hover:shadow-md border border-gray-200 flex items-center text-sm"
-              
-            >
-              <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-              </svg>
-              Xuất báo cáo
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Search and Filters */}
-      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-4">
-        <div className="flex flex-col md:flex-row gap-3">
-          <div className="flex-1">
-            <div className="relative group">
-              <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none">
-                <svg className="h-4 w-4 text-gray-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                </svg>
+      {/* Main Container */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 py-4">
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+          {/* Total Customers */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="p-1 bg-blue-100 rounded-lg">
+                <Users className="h-3.5 w-3.5 text-blue-600" />
               </div>
-              <input
-                type="text"
-                placeholder="Tìm kiếm khách hàng theo tên, email, số điện thoại, địa chỉ, CMND/CCCD..."
-                className="block w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 shadow-sm hover:shadow-md text-sm"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-              {searchTerm && (
-                <div className="absolute right-2.5 top-1/2 transform -translate-y-1/2">
+            </div>
+            <p className="text-xs text-gray-600 mb-0.5">Tổng số khách hàng</p>
+            <p className="text-lg font-bold text-gray-900">{stats.total}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Khách hàng</p>
+          </motion.div>
+
+          {/* Today Customers */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="p-1 bg-emerald-100 rounded-lg">
+                <Calendar className="h-3.5 w-3.5 text-emerald-600" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-600 mb-0.5">Khách hàng hôm nay</p>
+            <p className="text-lg font-bold text-gray-900">{stats.today}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Khách hàng mới</p>
+          </motion.div>
+
+          {/* This Month */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="p-1 bg-purple-100 rounded-lg">
+                <TrendingUp className="h-3.5 w-3.5 text-purple-600" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-600 mb-0.5">Khách hàng tháng này</p>
+            <p className="text-lg font-bold text-gray-900">{stats.thisMonth}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Khách hàng</p>
+          </motion.div>
+        </div>
+
+        {/* Main Content Card */}
+        <ModernCard className="overflow-hidden">
+          <ModernCardHeader
+            title="Quản lý khách hàng"
+            subtitle={`${filteredCustomers.length} khách hàng`}
+            icon={<Users className="w-5 h-5" />}
+            actions={
+              <div className="flex items-center gap-2">
+                {/* Sort Dropdown */}
+                <div className="relative" ref={sortDropdownRef}>
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => setShowSortDropdown(!showSortDropdown)}
+                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all shadow-sm"
+                  >
+                    <Filter className="h-4 w-4" />
+                    <span>
+                      {sortMode === 'newest' && 'Mới nhất'}
+                      {sortMode === 'oldest' && 'Cũ nhất'}
+                      {sortMode === 'name-asc' && 'Tên A → Z'}
+                      {sortMode === 'name-desc' && 'Tên Z → A'}
+                    </span>
+                    <ChevronDown className={`h-4 w-4 transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} />
+                  </motion.button>
+                  
+                  <AnimatePresence>
+                    {showSortDropdown && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                        className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden z-50"
+                      >
+                        {[
+                          { value: 'newest', label: 'Mới nhất' },
+                          { value: 'oldest', label: 'Cũ nhất' },
+                          { value: 'name-asc', label: 'Tên A → Z' },
+                          { value: 'name-desc', label: 'Tên Z → A' }
+                        ].map((option) => (
+                          <button
+                            key={option.value}
+                            onClick={() => {
+                              setSortMode(option.value);
+                              setShowSortDropdown(false);
+                            }}
+                            className={`w-full px-4 py-2 text-left text-sm hover:bg-gray-50 transition-colors ${
+                              sortMode === option.value ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700'
+                            }`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Add Customer Button */}
+                <ModernButton
+                  onClick={() => setShowAddModal(true)}
+                  icon={<UserPlus className="w-4 h-4" />}
+                  size="sm"
+                  roleColor="blue"
+                >
+                  Thêm khách hàng
+                </ModernButton>
+              </div>
+            }
+            roleColor="blue"
+          />
+
+          <ModernCardContent>
+            {/* Search Bar */}
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm khách hàng theo tên, email, số điện thoại, địa chỉ, CMND/CCCD..."
+                  className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all text-sm"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                {searchTerm && (
                   <button
                     onClick={() => setSearchTerm('')}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <X className="h-4 w-4" />
                   </button>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Customers Table */}
-      <div className="bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden">
-        <div className="overflow-x-auto">
-          {isCustomersFetching && <SkeletonTable />}
-          {!isCustomersFetching && customersError && (
-            <div className="p-4 text-xs text-red-600 bg-red-50 rounded-lg border border-red-200">
-              ❌ Lỗi tải danh sách: {String(customersError?.error || customersError?.data || 'Unknown error')}
-            </div>
-          )}
-          {!isCustomersFetching && !customersError && (
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                <tr>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Khách hàng</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Liên hệ</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Địa chỉ</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {paginatedCustomers.map((customer, index) => (
-                <motion.tr 
-                  key={customer.customerId}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: index * 0.03 }}
-                  className={`transition-all duration-150 hover:bg-blue-50 hover:shadow-sm cursor-pointer
-                    ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
-                >
-                  <td className="px-3 py-2.5 whitespace-nowrap">
-                    <div className="flex items-center">
-                      <div className="h-10 w-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mr-3 shadow-md ring-2 ring-opacity-20 ring-gray-300">
-                        <span className="text-white font-bold text-xs">
-                          {(customer.fullName || '').split(' ').pop()?.charAt(0) || 'C'}
-                        </span>
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-gray-900">{customer.fullName}</div>
-                        <div className="text-xs text-gray-500 flex items-center">
-                          <svg className="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                            <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                          </svg>
-                          {customer.email}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
-                    <div className="text-sm font-medium text-gray-900 flex items-center">
-                      <svg className="w-3.5 h-3.5 mr-1.5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                      </svg>
-                      {customer.phone}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2.5">
-                    <div className="text-sm text-gray-900 max-w-xs truncate">{customer.address}</div>
-                  </td>
-                  <td className="px-3 py-2.5 whitespace-nowrap">
-                    <div className="flex items-center space-x-1.5">
-                      <button 
-                        onClick={() => handleEditClick(customer)}
-                        className="group relative p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:shadow-sm transition-all duration-150 transform hover:scale-105"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                        </svg>
-                        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                          Chỉnh sửa
-                        </span>
-                      </button>
-                      
-                      <button 
-                        onClick={() => handleViewDetail(customer)}
-                        className="group relative p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-sm transition-all duration-150 transform hover:scale-105"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
-                        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                          Xem chi tiết
-                        </span>
-                      </button>
-
-                      <button 
-                        onClick={() => handleViewOrders(customer)}
-                        className="group relative p-1.5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 hover:shadow-sm transition-all duration-150 transform hover:scale-105"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                        </svg>
-                        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                          Xem đơn hàng
-                        </span>
-                      </button>
-                      
-                      <button
-                        onClick={() => handleDeleteClick(customer)}
-                        className="group relative p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:shadow-sm transition-all duration-150 transform hover:scale-105"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
-                        <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-                          Xóa khách hàng
-                        </span>
-                      </button>
-                    </div>
-                  </td>
-                </motion.tr>
-              ))}
-                {paginatedCustomers.length === 0 && (
-                  <tr>
-                    <td colSpan="4" className="px-3 py-12">
-                    <div className="text-center">
-                      <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 mb-3 shadow-inner">
-                        <svg className="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                        </svg>
-                      </div>
-                      <h3 className="text-base font-semibold text-gray-900 mb-1.5">
-                        {searchTerm ? 'Không tìm thấy khách hàng phù hợp' : 'Chưa có khách hàng'}
-                      </h3>
-                      <p className="text-xs text-gray-500 mb-3 max-w-sm mx-auto">
-                        {searchTerm ? 'Thử thay đổi từ khóa tìm kiếm' : 'Bắt đầu bằng cách thêm khách hàng mới'}
-                      </p>
-                      <button
-                        onClick={() => setShowAddModal(true)}
-                        className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm"
-                      >
-                        <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                        Thêm khách hàng mới
-                      </button>
-                    </div>
-                    </td>
-                  </tr>
                 )}
-              </tbody>
-            </table>
-          )}
-          
-          {/* Pagination */}
-          {!isCustomersFetching && filteredCustomers.length > 0 && (
-            <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={handlePageChange}
-              itemsPerPage={itemsPerPage}
-              totalItems={filteredCustomers.length}
-              showInfo={true}
-            />
-          )}
-        </div>
+              </div>
+            </div>
+
+            {/* Table */}
+            {isCustomersFetching ? (
+              <TableSkeleton rows={5} />
+            ) : customersError ? (
+              <div className="p-4 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
+                ❌ Lỗi tải danh sách: {String(customersError?.error || customersError?.data || 'Unknown error')}
+              </div>
+            ) : filteredCustomers.length === 0 ? (
+              <EmptyState
+                title={searchTerm ? 'Không tìm thấy khách hàng' : 'Chưa có khách hàng'}
+                description={searchTerm ? 'Thử thay đổi từ khóa tìm kiếm' : 'Bắt đầu bằng cách thêm khách hàng mới'}
+                icon="users"
+                action={() => setShowAddModal(true)}
+                actionText="Thêm khách hàng mới"
+                roleColor="blue"
+              />
+            ) : (
+              <ModernTable className="border-0 shadow-none">
+                <ModernTableHead>
+                  <tr>
+                    <ModernTableHeader>Khách hàng</ModernTableHeader>
+                    <ModernTableHeader>Liên hệ</ModernTableHeader>
+                    <ModernTableHeader>Địa chỉ</ModernTableHeader>
+                    <ModernTableHeader className="text-right">Thao tác</ModernTableHeader>
+                  </tr>
+                </ModernTableHead>
+                <ModernTableBody>
+                  {filteredCustomers.map((customer, index) => (
+                    <ModernTableRow key={customer.customerId} index={index}>
+                      <ModernTableCell>
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-md ring-2 ring-opacity-20 ring-gray-300">
+                            <span className="text-white font-bold text-xs">
+                              {(customer.fullName || '').split(' ').pop()?.charAt(0) || 'C'}
+                            </span>
+                          </div>
+                          <div>
+                            <div className="text-sm font-semibold text-gray-900">{customer.fullName}</div>
+                            <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                              <Mail className="h-3 w-3" />
+                              {customer.email}
+                            </div>
+                          </div>
+                        </div>
+                      </ModernTableCell>
+                      <ModernTableCell>
+                        <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
+                          <Phone className="h-3.5 w-3.5 text-gray-400" />
+                          {customer.phone}
+                        </div>
+                      </ModernTableCell>
+                      <ModernTableCell>
+                        <div className="text-sm text-gray-900 max-w-xs truncate flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                          <span className="truncate">{customer.address}</span>
+                        </div>
+                      </ModernTableCell>
+                      <ModernTableCell>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleEditClick(customer)}
+                            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all"
+                            title="Chỉnh sửa"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </motion.button>
+                          
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleViewDetail(customer)}
+                            className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-all"
+                            title="Xem chi tiết"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </motion.button>
+
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleViewOrders(customer)}
+                            className="p-1.5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 transition-all"
+                            title="Xem đơn hàng"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </motion.button>
+                          
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleDeleteClick(customer)}
+                            className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all"
+                            title="Xóa khách hàng"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </motion.button>
+                        </div>
+                      </ModernTableCell>
+                    </ModernTableRow>
+                  ))}
+                </ModernTableBody>
+              </ModernTable>
+            )}
+          </ModernCardContent>
+        </ModernCard>
       </div>
 
       {/* Add Customer Modal */}
@@ -981,14 +983,15 @@ function CustomerManagement() {
             >
               <div className="mt-2">
                 <div className="flex justify-between items-center mb-3 pb-3 border-b border-gray-200">
-                  <h3 className="text-xl font-bold text-gray-900">➕ Thêm khách hàng mới</h3>
+                  <div className="flex items-center gap-2">
+                    <UserPlus className="h-5 w-5 text-blue-600" />
+                    <h3 className="text-xl font-bold text-gray-900">Thêm khách hàng mới</h3>
+                  </div>
                   <button
                     onClick={handleCloseModal}
                     className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-all"
                   >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
               
@@ -1049,10 +1052,7 @@ function CustomerManagement() {
                     </label>
                     {loadingProvinces ? (
                       <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 flex items-center text-sm">
-                        <svg className="animate-spin h-4 w-4 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                        <Loader2 className="animate-spin h-4 w-4 text-blue-500 mr-2" />
                         <span className="text-xs text-gray-500">Đang tải danh sách tỉnh/thành phố...</span>
                       </div>
                     ) : (
@@ -1207,10 +1207,7 @@ function CustomerManagement() {
                     className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-sm"
                   >
                     {isCreatingCustomer && (
-                      <svg className="animate-spin -ml-1 mr-1.5 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
+                      <Loader2 className="animate-spin -ml-1 mr-1.5 h-4 w-4 text-white" />
                     )}
                     {isCreatingCustomer ? '⏳ Đang tạo...' : '✨ Tạo khách hàng'}
                   </motion.button>
@@ -1247,14 +1244,15 @@ function CustomerManagement() {
             >
               <div className="mt-2">
                 <div className="flex justify-between items-center mb-3 pb-3 border-b border-gray-200">
-                  <h3 className="text-xl font-bold text-gray-900">✏️ Chỉnh sửa khách hàng</h3>
+                  <div className="flex items-center gap-2">
+                    <Edit className="h-5 w-5 text-blue-600" />
+                    <h3 className="text-xl font-bold text-gray-900">Chỉnh sửa khách hàng</h3>
+                  </div>
                   <button
                     onClick={handleEditCancel}
                     className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-all"
                   >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
               
@@ -1312,10 +1310,7 @@ function CustomerManagement() {
                     </label>
                     {loadingProvinces ? (
                       <div className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 flex items-center text-sm">
-                        <svg className="animate-spin h-4 w-4 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
+                        <Loader2 className="animate-spin h-4 w-4 text-blue-500 mr-2" />
                         <span className="text-xs text-gray-500">Đang tải danh sách tỉnh/thành phố...</span>
                       </div>
                     ) : (
@@ -1469,10 +1464,7 @@ function CustomerManagement() {
                     className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-sm"
                   >
                     {isCreatingCustomer && (
-                      <svg className="animate-spin -ml-1 mr-1.5 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
+                      <Loader2 className="animate-spin -ml-1 mr-1.5 h-4 w-4 text-white" />
                     )}
                     {isCreatingCustomer ? '⏳ Đang cập nhật...' : '✅ Cập nhật khách hàng'}
                   </motion.button>
@@ -1509,9 +1501,7 @@ function CustomerManagement() {
             >
               <div className="mt-2">
                 <div className="flex items-center justify-center w-12 h-12 mx-auto bg-gradient-to-br from-red-100 to-red-200 rounded-full mb-3 shadow-md">
-                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
+                  <AlertTriangle className="w-6 h-6 text-red-600" />
                 </div>
               
               <div className="text-center">
@@ -1562,10 +1552,7 @@ function CustomerManagement() {
                     className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-sm"
                   >
                     {isCreatingCustomer && (
-                      <svg className="animate-spin -ml-1 mr-1.5 h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
+                      <Loader2 className="animate-spin -ml-1 mr-1.5 h-4 w-4 text-white" />
                     )}
                     {isCreatingCustomer ? 'Đang xóa...' : 'Xóa khách hàng'}
                   </motion.button>
@@ -1602,14 +1589,15 @@ function CustomerManagement() {
             >
               <div className="mt-2">
                 <div className="flex justify-between items-center mb-3 pb-3 border-b border-gray-200">
-                  <h3 className="text-xl font-bold text-gray-900">👤 Chi tiết khách hàng</h3>
+                  <div className="flex items-center gap-2">
+                    <Eye className="h-5 w-5 text-blue-600" />
+                    <h3 className="text-xl font-bold text-gray-900">Chi tiết khách hàng</h3>
+                  </div>
                   <button
                     onClick={handleCloseDetailModal}
                     className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-all"
                   >
-                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <X className="h-5 w-5" />
                   </button>
                 </div>
               
@@ -1768,24 +1756,22 @@ function CustomerManagement() {
             >
               <div className="mt-3">
                 <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
-                  <h3 className="text-2xl font-bold text-gray-900">📋 Đơn hàng của khách hàng</h3>
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-6 w-6 text-blue-600" />
+                    <h3 className="text-2xl font-bold text-gray-900">Đơn hàng của khách hàng</h3>
+                  </div>
                   <button
                     onClick={handleCloseOrdersModal}
                     className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
                   >
-                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <X className="h-6 w-6" />
                   </button>
                 </div>
               
                 {/* Loading State */}
                 {loadingOrders ? (
                   <div className="flex items-center justify-center py-4">
-                    <svg className="animate-spin h-8 w-8 text-purple-600 mr-3" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+                    <Loader2 className="animate-spin h-8 w-8 text-purple-600 mr-3" />
                     <span className="text-gray-600">Đang tải đơn hàng...</span>
                   </div>
                 ) : customerOrders.length === 0 ? (
@@ -1864,7 +1850,6 @@ function CustomerManagement() {
           </motion.div>
         )}
       </AnimatePresence>
-      </div>
     </div>
   );
 }

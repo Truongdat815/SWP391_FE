@@ -648,7 +648,7 @@ function FeedbackManagement({ onBack }) {
       />
       <div className="bg-white rounded-lg shadow-md border border-gray-100 p-4">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-xl font-bold text-gray-900">Quản lý phản hồi & khiếu nại</h2>
+          <div></div>
           <div className="flex items-center gap-3">
             {/* Sort Dropdown */}
             <div className="relative" ref={sortDropdownRef}>
