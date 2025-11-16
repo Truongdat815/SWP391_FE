@@ -132,7 +132,7 @@ function CustomerManagement() {
   const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
+  const itemsPerPage = 10;
 
   // Tự động mở modal thêm khách hàng nếu có query param add=new
   useEffect(() => {
@@ -648,6 +648,24 @@ function CustomerManagement() {
 
   const filteredCustomers = sortCustomers(getFilteredCustomers(), sortMode);
 
+  // Pagination logic
+  const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
+  const paginatedCustomers = filteredCustomers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, sortMode]);
+
+  // Handle page change
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Calculate statistics
   const stats = useMemo(() => {
     const total = finalCustomersList.length;
@@ -866,31 +884,25 @@ function CustomerManagement() {
                 roleColor="blue"
               />
             ) : (
-              <ModernTable className="border-0 shadow-none">
-                <ModernTableHead>
-                  <tr>
-                    <ModernTableHeader>Khách hàng</ModernTableHeader>
-                    <ModernTableHeader>Liên hệ</ModernTableHeader>
-                    <ModernTableHeader>Địa chỉ</ModernTableHeader>
-                    <ModernTableHeader className="text-right">Thao tác</ModernTableHeader>
-                  </tr>
-                </ModernTableHead>
-                <ModernTableBody>
-                  {filteredCustomers.map((customer, index) => (
+              <>
+                <ModernTable className="border-0 shadow-none">
+                  <ModernTableHead>
+                    <tr>
+                      <ModernTableHeader>Khách hàng</ModernTableHeader>
+                      <ModernTableHeader>Liên hệ</ModernTableHeader>
+                      <ModernTableHeader>Địa chỉ</ModernTableHeader>
+                      <ModernTableHeader className="text-center align-middle">Thao tác</ModernTableHeader>
+                    </tr>
+                  </ModernTableHead>
+                  <ModernTableBody>
+                    {paginatedCustomers.map((customer, index) => (
                     <ModernTableRow key={customer.customerId} index={index}>
                       <ModernTableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center shadow-md ring-2 ring-opacity-20 ring-gray-300">
-                            <span className="text-white font-bold text-xs">
-                              {(customer.fullName || '').split(' ').pop()?.charAt(0) || 'C'}
-                            </span>
-                          </div>
-                          <div>
-                            <div className="text-sm font-semibold text-gray-900">{customer.fullName}</div>
-                            <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                              <Mail className="h-3 w-3" />
-                              {customer.email}
-                            </div>
+                        <div>
+                          <div className="text-sm font-semibold text-gray-900">{customer.fullName}</div>
+                          <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                            <Mail className="h-3 w-3" />
+                            {customer.email}
                           </div>
                         </div>
                       </ModernTableCell>
@@ -901,18 +913,26 @@ function CustomerManagement() {
                         </div>
                       </ModernTableCell>
                       <ModernTableCell>
-                        <div className="text-sm text-gray-900 max-w-xs truncate flex items-center gap-1.5">
-                          <MapPin className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                          <span className="truncate">{customer.address}</span>
+                        <div className="space-y-1.5">
+                          <div className="text-sm text-gray-900 flex items-center gap-1.5">
+                            <MapPin className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                            <span className="truncate">{customer.address || 'Chưa cập nhật'}</span>
+                          </div>
+                          {customer.identificationNumber && (
+                            <div className="text-xs text-gray-500 flex items-center gap-1.5">
+                              <CreditCard className="h-3 w-3 text-gray-400 flex-shrink-0" />
+                              <span>CMND/CCCD: {customer.identificationNumber}</span>
+                            </div>
+                          )}
                         </div>
                       </ModernTableCell>
-                      <ModernTableCell>
-                        <div className="flex items-center justify-end gap-1.5">
+                      <ModernTableCell className="text-center align-middle">
+                        <div className="flex items-center justify-center gap-1.5">
                           <motion.button
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
                             onClick={() => handleEditClick(customer)}
-                            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all"
+                            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-200"
                             title="Chỉnh sửa"
                           >
                             <Edit className="h-4 w-4" />
@@ -922,7 +942,7 @@ function CustomerManagement() {
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
                             onClick={() => handleViewDetail(customer)}
-                            className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-all"
+                            className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-all border border-green-200"
                             title="Xem chi tiết"
                           >
                             <Eye className="h-4 w-4" />
@@ -932,7 +952,7 @@ function CustomerManagement() {
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
                             onClick={() => handleViewOrders(customer)}
-                            className="p-1.5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 transition-all"
+                            className="p-1.5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 transition-all border border-purple-200"
                             title="Xem đơn hàng"
                           >
                             <FileText className="h-4 w-4" />
@@ -942,7 +962,7 @@ function CustomerManagement() {
                             whileHover={{ scale: 1.1 }}
                             whileTap={{ scale: 0.9 }}
                             onClick={() => handleDeleteClick(customer)}
-                            className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all"
+                            className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all border border-red-200"
                             title="Xóa khách hàng"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -950,9 +970,25 @@ function CustomerManagement() {
                         </div>
                       </ModernTableCell>
                     </ModernTableRow>
-                  ))}
-                </ModernTableBody>
-              </ModernTable>
+                    ))}
+                  </ModernTableBody>
+                </ModernTable>
+                
+                {/* Pagination */}
+                {filteredCustomers.length > itemsPerPage && (
+                  <div className="mt-4">
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={handlePageChange}
+                      itemsPerPage={itemsPerPage}
+                      totalItems={filteredCustomers.length}
+                      showInfo={true}
+                      itemLabel="khách hàng"
+                    />
+                  </div>
+                )}
+              </>
             )}
           </ModernCardContent>
         </ModernCard>
