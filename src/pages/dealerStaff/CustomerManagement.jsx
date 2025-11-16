@@ -942,7 +942,7 @@ function CustomerManagement() {
         {/* Main Content Card */}
         <ModernCard className="overflow-hidden">
           <ModernCardHeader
-            title="Quản lý khách hàng"
+            title="Danh sách khách hàng"
             subtitle={`${filteredCustomers.length} khách hàng`}
             icon={<Users className="w-5 h-5" />}
             actions={
