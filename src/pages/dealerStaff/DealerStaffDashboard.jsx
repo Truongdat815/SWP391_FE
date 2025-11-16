@@ -270,7 +270,7 @@ const DealerStaffDashboard = () => {
             <div>
               <p className="text-emerald-100 text-xs font-medium">Tổng đơn hàng</p>
               <h3 className="text-2xl font-bold mt-1.5">{orderStats.total}</h3>
-              <p className="text-emerald-100 text-xs mt-1.5">{orderStats.confirmed} đã xác nhận</p>
+              <p className="text-emerald-100 text-xs mt-1.5">{orderStats.completed} đã hoàn thành</p>
             </div>
             <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">

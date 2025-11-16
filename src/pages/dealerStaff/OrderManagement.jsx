@@ -194,25 +194,8 @@ function OrderManagement() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 py-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 pt-0 pb-4">
         
-        {/* Header with Create Button */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-4 gap-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Quản lý đơn hàng</h1>
-            <p className="text-sm text-gray-600 mt-1">Quản lý đơn hàng theo trạng thái</p>
-          </div>
-          <motion.button
-            onClick={() => navigate('/dealer-staff/create-order')}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-md font-medium text-sm whitespace-nowrap"
-          >
-            <PlusCircle className="h-5 w-5 mr-2" />
-            Tạo đơn hàng mới
-          </motion.button>
-        </div>
-
         {/* Statistics Cards - Summary */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
           {/* Today Orders */}
@@ -337,44 +320,60 @@ function OrderManagement() {
 
         {/* Status Tabs Navigation */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 overflow-hidden">
-          {/* Tabs */}
-          <div className="overflow-x-auto scrollbar-hide">
-            <nav className="flex" aria-label="Status Tabs">
-              {statusTabs.map((tab) => {
-                const isActive = activeTab === tab.status;
-                const colorClasses = getStatusColorClasses(tab.status, isActive);
-                const badgeClasses = getBadgeColorClasses(tab.status);
-                
-                return (
-                  <motion.button
-                    key={tab.id}
-                    onClick={() => handleTabChange(tab.status)}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className={`
-                      flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-3 transition-all relative min-w-fit
-                      ${colorClasses}
-                      ${isActive ? 'font-semibold' : ''}
-                    `}
-                    title={tab.description}
-                  >
-                    <span>{tab.label}</span>
-                    {tab.count > 0 && (
-                      <span className={`
-                        px-2 py-0.5 rounded-full text-xs font-bold
-                        ${badgeClasses}
-                      `}>
-                        {tab.count}
-                      </span>
-                    )}
-                    {/* Priority indicator */}
-                    {tab.priority && tab.count > 0 && !isActive && (
-                      <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-orange-500 rounded-full animate-pulse"></span>
-                    )}
-                  </motion.button>
-                );
-              })}
-            </nav>
+          {/* Tabs Row with Create Button */}
+          <div className="flex items-center justify-between border-b border-gray-200">
+            {/* Tabs */}
+            <div className="overflow-x-auto scrollbar-hide flex-1">
+              <nav className="flex" aria-label="Status Tabs">
+                {statusTabs.map((tab) => {
+                  const isActive = activeTab === tab.status;
+                  const colorClasses = getStatusColorClasses(tab.status, isActive);
+                  const badgeClasses = getBadgeColorClasses(tab.status);
+                  
+                  return (
+                    <motion.button
+                      key={tab.id}
+                      onClick={() => handleTabChange(tab.status)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className={`
+                        flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-3 transition-all relative min-w-fit
+                        ${colorClasses}
+                        ${isActive ? 'font-semibold' : ''}
+                      `}
+                      title={tab.description}
+                    >
+                      <span>{tab.label}</span>
+                      {tab.count > 0 && (
+                        <span className={`
+                          px-2 py-0.5 rounded-full text-xs font-bold
+                          ${badgeClasses}
+                        `}>
+                          {tab.count}
+                        </span>
+                      )}
+                      {/* Priority indicator */}
+                      {tab.priority && tab.count > 0 && !isActive && (
+                        <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-orange-500 rounded-full animate-pulse"></span>
+                      )}
+                    </motion.button>
+                  );
+                })}
+              </nav>
+            </div>
+            
+            {/* Create Order Button */}
+            <div className="px-4 py-2 flex-shrink-0">
+              <motion.button
+                onClick={() => navigate('/dealer-staff/create-order')}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-md font-medium text-sm whitespace-nowrap"
+              >
+                <PlusCircle className="h-5 w-5 mr-2" />
+                Tạo đơn hàng mới
+              </motion.button>
+            </div>
           </div>
 
           {/* Tab Content */}
