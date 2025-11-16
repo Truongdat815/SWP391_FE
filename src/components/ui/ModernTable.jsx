@@ -2,9 +2,9 @@ import { motion } from 'framer-motion';
 
 export const ModernTable = ({ children, className = '' }) => {
   return (
-    <div className={`overflow-hidden rounded-lg border border-gray-100 shadow-md ${className}`}>
+    <div className={`overflow-hidden rounded-lg border border-gray-100 shadow-md w-full ${className}`}>
       <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-100">
+        <table className="w-full table-fixed divide-y divide-gray-100">
           {children}
         </table>
       </div>
