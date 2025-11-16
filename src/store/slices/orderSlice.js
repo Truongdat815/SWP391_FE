@@ -9,6 +9,7 @@ import {
   getOrdersByStatus,
   getOrdersByDateRange,
   getOrdersByCustomer,
+  getOrdersByStaffId,
   confirmOrder
 } from '../../api/orderService';
 
@@ -114,6 +115,18 @@ export const fetchOrdersByCustomer = createAsyncThunk(
   async (customerId, { rejectWithValue }) => {
     try {
       const response = await getOrdersByCustomer(customerId);
+      return response;
+    } catch (error) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
+
+export const fetchOrdersByStaffId = createAsyncThunk(
+  'orders/fetchOrdersByStaffId',
+  async (staffId, { rejectWithValue }) => {
+    try {
+      const response = await getOrdersByStaffId(staffId);
       return response;
     } catch (error) {
       return rejectWithValue(error.message);
@@ -310,6 +323,24 @@ const orderSlice = createSlice({
           : [];
       })
       .addCase(fetchOrdersByCustomer.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Fetch orders by staff ID
+      .addCase(fetchOrdersByStaffId.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchOrdersByStaffId.fulfilled, (state, action) => {
+        state.loading = false;
+        const payload = action.payload;
+        state.orders = Array.isArray(payload?.data) 
+          ? payload.data 
+          : Array.isArray(payload) 
+          ? payload 
+          : [];
+      })
+      .addCase(fetchOrdersByStaffId.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })

@@ -89,6 +89,11 @@ export async function getOrdersByCustomer(customerId) {
     return request(`/api/orders/customer/${customerId}`, { method: 'GET' });
 }
 
+// Get orders by staff ID
+export async function getOrdersByStaffId(staffId) {
+    return request(`/api/orders/staff/${staffId}`, { method: 'GET' });
+}
+
 // Confirm order (DRAFT → CONFIRMED)
 export async function confirmOrder(orderId) {
     return request(`/api/orders/${orderId}/confirm`, {

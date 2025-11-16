@@ -1,32 +1,123 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useSelector, useDispatch } from 'react-redux';
-import { fetchOrders } from '../../store/slices/orderSlice';
+import { fetchOrdersByStaffId } from '../../store/slices/orderSlice';
 import { getAllCustomersThunk } from '../../store/slices/customerSlice';
 import { getAllAppointmentsThunk } from '../../store/slices/appointmentSlice';
 import { getAllFeedbacks } from '../../api/feedbackService';
+import { getFeedbackDetailsByFeedbackId } from '../../api/feedbackDetailService';
 import { useAuth } from '../../contexts/AuthContext';
 
 const DealerStaffDashboard = () => {
   const dispatch = useDispatch();
   const { user } = useAuth();
-  const orders = useSelector((s) => s.orders.items) || [];
+  const allOrders = useSelector((s) => s.orders.items) || [];
   const customers = useSelector((s) => s.customers.items) || [];
   const appointments = useSelector((s) => s.appointments.items) || [];
   const [feedbacks, setFeedbacks] = useState([]);
+  const [feedbacksWithDetails, setFeedbacksWithDetails] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [loadingFeedbacks, setLoadingFeedbacks] = useState(false);
 
+  // Get current staff ID
+  const currentStaffId = user?.userId || user?.id || user?.user_id;
+
+  // Fetch orders for current staff only
   useEffect(() => {
-    dispatch(fetchOrders());
-    dispatch(getAllCustomersThunk());
-    dispatch(getAllAppointmentsThunk());
-    // Load feedbacks from API
-    getAllFeedbacks()
-      .then(data => setFeedbacks(Array.isArray(data) ? data : []))
-      .catch(err => {
+    if (currentStaffId) {
+      setLoadingOrders(true);
+      dispatch(fetchOrdersByStaffId(currentStaffId))
+        .finally(() => setLoadingOrders(false));
+    }
+  }, [dispatch, currentStaffId]);
+
+  // Load feedbacks with details (rating and content)
+  useEffect(() => {
+    const loadFeedbacksWithDetails = async () => {
+      setLoadingFeedbacks(true);
+      try {
+        const response = await getAllFeedbacks();
+        let feedbacksData = [];
+        
+        // Handle different response structures
+        if (Array.isArray(response)) {
+          feedbacksData = response;
+        } else if (response?.data && Array.isArray(response.data)) {
+          feedbacksData = response.data;
+        } else if (response?.data?.data && Array.isArray(response.data.data)) {
+          feedbacksData = response.data.data;
+        }
+        
+        setFeedbacks(feedbacksData);
+        
+        // Load details for each feedback
+        const feedbacksWithDetailsData = await Promise.all(
+          feedbacksData.map(async (feedback) => {
+            let feedbackDetail = null;
+            try {
+              const feedbackId = feedback.feedbackId || feedback.id || feedback.feedback_id;
+              if (feedbackId) {
+                const detailResponse = await getFeedbackDetailsByFeedbackId(feedbackId);
+                let details = null;
+                
+                if (Array.isArray(detailResponse)) {
+                  details = detailResponse;
+                } else if (detailResponse?.data) {
+                  if (Array.isArray(detailResponse.data)) {
+                    details = detailResponse.data;
+                  } else if (detailResponse.data?.data && Array.isArray(detailResponse.data.data)) {
+                    details = detailResponse.data.data;
+                  } else {
+                    details = detailResponse.data;
+                  }
+                } else {
+                  details = detailResponse;
+                }
+                
+                if (Array.isArray(details) && details.length > 0) {
+                  feedbackDetail = details[0];
+                } else if (details && !Array.isArray(details)) {
+                  feedbackDetail = details;
+                }
+              }
+            } catch (err) {
+              console.log('Error loading feedback detail:', err.message);
+            }
+            
+            return {
+              ...feedback,
+              rating: feedbackDetail?.rating !== undefined ? parseInt(feedbackDetail.rating) : (feedback.rating ? parseInt(feedback.rating) : 0),
+              content: feedbackDetail?.content || feedback.content || 'Không có nội dung',
+              category: feedbackDetail?.category ? feedbackDetail.category.toLowerCase() : (feedback.category || 'service').toLowerCase(),
+              feedbackDetail: feedbackDetail
+            };
+          })
+        );
+        
+        setFeedbacksWithDetails(feedbacksWithDetailsData);
+      } catch (err) {
         console.error('Error loading feedbacks:', err);
         setFeedbacks([]);
-      });
+        setFeedbacksWithDetails([]);
+      } finally {
+        setLoadingFeedbacks(false);
+      }
+    };
+    
+    loadFeedbacksWithDetails();
+    dispatch(getAllCustomersThunk());
+    dispatch(getAllAppointmentsThunk());
   }, [dispatch]);
+
+  // Filter orders to only show current staff's orders (client-side filter as backup)
+  const orders = useMemo(() => {
+    if (!currentStaffId) return allOrders;
+    
+    return allOrders.filter(order => {
+      const orderStaffId = order.staffId || order.userId || order.staff_id || order.user_id;
+      return String(orderStaffId) === String(currentStaffId);
+    });
+  }, [allOrders, currentStaffId]);
 
   // Tính toán thống kê đơn hàng
   const orderStats = {
@@ -65,22 +156,62 @@ const DealerStaffDashboard = () => {
     }).length,
   };
 
-  // Tính toán thống kê phản hồi
-  const feedbackStats = {
-    total: feedbacks.length,
-    pending: feedbacks.filter(f => (f.status || '').toUpperCase() === 'PENDING').length,
-    resolved: feedbacks.filter(f => (f.status || '').toUpperCase() === 'RESOLVED').length,
-  };
+  // Tính toán thống kê phản hồi với rating
+  const feedbackStats = useMemo(() => {
+    const stats = {
+      total: feedbacksWithDetails.length,
+      pending: feedbacksWithDetails.filter(f => (f.status || '').toUpperCase() === 'PENDING' || (f.status || '').toUpperCase() === 'DRAFT').length,
+      resolved: feedbacksWithDetails.filter(f => (f.status || '').toUpperCase() === 'RESOLVED').length,
+      averageRating: 0,
+      ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    };
+    
+    // Calculate average rating and distribution
+    const ratings = feedbacksWithDetails
+      .map(f => f.rating)
+      .filter(r => r > 0 && r <= 5);
+    
+    if (ratings.length > 0) {
+      stats.averageRating = (ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1);
+      
+      // Count rating distribution
+      ratings.forEach(rating => {
+        if (rating >= 1 && rating <= 5) {
+          stats.ratingDistribution[rating] = (stats.ratingDistribution[rating] || 0) + 1;
+        }
+      });
+    }
+    
+    return stats;
+  }, [feedbacksWithDetails]);
 
-  // Mock data cho biểu đồ doanh thu theo tháng
-  const revenueData = [
-    { month: 'T1', revenue: 25000000, orders: 8 },
-    { month: 'T2', revenue: 32000000, orders: 10 },
-    { month: 'T3', revenue: 28000000, orders: 9 },
-    { month: 'T4', revenue: 41000000, orders: 12 },
-    { month: 'T5', revenue: 35000000, orders: 11 },
-    { month: 'T6', revenue: 47000000, orders: 14 },
-  ];
+  // Calculate revenue data from actual orders (last 6 months)
+  const revenueData = useMemo(() => {
+    const months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'];
+    const now = new Date();
+    const data = months.map((monthLabel, index) => {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+      
+      const monthOrders = orders.filter(order => {
+        const orderDate = order.orderDate || order.createdAt || order.createdDate;
+        if (!orderDate) return false;
+        const date = new Date(orderDate);
+        return date >= monthStart && date <= monthEnd;
+      });
+      
+      const revenue = monthOrders.reduce((sum, o) => sum + (parseFloat(o.totalPrice) || 0), 0);
+      
+      return {
+        month: monthLabel,
+        revenue: revenue,
+        orders: monthOrders.length
+      };
+    });
+    
+    return data;
+  }, [orders]);
 
   // Phân tích đơn hàng theo trạng thái
   const orderStatusData = [
@@ -89,15 +220,38 @@ const DealerStaffDashboard = () => {
     { name: 'Hoàn thành', value: orderStats.completed, color: '#3b82f6' },
   ];
 
-  // Phân tích khách hàng theo tháng
-  const customerData = [
-    { month: 'T1', customers: 15 },
-    { month: 'T2', customers: 18 },
-    { month: 'T3', customers: 12 },
-    { month: 'T4', customers: 22 },
-    { month: 'T5', customers: 19 },
-    { month: 'T6', customers: 25 },
-  ];
+  // Calculate customer data from actual orders (last 6 months)
+  const customerData = useMemo(() => {
+    const months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'];
+    const now = new Date();
+    const data = months.map((monthLabel, index) => {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+      
+      // Get unique customers from orders in this month
+      const monthOrders = orders.filter(order => {
+        const orderDate = order.orderDate || order.createdAt || order.createdDate;
+        if (!orderDate) return false;
+        const date = new Date(orderDate);
+        return date >= monthStart && date <= monthEnd;
+      });
+      
+      // Count unique customers
+      const uniqueCustomers = new Set(
+        monthOrders
+          .map(o => o.customerId || o.customer?.customerId || o.customer_id)
+          .filter(id => id)
+      );
+      
+      return {
+        month: monthLabel,
+        customers: uniqueCustomers.size
+      };
+    });
+    
+    return data;
+  }, [orders]);
 
   const COLORS = ['#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6'];
 
@@ -107,26 +261,88 @@ const DealerStaffDashboard = () => {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold text-gray-900">📊 Tổng quan bán hàng</h2>
-          <p className="text-gray-600 mt-0.5 text-sm">Thống kê và phân tích dữ liệu bán hàng</p>
+          <p className="text-gray-600 mt-0.5 text-sm">
+            Thống kê và phân tích dữ liệu bán hàng của bạn
+            {user?.fullName && ` - ${user.fullName}`}
+          </p>
         </div>
         <button 
           onClick={() => {
-            dispatch(fetchOrders());
+            if (currentStaffId) {
+              dispatch(fetchOrdersByStaffId(currentStaffId));
+            }
             dispatch(getAllCustomersThunk());
             dispatch(getAllAppointmentsThunk());
-            getAllFeedbacks()
-              .then(data => setFeedbacks(Array.isArray(data) ? data : []))
-              .catch(err => {
+            // Reload feedbacks with details
+            const loadFeedbacks = async () => {
+              try {
+                const response = await getAllFeedbacks();
+                let feedbacksData = [];
+                
+                if (Array.isArray(response)) {
+                  feedbacksData = response;
+                } else if (response?.data && Array.isArray(response.data)) {
+                  feedbacksData = response.data;
+                } else if (response?.data?.data && Array.isArray(response.data.data)) {
+                  feedbacksData = response.data.data;
+                }
+                
+                setFeedbacks(feedbacksData);
+                
+                const feedbacksWithDetailsData = await Promise.all(
+                  feedbacksData.map(async (feedback) => {
+                    let feedbackDetail = null;
+                    try {
+                      const feedbackId = feedback.feedbackId || feedback.id || feedback.feedback_id;
+                      if (feedbackId) {
+                        const detailResponse = await getFeedbackDetailsByFeedbackId(feedbackId);
+                        let details = null;
+                        
+                        if (Array.isArray(detailResponse)) {
+                          details = detailResponse;
+                        } else if (detailResponse?.data) {
+                          details = Array.isArray(detailResponse.data) ? detailResponse.data : detailResponse.data;
+                        } else {
+                          details = detailResponse;
+                        }
+                        
+                        if (Array.isArray(details) && details.length > 0) {
+                          feedbackDetail = details[0];
+                        } else if (details && !Array.isArray(details)) {
+                          feedbackDetail = details;
+                        }
+                      }
+                    } catch (err) {
+                      console.log('Error loading feedback detail:', err.message);
+                    }
+                    
+                    return {
+                      ...feedback,
+                      rating: feedbackDetail?.rating !== undefined ? parseInt(feedbackDetail.rating) : (feedback.rating ? parseInt(feedback.rating) : 0),
+                      content: feedbackDetail?.content || feedback.content || 'Không có nội dung',
+                      category: feedbackDetail?.category ? feedbackDetail.category.toLowerCase() : (feedback.category || 'service').toLowerCase(),
+                      feedbackDetail: feedbackDetail
+                    };
+                  })
+                );
+                
+                setFeedbacksWithDetails(feedbacksWithDetailsData);
+              } catch (err) {
                 console.error('Error loading feedbacks:', err);
                 setFeedbacks([]);
-              });
+                setFeedbacksWithDetails([]);
+              }
+            };
+            
+            loadFeedbacks();
           }}
           className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2 text-sm"
+          disabled={loadingOrders}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
           </svg>
-          Làm mới
+          {loadingOrders ? 'Đang tải...' : 'Làm mới'}
         </button>
       </div>
 
@@ -301,7 +517,67 @@ const DealerStaffDashboard = () => {
               <p className="text-xs text-gray-600">Đã xử lý</p>
               <p className="text-2xl font-bold text-green-600 mt-1">{feedbackStats.resolved}</p>
             </div>
+            <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-3 border border-amber-200">
+              <p className="text-xs text-gray-600">Đánh giá trung bình</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-2xl font-bold text-amber-600">{feedbackStats.averageRating || '0.0'}</p>
+                <div className="flex items-center gap-0.5">
+                  {Array.from({ length: 5 }, (_, i) => {
+                    const starValue = i + 1;
+                    const isFilled = starValue <= Math.round(parseFloat(feedbackStats.averageRating) || 0);
+                    return (
+                      <svg
+                        key={i}
+                        className={`h-5 w-5 ${isFilled ? 'text-amber-500' : 'text-gray-300'}`}
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
+        </div>
+
+        {/* Rating Distribution Chart */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-gray-900">⭐ Phân bố đánh giá</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Số lượng đánh giá theo sao</p>
+          </div>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart
+              data={[
+                { name: '1 sao', value: feedbackStats.ratingDistribution[1] || 0, color: '#ef4444' },
+                { name: '2 sao', value: feedbackStats.ratingDistribution[2] || 0, color: '#f97316' },
+                { name: '3 sao', value: feedbackStats.ratingDistribution[3] || 0, color: '#eab308' },
+                { name: '4 sao', value: feedbackStats.ratingDistribution[4] || 0, color: '#84cc16' },
+                { name: '5 sao', value: feedbackStats.ratingDistribution[5] || 0, color: '#10b981' },
+              ]}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="name" stroke="#6b7280" />
+              <YAxis stroke="#6b7280" />
+              <Tooltip 
+                formatter={(value) => [`${value} đánh giá`, 'Số lượng']}
+                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+              />
+              <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                {[
+                  { name: '1 sao', value: feedbackStats.ratingDistribution[1] || 0, color: '#ef4444' },
+                  { name: '2 sao', value: feedbackStats.ratingDistribution[2] || 0, color: '#f97316' },
+                  { name: '3 sao', value: feedbackStats.ratingDistribution[3] || 0, color: '#eab308' },
+                  { name: '4 sao', value: feedbackStats.ratingDistribution[4] || 0, color: '#84cc16' },
+                  { name: '5 sao', value: feedbackStats.ratingDistribution[5] || 0, color: '#10b981' },
+                ].map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
         {/* Quick Actions */}
@@ -325,6 +601,84 @@ const DealerStaffDashboard = () => {
             </a>
           </div>
         </div>
+      </div>
+
+      {/* Recent Feedbacks with Details */}
+      <div className="mt-4 bg-white rounded-lg border border-gray-200 shadow-md p-4">
+        <div className="mb-4">
+          <h3 className="text-base font-semibold text-gray-900">📝 Phản hồi gần đây</h3>
+          <p className="text-xs text-gray-500 mt-0.5">Xem chi tiết nội dung và đánh giá</p>
+        </div>
+        {loadingFeedbacks ? (
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600 mb-2"></div>
+            <p className="text-sm text-gray-600">Đang tải phản hồi...</p>
+          </div>
+        ) : feedbacksWithDetails.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-gray-500">Chưa có phản hồi nào</p>
+          </div>
+        ) : (
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {feedbacksWithDetails.slice(0, 10).map((feedback, index) => {
+              const rating = Math.max(0, Math.min(5, parseInt(feedback.rating) || 0));
+              const content = feedback.content || 'Không có nội dung';
+              const customerName = feedback.customerName || feedback.customer?.name || 'Khách hàng';
+              const feedbackDate = feedback.createdDate || feedback.createdAt || feedback.date;
+              const status = (feedback.status || '').toUpperCase();
+              
+              return (
+                <div key={feedback.feedbackId || feedback.id || index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="text-sm font-semibold text-gray-900">{customerName}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          status === 'RESOLVED' ? 'bg-green-100 text-green-700' :
+                          status === 'PENDING' || status === 'DRAFT' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {status === 'RESOLVED' ? 'Đã xử lý' : status === 'PENDING' || status === 'DRAFT' ? 'Đang chờ' : status}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs text-gray-500">Đánh giá:</span>
+                        <div className="flex items-center gap-0.5">
+                          {Array.from({ length: 5 }, (_, i) => {
+                            const starValue = i + 1;
+                            const isFilled = starValue <= rating;
+                            return (
+                              <svg
+                                key={i}
+                                className={`h-4 w-4 ${isFilled ? 'text-yellow-400' : 'text-gray-300'}`}
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                            );
+                          })}
+                        </div>
+                        <span className="text-xs text-gray-600">({rating}/5)</span>
+                      </div>
+                    </div>
+                    {feedbackDate && (
+                      <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
+                        {new Date(feedbackDate).toLocaleDateString('vi-VN')}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-600 mb-1">Nội dung:</p>
+                    <p className="text-sm text-gray-800 bg-gray-50 rounded p-2 border border-gray-200">
+                      {content}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
