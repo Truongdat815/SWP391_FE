@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
@@ -133,19 +133,48 @@ function ViewContracts() {
 
 
   // Filter contracts by search
-  const filteredContracts = (contracts || [])
-    .filter(contract => 
-      contract.contractId?.toString().includes(searchTerm) ||
-      contract.contractCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contract.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      contract.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    .sort((a, b) => {
-      // Sort from newest to oldest by contractDate or createdAt
-      const dateA = new Date(a.contractDate || a.createdAt || 0);
-      const dateB = new Date(b.contractDate || b.createdAt || 0);
-      return dateB - dateA; // Descending order (newest first)
+  const filteredContracts = useMemo(() => {
+    return (contracts || [])
+      .filter(contract => 
+        contract.contractId?.toString().includes(searchTerm) ||
+        contract.contractCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contract.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        contract.customerName?.toLowerCase().includes(searchTerm.toLowerCase())
+      )
+      .sort((a, b) => {
+        // Sort from newest to oldest by contractDate or createdAt
+        const dateA = new Date(a.contractDate || a.createdAt || 0);
+        const dateB = new Date(b.contractDate || b.createdAt || 0);
+        return dateB - dateA; // Descending order (newest first)
+      });
+  }, [contracts, searchTerm]);
+
+  // Calculate statistics
+  const stats = useMemo(() => {
+    const total = (contracts || []).length;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todayContracts = (contracts || []).filter(c => {
+      if (!c.contractDate && !c.createdAt) return false;
+      const contractDate = new Date(c.contractDate || c.createdAt);
+      contractDate.setHours(0, 0, 0, 0);
+      return contractDate.getTime() === today.getTime();
     });
+
+    const uploaded = (contracts || []).filter(c => 
+      c.signedContractFileUrl || c.contractFileUrl
+    ).length;
+
+    const pendingUpload = total - uploaded;
+
+    return {
+      total,
+      today: todayContracts.length,
+      uploaded,
+      pendingUpload
+    };
+  }, [contracts]);
 
   // Handle view contract HTML
   const handleViewContract = async (contract) => {
@@ -326,7 +355,7 @@ function ViewContracts() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -347,174 +376,216 @@ function ViewContracts() {
         onCancel={confirm.onCancel}
       />
 
-      {/* Header */}
-      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3 mb-3">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-              <FileText className="h-6 w-6 text-emerald-600 mr-2" />
-              Quản Lý Hợp Đồng
-            </h1>
-            <p className="text-gray-600 mt-0.5 text-sm">
-              Danh sách hợp đồng đã tạo - Xem và upload hợp đồng đã ký
-            </p>
-          </div>
+      {/* Main Container */}
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 py-4">
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+          {/* Total Contracts */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="p-1 bg-blue-100 rounded-lg">
+                <FileText className="h-3.5 w-3.5 text-blue-600" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-600 mb-0.5">Tổng số hợp đồng</p>
+            <p className="text-lg font-bold text-gray-900">{stats.total}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Hợp đồng</p>
+          </motion.div>
+
+          {/* Today Contracts */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="p-1 bg-emerald-100 rounded-lg">
+                <Calendar className="h-3.5 w-3.5 text-emerald-600" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-600 mb-0.5">Hợp đồng hôm nay</p>
+            <p className="text-lg font-bold text-gray-900">{stats.today}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Hợp đồng mới</p>
+          </motion.div>
+
+          {/* Uploaded */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="p-1 bg-green-100 rounded-lg">
+                <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-600 mb-0.5">Đã upload</p>
+            <p className="text-lg font-bold text-gray-900">{stats.uploaded}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Hợp đồng</p>
+          </motion.div>
+
+          {/* Pending Upload */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center justify-between mb-1.5">
+              <div className="p-1 bg-orange-100 rounded-lg">
+                <AlertCircle className="h-3.5 w-3.5 text-orange-600" />
+              </div>
+            </div>
+            <p className="text-xs text-gray-600 mb-0.5">Chờ upload</p>
+            <p className="text-lg font-bold text-gray-900">{stats.pendingUpload}</p>
+            <p className="text-xs text-gray-500 mt-0.5">Hợp đồng</p>
+          </motion.div>
         </div>
 
-        {/* Search */}
-        <div className="flex-1 relative">
-          <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Tìm kiếm theo mã hợp đồng, mã đơn hàng, khách hàng..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+        {/* Main Content Card */}
+        <ModernCard className="overflow-hidden">
+          <ModernCardHeader
+            title="Quản lý hợp đồng"
+            subtitle={`${filteredContracts.length} hợp đồng`}
+            icon={<FileText className="w-5 h-5" />}
+            roleColor="emerald"
           />
-        </div>
-      </div>
 
-      {/* Contracts Table */}
-      <div className="bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden">
-        {loading ? (
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-2" />
-            <span className="text-gray-600 text-sm">Đang tải hợp đồng...</span>
-          </div>
-        ) : filteredContracts.length === 0 ? (
-          <div className="text-center py-8">
-            <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-500 text-base">Không có hợp đồng nào</p>
-            <p className="text-gray-400 text-xs mt-1.5">Các hợp đồng đã tạo sẽ xuất hiện ở đây</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Mã hợp đồng
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Mã đơn hàng
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Ngày tạo
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Trạng thái
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Tổng thanh toán
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Đã upload
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Hợp đồng đã ký
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Thao tác
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredContracts.map((contract) => (
-                  <tr key={contract.contractId} className="hover:bg-gray-50">
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {contract.contractCode || 'N/A'}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
-                      <button
-                        onClick={() => handleViewOrder(contract)}
-                        className="text-blue-600 hover:text-blue-900 hover:underline transition-colors font-medium"
-                      >
-                        {contract.orderCode || 'N/A'}
-                      </button>
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
-                      {contract.contractDate ? new Date(contract.contractDate).toLocaleDateString('vi-VN') : 'N/A'}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <StatusBadge status={contract.status || 'PENDING'} size="sm" />
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900 font-medium">
-                      {(contract.totalPayment || 0).toLocaleString('vi-VN')} VNĐ
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
-                      {contract.signedContractFileUrl || contract.contractFileUrl ? (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-green-100 text-green-800">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Đã upload
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-yellow-100 text-yellow-800">
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                          Chưa upload
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
-                      {(contract.signedContractFileUrl || contract.contractFileUrl) ? (
-                        <a 
-                          href={contract.signedContractFileUrl || contract.contractFileUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-900 transition-colors underline font-medium text-xs"
-                        >
-                          Xem hợp đồng đã ký
-                        </a>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleViewContractDetail(contract)}
-                          className="text-purple-600 hover:text-purple-900 transition-colors"
-                          title="Xem chi tiết hợp đồng"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleViewContract(contract)}
-                          className="text-emerald-600 hover:text-emerald-900 transition-colors"
-                          title="Xem hợp đồng HTML"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        
-                        {!(contract.signedContractFileUrl || contract.contractFileUrl) ? (
-                          <button
-                            onClick={() => handleUploadClick(contract)}
-                            disabled={uploadingContract === contract.contractId}
-                            className="text-blue-600 hover:text-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Upload hợp đồng đã ký"
-                          >
-                            {uploadingContract === contract.contractId ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Upload className="h-4 w-4" />
-                            )}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handlePaymentClick(contract)}
-                            className="text-green-600 hover:text-green-900 transition-colors"
-                            title="Quản lý thanh toán"
-                          >
-                            <CreditCard className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
+          <ModernCardContent>
+            {/* Search Bar */}
+            <div className="mb-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="text"
+                  placeholder="Tìm kiếm theo mã hợp đồng, mã đơn hàng, khách hàng..."
+                  className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all text-sm"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Table */}
+            {loading ? (
+              <TableSkeleton rows={5} />
+            ) : filteredContracts.length === 0 ? (
+              <EmptyState
+                title={searchTerm ? 'Không tìm thấy hợp đồng' : 'Chưa có hợp đồng'}
+                description={searchTerm ? 'Thử thay đổi từ khóa tìm kiếm' : 'Các hợp đồng đã tạo sẽ xuất hiện ở đây'}
+                icon="file"
+                roleColor="emerald"
+              />
+            ) : (
+              <ModernTable>
+                <ModernTableHead>
+                  <tr>
+                    <ModernTableHeader>Mã hợp đồng</ModernTableHeader>
+                    <ModernTableHeader>Mã đơn hàng</ModernTableHeader>
+                    <ModernTableHeader>Ngày tạo</ModernTableHeader>
+                    <ModernTableHeader>Trạng thái</ModernTableHeader>
+                    <ModernTableHeader>Tổng thanh toán</ModernTableHeader>
+                    <ModernTableHeader className="text-right">Thao tác</ModernTableHeader>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+                </ModernTableHead>
+                <ModernTableBody>
+                  {filteredContracts.map((contract, index) => (
+                    <ModernTableRow key={contract.contractId} index={index}>
+                      <ModernTableCell>
+                        <div className="text-sm font-medium text-gray-900">{contract.contractCode || 'N/A'}</div>
+                      </ModernTableCell>
+                      <ModernTableCell>
+                        <button
+                          onClick={() => handleViewOrder(contract)}
+                          className="text-blue-600 hover:text-blue-900 hover:underline transition-colors font-medium text-sm"
+                        >
+                          {contract.orderCode || 'N/A'}
+                        </button>
+                      </ModernTableCell>
+                      <ModernTableCell>
+                        <div className="text-sm text-gray-900">
+                          {contract.contractDate ? new Date(contract.contractDate).toLocaleDateString('vi-VN') : 'N/A'}
+                        </div>
+                      </ModernTableCell>
+                      <ModernTableCell>
+                        <StatusBadge status={contract.status || 'PENDING'} size="sm" />
+                      </ModernTableCell>
+                      <ModernTableCell>
+                        <div className="text-sm text-gray-900 font-medium">
+                          {(contract.totalPayment || 0).toLocaleString('vi-VN')} VNĐ
+                        </div>
+                      </ModernTableCell>
+                      <ModernTableCell>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleViewContractDetail(contract)}
+                            className="p-1.5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 transition-all"
+                            title="Xem chi tiết hợp đồng"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            onClick={() => handleViewContract(contract)}
+                            className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all"
+                            title="Xem hợp đồng HTML"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </motion.button>
+                          
+                          {!(contract.signedContractFileUrl || contract.contractFileUrl) ? (
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => handleUploadClick(contract)}
+                              disabled={uploadingContract === contract.contractId}
+                              className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Upload hợp đồng đã ký"
+                            >
+                              {uploadingContract === contract.contractId ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Upload className="h-4 w-4" />
+                              )}
+                            </motion.button>
+                          ) : (
+                            <motion.button
+                              whileHover={{ scale: 1.1 }}
+                              whileTap={{ scale: 0.9 }}
+                              onClick={() => handlePaymentClick(contract)}
+                              className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-all"
+                              title="Quản lý thanh toán"
+                            >
+                              <CreditCard className="h-4 w-4" />
+                            </motion.button>
+                          )}
+                        </div>
+                      </ModernTableCell>
+                    </ModernTableRow>
+                  ))}
+                </ModernTableBody>
+              </ModernTable>
+            )}
+          </ModernCardContent>
+        </ModernCard>
       </div>
 
       {/* Upload Modal */}

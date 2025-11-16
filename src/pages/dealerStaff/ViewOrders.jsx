@@ -538,7 +538,7 @@ function ViewOrders() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="w-full">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -559,11 +559,11 @@ function ViewOrders() {
         onCancel={confirm.onCancel}
       />
 
-      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3">
-        <div className="flex items-center justify-between mb-3">
+      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-2">
+        <div className="flex items-center justify-between mb-2">
           <div>
-            <h2 className="text-xl font-bold text-gray-900">Quản lý đơn hàng</h2>
-            <p className="text-gray-600 mt-0.5 text-sm">Danh sách các đơn hàng đã tạo</p>
+            <h2 className="text-lg font-bold text-gray-900">Quản lý đơn hàng</h2>
+            <p className="text-gray-600 mt-0.5 text-xs">Danh sách các đơn hàng đã tạo</p>
           </div>
         </div>
 
@@ -577,7 +577,7 @@ function ViewOrders() {
 
         {/* Filters */}
         {!loading && (
-          <div className="space-y-3 mb-3">
+          <div className="space-y-2 mb-2">
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1">
                 <div className="relative">

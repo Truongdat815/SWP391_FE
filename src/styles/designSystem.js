@@ -131,6 +131,30 @@ export const statusColors = {
     text: 'text-white',
     light: 'bg-gray-100',
     dot: 'bg-gray-400'
+  },
+  APPROVED: {
+    bg: 'bg-gradient-to-r from-indigo-500 to-blue-500',
+    text: 'text-white',
+    light: 'bg-indigo-100',
+    dot: 'bg-indigo-500'
+  },
+  PROCESSING: {
+    bg: 'bg-gradient-to-r from-purple-500 to-violet-500',
+    text: 'text-white',
+    light: 'bg-purple-100',
+    dot: 'bg-purple-500'
+  },
+  SIGNED: {
+    bg: 'bg-gradient-to-r from-emerald-500 to-green-500',
+    text: 'text-white',
+    light: 'bg-emerald-100',
+    dot: 'bg-emerald-500'
+  },
+  UPLOADED: {
+    bg: 'bg-gradient-to-r from-teal-500 to-cyan-500',
+    text: 'text-white',
+    light: 'bg-teal-100',
+    dot: 'bg-teal-500'
   }
 };
 

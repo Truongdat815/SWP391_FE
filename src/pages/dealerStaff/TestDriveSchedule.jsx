@@ -370,7 +370,6 @@ function TestDriveSchedule({ onBack }) {
         {/* Header */}
         <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Quản lý lịch hẹn lái thử</h2>
             <p className="text-gray-600">Tổng số: {filteredAppointments.length} lịch hẹn</p>
           </div>
           <div className="flex items-center space-x-3">

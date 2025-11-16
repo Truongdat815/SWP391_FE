@@ -421,13 +421,6 @@ function PaymentManagement() {
       <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3 mb-3">
         <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-              <DollarSign className="h-6 w-6 text-emerald-600 mr-2" />
-              Quản Lý Thanh Toán
-            </h1>
-            <p className="text-gray-600 mt-0.5 text-sm">
-              Thanh toán cho các hợp đồng đã có chữ ký
-            </p>
           </div>
         </div>
 

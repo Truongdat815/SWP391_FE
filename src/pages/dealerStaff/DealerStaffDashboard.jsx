@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchOrders } from '../../store/slices/orderSlice';
@@ -10,7 +10,7 @@ import { useAuth } from '../../contexts/AuthContext';
 const DealerStaffDashboard = () => {
   const dispatch = useDispatch();
   const { user } = useAuth();
-  const orders = useSelector((s) => s.orders.items) || [];
+  const orders = useSelector((s) => s.orders.orders) || [];
   const customers = useSelector((s) => s.customers.items) || [];
   const appointments = useSelector((s) => s.appointments.items) || [];
   const [feedbacks, setFeedbacks] = useState([]);
@@ -28,25 +28,92 @@ const DealerStaffDashboard = () => {
       });
   }, [dispatch]);
 
+  // Debug: Log orders data
+  useEffect(() => {
+    if (orders && orders.length > 0) {
+      console.log('📦 Orders loaded in dashboard:', orders.length);
+      console.log('📦 Sample order:', orders[0]);
+      
+      // Debug: Đếm các trạng thái
+      const statusCounts = {};
+      orders.forEach(order => {
+        const status = (order.status || '').toUpperCase();
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+      });
+      console.log('📊 Order status breakdown:', statusCounts);
+    } else {
+      console.log('⚠️ No orders found or orders array is empty');
+    }
+  }, [orders]);
+
+  // Debug: Log customers data
+  useEffect(() => {
+    if (customers && customers.length > 0) {
+      console.log('👥 Customers loaded in dashboard:', customers.length);
+      console.log('👥 Sample customer:', customers[0]);
+      console.log('👥 Sample customer date fields:', {
+        createdDate: customers[0].createdDate,
+        createdAt: customers[0].createdAt,
+        created_at: customers[0].created_at,
+        created_date: customers[0].created_date,
+      });
+    } else {
+      console.log('⚠️ No customers found or customers array is empty');
+    }
+  }, [customers]);
+
   // Tính toán thống kê đơn hàng
-  const orderStats = {
-    total: orders.length,
-    pending: orders.filter(o => (o.status || '').toUpperCase() === 'PENDING' || (o.status || '').toUpperCase() === 'DRAFT').length,
-    confirmed: orders.filter(o => (o.status || '').toUpperCase() === 'CONFIRMED').length,
-    completed: orders.filter(o => (o.status || '').toUpperCase() === 'COMPLETED').length,
-    totalRevenue: orders.reduce((sum, o) => sum + (parseFloat(o.totalPrice) || 0), 0),
-  };
+  const orderStats = useMemo(() => {
+    const total = orders.length;
+    const pending = orders.filter(o => {
+      const status = (o.status || '').toUpperCase();
+      return status === 'PENDING' || status === 'DRAFT';
+    }).length;
+    const confirmed = orders.filter(o => (o.status || '').toUpperCase() === 'CONFIRMED').length;
+    const completed = orders.filter(o => (o.status || '').toUpperCase() === 'COMPLETED').length;
+    
+    // Tính tổng doanh thu, sử dụng totalPrice hoặc totalPayment
+    const totalRevenue = orders.reduce((sum, o) => {
+      const price = parseFloat(o.totalPrice) || parseFloat(o.totalPayment) || parseFloat(o.total_amount) || 0;
+      return sum + price;
+    }, 0);
+
+    return {
+      total,
+      pending,
+      confirmed,
+      completed,
+      totalRevenue,
+    };
+  }, [orders]);
 
   // Tính toán thống kê khách hàng
-  const customerStats = {
-    total: customers.length,
-    newThisMonth: customers.filter(c => {
-      if (!c.createdDate) return false;
-      const created = new Date(c.createdDate);
-      const now = new Date();
-      return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
-    }).length,
-  };
+  const customerStats = useMemo(() => {
+    const total = customers.length;
+    
+    // Tìm ngày tạo của customer - kiểm tra nhiều field có thể có
+    const getCustomerCreatedDate = (customer) => {
+      return customer.createdDate || customer.createdAt || customer.created_at || customer.created_date || null;
+    };
+    
+    const now = new Date();
+    const newThisMonth = customers.filter(c => {
+      const createdDateStr = getCustomerCreatedDate(c);
+      if (!createdDateStr) return false;
+      try {
+        const created = new Date(createdDateStr);
+        if (isNaN(created.getTime())) return false;
+        return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+      } catch {
+        return false;
+      }
+    }).length;
+
+    return {
+      total,
+      newThisMonth,
+    };
+  }, [customers]);
 
   // Tính toán thống kê lịch lái thử
   const appointmentStats = {
@@ -72,32 +139,118 @@ const DealerStaffDashboard = () => {
     resolved: feedbacks.filter(f => (f.status || '').toUpperCase() === 'RESOLVED').length,
   };
 
-  // Mock data cho biểu đồ doanh thu theo tháng
-  const revenueData = [
-    { month: 'T1', revenue: 25000000, orders: 8 },
-    { month: 'T2', revenue: 32000000, orders: 10 },
-    { month: 'T3', revenue: 28000000, orders: 9 },
-    { month: 'T4', revenue: 41000000, orders: 12 },
-    { month: 'T5', revenue: 35000000, orders: 11 },
-    { month: 'T6', revenue: 47000000, orders: 14 },
-  ];
+  // Tính toán dữ liệu doanh thu theo tháng từ orders thực tế
+  const revenueData = useMemo(() => {
+    const now = new Date();
+    const last6Months = [];
+    
+    // Tạo mảng 6 tháng gần nhất
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      last6Months.push({
+        month: date.getMonth() + 1,
+        year: date.getFullYear(),
+        monthLabel: `T${date.getMonth() + 1}`,
+      });
+    }
 
-  // Phân tích đơn hàng theo trạng thái
-  const orderStatusData = [
-    { name: 'Đã xác nhận', value: orderStats.confirmed, color: '#10b981' },
-    { name: 'Đang chờ', value: orderStats.pending, color: '#f59e0b' },
-    { name: 'Hoàn thành', value: orderStats.completed, color: '#3b82f6' },
-  ];
+    // Nhóm orders theo tháng và tính toán
+    return last6Months.map(({ month, year, monthLabel }) => {
+      const monthOrders = orders.filter(order => {
+        if (!order.orderDate) return false;
+        const orderDate = new Date(order.orderDate);
+        return orderDate.getMonth() + 1 === month && orderDate.getFullYear() === year;
+      });
 
-  // Phân tích khách hàng theo tháng
-  const customerData = [
-    { month: 'T1', customers: 15 },
-    { month: 'T2', customers: 18 },
-    { month: 'T3', customers: 12 },
-    { month: 'T4', customers: 22 },
-    { month: 'T5', customers: 19 },
-    { month: 'T6', customers: 25 },
-  ];
+      const revenue = monthOrders.reduce((sum, order) => {
+        const price = parseFloat(order.totalPrice) || parseFloat(order.totalPayment) || parseFloat(order.total_amount) || 0;
+        return sum + price;
+      }, 0);
+
+      return {
+        month: monthLabel,
+        revenue: revenue,
+        orders: monthOrders.length,
+      };
+    });
+  }, [orders]);
+
+  // Phân tích đơn hàng theo trạng thái - tính toán từ dữ liệu thực tế
+  const orderStatusData = useMemo(() => {
+    // Đếm từng trạng thái
+    const statusCounts = {};
+    orders.forEach(order => {
+      const status = (order.status || '').toUpperCase();
+      if (status) {
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+      }
+    });
+
+    // Map trạng thái sang tên tiếng Việt và màu sắc
+    const statusMap = {
+      'DRAFT': { name: 'Nháp', color: '#9ca3af' },
+      'PENDING': { name: 'Đang chờ', color: '#f59e0b' },
+      'CONFIRMED': { name: 'Đã xác nhận', color: '#10b981' },
+      'APPROVED': { name: 'Đã duyệt', color: '#3b82f6' },
+      'PROCESSING': { name: 'Đang xử lý', color: '#8b5cf6' },
+      'COMPLETED': { name: 'Hoàn thành', color: '#06b6d4' },
+      'CANCELLED': { name: 'Đã hủy', color: '#ef4444' },
+    };
+
+    // Tạo mảng dữ liệu từ status counts, chỉ hiển thị những status có dữ liệu
+    const data = Object.entries(statusCounts)
+      .map(([status, count]) => ({
+        name: statusMap[status]?.name || status,
+        value: count,
+        color: statusMap[status]?.color || '#6b7280',
+        status: status, // Giữ lại status gốc để debug
+      }))
+      .filter(item => item.value > 0) // Chỉ hiển thị status có đơn hàng
+      .sort((a, b) => b.value - a.value); // Sắp xếp theo số lượng giảm dần
+
+    return data;
+  }, [orders]);
+
+  // Tính toán dữ liệu khách hàng theo tháng từ customers thực tế
+  const customerData = useMemo(() => {
+    const now = new Date();
+    const last6Months = [];
+    
+    // Tạo mảng 6 tháng gần nhất
+    for (let i = 5; i >= 0; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      last6Months.push({
+        month: date.getMonth() + 1,
+        year: date.getFullYear(),
+        monthLabel: `T${date.getMonth() + 1}`,
+      });
+    }
+
+    // Helper function để lấy ngày tạo của customer
+    const getCustomerCreatedDate = (customer) => {
+      return customer.createdDate || customer.createdAt || customer.created_at || customer.created_date || null;
+    };
+
+    // Nhóm customers theo tháng và đếm
+    return last6Months.map(({ month, year, monthLabel }) => {
+      const monthCustomers = customers.filter(customer => {
+        const createdDateStr = getCustomerCreatedDate(customer);
+        if (!createdDateStr) return false;
+        try {
+          const createdDate = new Date(createdDateStr);
+          if (isNaN(createdDate.getTime())) return false;
+          return createdDate.getMonth() + 1 === month && createdDate.getFullYear() === year;
+        } catch {
+          return false;
+        }
+      });
+
+      return {
+        month: monthLabel,
+        customers: monthCustomers.length,
+      };
+    });
+  }, [customers]);
 
   const COLORS = ['#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6'];
 
@@ -106,28 +259,7 @@ const DealerStaffDashboard = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">📊 Tổng quan bán hàng</h2>
-          <p className="text-gray-600 mt-0.5 text-sm">Thống kê và phân tích dữ liệu bán hàng</p>
         </div>
-        <button 
-          onClick={() => {
-            dispatch(fetchOrders());
-            dispatch(getAllCustomersThunk());
-            dispatch(getAllAppointmentsThunk());
-            getAllFeedbacks()
-              .then(data => setFeedbacks(Array.isArray(data) ? data : []))
-              .catch(err => {
-                console.error('Error loading feedbacks:', err);
-                setFeedbacks([]);
-              });
-          }}
-          className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2 text-sm"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          Làm mới
-        </button>
       </div>
 
       {/* Stats Cards */}
@@ -158,7 +290,7 @@ const DealerStaffDashboard = () => {
             </div>
             <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             </div>
           </div>
@@ -258,15 +390,15 @@ const DealerStaffDashboard = () => {
             <h3 className="text-base font-semibold text-gray-900">⚡ Trạng thái đơn hàng</h3>
             <p className="text-xs text-gray-500 mt-0.5">Phân loại theo trạng thái</p>
           </div>
-          <ResponsiveContainer width="100%" height={280}>
+          <ResponsiveContainer width="100%" height={220}>
             <PieChart>
               <Pie
                 data={orderStatusData}
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
+                label={false}
+                outerRadius={70}
                 fill="#8884d8"
                 dataKey="value"
               >
@@ -275,11 +407,42 @@ const DealerStaffDashboard = () => {
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value) => [`${value} đơn`, 'Số lượng']}
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                formatter={(value, name, props) => [
+                  `${value} đơn (${((value / orderStats.total) * 100).toFixed(1)}%)`, 
+                  props.payload.name
+                ]}
+                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '8px' }}
               />
             </PieChart>
           </ResponsiveContainer>
+          {/* Legend với text đầy đủ và màu sắc */}
+          <div className="mt-4 space-y-2">
+            {orderStatusData.map((entry, index) => (
+              <div key={index} className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2">
+                  <div 
+                    className="w-3 h-3 rounded-full flex-shrink-0" 
+                    style={{ backgroundColor: entry.color }}
+                  ></div>
+                  <span className="text-gray-700 font-medium">{entry.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span 
+                    className="px-2 py-0.5 rounded-md text-xs font-semibold"
+                    style={{ 
+                      backgroundColor: entry.color + '20',
+                      color: entry.color
+                    }}
+                  >
+                    {entry.value}
+                  </span>
+                  <span className="text-gray-500 text-xs">
+                    ({orderStats.total > 0 ? ((entry.value / orderStats.total) * 100).toFixed(0) : 0}%)
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Feedback Stats */}
