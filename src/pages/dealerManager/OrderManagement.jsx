@@ -18,7 +18,8 @@ import {
   CheckCircle,
   X,
   Package,
-  FileText
+  FileText,
+  ArrowUpDown
 } from 'lucide-react';
 
 
@@ -46,10 +47,11 @@ function OrderManagement() {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('newest'); // 'newest' or 'oldest'
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
   
   // Bulk delete state
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
@@ -92,12 +94,24 @@ function OrderManagement() {
       });
     }
 
+    // Sort by date (newest first by default)
+    filtered.sort((a, b) => {
+      const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
+      const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
+      
+      if (sortOrder === 'newest') {
+        return dateB - dateA; // Newest first
+      } else {
+        return dateA - dateB; // Oldest first
+      }
+    });
+
     setFilteredOrders(filtered);
     
     // Clear selections when filters change
     setSelectedOrderIds([]);
     setCurrentPage(1); // Reset to page 1 when filters change
-  }, [searchTerm, statusFilter, orders]);
+  }, [searchTerm, statusFilter, sortOrder, orders]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
@@ -121,6 +135,9 @@ function OrderManagement() {
       case 'confirmed':
       case 'đã xác nhận':
         return 'bg-blue-100 text-blue-800';
+      case 'contract_signed':
+      case 'đã ký hợp đồng':
+        return 'bg-indigo-100 text-indigo-800';
       case 'processing':
       case 'đang xử lý':
         return 'bg-purple-100 text-purple-800';
@@ -137,15 +154,29 @@ function OrderManagement() {
 
   const getStatusText = (status) => {
     if (!status) return 'Không xác định';
-    const lowerStatus = status.toLowerCase();
-    switch (lowerStatus) {
-      case 'pending': return 'Chờ duyệt';
-      case 'confirmed': return 'Đã xác nhận';
-      case 'processing': return 'Đang xử lý';
-      case 'completed': return 'Hoàn thành';
-      case 'cancelled': return 'Đã hủy';
-      default: return status;
-    }
+    const upperStatus = status.toUpperCase();
+    const statusMap = {
+      'PENDING': 'Chờ xử lý',
+      'DRAFT': 'Bản nháp',
+      'ACCEPTED': 'Đã chấp nhận',
+      'APPROVED': 'Đã duyệt',
+      'CONFIRMED': 'Đã xác nhận',
+      'CONTRACT_PENDING': 'Chờ ký hợp đồng',
+      'CONTRACT_SIGNED': 'Đã ký hợp đồng',
+      'FILE_UPLOADED': 'Đã upload',
+      'PAYMENT_CONFIRMED': 'Đã thanh toán',
+      'FULLY_PAID': 'Đã thanh toán đủ',
+      'SHIPPING': 'Đang vận chuyển',
+      'IN_TRANSIT': 'Đang vận chuyển',
+      'COMPLETED': 'Đã hoàn thành',
+      'DELIVERED': 'Đã giao hàng',
+      'FINISH': 'Hoàn thành',
+      'REJECTED': 'Đã từ chối',
+      'CANCELLED': 'Đã hủy',
+      'CANCELED': 'Đã hủy',
+      'PROCESSING': 'Đang xử lý'
+    };
+    return statusMap[upperStatus] || 'Không xác định';
   };
 
   const handleViewDetails = async (order) => {
@@ -354,6 +385,19 @@ function OrderManagement() {
                 <option value="completed">Hoàn thành</option>
                 <option value="cancelled">Đã hủy</option>
               </select>
+            </div>
+            <div className="sm:w-48">
+              <div className="relative">
+                <ArrowUpDown className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="newest">Mới nhất trước</option>
+                  <option value="oldest">Cũ nhất trước</option>
+                </select>
+              </div>
             </div>
           </div>
 

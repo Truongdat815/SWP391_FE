@@ -19,7 +19,7 @@ import { useConfirm } from '@/hooks/useConfirm';
 
 function ProductManagement() {
   const dispatch = useDispatch();
-  const { items: modelColors, status } = useSelector((s) => s.modelColors);
+  const { items: modelColors, status, error: modelColorsError } = useSelector((s) => s.modelColors);
   const { items: models } = useSelector((s) => s.models);
   const { items: colors } = useSelector((s) => s.colors);
 
@@ -305,6 +305,20 @@ function ProductManagement() {
     return filtered;
   }, [modelColors, searchTerm, filterModel, filterColor, sortBy, sortOrder, models, colors]);
 
+  // Pagination
+  const totalPages = Math.ceil(filteredAndSortedItems.length / itemsPerPage);
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return filteredAndSortedItems.slice(startIndex, endIndex);
+  }, [filteredAndSortedItems, currentPage, itemsPerPage]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    // Scroll to top when page changes
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
       {/* Toast Notifications */}
@@ -505,6 +519,26 @@ function ProductManagement() {
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">Đang tải dữ liệu</h3>
               <p className="text-gray-600">Vui lòng đợi trong giây lát...</p>
+            </div>
+          </div>
+        ) : status === 'failed' && modelColors.length === 0 ? (
+          <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 p-4">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mb-4">
+                <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-medium text-gray-900 mb-2">Lỗi tải dữ liệu</h3>
+              <p className="text-gray-600 mb-4">
+                {modelColorsError || 'Không thể tải danh sách sản phẩm. Vui lòng thử lại sau.'}
+              </p>
+              <button
+                onClick={() => dispatch(getAllModelColorsThunk())}
+                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors"
+              >
+                Thử lại
+              </button>
             </div>
           </div>
         ) : filteredAndSortedItems.length === 0 ? (
