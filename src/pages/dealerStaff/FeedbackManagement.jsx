@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { getAllFeedbacks, updateFeedbackStatus, createFeedback, updateFeedback } from '@/api/feedbackService';
+import { getAllFeedbacks, updateFeedbackStatus, createFeedback, updateFeedback, deleteFeedback } from '@/api/feedbackService';
 import { getFeedbackDetailsByFeedbackId, createFeedbackDetail, updateFeedbackDetail } from '@/api/feedbackDetailService';
-import { getAllOrders } from '@/api/orderService';
+import { getAllOrders, getOrderById } from '@/api/orderService';
+import { getOrderDetailsByOrderId } from '@/api/order-detailService';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../hooks/useToast';
@@ -37,6 +38,7 @@ function FeedbackManagement({ onBack }) {
 
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
+  const [deletedFeedbackIds, setDeletedFeedbackIds] = useState(new Set()); // Track deleted feedback IDs
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -208,8 +210,19 @@ function FeedbackManagement({ onBack }) {
       
       // Map API response to component format
       const mappedFeedbacks = await Promise.all(
-        feedbacksData.map(async (feedback, index) => {
-          console.log(`🔄 [FeedbackManagement] Đang xử lý feedback ${index + 1}/${feedbacksData.length}:`, feedback);
+        feedbacksData
+          .filter(feedback => {
+            // Filter out deleted feedbacks
+            const feedbackId = feedback.feedbackId || feedback.id || feedback.feedback_id;
+            const idStr = String(feedbackId);
+            const isDeleted = deletedFeedbackIds.has(idStr);
+            if (isDeleted) {
+              console.log(`🗑️ [FeedbackManagement] Filtering out deleted feedback: ${idStr}`);
+            }
+            return !isDeleted;
+          })
+          .map(async (feedback, index) => {
+            console.log(`🔄 [FeedbackManagement] Đang xử lý feedback ${index + 1}/${feedbacksData.length}:`, feedback);
           
           // Try to get feedback details for content, rating, category
           let feedbackDetail = null;
@@ -262,24 +275,101 @@ function FeedbackManagement({ onBack }) {
           
           // Get content
           let contentValue = 'Không có nội dung';
-          if (feedbackDetail?.content) {
+          if (feedbackDetail?.content && feedbackDetail.content.trim() !== '') {
             contentValue = feedbackDetail.content;
-          } else if (feedback?.content) {
+          } else if (feedback?.content && feedback.content.trim() !== '') {
             contentValue = feedback.content;
           }
           
-          // Get category
+          // Get category - map from backend enum to frontend format
           let categoryValue = 'service';
           if (feedbackDetail?.category) {
-            categoryValue = (feedbackDetail.category || 'service').toLowerCase();
+            const backendCategory = (feedbackDetail.category || '').toUpperCase();
+            // Map backend enum to frontend format
+            if (backendCategory === 'CUSTOMER_SERVICE') {
+              categoryValue = 'service';
+            } else if (backendCategory === 'PRODUCT_QUALITY') {
+              categoryValue = 'product';
+            } else if (backendCategory === 'WEBSITE_EXPERIENCE') {
+              categoryValue = 'service'; // Default to service for website experience
+            } else {
+              categoryValue = backendCategory.toLowerCase();
+            }
           } else if (feedback?.category) {
-            categoryValue = (feedback.category || 'service').toLowerCase();
+            const backendCategory = (feedback.category || '').toUpperCase();
+            // Map backend enum to frontend format
+            if (backendCategory === 'CUSTOMER_SERVICE') {
+              categoryValue = 'service';
+            } else if (backendCategory === 'PRODUCT_QUALITY') {
+              categoryValue = 'product';
+            } else if (backendCategory === 'WEBSITE_EXPERIENCE') {
+              categoryValue = 'service';
+            } else {
+              categoryValue = backendCategory.toLowerCase();
+            }
+          }
+          
+          // Get vehicle model from order details
+          let vehicleModel = 'N/A';
+          try {
+            const orderId = feedback.orderId || feedback.order_id;
+            if (orderId) {
+              // Try to get order details to extract vehicle model
+              try {
+                const orderResponse = await getOrderById(orderId);
+                const orderData = orderResponse?.data || orderResponse;
+                
+                // Check if order has getOrderDetailsResponses
+                const orderDetails = orderData?.getOrderDetailsResponses || [];
+                if (orderDetails.length > 0) {
+                  // Get unique model names from order details
+                  const modelNames = [...new Set(orderDetails
+                    .filter(detail => detail.modelName)
+                    .map(detail => detail.modelName)
+                  )];
+                  
+                  if (modelNames.length > 0) {
+                    vehicleModel = modelNames.join(', '); // If multiple models, join them
+                  }
+                }
+              } catch (orderErr) {
+                // If getOrderById fails, try getOrderDetailsByOrderId
+                console.log(`ℹ️ [FeedbackManagement] Không thể lấy order bằng getOrderById, thử getOrderDetailsByOrderId:`, orderErr.message);
+                try {
+                  const orderDetailsResponse = await getOrderDetailsByOrderId(orderId);
+                  const orderDetails = Array.isArray(orderDetailsResponse) 
+                    ? orderDetailsResponse 
+                    : (orderDetailsResponse?.data || []);
+                  
+                  if (orderDetails.length > 0) {
+                    const modelNames = [...new Set(orderDetails
+                      .filter(detail => detail.modelName)
+                      .map(detail => detail.modelName)
+                    )];
+                    
+                    if (modelNames.length > 0) {
+                      vehicleModel = modelNames.join(', ');
+                    }
+                  }
+                } catch (detailErr) {
+                  console.log(`ℹ️ [FeedbackManagement] Không thể lấy order details cho orderId ${orderId}:`, detailErr.message);
+                }
+              }
+            }
+          } catch (err) {
+            console.log(`ℹ️ [FeedbackManagement] Lỗi khi lấy vehicle model cho feedback ${index + 1}:`, err.message);
+          }
+          
+          // Fallback to feedback.vehicleModel if available
+          if (vehicleModel === 'N/A' && (feedback.vehicleModel || feedback.vehicle_model)) {
+            vehicleModel = feedback.vehicleModel || feedback.vehicle_model;
           }
           
           console.log(`📝 [FeedbackManagement] Mapped values cho feedback ${index + 1}:`, {
             rating: ratingValue,
             content: contentValue,
             category: categoryValue,
+            vehicleModel: vehicleModel,
             hasDetail: !!feedbackDetail
           });
           
@@ -289,7 +379,7 @@ function FeedbackManagement({ onBack }) {
             customerName: feedback.customerName || feedback.customer_name || 'N/A',
             orderNumber: feedback.orderId ? `HD-${feedback.orderId}` : feedback.orderNumber || 'N/A',
             orderId: feedback.orderId || feedback.order_id,
-            vehicleModel: feedback.vehicleModel || feedback.vehicle_model || 'N/A',
+            vehicleModel: vehicleModel,
             category: categoryValue,
             rating: ratingValue,
             content: contentValue,
@@ -422,6 +512,45 @@ function FeedbackManagement({ onBack }) {
     }
   };
 
+  // Format date to Vietnamese format
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString; // Return original if invalid
+      
+      // Format: DD/MM/YYYY HH:mm
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      
+      return `${day}/${month}/${year} ${hours}:${minutes}`;
+    } catch (err) {
+      console.error('Error formatting date:', err);
+      return dateString;
+    }
+  };
+
+  // Format date only (without time)
+  const formatDateOnly = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return dateString;
+      
+      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const year = date.getFullYear();
+      
+      return `${day}/${month}/${year}`;
+    } catch (err) {
+      console.error('Error formatting date:', err);
+      return dateString;
+    }
+  };
+
   const handleResolveSubmit = async (e) => {
     e.preventDefault();
     if (!selectedFeedback) return;
@@ -514,15 +643,50 @@ function FeedbackManagement({ onBack }) {
         return;
       }
       
+      // Check if feedback already exists for this order
+      const existingFeedback = feedbacks.find(f => {
+        const fOrderId = parseInt(f.orderId);
+        return fOrderId === orderIdInt;
+      });
+      
+      if (existingFeedback) {
+        const shouldUpdate = await showConfirm({
+          title: 'Feedback đã tồn tại',
+          message: `Đơn hàng này đã có feedback (ID: ${existingFeedback.id}). Bạn có muốn cập nhật feedback hiện có không?`,
+          type: 'warning',
+          confirmText: 'Cập nhật',
+          cancelText: 'Hủy'
+        });
+        
+        if (shouldUpdate) {
+          // Update existing feedback instead
+          setSelectedFeedback(existingFeedback);
+          setCreateForm({
+            orderId: existingFeedback.orderId?.toString() || '',
+            customerName: existingFeedback.customerName || '',
+            category: existingFeedback.category || 'service',
+            rating: existingFeedback.rating || 5,
+            content: existingFeedback.content === 'Không có nội dung' ? '' : (existingFeedback.content || ''),
+            status: existingFeedback.status?.toUpperCase() || 'DRAFT'
+          });
+          setShowCreateForm(false);
+          setShowEditForm(true);
+          return;
+        } else {
+          return; // User cancelled
+        }
+      }
+      
       console.log('🔄 [FeedbackManagement] Đang tạo feedback:', createForm);
       console.log('🔄 [FeedbackManagement] OrderId (parsed):', orderIdInt);
       
       // Create feedback with all data (API may require rating, content, category in main request)
+      // Category will be mapped to backend enum in the service layer
       const feedbackResponse = await createFeedback({
         orderId: orderIdInt,
         customerName: createForm.customerName,
         status: createForm.status,
-        category: createForm.category.toUpperCase(),
+        category: createForm.category, // Will be mapped to backend enum in service
         rating: createForm.rating,
         content: createForm.content.trim()
       });
@@ -545,9 +709,10 @@ function FeedbackManagement({ onBack }) {
       // Some APIs may create detail automatically when rating/content/category are provided
       // So we try to create detail, but don't fail if it already exists or isn't needed
       try {
+        // Category will be mapped to backend enum in the service layer
         const detailResponse = await createFeedbackDetail({
           feedbackId: feedbackId,
-          category: createForm.category.toUpperCase(),
+          category: createForm.category, // Will be mapped to backend enum in service
           rating: createForm.rating,
           content: createForm.content.trim()
         });
@@ -594,16 +759,34 @@ function FeedbackManagement({ onBack }) {
       
       // Xử lý các loại lỗi khác nhau
       if (err.message) {
-        if (err.message.includes('502') || err.message.includes('Bad Gateway')) {
+        const errorMsgLower = err.message.toLowerCase();
+        const errorData = err.response?.data || err.data || '';
+        const errorDataStr = typeof errorData === 'string' ? errorData.toLowerCase() : JSON.stringify(errorData).toLowerCase();
+        
+        if (errorMsgLower.includes('duplicate') || 
+            errorMsgLower.includes('unique constraint') || 
+            errorMsgLower.includes('cannot insert duplicate') ||
+            errorDataStr.includes('duplicate') ||
+            errorDataStr.includes('unique constraint') ||
+            errorDataStr.includes('cannot insert duplicate')) {
+          errorMessage = 'Đơn hàng này đã có feedback. Vui lòng chọn đơn hàng khác hoặc cập nhật feedback hiện có.';
+        } else if (errorMsgLower.includes('502') || errorMsgLower.includes('bad gateway')) {
           errorMessage = 'Lỗi kết nối đến server. Vui lòng thử lại sau hoặc kiểm tra kết nối mạng.';
-        } else if (err.message.includes('500') || err.message.includes('Internal Server Error')) {
+        } else if (errorMsgLower.includes('500') || errorMsgLower.includes('internal server error')) {
           errorMessage = 'Lỗi server. Vui lòng thử lại sau.';
-        } else if (err.message.includes('404') || err.message.includes('Not Found')) {
+        } else if (errorMsgLower.includes('404') || errorMsgLower.includes('not found')) {
           errorMessage = 'Không tìm thấy API endpoint. Vui lòng liên hệ quản trị viên.';
-        } else if (err.message.includes('403') || err.message.includes('Forbidden')) {
+        } else if (errorMsgLower.includes('403') || errorMsgLower.includes('forbidden')) {
           errorMessage = 'Bạn không có quyền thực hiện thao tác này.';
-        } else if (err.message.includes('401') || err.message.includes('Unauthorized')) {
+        } else if (errorMsgLower.includes('401') || errorMsgLower.includes('unauthorized')) {
           errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+        } else if (errorMsgLower.includes('400') || errorMsgLower.includes('bad request')) {
+          // Check if it's a duplicate error in the response data
+          if (errorDataStr.includes('duplicate') || errorDataStr.includes('unique constraint')) {
+            errorMessage = 'Đơn hàng này đã có feedback. Vui lòng chọn đơn hàng khác hoặc cập nhật feedback hiện có.';
+          } else {
+            errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin đã nhập.';
+          }
         } else {
           errorMessage += ': ' + err.message;
         }
@@ -676,9 +859,10 @@ function FeedbackManagement({ onBack }) {
       });
       
       // Update feedback detail if exists
+      // Category will be mapped to backend enum in the service layer
       if (selectedFeedback.feedbackDetailId) {
         await updateFeedbackDetail(selectedFeedback.feedbackDetailId, {
-          category: createForm.category.toUpperCase(),
+          category: createForm.category, // Will be mapped to backend enum in service
           rating: createForm.rating,
           content: createForm.content
         });
@@ -686,7 +870,7 @@ function FeedbackManagement({ onBack }) {
         // Create new detail if doesn't exist
         await createFeedbackDetail({
           feedbackId: feedbackId,
-          category: createForm.category.toUpperCase(),
+          category: createForm.category, // Will be mapped to backend enum in service
           rating: createForm.rating,
           content: createForm.content
         });
@@ -705,6 +889,88 @@ function FeedbackManagement({ onBack }) {
     } catch (err) {
       console.error('❌ [FeedbackManagement] Lỗi khi cập nhật feedback:', err);
       showError('Lỗi khi cập nhật phản hồi: ' + (err.message || 'Vui lòng thử lại'));
+    }
+  };
+
+  const handleDeleteFeedback = async (feedback) => {
+    const confirmed = await showConfirm({
+      title: 'Xác nhận xóa',
+      message: `Bạn có chắc chắn muốn xóa feedback của "${feedback.customerName}" (${feedback.orderNumber})? Hành động này không thể hoàn tác.`,
+      type: 'danger',
+      confirmText: 'Xóa',
+      cancelText: 'Hủy'
+    });
+    
+    if (!confirmed) return;
+    
+    const feedbackId = feedback.feedbackId || feedback.id;
+    const feedbackIdStr = String(feedbackId); // Convert to string for consistent comparison
+    console.log('🔄 [FeedbackManagement] Đang xóa feedback:', feedbackId, '(as string:', feedbackIdStr + ')');
+    console.log('🔄 [FeedbackManagement] Feedback to delete:', feedback);
+    
+    // Add to deleted set to prevent it from reappearing after refresh
+    setDeletedFeedbackIds(prev => {
+      const newSet = new Set(prev);
+      newSet.add(feedbackIdStr);
+      console.log(`🗑️ [FeedbackManagement] Added ${feedbackIdStr} to deleted set. Total deleted: ${newSet.size}`);
+      return newSet;
+    });
+    
+    // Optimistic update: Remove from UI immediately
+    setFeedbacks(prevFeedbacks => {
+      const filtered = prevFeedbacks.filter(f => {
+        const fId = f.feedbackId || f.id;
+        const fIdStr = String(fId); // Convert to string for consistent comparison
+        const shouldKeep = fIdStr !== feedbackIdStr;
+        if (!shouldKeep) {
+          console.log(`🗑️ [FeedbackManagement] Removing feedback from UI: ${fIdStr} (matched ${feedbackIdStr})`);
+        }
+        return shouldKeep;
+      });
+      console.log(`📊 [FeedbackManagement] Before delete: ${prevFeedbacks.length} feedbacks, After optimistic delete: ${filtered.length} feedbacks`);
+      return filtered;
+    });
+    
+    try {
+      const deleteResponse = await deleteFeedback(feedbackId);
+      console.log('✅ [FeedbackManagement] Delete API response:', deleteResponse);
+      
+      // Check if delete was successful
+      const isSuccess = deleteResponse?.code === 204 || 
+                        deleteResponse?.message?.toLowerCase().includes('success') ||
+                        deleteResponse?.message?.toLowerCase().includes('deleted');
+      
+      if (!isSuccess) {
+        console.warn('⚠️ [FeedbackManagement] Delete response does not indicate success:', deleteResponse);
+      }
+      
+      console.log('✅ [FeedbackManagement] Đã xóa feedback:', feedbackId);
+      
+      success('Đã xóa feedback thành công!');
+      
+      // Wait a bit to ensure backend has processed the delete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Refresh feedbacks list to ensure sync with backend
+      // The deleted feedback will be filtered out by deletedFeedbackIds set
+      console.log('🔄 [FeedbackManagement] Refreshing feedbacks list...');
+      await fetchFeedbacks();
+      console.log('✅ [FeedbackManagement] Feedbacks list refreshed');
+    } catch (err) {
+      console.error('❌ [FeedbackManagement] Lỗi khi xóa feedback:', err);
+      
+      // Rollback: Remove from deleted set to allow it to reappear
+      setDeletedFeedbackIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(feedbackIdStr);
+        console.log(`↩️ [FeedbackManagement] Removed ${feedbackIdStr} from deleted set (rollback). Total deleted: ${newSet.size}`);
+        return newSet;
+      });
+      
+      // Re-fetch to restore the feedback if delete failed
+      await fetchFeedbacks();
+      
+      showError('Lỗi khi xóa feedback: ' + (err.message || 'Vui lòng thử lại'));
     }
   };
 
@@ -1274,9 +1540,6 @@ function FeedbackManagement({ onBack }) {
                       <div className="flex-1">
                         <div className="flex items-center space-x-4 mb-2">
                           <h4 className="font-semibold text-gray-900">{feedback.customerName}</h4>
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getCategoryColor(feedback.category)}`}>
-                            {getCategoryText(feedback.category)}
-                          </span>
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(feedback.status)}`}>
                             {getStatusText(feedback.status)}
                           </span>
@@ -1284,15 +1547,21 @@ function FeedbackManagement({ onBack }) {
                         <div className="flex items-center space-x-4 text-sm text-gray-600 mb-3">
                           <span>HĐ: {feedback.orderNumber}</span>
                           <span>Xe: {feedback.vehicleModel}</span>
-                          <span>Ngày: {feedback.createdAt}</span>
-                          <div className="flex items-center">
-                            <span className="mr-1">Đánh giá:</span>
-                            <div className="flex">{renderStars(feedback.rating)}</div>
-                          </div>
+                          <span>Ngày: {formatDate(feedback.createdAt)}</span>
+                          {feedback.rating > 0 && (
+                            <div className="flex items-center">
+                              <span className="mr-1">Đánh giá:</span>
+                              <div className="flex">{renderStars(feedback.rating)}</div>
+                            </div>
+                          )}
                         </div>
-                        <p className="text-gray-700 mb-3">{feedback.content}</p>
+                        {feedback.content && feedback.content.trim() !== '' && feedback.content !== 'Không có nội dung' ? (
+                          <p className="text-gray-700 mb-3">{feedback.content}</p>
+                        ) : (
+                          <p className="text-gray-500 mb-3 italic">Không có nội dung</p>
+                        )}
                         {feedback.resolvedAt && (
-                          <p className="text-sm text-green-600">Đã giải quyết: {feedback.resolvedAt}</p>
+                          <p className="text-sm text-green-600">Đã giải quyết: {formatDate(feedback.resolvedAt)}</p>
                         )}
                       </div>
                       <div className="flex items-center space-x-2 ml-4">
@@ -1315,10 +1584,19 @@ function FeedbackManagement({ onBack }) {
                         <button 
                           onClick={() => handleEditFeedback(feedback)}
                           className="p-2 text-gray-400 hover:text-emerald-600 transition-colors"
-                          
+                          title="Chỉnh sửa"
                         >
                           <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                          </svg>
+                        </button>
+                        <button 
+                          onClick={() => handleDeleteFeedback(feedback)}
+                          className="p-2 text-gray-400 hover:text-red-600 transition-colors"
+                          title="Xóa"
+                        >
+                          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
                       </div>
