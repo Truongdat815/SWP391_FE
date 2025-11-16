@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useLocation, useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getAllContracts } from '../../api/contractService';
 import { 
@@ -495,7 +495,7 @@ function PaymentManagement() {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                     <tr>
-                      {[...Array(7)].map((_, i) => (
+                      {[...Array(6)].map((_, i) => (
                         <th key={i} className="px-3 py-2.5">
                           <div className="h-4 bg-gray-200 rounded w-20 animate-pulse" />
                         </th>
@@ -505,7 +505,7 @@ function PaymentManagement() {
                   <tbody className="bg-white divide-y divide-gray-100">
                     {[...Array(5)].map((_, i) => (
                       <tr key={i}>
-                        {[...Array(7)].map((_, j) => (
+                        {[...Array(6)].map((_, j) => (
                           <td key={j} className="px-3 py-2.5">
                             <div className="h-4 bg-gray-200 rounded w-full animate-pulse" />
                           </td>
@@ -523,16 +523,15 @@ function PaymentManagement() {
               icon="file"
             />
           ) : (
-            <ModernTable>
+            <ModernTable className="w-full">
               <ModernTableHead>
                 <tr>
-                  <ModernTableHeader>Mã hợp đồng</ModernTableHeader>
-                  <ModernTableHeader>Mã đơn hàng</ModernTableHeader>
-                  <ModernTableHeader>Tổng thanh toán</ModernTableHeader>
-                  <ModernTableHeader>Đã trả</ModernTableHeader>
-                  <ModernTableHeader>Còn lại</ModernTableHeader>
-                  <ModernTableHeader>Trạng thái</ModernTableHeader>
-                  <ModernTableHeader>Thao tác</ModernTableHeader>
+                  <ModernTableHeader className="w-[16%]">Mã hợp đồng</ModernTableHeader>
+                  <ModernTableHeader className="w-[16%]">Tổng thanh toán</ModernTableHeader>
+                  <ModernTableHeader className="w-[16%]">Đã trả</ModernTableHeader>
+                  <ModernTableHeader className="w-[16%]">Còn lại</ModernTableHeader>
+                  <ModernTableHeader className="w-[16%]">Trạng thái</ModernTableHeader>
+                  <ModernTableHeader className="w-[20%] pl-11">Thao tác</ModernTableHeader>
                 </tr>
               </ModernTableHead>
               <ModernTableBody>
@@ -558,15 +557,13 @@ function PaymentManagement() {
                           }`}
                         >
                           <ModernTableCell className="whitespace-nowrap text-sm font-medium text-gray-900">
-                            <div className="flex items-center gap-2">
-                              <FileText className="w-4 h-4 text-gray-400" />
+                            <Link 
+                              to="/dealer-staff/contract-management" 
+                              className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 hover:underline transition-colors"
+                            >
+                              <FileText className="w-4 h-4 text-emerald-500" />
                               {contract.contractCode || 'N/A'}
-                            </div>
-                          </ModernTableCell>
-                          <ModernTableCell className="whitespace-nowrap text-sm">
-                            <span className="font-medium text-blue-600">
-                              {contract.orderCode || 'N/A'}
-                            </span>
+                            </Link>
                           </ModernTableCell>
                           <ModernTableCell className="whitespace-nowrap text-sm text-gray-900 font-medium">
                             {total.toLocaleString('vi-VN')} VNĐ
@@ -610,7 +607,7 @@ function PaymentManagement() {
                         </motion.tr>
                         {isExpanded && (
                           <tr>
-                            <td colSpan="7" className="px-0 py-0 bg-white border-b border-gray-200">
+                            <td colSpan="6" className="px-0 py-0 bg-white border-b border-gray-200">
                               <motion.div
                                 initial={{ opacity: 0, maxHeight: 0 }}
                                 animate={{ opacity: 1, maxHeight: 1000 }}
