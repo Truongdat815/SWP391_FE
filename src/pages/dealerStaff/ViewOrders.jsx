@@ -190,30 +190,31 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
   };
 
   // Show success message from location state and reload orders
+  const locationStateRef = React.useRef(null);
+  
   useEffect(() => {
-    if (location.state?.message) {
-      success(location.state.message);
+    // Only process if location state has actually changed
+    if (location.state && location.state !== locationStateRef.current) {
+      locationStateRef.current = location.state;
+      
+      if (location.state.message) {
+        success(location.state.message);
+      }
       
       // If coming from create/edit order, force reload orders after short delay
-      // Only reload if not already loading to prevent duplicate calls
-      if ((location.state?.newOrderId || location.state?.success) && !loading) {
+      if (location.state.newOrderId || location.state.success) {
         console.log('Force reloading orders after create/update...');
         setTimeout(() => {
-          // Only fetch if not already loading
-          if (!loading) {
-            if (startDate && endDate) {
-              dispatch(fetchOrdersByDateRange({ startDate, endDate }));
-            } else {
-              dispatch(fetchOrders());
-            }
-          }
+          // Always fetch all orders after create/update to ensure fresh data
+          // The date filter will be reapplied automatically by the filter effect
+          dispatch(fetchOrders());
         }, 300);
       }
       
-      // Clear the location state
+      // Clear the location state immediately to prevent re-triggering
       window.history.replaceState({}, document.title);
     }
-  }, [location, dispatch, loading, startDate, endDate]);
+  }, [location.state, dispatch]); // Only depend on location state
 
   // Fetch contracts on mount
   useEffect(() => {
@@ -235,24 +236,42 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
     }
   }, [contracts, parentOrdersWithContracts]);
 
-  // Fetch orders from API based on filters (server-side filtering)
-  // Only fetch if not already loading and orders haven't been loaded yet
+  // Initial fetch: only fetch once on mount
+  const hasInitialFetchRef = React.useRef(false);
+  
   useEffect(() => {
-    // Skip if already loading
-    if (loading) return;
-    
-    // Only fetch if orders is empty or we're filtering by date
-    const shouldFetch = !reduxOrders || reduxOrders.length === 0 || (startDate && endDate);
-    
-    if (shouldFetch) {
-      if (startDate && endDate) {
-        dispatch(fetchOrdersByDateRange({ startDate, endDate }));
-      } else {
-        // Fetch all orders, we'll sort by status on client-side
-        dispatch(fetchOrders());
-      }
+    // Fetch once on mount
+    if (!hasInitialFetchRef.current) {
+      hasInitialFetchRef.current = true;
+      dispatch(fetchOrders());
     }
-  }, [dispatch, startDate, endDate, loading, reduxOrders]);
+  }, [dispatch]); // Only run once on mount
+  
+  // Fetch orders when date filter changes
+  const prevDateFilterRef = React.useRef({ startDate: '', endDate: '' });
+  
+  useEffect(() => {
+    const prevFilter = prevDateFilterRef.current;
+    const hasDateFilter = startDate && endDate;
+    const hadDateFilter = prevFilter.startDate && prevFilter.endDate;
+    
+    // Skip if dates haven't actually changed
+    if (prevFilter.startDate === startDate && prevFilter.endDate === endDate) {
+      return;
+    }
+    
+    // If date filter was cleared, fetch all orders
+    if (hadDateFilter && !hasDateFilter) {
+      dispatch(fetchOrders());
+    }
+    // If date filter is set (and changed), fetch with filter
+    else if (hasDateFilter) {
+      dispatch(fetchOrdersByDateRange({ startDate, endDate }));
+    }
+    
+    // Update ref for next comparison
+    prevDateFilterRef.current = { startDate, endDate };
+  }, [dispatch, startDate, endDate]); // Only react to date filter changes
   
   // Update local orders state when Redux orders change
   // Use useMemo to prevent unnecessary updates
