@@ -138,8 +138,8 @@ function AnimatedRoutes() {
             <Route index element={<Navigate to="/dealer-staff/dashboard" replace />} />
             <Route path="dashboard" element={<DealerStaffDashboard />} />
             <Route path="order-management" element={<OrderManagement />} />
+            <Route path="create-order" element={<CreateOrder />} />
             {/* Legacy routes - redirect to new combined pages */}
-            <Route path="create-order" element={<Navigate to="/dealer-staff/order-management" replace />} />
             <Route path="view-orders" element={<Navigate to="/dealer-staff/order-management?tab=view" replace />} />
             <Route path="view-contracts" element={<Navigate to="/dealer-staff/contract-management" replace />} />
             <Route path="add-order-details/:orderId" element={<AddOrderDetails />} />

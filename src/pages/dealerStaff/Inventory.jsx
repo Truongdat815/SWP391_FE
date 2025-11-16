@@ -551,8 +551,6 @@ function Inventory() {
           <div className="mb-8">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1.5">Inventory Management</h1>
-              <p className="text-gray-600">Theo dõi tồn kho tất cả cửa hàng và lập báo cáo đặt xe</p>
               {user && user.storeId && (
                 <p className="text-sm text-emerald-600 mt-1">
                   Cửa hàng của bạn: {user.storeName || `Store #${user.storeId}`}

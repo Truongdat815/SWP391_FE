@@ -182,13 +182,8 @@ const orderSlice = createSlice({
         state.loading = false;
         // Handle both response formats: { data: [...] } or direct array
         const payload = action.payload;
-        state.orders = Array.isArray(payload?.data) 
-          ? payload.data 
-          : Array.isArray(payload) 
-          ? payload 
-          : [];
         // Extract data from response if API returns { code, message, data }
-        const ordersData = action.payload.data || action.payload;
+        const ordersData = payload?.data || payload;
         state.orders = Array.isArray(ordersData) ? ordersData : [];
       })
       .addCase(fetchOrders.rejected, (state, action) => {

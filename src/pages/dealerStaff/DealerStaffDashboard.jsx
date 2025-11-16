@@ -120,24 +120,57 @@ const DealerStaffDashboard = () => {
   }, [allOrders, currentStaffId]);
 
   // Tính toán thống kê đơn hàng
-  const orderStats = {
-    total: orders.length,
-    pending: orders.filter(o => (o.status || '').toUpperCase() === 'PENDING' || (o.status || '').toUpperCase() === 'DRAFT').length,
-    confirmed: orders.filter(o => (o.status || '').toUpperCase() === 'CONFIRMED').length,
-    completed: orders.filter(o => (o.status || '').toUpperCase() === 'COMPLETED').length,
-    totalRevenue: orders.reduce((sum, o) => sum + (parseFloat(o.totalPrice) || 0), 0),
-  };
+  const orderStats = useMemo(() => {
+    const total = orders.length;
+    const pending = orders.filter(o => {
+      const status = (o.status || '').toUpperCase();
+      return status === 'PENDING' || status === 'DRAFT';
+    }).length;
+    const confirmed = orders.filter(o => (o.status || '').toUpperCase() === 'CONFIRMED').length;
+    const completed = orders.filter(o => (o.status || '').toUpperCase() === 'COMPLETED').length;
+    
+    // Tính tổng doanh thu, sử dụng totalPrice hoặc totalPayment
+    const totalRevenue = orders.reduce((sum, o) => {
+      const price = parseFloat(o.totalPrice) || parseFloat(o.totalPayment) || parseFloat(o.total_amount) || 0;
+      return sum + price;
+    }, 0);
+
+    return {
+      total,
+      pending,
+      confirmed,
+      completed,
+      totalRevenue,
+    };
+  }, [orders]);
 
   // Tính toán thống kê khách hàng
-  const customerStats = {
-    total: customers.length,
-    newThisMonth: customers.filter(c => {
-      if (!c.createdDate) return false;
-      const created = new Date(c.createdDate);
-      const now = new Date();
-      return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
-    }).length,
-  };
+  const customerStats = useMemo(() => {
+    const total = customers.length;
+    
+    // Tìm ngày tạo của customer - kiểm tra nhiều field có thể có
+    const getCustomerCreatedDate = (customer) => {
+      return customer.createdDate || customer.createdAt || customer.created_at || customer.created_date || null;
+    };
+    
+    const now = new Date();
+    const newThisMonth = customers.filter(c => {
+      const createdDateStr = getCustomerCreatedDate(c);
+      if (!createdDateStr) return false;
+      try {
+        const created = new Date(createdDateStr);
+        if (isNaN(created.getTime())) return false;
+        return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+      } catch {
+        return false;
+      }
+    }).length;
+
+    return {
+      total,
+      newThisMonth,
+    };
+  }, [customers]);
 
   // Tính toán thống kê lịch lái thử
   const appointmentStats = {
@@ -374,7 +407,7 @@ const DealerStaffDashboard = () => {
             </div>
             <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             </div>
           </div>

@@ -7,7 +7,8 @@ const Pagination = ({
   onPageChange, 
   itemsPerPage = 12,
   totalItems = 0,
-  showInfo = true 
+  showInfo = true,
+  itemLabel = 'kết quả'
 }) => {
   // Don't show pagination if there's only one page or no pages
   if (totalPages <= 1) return null;
@@ -62,7 +63,7 @@ const Pagination = ({
       {/* Info text */}
       {showInfo && totalItems > 0 && (
         <p className="text-sm text-gray-600">
-          Hiển thị <span className="font-semibold text-emerald-600">{startItem}</span> - <span className="font-semibold text-emerald-600">{endItem}</span> trong tổng số <span className="font-semibold text-emerald-600">{totalItems}</span> kết quả
+          Hiển thị <span className="font-semibold text-emerald-600">{startItem}</span> - <span className="font-semibold text-emerald-600">{endItem}</span> trong tổng số <span className="font-semibold text-emerald-600">{totalItems}</span> {itemLabel}
         </p>
       )}
 
@@ -72,15 +73,16 @@ const Pagination = ({
         <button
           onClick={() => onPageChange(currentPage - 1)}
           disabled={currentPage === 1}
-          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-1 ${
             currentPage === 1
               ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
               : 'bg-white text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 border border-gray-200 hover:border-emerald-300'
           }`}
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
+          <span>Trước</span>
         </button>
 
         {/* Page numbers */}
@@ -116,13 +118,14 @@ const Pagination = ({
         <button
           onClick={() => onPageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
-          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+          className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 flex items-center gap-1 ${
             currentPage === totalPages
               ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
               : 'bg-white text-gray-700 hover:bg-emerald-50 hover:text-emerald-600 border border-gray-200 hover:border-emerald-300'
           }`}
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <span>Sau</span>
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </button>

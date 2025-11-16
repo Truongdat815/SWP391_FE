@@ -134,7 +134,7 @@ const aggregateOrderDetails = (details) => {
   return result;
 };
 
-function ViewOrders() {
+function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWithContracts: parentOrdersWithContracts = {} }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -152,7 +152,7 @@ function ViewOrders() {
   const [orders, setOrders] = useState([]);
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(defaultStatusFilter);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
   const [startDate, setStartDate] = useState('');
@@ -164,10 +164,8 @@ function ViewOrders() {
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [ordersWithContracts, setOrdersWithContracts] = useState({}); // Map orderId -> contract
   const [creatingContract, setCreatingContract] = useState(null);
-  // Thêm state và hàm sort
-  const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest'
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  const [showSortDropdown, setShowSortDropdown] = useState(false);
+  // Sort mode - always newest (auto sorted)
+  const sortMode = 'newest';
   const sortOrders = (arr, mode = 'newest') => {
     const getTime = (o) => new Date(o.orderDate || 0).getTime();
     const getId = (o) => Number(o.orderId || 0);
@@ -192,31 +190,42 @@ function ViewOrders() {
   };
 
   // Show success message from location state and reload orders
+  const locationStateRef = React.useRef(null);
+  
   useEffect(() => {
-    if (location.state?.message) {
-      success(location.state.message);
+    // Only process if location state has actually changed
+    if (location.state && location.state !== locationStateRef.current) {
+      locationStateRef.current = location.state;
+      
+      if (location.state.message) {
+        success(location.state.message);
+      }
       
       // If coming from create/edit order, force reload orders after short delay
-      if (location.state?.newOrderId || location.state?.success) {
+      if (location.state.newOrderId || location.state.success) {
         console.log('Force reloading orders after create/update...');
         setTimeout(() => {
+          // Always fetch all orders after create/update to ensure fresh data
+          // The date filter will be reapplied automatically by the filter effect
           dispatch(fetchOrders());
         }, 300);
       }
       
-      // Clear the location state
+      // Clear the location state immediately to prevent re-triggering
       window.history.replaceState({}, document.title);
     }
-  }, [location, dispatch]);
+  }, [location.state, dispatch]); // Only depend on location state
 
   // Fetch contracts on mount
   useEffect(() => {
     dispatch(fetchAllContractsThunk());
   }, [dispatch]);
 
-  // Map contracts to orders
+  // Map contracts to orders - use parent prop if available, otherwise use Redux
   useEffect(() => {
-    if (contracts && contracts.length > 0) {
+    if (Object.keys(parentOrdersWithContracts).length > 0) {
+      setOrdersWithContracts(parentOrdersWithContracts);
+    } else if (contracts && contracts.length > 0) {
       const contractMap = {};
       contracts.forEach(contract => {
         if (contract.orderId) {
@@ -225,63 +234,94 @@ function ViewOrders() {
       });
       setOrdersWithContracts(contractMap);
     }
-  }, [contracts]);
+  }, [contracts, parentOrdersWithContracts]);
 
-  // Fetch orders from API based on filters (server-side filtering)
+  // Initial fetch: only fetch once on mount
+  const hasInitialFetchRef = React.useRef(false);
+  
   useEffect(() => {
-    // Always fetch all orders, we'll do client-side sorting by status
-    if (startDate && endDate) {
-      dispatch(fetchOrdersByDateRange({ startDate, endDate }));
-    } else {
-      // Fetch all orders, we'll sort by status on client-side
+    // Fetch once on mount
+    if (!hasInitialFetchRef.current) {
+      hasInitialFetchRef.current = true;
       dispatch(fetchOrders());
     }
-  }, [dispatch, startDate, endDate]);
+  }, [dispatch]); // Only run once on mount
+  
+  // Fetch orders when date filter changes
+  const prevDateFilterRef = React.useRef({ startDate: '', endDate: '' });
+  
+  useEffect(() => {
+    const prevFilter = prevDateFilterRef.current;
+    const hasDateFilter = startDate && endDate;
+    const hadDateFilter = prevFilter.startDate && prevFilter.endDate;
+    
+    // Skip if dates haven't actually changed
+    if (prevFilter.startDate === startDate && prevFilter.endDate === endDate) {
+      return;
+    }
+    
+    // If date filter was cleared, fetch all orders
+    if (hadDateFilter && !hasDateFilter) {
+      dispatch(fetchOrders());
+    }
+    // If date filter is set (and changed), fetch with filter
+    else if (hasDateFilter) {
+      dispatch(fetchOrdersByDateRange({ startDate, endDate }));
+    }
+    
+    // Update ref for next comparison
+    prevDateFilterRef.current = { startDate, endDate };
+  }, [dispatch, startDate, endDate]); // Only react to date filter changes
   
   // Update local orders state when Redux orders change
+  // Use useMemo to prevent unnecessary updates
   useEffect(() => {
     if (reduxOrders && Array.isArray(reduxOrders)) {
-      setOrders(reduxOrders);
-      setFilteredOrders(reduxOrders);
+      // Only update if orders actually changed to prevent unnecessary re-renders
+      const ordersArray = reduxOrders;
+      setOrders(ordersArray);
+      // Don't update filteredOrders here, let the filtering effect handle it
+    } else if (!reduxOrders || !Array.isArray(reduxOrders)) {
+      setOrders([]);
     }
   }, [reduxOrders]);
 
-  // Close dropdowns when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (!event.target.closest('.dropdown-container')) {
-        setShowStatusDropdown(false);
-        setShowSortDropdown(false);
-      }
-    };
 
-    if (showStatusDropdown || showSortDropdown) {
-      document.addEventListener('mousedown', handleClickOutside);
-      return () => document.removeEventListener('mousedown', handleClickOutside);
-    }
-  }, [showStatusDropdown, showSortDropdown]);
+  // Update status filter when prop changes (from parent tab change)
+  useEffect(() => {
+    setStatusFilter(defaultStatusFilter);
+  }, [defaultStatusFilter]);
 
   // Update filtered orders when orders or search term changes (client-side search only)
+  // Memoize the filtering logic to prevent unnecessary recalculations
   useEffect(() => {
-    console.log('📦 Orders from Redux:', orders);
-    console.log('📦 Is Array?', Array.isArray(orders));
-    
-    if (!orders) return;
+    if (!orders || orders.length === 0) {
+      setFilteredOrders([]);
+      return;
+    }
     
     let filtered = Array.isArray(orders) ? [...orders] : [];
     
-    // Show all orders except CANCELLED (including orders that have been converted to contracts)
-    // This ensures orders remain visible even after being converted to contracts
-    filtered = filtered.filter(order => {
-      const status = order.status?.toUpperCase();
-      // Include all statuses except CANCELLED to show orders even after contract creation
-      return status !== 'CANCELLED';
-    });
-    
-    console.log('📦 Filtered orders:', filtered);
+    // If activeTab is 'cancelled', show only CANCELLED orders
+    // Otherwise, exclude CANCELLED by default (unless 'all' tab)
+    if (activeTab === 'cancelled') {
+      filtered = filtered.filter(order => {
+        const status = (order.status || '').toUpperCase();
+        return status === 'CANCELLED';
+      });
+    } else {
+      // Show all orders except CANCELLED (including orders that have been converted to contracts)
+      // This ensures orders remain visible even after being converted to contracts
+      filtered = filtered.filter(order => {
+        const status = (order.status || '').toUpperCase();
+        // Include all statuses except CANCELLED to show orders even after contract creation
+        return status !== 'CANCELLED';
+      });
+    }
 
     // Filter by search term (client-side)
     if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(order => {
         const customerName = order.customerName || order.customer?.fullName || '';
         const orderId = (order.orderId || '').toString();
@@ -290,10 +330,10 @@ function ViewOrders() {
         const customerPhone = order.customerPhone || '';
         
         return (
-          customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          customerName.toLowerCase().includes(searchLower) ||
           orderId.includes(searchTerm) ||
-          orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          orderCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          orderNumber.toLowerCase().includes(searchLower) ||
+          orderCode.toLowerCase().includes(searchLower) ||
           customerPhone.includes(searchTerm)
         );
       });
@@ -302,29 +342,19 @@ function ViewOrders() {
     // Sort orders: if statusFilter is selected, prioritize that status first
     let sorted = sortOrders(filtered, sortMode);
     
-    // If a specific status is selected, sort to show that status first
-    if (statusFilter !== 'all') {
+    // If a specific status is selected, filter by that status only
+    if (statusFilter !== 'all' && activeTab !== 'cancelled') {
       const selectedStatusUpper = statusFilter.toUpperCase();
-      sorted = sorted.sort((a, b) => {
-        const aStatus = (a.status || '').toUpperCase();
-        const bStatus = (b.status || '').toUpperCase();
-        
-        // If both have the selected status, maintain current sort order
-        if (aStatus === selectedStatusUpper && bStatus === selectedStatusUpper) {
-          return 0;
-        }
-        // If only a has the selected status, a comes first
-        if (aStatus === selectedStatusUpper) return -1;
-        // If only b has the selected status, b comes first
-        if (bStatus === selectedStatusUpper) return 1;
-        // If neither has the selected status, maintain current sort order
-        return 0;
+      // Filter by status - only show matching status
+      sorted = sorted.filter(order => {
+        const orderStatus = (order.status || '').toUpperCase();
+        return orderStatus === selectedStatusUpper;
       });
     }
 
     setFilteredOrders(sorted);
     setCurrentPage(1); // Reset to page 1 when filters change
-  }, [searchTerm, orders, sortMode, statusFilter]);
+  }, [searchTerm, orders, sortMode, statusFilter, activeTab]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
@@ -575,7 +605,7 @@ function ViewOrders() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="w-full">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -596,25 +626,17 @@ function ViewOrders() {
         onCancel={confirm.onCancel}
       />
 
-      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <h2 className="text-xl font-bold text-gray-900">Quản lý đơn hàng</h2>
-            <p className="text-gray-600 mt-0.5 text-sm">Danh sách các đơn hàng đã tạo</p>
-          </div>
-        </div>
-
-        {/* Loading State */}
-        {loading && (
+      <div className="w-full">
+        {/* Loading State - Only show on initial load */}
+        {loading && (!reduxOrders || reduxOrders.length === 0) && (
           <div className="flex items-center justify-center py-6">
             <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-2" />
             <span className="text-gray-600 text-sm">Đang tải danh sách đơn hàng...</span>
           </div>
         )}
 
-        {/* Filters */}
-        {!loading && (
-          <div className="space-y-3 mb-3">
+        {/* Filters - Always show even when loading to prevent layout shift */}
+        <div className="space-y-2 mb-2">
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1">
                 <div className="relative">
@@ -627,153 +649,6 @@ function ViewOrders() {
                     className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
                   />
                 </div>
-              </div>
-              {/* Status Filter Dropdown */}
-              <div className="sm:w-48 relative dropdown-container">
-                <motion.button
-                  onClick={() => {
-                    setShowStatusDropdown(!showStatusDropdown);
-                    setShowSortDropdown(false);
-                  }}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-left flex items-center justify-between transition-all text-sm"
-                >
-                  <span className="text-gray-700 text-sm">
-                    {statusFilter === 'all' ? 'Tất cả trạng thái' :
-                     statusFilter === 'draft' ? 'DRAFT' :
-                     statusFilter === 'approved' ? 'APPROVED' :
-                     statusFilter === 'pending' ? 'PENDING' :
-                     statusFilter === 'confirmed' ? 'CONFIRMED' :
-                     statusFilter === 'processing' ? 'PROCESSING' :
-                     statusFilter === 'completed' ? 'COMPLETED' :
-                     statusFilter === 'cancelled' ? 'CANCELLED' : 'Tất cả trạng thái'}
-                  </span>
-                  <motion.svg
-                    animate={{ rotate: showStatusDropdown ? 180 : 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="h-4 w-4 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </motion.svg>
-                </motion.button>
-                
-                <AnimatePresence>
-                  {showStatusDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      transition={{ 
-                        duration: 0.2,
-                        ease: [0.4, 0, 0.2, 1]
-                      }}
-                      className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden z-50 origin-top"
-                    >
-                      <div className="py-1 max-h-60 overflow-y-auto">
-                        {[
-                          { value: 'all', label: 'Tất cả trạng thái' },
-                          { value: 'draft', label: 'DRAFT' },
-                          { value: 'approved', label: 'APPROVED' },
-                          { value: 'pending', label: 'PENDING' },
-                          { value: 'confirmed', label: 'CONFIRMED' },
-                          { value: 'processing', label: 'PROCESSING' },
-                          { value: 'completed', label: 'COMPLETED' },
-                          { value: 'cancelled', label: 'CANCELLED' }
-                        ].map((option, index) => (
-                          <motion.button
-                            key={option.value}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.03, duration: 0.2 }}
-                            onClick={() => {
-                              setStatusFilter(option.value);
-                              setShowStatusDropdown(false);
-                            }}
-                            className={`w-full px-3 py-2 text-left text-xs hover:bg-emerald-50 transition-colors ${
-                              statusFilter === option.value 
-                                ? 'bg-emerald-50 text-emerald-700 font-medium' 
-                                : 'text-gray-700'
-                            }`}
-                          >
-                            {option.label}
-                          </motion.button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-
-              {/* Sort Dropdown */}
-              <div className="sm:w-60 relative dropdown-container">
-                <motion.button
-                  onClick={() => {
-                    setShowSortDropdown(!showSortDropdown);
-                    setShowStatusDropdown(false);
-                  }}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.99 }}
-                  className="w-full px-2.5 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white text-left flex items-center justify-between transition-all text-sm"
-                >
-                  <span className="text-gray-700 text-sm">
-                    {sortMode === 'newest' ? 'Đơn hàng mới nhất' :
-                     sortMode === 'oldest' ? 'Đơn hàng cũ nhất' : 'Đơn hàng mới nhất'}
-                  </span>
-                  <motion.svg
-                    animate={{ rotate: showSortDropdown ? 180 : 0 }}
-                    transition={{ duration: 0.3 }}
-                    className="h-4 w-4 text-gray-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </motion.svg>
-                </motion.button>
-                
-                <AnimatePresence>
-                  {showSortDropdown && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      transition={{ 
-                        duration: 0.2,
-                        ease: [0.4, 0, 0.2, 1]
-                      }}
-                      className="absolute left-0 right-0 mt-2 bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden z-50 origin-top"
-                    >
-                      <div className="py-1">
-                        {[
-                          { value: 'newest', label: 'Đơn hàng mới nhất' },
-                          { value: 'oldest', label: 'Đơn hàng cũ nhất' }
-                        ].map((option, index) => (
-                          <motion.button
-                            key={option.value}
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.03, duration: 0.2 }}
-                            onClick={() => {
-                              setSortMode(option.value);
-                              setShowSortDropdown(false);
-                            }}
-                            className={`w-full px-3 py-2 text-left text-xs hover:bg-emerald-50 transition-colors ${
-                              sortMode === option.value 
-                                ? 'bg-emerald-50 text-emerald-700 font-medium' 
-                                : 'text-gray-700'
-                            }`}
-                          >
-                            {option.label}
-                          </motion.button>
-                        ))}
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
               <motion.button
                 onClick={() => setShowDateFilter(!showDateFilter)}
@@ -919,11 +794,14 @@ function ViewOrders() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-        )}
+        </div>
 
-        {/* Orders Table */}
-        {!loading && filteredOrders.length === 0 ? (
+        {/* Orders Table - Show skeleton during initial load */}
+        {loading && (!reduxOrders || reduxOrders.length === 0) ? (
+          <div className="py-6">
+            <TableSkeleton rows={5} />
+          </div>
+        ) : filteredOrders.length === 0 ? (
           <div className="text-center py-6">
             <svg className="mx-auto h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -935,7 +813,7 @@ function ViewOrders() {
                 : 'Chưa có đơn hàng nào được tạo.'}
             </p>
           </div>
-        ) : !loading && (
+        ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -1087,7 +965,7 @@ function ViewOrders() {
         )}
         
         {/* Pagination */}
-        {!loading && filteredOrders.length > 0 && (
+        {filteredOrders.length > 0 && !loading && (
           <Pagination
             currentPage={currentPage}
             totalPages={totalPages}

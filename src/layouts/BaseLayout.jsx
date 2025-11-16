@@ -551,6 +551,25 @@ const BaseLayout = ({
 
   const currentMenu = menuItems.find(m => m.path === location.pathname);
 
+  // Title mapping for pages not in menu items
+  const pageTitles = {
+    '/dealer-staff/create-order': 'Tạo đơn hàng',
+  };
+
+  // Subtitle mapping for each page
+  const pageSubtitles = {
+    '/dealer-staff/dashboard': 'Tổng quan bán hàng và thống kê',
+    '/dealer-staff/order-management': 'Quản lý và theo dõi đơn hàng của bạn',
+    '/dealer-staff/create-order': 'Tạo đơn hàng mới cho khách hàng',
+    '/dealer-staff/customer-management': 'Quản lý thông tin và lịch sử khách hàng',
+    '/dealer-staff/contract-management': 'Danh sách hợp đồng đã tạo - Xem và upload hợp đồng đã ký',
+    '/dealer-staff/payment-management': 'Thanh toán cho các hợp đồng đã có chữ ký',
+    '/dealer-staff/test-drive-schedule': 'Quản lý lịch hẹn lái thử và đặt chỗ',
+    '/dealer-staff/inventory': 'Theo dõi tồn kho tất cả cửa hàng và lập báo cáo đặt xe',
+    '/dealer-staff/feedback-management': 'Xử lý phản hồi và khiếu nại từ khách hàng',
+    '/dealer-staff/car-comparison': 'So sánh các mẫu xe để hỗ trợ tư vấn khách hàng',
+  };
+
   // Color classes based on brandColor
   const colorClasses = {
     active: brandColor === 'red' 
@@ -792,13 +811,15 @@ const BaseLayout = ({
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 w-full h-[73px] flex items-center">
+        <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 w-full min-h-[73px] flex items-center">
           <div className="flex items-center justify-between w-full">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
-                {currentMenu?.name || defaultTitle}
+                {currentMenu?.name || pageTitles[location.pathname] || defaultTitle}
               </h2>
-             
+              {pageSubtitles[location.pathname] && (
+                <p className="text-gray-600 text-sm mt-1">{pageSubtitles[location.pathname]}</p>
+              )}
             </div>
             {/* Real-time Clock & User Profile */}
             <div className="flex items-center gap-3">
