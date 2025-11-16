@@ -211,3 +211,28 @@ export async function getContractDetail(contractId) {
         throw enhancedError;
     }
 }
+
+// Get contract by ID (API: GET /api/contracts/{id})
+export async function getContractById(contractId) {
+    try {
+        const response = await request(`/api/contracts/${contractId}`, {
+            method: 'GET'
+        });
+        
+        // Handle response structure: { code, message, data } or direct data
+        if (response?.code === 0 && response?.data) {
+            return response.data;
+        }
+        if (response?.data) {
+            return response.data;
+        }
+        return response;
+    } catch (error) {
+        console.error('Error fetching contract by ID:', error);
+        // Re-throw with more context
+        const errorMessage = error.message || 'Không thể tải hợp đồng';
+        const enhancedError = new Error(errorMessage);
+        enhancedError.originalError = error;
+        throw enhancedError;
+    }
+}
