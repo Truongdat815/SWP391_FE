@@ -320,9 +320,30 @@ function ViewContracts() {
 
 
   const getStatusText = (status) => {
-    if (!status) return status || 'N/A';
-    // Return status in English as from API response
-    return status.toUpperCase();
+    if (!status) return 'Không xác định';
+    const upperStatus = status.toUpperCase();
+    const statusMap = {
+      'PENDING': 'Chờ xử lý',
+      'DRAFT': 'Bản nháp',
+      'ACCEPTED': 'Đã chấp nhận',
+      'APPROVED': 'Đã duyệt',
+      'CONFIRMED': 'Đã xác nhận',
+      'CONTRACT_PENDING': 'Chờ ký hợp đồng',
+      'CONTRACT_SIGNED': 'Đã ký hợp đồng',
+      'FILE_UPLOADED': 'Đã upload',
+      'PAYMENT_CONFIRMED': 'Đã thanh toán',
+      'FULLY_PAID': 'Đã thanh toán đủ',
+      'SHIPPING': 'Đang vận chuyển',
+      'IN_TRANSIT': 'Đang vận chuyển',
+      'COMPLETED': 'Đã hoàn thành',
+      'DELIVERED': 'Đã giao hàng',
+      'FINISH': 'Hoàn thành',
+      'REJECTED': 'Đã từ chối',
+      'CANCELLED': 'Đã hủy',
+      'CANCELED': 'Đã hủy',
+      'PROCESSING': 'Đang xử lý'
+    };
+    return statusMap[upperStatus] || status;
   };
 
   return (
@@ -408,7 +429,7 @@ function ViewContracts() {
                     Tổng thanh toán
                   </th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Đã upload
+                    TẢI TỆP
                   </th>
                   <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                     Hợp đồng đã ký
@@ -445,12 +466,12 @@ function ViewContracts() {
                       {contract.signedContractFileUrl || contract.contractFileUrl ? (
                         <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-green-100 text-green-800">
                           <CheckCircle className="h-3 w-3 mr-1" />
-                          Đã upload
+                          Đã tải tệp
                         </span>
                       ) : (
                         <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-yellow-100 text-yellow-800">
                           <AlertCircle className="h-3 w-3 mr-1" />
-                          Chưa upload
+                          Chưa tải tệp
                         </span>
                       )}
                     </td>
