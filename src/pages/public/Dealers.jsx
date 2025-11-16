@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAllStoresThunk, getStoresByStatusThunk } from '../../store/slices/storeSlice';
 import DealerCard from '../../components/DealerCard';
+import Pagination from '../../components/ui/Pagination';
 
 const Dealers = () => {
   const dispatch = useDispatch();
@@ -17,6 +18,8 @@ const Dealers = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedProvince, setSelectedProvince] = useState('');
   const [showFilters, setShowFilters] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12; // 3 columns x 4 rows
 
   useEffect(() => {
     // Fetch all stores and filter frontend to show only active ones
@@ -66,19 +69,39 @@ const Dealers = () => {
   )];
 
   // Transform filtered store data to match DealerCard component expectations
-  const dealers = filteredStores.map(store => ({
-    id: store.storeId,
-    name: store.storeName,
-    storeName: store.storeName, // Add storeName for DealerCard compatibility
-    address: store.address,
-    phone: store.phone,
-    image: store.imagePath || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop", // Use imagePath from admin, fallback to default
-    description: `Đại lý chính thức Electra tại ${store.provinceName} với showroom hiện đại và đội ngũ tư vấn chuyên nghiệp.`,
-    latitude: getLatitudeForProvince(store.provinceName),
-    longitude: getLongitudeForProvince(store.provinceName),
-    ownerName: store.ownerName,
-    status: store.status
-  }));
+  const allDealers = useMemo(() => {
+    return filteredStores.map(store => ({
+      id: store.storeId,
+      name: store.storeName,
+      storeName: store.storeName, // Add storeName for DealerCard compatibility
+      address: store.address,
+      phone: store.phone,
+      image: store.imagePath || "https://images.unsplash.com/photo-1560472354-b33ff0c44a43?w=400&h=300&fit=crop", // Use imagePath from admin, fallback to default
+      description: `Đại lý chính thức Electra tại ${store.provinceName} với showroom hiện đại và đội ngũ tư vấn chuyên nghiệp.`,
+      latitude: getLatitudeForProvince(store.provinceName),
+      longitude: getLongitudeForProvince(store.provinceName),
+      ownerName: store.ownerName,
+      status: store.status
+    }));
+  }, [filteredStores]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(allDealers.length / itemsPerPage);
+  const paginatedDealers = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return allDealers.slice(startIndex, endIndex);
+  }, [allDealers, currentPage, itemsPerPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedProvince, allDealers.length]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Helper function to get coordinates for provinces
   function getLatitudeForProvince(provinceName) {
@@ -209,7 +232,7 @@ const Dealers = () => {
                         ? `Tìm kiếm "${searchTerm}"`
                         : `Lọc theo khu vực: ${selectedProvince}`
                       }
-                      <span className="ml-2 text-green-200">({dealers.length} kết quả)</span>
+                      <span className="ml-2 text-green-200">({allDealers.length} kết quả)</span>
                     </p>
                   </div>
                 )}
@@ -222,7 +245,7 @@ const Dealers = () => {
       {/* Dealers Grid */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         {/* Results Header */}
-        {(searchTerm || selectedProvince) && dealers.length > 0 && (
+        {(searchTerm || selectedProvince) && allDealers.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -233,7 +256,7 @@ const Dealers = () => {
                 Kết quả tìm kiếm
               </h2>
               <p className="text-gray-600">
-                Tìm thấy <span className="font-semibold text-green-600">{dealers.length}</span> đại lý
+                Tìm thấy <span className="font-semibold text-green-600">{allDealers.length}</span> đại lý
                 {searchTerm && ` cho "${searchTerm}"`}
                 {selectedProvince && ` tại ${selectedProvince}`}
               </p>
@@ -241,25 +264,7 @@ const Dealers = () => {
           </motion.div>
         )}
 
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
-        >
-          {dealers.map((dealer, index) => (
-            <motion.div
-              key={dealer.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: index * 0.1 }}
-            >
-              <DealerCard dealer={dealer} />
-            </motion.div>
-          ))}
-        </motion.div>
-
-        {dealers.length === 0 && !loading && (
+        {allDealers.length === 0 && !loading ? (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -288,6 +293,36 @@ const Dealers = () => {
               </button>
             )}
           </motion.div>
+        ) : (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.2 }}
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
+            >
+              {paginatedDealers.map((dealer, index) => (
+                <motion.div
+                  key={dealer.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.5, delay: index * 0.05 }}
+                >
+                  <DealerCard dealer={dealer} />
+                </motion.div>
+              ))}
+            </motion.div>
+
+            {/* Pagination */}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              itemsPerPage={itemsPerPage}
+              totalItems={allDealers.length}
+              showInfo={true}
+            />
+          </>
         )}
       </div>
     </div>

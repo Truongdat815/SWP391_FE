@@ -1,10 +1,31 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import logo from '../assets/images/logo.png';
 import Tooltip from './ui/Tooltip';
 
 function Footer() {
+  const location = useLocation();
+  const isHomePage = location.pathname === '/';
+
+  const handleHashLinkClick = (e, hash) => {
+    if (isHomePage) {
+      // If on homepage, just scroll to section
+      e.preventDefault();
+      const element = document.getElementById(hash);
+      if (element) {
+        const offset = 80;
+        const elementPosition = element.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - offset;
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth'
+        });
+      }
+    }
+    // If not on homepage, let Link navigate to /#hash
+  };
+
   return (
     <footer className="bg-gray-900 text-white">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -20,7 +41,7 @@ function Footer() {
             <div className="flex items-center space-x-3 mb-6">
               <img src={logo} alt="Electra" className="h-12 w-auto object-contain" />
               <div>
-                <h3 className="text-2xl font-bold text-green-600">
+                <h3 className="text-2xl font-extrabold bg-gradient-to-r from-emerald-500 to-sky-500 bg-clip-text text-transparent">
                   Electra
                 </h3>
                 <p className="text-gray-400">Tương lai của di chuyển</p>
@@ -45,7 +66,7 @@ function Footer() {
                   transition={{ duration: 0.3, delay: index * 0.1 }}
                   viewport={{ once: true }}
                   whileHover={{ scale: 1.1 }}
-                  className="bg-gray-800 p-3 rounded-full text-gray-400 hover:text-white hover:bg-green-600 transition-all duration-300"
+                  className="bg-slate-800 p-3 rounded-full text-slate-400 hover:text-white hover:bg-emerald-600 transition-all duration-300"
                 >
                   <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
                     <path d={social.icon} />
@@ -68,12 +89,16 @@ function Footer() {
                 { name: 'Trang chủ', href: '/', isHash: false },
                 { name: 'Dòng xe', href: '/cars', isHash: false },
                 { name: 'Đại lý', href: '/dealers', isHash: false },
-                { name: 'Phụ kiện', href: '#accessories', isHash: true },
-                { name: 'Trạm sạc', href: '#charging', isHash: true },
-                { name: 'Về chúng tôi', href: '#about', isHash: true }
+                { name: 'Phụ kiện', href: isHomePage ? '#accessories' : '/#accessories', isHash: true, hash: 'accessories' },
+                { name: 'Trạm sạc', href: isHomePage ? '#charging' : '/#charging', isHash: true, hash: 'charging' },
+                { name: 'Về chúng tôi', href: isHomePage ? '#about' : '/#about', isHash: true, hash: 'about' }
               ].map((link, index) => {
-                const LinkComponent = link.isHash ? 'a' : Link;
-                const linkProps = link.isHash ? { href: link.href } : { to: link.href };
+                const linkProps = { to: link.href };
+                
+                // Add onClick handler for hash links
+                if (link.hash) {
+                  linkProps.onClick = (e) => handleHashLinkClick(e, link.hash);
+                }
                 
                 return (
                   <motion.li
@@ -83,13 +108,13 @@ function Footer() {
                     transition={{ duration: 0.3, delay: 0.3 + index * 0.1 }}
                     viewport={{ once: true }}
                   >
-                    <LinkComponent 
+                    <Link 
                       {...linkProps}
                       className="text-gray-300 hover:text-white transition-colors duration-300 flex items-center group"
                     >
                       <span className="w-0 h-0 border-l-2 border-transparent group-hover:border-green-400 transition-all duration-300 mr-2"></span>
                       {link.name}
-                    </LinkComponent>
+                    </Link>
                   </motion.li>
                 );
               })}
@@ -150,7 +175,7 @@ function Footer() {
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
-                  className="bg-gradient-to-r from-green-600 to-green-800 text-white px-6 py-3 rounded-r-lg font-semibold hover:shadow-lg transition-all duration-300"
+                  className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-6 py-3 rounded-r-lg font-bold shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 transition-all duration-300"
                 >
                   Đăng ký
                 </motion.button>
@@ -168,7 +193,7 @@ function Footer() {
           className="border-t border-gray-800 mt-8 pt-8 text-center"
         >
           <p className="text-gray-400">
-            © 2024 <span className="text-green-600">Electra</span>. Tất cả quyền được bảo lưu. | 
+            © 2024 <span className="bg-gradient-to-r from-emerald-500 to-sky-500 bg-clip-text text-transparent font-bold">Electra</span>. Tất cả quyền được bảo lưu. | 
             <a href="#" className="hover:text-white transition-colors ml-2">Chính sách bảo mật</a> | 
             <a href="#" className="hover:text-white transition-colors ml-2">Điều khoản sử dụng</a>
           </p>

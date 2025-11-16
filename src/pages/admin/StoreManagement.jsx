@@ -5,13 +5,13 @@ import {
   getAllStoresThunk, 
   createStoreThunk, 
   updateStoreThunk, 
-  deleteStoreThunk,
-  getStoresByStatusThunk
+  deleteStoreThunk
 } from '@store/slices/storeSlice';
-import { uploadStoreImage } from '@/api/storeService';
+import { uploadStoreImage, getStoresRevenueMonthly } from '@/api/storeService';
 import { motion, AnimatePresence } from 'framer-motion';
 import Toast from '@/components/ui/Toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Pagination from '@/components/ui/Pagination';
 import { useToast } from '@/hooks/useToast';
 import { useConfirm } from '@/hooks/useConfirm';
 
@@ -69,6 +69,8 @@ function StoreManagement() {
   const [detailAddress, setDetailAddress] = useState(''); // Địa chỉ chi tiết (số nhà, tên đường)
   const [selectedImageFile, setSelectedImageFile] = useState(null); // File ảnh được chọn
   const [imagePreview, setImagePreview] = useState(null); // Preview ảnh
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   useEffect(() => {
     if (storesStatus === 'idle') {
@@ -82,6 +84,43 @@ function StoreManagement() {
       .then((res) => setStoresApi(Array.isArray(res?.data?.data) ? res.data.data : []))
       .catch((err) => console.error('Lỗi lấy danh sách store:', err));
   }, []);
+
+  // Fetch monthly revenue for all stores
+  useEffect(() => {
+    const fetchMonthlyRevenue = async () => {
+      try {
+        const response = await getStoresRevenueMonthly();
+        const revenueData = response?.data || response || [];
+        
+        // Convert array to map: storeId -> monthlyRevenue and orderCount
+        const revenueMap = {};
+        const orderCountMap = {};
+        if (Array.isArray(revenueData)) {
+          revenueData.forEach(item => {
+            if (item.storeId) {
+              if (item.monthlyRevenue !== undefined) {
+                revenueMap[item.storeId] = item.monthlyRevenue;
+              }
+              if (item.orderCount !== undefined || item.totalOrders !== undefined) {
+                orderCountMap[item.storeId] = item.orderCount || item.totalOrders || 0;
+              }
+            }
+          });
+        }
+        setMonthlyRevenue(revenueMap);
+        setMonthlyOrderCount(orderCountMap);
+      } catch (err) {
+        console.error('Lỗi lấy doanh thu theo tháng:', err);
+        setMonthlyRevenue({});
+        setMonthlyOrderCount({});
+      }
+    };
+    
+    const allStores = (stores && stores.length) ? stores : storesApi;
+    if (allStores.length > 0) {
+      fetchMonthlyRevenue();
+    }
+  }, [stores, storesApi]);
 
   // Fetch provinces từ API bên thứ 3 - sử dụng depth=3 để có đầy đủ wards
   useEffect(() => {
@@ -120,14 +159,32 @@ function StoreManagement() {
       store.storeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       store.ownerName?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    // Status filter  
-    const matchesStatus = !statusFilter || store.status === statusFilter;
+    // Status filter - so sánh case-insensitive
+    const matchesStatus = !statusFilter || 
+      (store.status && store.status.toUpperCase() === statusFilter.toUpperCase());
     
     // Province filter
     const matchesProvince = !provinceFilter || store.provinceName === provinceFilter;
     
     return matchesSearch && matchesStatus && matchesProvince;
   });
+
+  // Calculate pagination
+  const totalPages = Math.ceil(storesList.length / itemsPerPage);
+  const paginatedStores = storesList.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, provinceFilter]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
   
   const [formData, setFormData] = useState({
     storeName: '',
@@ -140,6 +197,12 @@ function StoreManagement() {
     contractEndDate: '',
     createdBy: ''
   });
+  const [dateDisplay, setDateDisplay] = useState({
+    contractStartDate: '',
+    contractEndDate: ''
+  });
+  const [monthlyRevenue, setMonthlyRevenue] = useState({}); // Map storeId -> monthlyRevenue
+  const [monthlyOrderCount, setMonthlyOrderCount] = useState({}); // Map storeId -> orderCount
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -151,7 +214,11 @@ function StoreManagement() {
 
   const getStatusText = (status) => {
     const upperStatus = String(status || '').toUpperCase();
-    return upperStatus || status;
+    switch (upperStatus) {
+      case 'ACTIVE': return 'Hoạt động';
+      case 'INACTIVE': return 'Không hoạt động';
+      default: return upperStatus || status;
+    }
   };
 
   const handleInputChange = (e) => {
@@ -321,8 +388,215 @@ function StoreManagement() {
     updateAddress(value);
   };
 
+  // Helper functions để xử lý format dd/mm/yyyy
+  const formatDateToDDMMYYYY = (dateString) => {
+    if (!dateString) return '';
+    // Nếu đã là format dd/mm/yyyy thì trả về luôn
+    if (dateString.match(/^\d{2}\/\d{2}\/\d{4}$/)) return dateString;
+    
+    // Convert từ YYYY-MM-DD sang dd/mm/yyyy
+    const parts = dateString.split('-');
+    if (parts.length === 3) {
+      return `${parts[2]}/${parts[1]}/${parts[0]}`;
+    }
+    return dateString;
+  };
+
+  const formatDateToYYYYMMDD = (dateString) => {
+    if (!dateString) return '';
+    // Nếu đã là format YYYY-MM-DD thì trả về luôn
+    if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) return dateString;
+    
+    // Convert từ dd/mm/yyyy sang YYYY-MM-DD
+    const parts = dateString.split('/');
+    if (parts.length === 3) {
+      const day = parts[0].padStart(2, '0');
+      const month = parts[1].padStart(2, '0');
+      const year = parts[2];
+      return `${year}-${month}-${day}`;
+    }
+    return dateString;
+  };
+
+  const validateDateFormat = (dateString) => {
+    if (!dateString) return false;
+    const regex = /^\d{2}\/\d{2}\/\d{4}$/;
+    if (!regex.test(dateString)) return false;
+    
+    const parts = dateString.split('/');
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10);
+    const year = parseInt(parts[2], 10);
+    
+    // Validate month
+    if (month < 1 || month > 12) return false;
+    
+    // Validate day
+    const daysInMonth = new Date(year, month, 0).getDate();
+    if (day < 1 || day > daysInMonth) return false;
+    
+    return true;
+  };
+
+  const handleDateInput = (e, fieldName) => {
+    let value = e.target.value;
+    
+    // Chỉ cho phép số và dấu /
+    value = value.replace(/[^\d/]/g, '');
+    
+    // Tự động thêm dấu /
+    if (value.length === 2 && !value.includes('/')) {
+      value = value + '/';
+    } else if (value.length === 5 && value.split('/').length === 2) {
+      value = value + '/';
+    }
+    
+    // Giới hạn độ dài
+    if (value.length > 10) {
+      value = value.slice(0, 10);
+    }
+    
+    // Cập nhật display value
+    setDateDisplay(prev => ({
+      ...prev,
+      [fieldName]: value
+    }));
+    
+    // Nếu đủ format dd/mm/yyyy, validate và convert sang YYYY-MM-DD để lưu
+    if (value.length === 10 && validateDateFormat(value)) {
+      const yyyymmdd = formatDateToYYYYMMDD(value);
+      setFormData(prev => {
+        const newData = {
+          ...prev,
+          [fieldName]: yyyymmdd
+        };
+        
+        // Nếu là start date thay đổi, kiểm tra và cập nhật end date
+        if (fieldName === 'contractStartDate' && prev.contractEndDate) {
+          const startDate = new Date(yyyymmdd);
+          const endDate = new Date(prev.contractEndDate);
+          
+          // Nếu end date <= start date, tự động set end date = start date + 1 ngày
+          if (endDate <= startDate) {
+            const nextDay = new Date(startDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const nextDayStr = nextDay.toISOString().split('T')[0];
+            newData.contractEndDate = nextDayStr;
+            
+            // Cập nhật display value cho end date
+            setTimeout(() => {
+              setDateDisplay(prevDisplay => ({
+                ...prevDisplay,
+                contractEndDate: formatDateToDDMMYYYY(nextDayStr)
+              }));
+            }, 0);
+          }
+        }
+        
+        return newData;
+      });
+    } else if (value.length === 0) {
+      // Nếu xóa hết, reset cả formData
+      setFormData(prev => ({
+        ...prev,
+        [fieldName]: ''
+      }));
+    }
+  };
+
+  const handleDatePickerChange = (e, fieldName) => {
+    const yyyymmdd = e.target.value;
+    if (yyyymmdd) {
+      const ddmmyyyy = formatDateToDDMMYYYY(yyyymmdd);
+      setFormData(prev => {
+        const newData = {
+          ...prev,
+          [fieldName]: yyyymmdd
+        };
+        
+        // Nếu là start date thay đổi, kiểm tra và cập nhật end date
+        if (fieldName === 'contractStartDate' && prev.contractEndDate) {
+          const startDate = new Date(yyyymmdd);
+          const endDate = new Date(prev.contractEndDate);
+          
+          // Nếu end date <= start date, tự động set end date = start date + 1 ngày
+          if (endDate <= startDate) {
+            const nextDay = new Date(startDate);
+            nextDay.setDate(nextDay.getDate() + 1);
+            const nextDayStr = nextDay.toISOString().split('T')[0];
+            newData.contractEndDate = nextDayStr;
+            
+            // Cập nhật display value cho end date
+            setTimeout(() => {
+              setDateDisplay(prevDisplay => ({
+                ...prevDisplay,
+                contractEndDate: formatDateToDDMMYYYY(nextDayStr)
+              }));
+            }, 0);
+          }
+        }
+        
+        return newData;
+      });
+      setDateDisplay(prev => ({
+        ...prev,
+        [fieldName]: ddmmyyyy
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [fieldName]: ''
+      }));
+      setDateDisplay(prev => ({
+        ...prev,
+        [fieldName]: ''
+      }));
+    }
+  };
+
+  const validateDateMin = (dateString, minDate) => {
+    if (!dateString || !validateDateFormat(dateString)) return false;
+    const inputDate = formatDateToYYYYMMDD(dateString);
+    return inputDate >= minDate;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Validate dates
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const minStartDate = tomorrow.toISOString().split('T')[0];
+    
+    if (!validateDateFormat(dateDisplay.contractStartDate) || !validateDateMin(dateDisplay.contractStartDate, minStartDate)) {
+      error('Ngày bắt đầu hợp đồng không hợp lệ hoặc phải từ ngày mai trở đi');
+      return;
+    }
+    
+    // Validate end date - phải sau start date
+    if (!validateDateFormat(dateDisplay.contractEndDate)) {
+      error('Ngày kết thúc hợp đồng không hợp lệ');
+      return;
+    }
+    
+    if (formData.contractStartDate) {
+      const startDate = new Date(formData.contractStartDate);
+      const nextDay = new Date(startDate);
+      nextDay.setDate(nextDay.getDate() + 1);
+      const minEndDate = nextDay.toISOString().split('T')[0];
+      
+      if (!validateDateMin(dateDisplay.contractEndDate, minEndDate)) {
+        error('Ngày kết thúc hợp đồng phải sau ngày bắt đầu hợp đồng');
+        return;
+      }
+    } else {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      if (!validateDateMin(dateDisplay.contractEndDate, tomorrow.toISOString().split('T')[0])) {
+        error('Ngày kết thúc hợp đồng phải sau ngày hiện tại');
+        return;
+      }
+    }
     
     try {
       if (editingStore) {
@@ -353,7 +627,7 @@ function StoreManagement() {
           phone: formData.phone,
           provinceName: formData.provinceName,
           ownerName: formData.ownerName,
-          status: formData.status,
+          // status sẽ được backend tự động set theo thời gian hợp đồng
           imagePath: null, // Không gửi imagePath trong update
           contractStartDate: formData.contractStartDate ? new Date(formData.contractStartDate).toISOString() : null,
           contractEndDate: formData.contractEndDate ? new Date(formData.contractEndDate).toISOString() : null
@@ -395,7 +669,7 @@ function StoreManagement() {
           phone: formData.phone,
           provinceName: formData.provinceName,
           ownerName: formData.ownerName,
-          status: formData.status,
+          // status sẽ được backend tự động set theo thời gian hợp đồng
           imagePath: null, // Không gửi imagePath khi tạo mới
           contractStartDate: formData.contractStartDate ? new Date(formData.contractStartDate).toISOString() : null,
           contractEndDate: formData.contractEndDate ? new Date(formData.contractEndDate).toISOString() : null
@@ -436,6 +710,10 @@ function StoreManagement() {
         contractEndDate: '',
         createdBy: ''
       });
+      setDateDisplay({
+        contractStartDate: '',
+        contractEndDate: ''
+      });
       // Reset dependent dropdowns
       setSelectedProvinceCode(null);
       setSelectedDistrictCode(null);
@@ -466,6 +744,9 @@ function StoreManagement() {
       return date.toISOString().split('T')[0];
     };
     
+    const startDate = formatDateForInput(store.contractStartDate);
+    const endDate = formatDateForInput(store.contractEndDate);
+    
     setFormData({
       storeName: store.storeName || '',
       provinceName: store.provinceName || '',
@@ -473,9 +754,15 @@ function StoreManagement() {
       address: store.address || '',
       phone: store.phone || '',
       status: store.status || 'ACTIVE',
-      contractStartDate: formatDateForInput(store.contractStartDate),
-      contractEndDate: formatDateForInput(store.contractEndDate),
+      contractStartDate: startDate,
+      contractEndDate: endDate,
       createdBy: store.createdBy || ''
+    });
+    
+    // Format dates để hiển thị dd/mm/yyyy
+    setDateDisplay({
+      contractStartDate: formatDateToDDMMYYYY(startDate),
+      contractEndDate: formatDateToDDMMYYYY(endDate)
     });
     
     // Reset image file và preview khi edit
@@ -579,6 +866,25 @@ function StoreManagement() {
     setImageToView(null);
   };
 
+  const handleOpenAddModal = () => {
+    setFormData({
+      storeName: '',
+      provinceName: '',
+      ownerName: '',
+      address: '',
+      phone: '',
+      status: 'ACTIVE',
+      contractStartDate: '',
+      contractEndDate: '',
+      createdBy: ''
+    });
+    setDateDisplay({
+      contractStartDate: '',
+      contractEndDate: ''
+    });
+    setShowAddModal(true);
+  };
+
   const handleCloseModal = () => {
     setFormData({
       storeName: '',
@@ -590,6 +896,10 @@ function StoreManagement() {
       contractStartDate: '',
       contractEndDate: '',
       createdBy: ''
+    });
+    setDateDisplay({
+      contractStartDate: '',
+      contractEndDate: ''
     });
     // Reset dependent dropdowns
     setSelectedProvinceCode(null);
@@ -639,11 +949,7 @@ function StoreManagement() {
 
   const handleStatusFilter = (status) => {
     setStatusFilter(status);
-    if (status) {
-      dispatch(getStoresByStatusThunk(status));
-    } else {
-      dispatch(getAllStoresThunk());
-    }
+    // Filter được xử lý bởi frontend filtering logic, không cần gọi thunk
   };
 
   const handleProvinceFilter = (province) => {
@@ -691,7 +997,7 @@ function StoreManagement() {
                 Trạng thái
               </th>
               <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                Doanh thu
+                Doanh thu theo tháng
               </th>
               <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
                 Thao tác
@@ -699,10 +1005,11 @@ function StoreManagement() {
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
-            {storesList.map((store, index) => (
+            {paginatedStores.map((store, index) => (
               <tr 
                 key={store.storeId || `store-${index}-${store.storeName || 'unknown'}`}
-                className={`transition-all duration-200 hover:bg-blue-50 hover:shadow-sm cursor-pointer
+                onClick={() => handleViewDetail(store)}
+                className={`transition-all duration-200 hover:bg-red-50 hover:shadow-sm cursor-pointer
                   ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
               >
                 <td className="px-3 py-2.5 whitespace-nowrap">
@@ -724,7 +1031,7 @@ function StoreManagement() {
                       />
                     ) : null}
                     <div 
-                      className="h-10 w-10 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mr-3 shadow-md ring-2 ring-blue-100"
+                      className="h-10 w-10 bg-gradient-to-br from-red-400 to-red-600 rounded-full flex items-center justify-center mr-3 shadow-md ring-2 ring-red-100"
                       style={{ display: store.imagePath ? 'none' : 'flex' }}
                     >
                       <span className="text-white font-bold text-xs">
@@ -755,48 +1062,32 @@ function StoreManagement() {
                   </span>
                 </td>
                 <td className="px-3 py-2.5 whitespace-nowrap">
-                  <div className="text-xs text-gray-600">{store.totalOrders || 0} đơn hàng</div>
+                  <div className="text-xs text-gray-600">
+                    {(monthlyOrderCount[store.storeId] !== undefined ? monthlyOrderCount[store.storeId] : store.totalOrders) || 0} đơn hàng
+                  </div>
                   <div className="text-sm font-bold text-green-600">
-                    {(store.totalRevenue || 0).toLocaleString('vi-VN')} ₫
+                    {(monthlyRevenue[store.storeId] || 0).toLocaleString('vi-VN')} ₫
                   </div>
                 </td>
                 <td className="px-3 py-2.5 whitespace-nowrap">
-                  <div className="flex items-center space-x-2">
+                  <div className="flex items-center justify-center">
                     <button 
-                      onClick={() => handleEdit(store)}
-                      className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
-                      
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(store);
+                      }}
+                      className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                      title="Chỉnh sửa cửa hàng"
                     >
                       <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    
-                    <button 
-                      onClick={() => handleDelete(store)}
-                      className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
-                      
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                    
-                    <button 
-                      onClick={() => handleViewDetail(store)}
-                      className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
-                      
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                       </svg>
                     </button>
                   </div>
                 </td>
               </tr>
             ))}
-            {storesList.length === 0 && !isStoresFetching && (
+            {paginatedStores.length === 0 && !isStoresFetching && (
               <tr>
                 <td colSpan="6" className="px-6 py-16">
                   <div className="text-center">
@@ -828,7 +1119,7 @@ function StoreManagement() {
                           setStatusFilter('');
                           setProvinceFilter('');
                         }}
-                        className="inline-flex items-center px-3 py-1.5 bg-white border-2 border-blue-500 text-blue-600 rounded-lg hover:bg-blue-50 transition shadow-sm hover:shadow-md text-sm"
+                        className="inline-flex items-center px-3 py-1.5 bg-white border-2 border-red-500 text-red-600 rounded-lg hover:bg-red-50 transition shadow-sm hover:shadow-md text-sm"
                       >
                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -837,8 +1128,8 @@ function StoreManagement() {
                       </button>
                     ) : (
                       <button
-                        onClick={() => setShowAddModal(true)}
-                        className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm"
+                        onClick={handleOpenAddModal}
+                        className="inline-flex items-center px-3 py-1.5 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition shadow-md hover:shadow-lg transform hover:-translate-y-0.5 text-sm"
                       >
                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
@@ -852,6 +1143,18 @@ function StoreManagement() {
             )}
           </tbody>
         </table>
+      )}
+      
+      {/* Pagination */}
+      {!isStoresFetching && storesList.length > 0 && (
+        <Pagination
+          currentPage={currentPage}
+          totalPages={totalPages}
+          onPageChange={handlePageChange}
+          itemsPerPage={itemsPerPage}
+          totalItems={storesList.length}
+          showInfo={true}
+        />
       )}
     </div>
   );
@@ -882,7 +1185,7 @@ function StoreManagement() {
       <div className="flex justify-end space-x-3">
         <button
           onClick={() => setShowAddModal(true)}
-          className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center text-sm"
+          className="bg-gradient-to-r from-red-500 to-red-600 text-white px-4 py-2 rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg transform hover:-translate-y-0.5 flex items-center text-sm"
           
         >
           <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -898,7 +1201,7 @@ function StoreManagement() {
           <div className="flex-1">
             <div className="relative group">
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <svg className="h-5 w-5 text-gray-400 group-focus-within:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="h-5 w-5 text-gray-400 group-focus-within:text-red-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
               </div>
@@ -934,7 +1237,7 @@ function StoreManagement() {
             </select>
             <button
               onClick={handleSearch}
-              className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg flex items-center text-sm"
+              className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg flex items-center text-sm"
             >
               <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -964,14 +1267,14 @@ function StoreManagement() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`py-4 px-1 border-b-2 font-medium text-sm transition-all ${
                   activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
+                    ? 'border-red-500 text-red-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
                 {tab.name}
                 <span className={`ml-2 py-0.5 px-2 rounded-full text-xs transition-all ${
                   activeTab === tab.id
-                    ? 'bg-blue-100 text-blue-600'
+                    ? 'bg-red-100 text-red-600'
                     : 'bg-gray-100 text-gray-600'
                 }`}>
                   {tab.count}
@@ -1034,7 +1337,7 @@ function StoreManagement() {
                     </label>
                     {loadingProvinces ? (
                       <div className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 flex items-center">
-                        <svg className="animate-spin h-5 w-5 text-blue-500 mr-2" fill="none" viewBox="0 0 24 24">
+                        <svg className="animate-spin h-5 w-5 text-red-500 mr-2" fill="none" viewBox="0 0 24 24">
                           <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                           <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                         </svg>
@@ -1217,7 +1520,7 @@ function StoreManagement() {
                             type="file"
                             accept="image/*"
                             onChange={handleImageFileChange}
-                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer"
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-red-50 file:text-red-700 hover:file:bg-red-100 cursor-pointer"
                           />
                         </div>
                         <p className="text-xs text-gray-500 mt-1.5">
@@ -1256,51 +1559,207 @@ function StoreManagement() {
                     </div>
                   </div>
 
-                  {/* Status */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Trạng thái <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all"
-                      required
-                    >
-                      <option value="ACTIVE">Hoạt động</option>
-                      <option value="INACTIVE">Không hoạt động</option>
-                    </select>
-                  </div>
-
                   {/* Contract Start Date */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Ngày bắt đầu hợp đồng <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="date"
-                      name="contractStartDate"
-                      value={formData.contractStartDate}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="contractStartDate"
+                        value={dateDisplay.contractStartDate}
+                        onChange={(e) => handleDateInput(e, 'contractStartDate')}
+                        onClick={(e) => {
+                          // Click vào text input sẽ trigger date picker
+                          const hiddenDateInput = document.getElementById('hidden-date-start');
+                          if (hiddenDateInput) {
+                            hiddenDateInput.showPicker?.();
+                          }
+                        }}
+                        onFocus={(e) => {
+                          // Focus vào text input sẽ trigger date picker
+                          const hiddenDateInput = document.getElementById('hidden-date-start');
+                          if (hiddenDateInput) {
+                            hiddenDateInput.showPicker?.();
+                          }
+                        }}
+                        placeholder="dd/mm/yyyy"
+                        maxLength={10}
+                        className={`w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all ${
+                          formData.contractStartDate && validateDateFormat(dateDisplay.contractStartDate) && validateDateMin(dateDisplay.contractStartDate, (() => {
+                            const tomorrow = new Date();
+                            tomorrow.setDate(tomorrow.getDate() + 1);
+                            return tomorrow.toISOString().split('T')[0];
+                          })())
+                            ? 'text-gray-900 border-green-300'
+                            : dateDisplay.contractStartDate && (!validateDateFormat(dateDisplay.contractStartDate) || !validateDateMin(dateDisplay.contractStartDate, (() => {
+                              const tomorrow = new Date();
+                              tomorrow.setDate(tomorrow.getDate() + 1);
+                              return tomorrow.toISOString().split('T')[0];
+                            })()))
+                            ? 'text-gray-900 border-red-300'
+                            : 'text-gray-900'
+                        }`}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const hiddenDateInput = document.getElementById('hidden-date-start');
+                          if (hiddenDateInput) {
+                            hiddenDateInput.showPicker?.();
+                          }
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 pointer-events-auto z-10"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                      <input
+                        type="date"
+                        id="hidden-date-start"
+                        value={formData.contractStartDate}
+                        onChange={(e) => handleDatePickerChange(e, 'contractStartDate')}
+                        min={(() => {
+                          const tomorrow = new Date();
+                          tomorrow.setDate(tomorrow.getDate() + 1);
+                          return tomorrow.toISOString().split('T')[0];
+                        })()}
+                        className="absolute left-0 top-0 w-full h-full opacity-0 pointer-events-none"
+                        style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'none', zIndex: 1 }}
+                      />
+                      {formData.contractStartDate && validateDateFormat(dateDisplay.contractStartDate) && !validateDateMin(dateDisplay.contractStartDate, (() => {
+                        const tomorrow = new Date();
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        return tomorrow.toISOString().split('T')[0];
+                      })()) && (
+                        <p className="text-xs text-red-500 mt-1">Ngày phải từ ngày mai trở đi</p>
+                      )}
+                      {dateDisplay.contractStartDate && !validateDateFormat(dateDisplay.contractStartDate) && (
+                        <p className="text-xs text-red-500 mt-1">Định dạng không hợp lệ (dd/mm/yyyy)</p>
+                      )}
+                    </div>
                   </div>
 
                   {/* Contract End Date */}
-                  <div className="md:col-span-2">
+                  <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Ngày kết thúc hợp đồng <span className="text-red-500">*</span>
                     </label>
-                    <input
-                      type="date"
-                      name="contractEndDate"
-                      value={formData.contractEndDate}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all"
-                      required
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        name="contractEndDate"
+                        value={dateDisplay.contractEndDate}
+                        onChange={(e) => handleDateInput(e, 'contractEndDate')}
+                        onClick={(e) => {
+                          // Click vào text input sẽ trigger date picker
+                          const hiddenDateInput = document.getElementById('hidden-date-end');
+                          if (hiddenDateInput) {
+                            hiddenDateInput.showPicker?.();
+                          }
+                        }}
+                        onFocus={(e) => {
+                          // Focus vào text input sẽ trigger date picker
+                          const hiddenDateInput = document.getElementById('hidden-date-end');
+                          if (hiddenDateInput) {
+                            hiddenDateInput.showPicker?.();
+                          }
+                        }}
+                        placeholder="dd/mm/yyyy"
+                        maxLength={10}
+                        className={`w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all ${
+                          formData.contractEndDate && validateDateFormat(dateDisplay.contractEndDate) && (() => {
+                            // End date phải sau start date (nếu có start date)
+                            if (formData.contractStartDate) {
+                              const startDate = new Date(formData.contractStartDate);
+                              const nextDay = new Date(startDate);
+                              nextDay.setDate(nextDay.getDate() + 1);
+                              const minEndDate = nextDay.toISOString().split('T')[0];
+                              return validateDateMin(dateDisplay.contractEndDate, minEndDate);
+                            }
+                            // Nếu chưa có start date, phải sau ngày hiện tại
+                            const tomorrow = new Date();
+                            tomorrow.setDate(tomorrow.getDate() + 1);
+                            return validateDateMin(dateDisplay.contractEndDate, tomorrow.toISOString().split('T')[0]);
+                          })()
+                            ? 'text-gray-900 border-green-300'
+                            : dateDisplay.contractEndDate && (!validateDateFormat(dateDisplay.contractEndDate) || !(() => {
+                              if (formData.contractStartDate) {
+                                const startDate = new Date(formData.contractStartDate);
+                                const nextDay = new Date(startDate);
+                                nextDay.setDate(nextDay.getDate() + 1);
+                                const minEndDate = nextDay.toISOString().split('T')[0];
+                                return validateDateMin(dateDisplay.contractEndDate, minEndDate);
+                              }
+                              const tomorrow = new Date();
+                              tomorrow.setDate(tomorrow.getDate() + 1);
+                              return validateDateMin(dateDisplay.contractEndDate, tomorrow.toISOString().split('T')[0]);
+                            })())
+                            ? 'text-gray-900 border-red-300'
+                            : 'text-gray-900'
+                        }`}
+                        required
+                      />
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const hiddenDateInput = document.getElementById('hidden-date-end');
+                          if (hiddenDateInput) {
+                            hiddenDateInput.showPicker?.();
+                          }
+                        }}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 pointer-events-auto z-10"
+                      >
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                        </svg>
+                      </button>
+                      <input
+                        type="date"
+                        id="hidden-date-end"
+                        value={formData.contractEndDate}
+                        onChange={(e) => handleDatePickerChange(e, 'contractEndDate')}
+                        min={(() => {
+                          // End date min phụ thuộc vào start date
+                          if (formData.contractStartDate) {
+                            const startDate = new Date(formData.contractStartDate);
+                            const nextDay = new Date(startDate);
+                            nextDay.setDate(nextDay.getDate() + 1);
+                            return nextDay.toISOString().split('T')[0];
+                          }
+                          // Nếu chưa có start date, min là ngày mai
+                          const tomorrow = new Date();
+                          tomorrow.setDate(tomorrow.getDate() + 1);
+                          return tomorrow.toISOString().split('T')[0];
+                        })()}
+                        className="absolute left-0 top-0 w-full h-full opacity-0 pointer-events-none"
+                        style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'none', zIndex: 1 }}
+                      />
+                      {formData.contractEndDate && validateDateFormat(dateDisplay.contractEndDate) && (() => {
+                        if (formData.contractStartDate) {
+                          const startDate = new Date(formData.contractStartDate);
+                          const nextDay = new Date(startDate);
+                          nextDay.setDate(nextDay.getDate() + 1);
+                          const minEndDate = nextDay.toISOString().split('T')[0];
+                          return !validateDateMin(dateDisplay.contractEndDate, minEndDate);
+                        }
+                        const tomorrow = new Date();
+                        tomorrow.setDate(tomorrow.getDate() + 1);
+                        return !validateDateMin(dateDisplay.contractEndDate, tomorrow.toISOString().split('T')[0]);
+                      })() && (
+                        <p className="text-xs text-red-500 mt-1">
+                          {formData.contractStartDate ? 'Ngày phải sau ngày bắt đầu hợp đồng' : 'Ngày phải sau ngày hiện tại'}
+                        </p>
+                      )}
+                      {dateDisplay.contractEndDate && !validateDateFormat(dateDisplay.contractEndDate) && (
+                        <p className="text-xs text-red-500 mt-1">Định dạng không hợp lệ (dd/mm/yyyy)</p>
+                      )}
+                    </div>
                   </div>
                 </div>
                 
@@ -1319,7 +1778,7 @@ function StoreManagement() {
                     disabled={isCreatingStore}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-sm"
+                    className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-sm"
                   >
                     {isCreatingStore && (
                       <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
@@ -1331,127 +1790,6 @@ function StoreManagement() {
                   </motion.button>
                 </div>
               </form>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Delete Confirmation Modal */}
-      <AnimatePresence>
-        {showDeleteModal && storeToDelete && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={cancelDelete}
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 10 }}
-              transition={{ 
-                type: "spring",
-                stiffness: 300,
-                damping: 25
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="w-[480px] p-4 border shadow-lg rounded-lg bg-white"
-            >
-              <div className="mt-3">
-                <div className="flex items-center justify-center w-16 h-16 mx-auto bg-gradient-to-br from-red-100 to-red-200 rounded-full mb-4 shadow-lg">
-                  <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
-                </div>
-              
-              <div className="text-center">
-                <h3 className="text-xl font-bold text-gray-900 mb-3">
-                  Xác nhận xóa cửa hàng
-                </h3>
-                <div className="mt-2 px-4 py-3">
-                  <p className="text-sm text-gray-600 mb-4">
-                    Bạn có chắc chắn muốn xóa cửa hàng này không? 
-                    <span className="block font-semibold text-red-600 mt-1">Hành động này không thể hoàn tác!</span>
-                  </p>
-                  
-                  {/* Store Details */}
-                  <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-4 text-left shadow-inner">
-                    <div className="flex items-center mb-3">
-                      {storeToDelete.imagePath ? (
-                        <img 
-                          src={storeToDelete.imagePath} 
-                          alt={storeToDelete.storeName}
-                          className="h-16 w-16 rounded-lg object-cover mr-3 shadow-md ring-2 ring-blue-100"
-                          onError={(e) => {
-                            e.target.style.display = 'none';
-                            e.target.nextElementSibling.style.display = 'flex';
-                          }}
-                        />
-                      ) : null}
-                      <div 
-                        className="h-16 w-16 bg-gradient-to-br from-blue-400 to-blue-600 rounded-full flex items-center justify-center mr-3 shadow-md"
-                        style={{ display: storeToDelete.imagePath ? 'none' : 'flex' }}
-                      >
-                        <span className="text-white font-bold text-lg">
-                          {(storeToDelete.storeName || '').charAt(0)}
-                        </span>
-                      </div>
-                      <div>
-                        <div className="text-sm font-bold text-gray-900">{storeToDelete.storeName}</div>
-                      </div>
-                    </div>
-                    <div className="space-y-1.5 text-xs text-gray-700">
-                      <div className="flex items-start">
-                        <span className="font-semibold min-w-[100px]">Chủ cửa hàng:</span>
-                        <span>{storeToDelete.ownerName}</span>
-                      </div>
-                      <div className="flex items-start">
-                        <span className="font-semibold min-w-[100px]">Địa chỉ:</span>
-                        <span className="flex-1">{storeToDelete.address}</span>
-                      </div>
-                      <div className="flex items-start">
-                        <span className="font-semibold min-w-[100px]">Số điện thoại:</span>
-                        <span>{storeToDelete.phone}</span>
-                      </div>
-                      <div className="flex items-start">
-                        <span className="font-semibold min-w-[100px]">Tỉnh/Thành:</span>
-                        <span>{storeToDelete.provinceName}</span>
-                      </div>
-                      <div className="flex items-start">
-                        <span className="font-semibold min-w-[100px]">Trạng thái:</span>
-                        <span className={`ml-1 px-2 py-0.5 text-xs rounded-full ${getStatusColor(storeToDelete.status)}`}>
-                          {getStatusText(storeToDelete.status)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex justify-center space-x-3 mt-6">
-                  <motion.button
-                    onClick={cancelDelete}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
-                  >
-                    Hủy
-                  </motion.button>
-                  <motion.button
-                    onClick={confirmDelete}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg flex items-center text-sm"
-                  >
-                    <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                    </svg>
-                    Xóa cửa hàng
-                  </motion.button>
-                </div>
-              </div>
               </div>
             </motion.div>
           </motion.div>
@@ -1479,29 +1817,29 @@ function StoreManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-lg p-5 border shadow-2xl rounded-lg bg-white"
             >
-              <div className="mt-3">
-                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-                  <h3 className="text-2xl font-bold text-gray-900"> Chi tiết cửa hàng</h3>
+              <div className="mt-1">
+                <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
+                  <h3 className="text-xl font-bold text-gray-900">Chi tiết cửa hàng</h3>
                   <button
                     onClick={handleCloseDetailModal}
-                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
+                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-all"
                   >
-                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
               
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* Store Avatar and Basic Info */}
-                <div className="flex items-center space-x-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
+                <div className="flex items-center space-x-4 p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border border-gray-200">
                   {storeToView.imagePath ? (
                     <img 
                       src={storeToView.imagePath} 
                       alt={storeToView.storeName}
-                      className="h-20 w-20 rounded-xl object-cover shadow-lg ring-4 ring-opacity-20 ring-gray-300 cursor-pointer hover:opacity-80 transition-opacity"
+                      className="h-14 w-14 rounded-lg object-cover shadow-md ring-2 ring-opacity-20 ring-gray-300 cursor-pointer hover:opacity-80 transition-opacity"
                       onClick={() => handleViewImage(storeToView.imagePath)}
                       onError={(e) => {
                         e.target.style.display = 'none';
@@ -1510,119 +1848,97 @@ function StoreManagement() {
                     />
                   ) : null}
                   <div 
-                    className="h-20 w-20 bg-gradient-to-br from-blue-400 to-blue-600 rounded-xl flex items-center justify-center shadow-lg ring-4 ring-opacity-20 ring-gray-300"
+                    className="h-14 w-14 bg-gradient-to-br from-red-400 to-red-600 rounded-lg flex items-center justify-center shadow-md ring-2 ring-opacity-20 ring-gray-300"
                     style={{ display: storeToView.imagePath ? 'none' : 'flex' }}
                   >
-                    <span className="text-white font-bold text-2xl">
+                    <span className="text-white font-bold text-xl">
                       {(storeToView.storeName || '').charAt(0).toUpperCase()}
                     </span>
                   </div>
                   <div className="flex-1">
-                    <h4 className="text-2xl font-bold text-gray-900 mb-1">{storeToView.storeName}</h4>
-                    
-                    <div className="flex items-center space-x-4">
-                      <span className={`px-3 py-1 inline-flex text-sm font-semibold rounded-full ${getStatusColor(storeToView.status)}`}>
-                        {getStatusText(storeToView.status)}
-                      </span>
-                    </div>
+                    <h4 className="text-lg font-bold text-gray-900 mb-1.5">{storeToView.storeName}</h4>
+                    <span className={`px-2.5 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusColor(storeToView.status)}`}>
+                      {getStatusText(storeToView.status)}
+                    </span>
                   </div>
                 </div>
 
-                {/* Detailed Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Store Information */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                    <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                {/* Store Information */}
+                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                  <h5 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                    </svg>
+                    Thông tin cửa hàng
+                  </h5>
+                  <div className="space-y-2.5">
+                    <div className="flex items-center">
+                      <svg className="w-4 h-4 mr-2.5 text-gray-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
                       </svg>
-                      Thông tin cửa hàng
-                    </h5>
-                    <div className="space-y-3">
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
-                        </svg>
-                        <span className="text-sm text-gray-600">Tên cửa hàng:</span>
-                        <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.storeName}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
-                          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
-                        </svg>
-                        <span className="text-sm text-gray-600">Số điện thoại:</span>
-                        <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.phone}</span>
-                      </div>
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <span className="text-sm text-gray-600">Trạng thái:</span>
-                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(storeToView.status)}`}>
-                          {getStatusText(storeToView.status)}
-                        </span>
-                      </div>
+                      <span className="text-sm text-gray-600">Tên:</span>
+                      <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.storeName}</span>
                     </div>
-                  </div>
-
-                  {/* Location and Owner Information */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                    <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <svg className="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="flex items-center">
+                      <svg className="w-4 h-4 mr-2.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
-                      Thông tin địa điểm & chủ cửa hàng
-                    </h5>
-                    <div className="space-y-3">
-                      <div className="flex items-start">
-                        <svg className="w-4 h-4 mr-3 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                        <div className="flex-1">
-                          <span className="text-sm text-gray-600">Chủ cửa hàng:</span>
-                          <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.ownerName}</span>
-                        </div>
+                      <span className="text-sm text-gray-600">Tỉnh/TP:</span>
+                      <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.provinceName || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-start">
+                      <svg className="w-4 h-4 mr-2.5 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                      </svg>
+                      <div className="flex-1">
+                        <span className="text-sm text-gray-600">Địa chỉ:</span>
+                        <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.address || 'N/A'}</span>
                       </div>
-                      <div className="flex items-start">
-                        <svg className="w-4 h-4 mr-3 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </div>
+                    {storeToView.contractStartDate && (
+                      <div className="flex items-center">
+                        <svg className="w-4 h-4 mr-2.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        <div className="flex-1">
-                          <span className="text-sm text-gray-600">Tỉnh/Thành phố:</span>
-                          <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.provinceName || 'N/A'}</span>
-                        </div>
+                        <span className="text-sm text-gray-600">Hợp đồng:</span>
+                        <span className="ml-2 text-sm font-medium text-gray-900">
+                          {new Date(storeToView.contractStartDate).toLocaleDateString('vi-VN')} - {storeToView.contractEndDate ? new Date(storeToView.contractEndDate).toLocaleDateString('vi-VN') : 'N/A'}
+                        </span>
                       </div>
-                      <div className="flex items-start">
-                        <svg className="w-4 h-4 mr-3 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                        </svg>
-                        <div className="flex-1">
-                          <span className="text-sm text-gray-600">Địa chỉ:</span>
-                          <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.address || 'N/A'}</span>
-                        </div>
-                      </div>
-                      {storeToView.contractStartDate && (
-                        <div className="flex items-start">
-                          <svg className="w-4 h-4 mr-3 text-gray-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                          </svg>
-                          <div className="flex-1">
-                            <span className="text-sm text-gray-600">Hợp đồng:</span>
-                            <span className="ml-2 text-sm font-medium text-gray-900">
-                              {new Date(storeToView.contractStartDate).toLocaleDateString('vi-VN')} - {storeToView.contractEndDate ? new Date(storeToView.contractEndDate).toLocaleDateString('vi-VN') : 'N/A'}
-                            </span>
-                          </div>
-                        </div>
-                      )}
+                    )}
+                  </div>
+                </div>
+
+                {/* Owner Information */}
+                <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                  <h5 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
+                    <svg className="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    Thông tin chủ cửa hàng
+                  </h5>
+                  <div className="space-y-2.5">
+                    <div className="flex items-center">
+                      <svg className="w-4 h-4 mr-2.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                      <span className="text-sm text-gray-600">Chủ cửa hàng:</span>
+                      <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.ownerName}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <svg className="w-4 h-4 mr-2.5 text-gray-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                      </svg>
+                      <span className="text-sm text-gray-600">Điện thoại:</span>
+                      <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.phone}</span>
                     </div>
                   </div>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                   <motion.button
                     onClick={handleCloseDetailModal}
                     whileHover={{ scale: 1.02 }}
@@ -1638,7 +1954,7 @@ function StoreManagement() {
                     }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center"
+                    className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg flex items-center text-sm"
                   >
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />

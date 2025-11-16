@@ -6,6 +6,7 @@ import { getAllRolesThunk } from '../../store/slices/roleSlice';
 import { motion, AnimatePresence } from 'framer-motion';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import Pagination from '../../components/ui/Pagination';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
 
@@ -22,6 +23,8 @@ function EmployeeManagement() {
   const [activeTab, setActiveTab] = useState('list');
   const [searchTerm, setSearchTerm] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [showEditModal, setShowEditModal] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
@@ -77,6 +80,23 @@ function EmployeeManagement() {
                          employee.email?.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesSearch;
   });
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredStaff.length / itemsPerPage);
+  const paginatedStaff = filteredStaff.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // Lấy roleId của Dealer Staff
   const dealerStaffRole = roles.find(r => 

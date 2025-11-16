@@ -35,10 +35,12 @@ import {
   Tag,
   CreditCard,
   Plus,
-  FileText
+  FileText,
+  PlusCircle
 } from 'lucide-react';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import Pagination from '../../components/ui/Pagination';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -152,6 +154,8 @@ function ViewOrders() {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [showDateFilter, setShowDateFilter] = useState(false);
@@ -194,17 +198,25 @@ function ViewOrders() {
       success(location.state.message);
       
       // If coming from create/edit order, force reload orders after short delay
-      if (location.state?.newOrderId || location.state?.success) {
+      // Only reload if not already loading to prevent duplicate calls
+      if ((location.state?.newOrderId || location.state?.success) && !loading) {
         console.log('Force reloading orders after create/update...');
         setTimeout(() => {
-          dispatch(fetchOrders());
+          // Only fetch if not already loading
+          if (!loading) {
+            if (startDate && endDate) {
+              dispatch(fetchOrdersByDateRange({ startDate, endDate }));
+            } else {
+              dispatch(fetchOrders());
+            }
+          }
         }, 300);
       }
       
       // Clear the location state
       window.history.replaceState({}, document.title);
     }
-  }, [location, dispatch]);
+  }, [location, dispatch, loading, startDate, endDate]);
 
   // Fetch contracts on mount
   useEffect(() => {
@@ -225,21 +237,34 @@ function ViewOrders() {
   }, [contracts]);
 
   // Fetch orders from API based on filters (server-side filtering)
+  // Only fetch if not already loading and orders haven't been loaded yet
   useEffect(() => {
-    // Always fetch all orders, we'll do client-side sorting by status
-    if (startDate && endDate) {
-      dispatch(fetchOrdersByDateRange({ startDate, endDate }));
-    } else {
-      // Fetch all orders, we'll sort by status on client-side
-      dispatch(fetchOrders());
+    // Skip if already loading
+    if (loading) return;
+    
+    // Only fetch if orders is empty or we're filtering by date
+    const shouldFetch = !reduxOrders || reduxOrders.length === 0 || (startDate && endDate);
+    
+    if (shouldFetch) {
+      if (startDate && endDate) {
+        dispatch(fetchOrdersByDateRange({ startDate, endDate }));
+      } else {
+        // Fetch all orders, we'll sort by status on client-side
+        dispatch(fetchOrders());
+      }
     }
-  }, [dispatch, startDate, endDate]);
+  }, [dispatch, startDate, endDate, loading, reduxOrders]);
   
   // Update local orders state when Redux orders change
+  // Use useMemo to prevent unnecessary updates
   useEffect(() => {
     if (reduxOrders && Array.isArray(reduxOrders)) {
-      setOrders(reduxOrders);
-      setFilteredOrders(reduxOrders);
+      // Only update if orders actually changed to prevent unnecessary re-renders
+      const ordersArray = reduxOrders;
+      setOrders(ordersArray);
+      // Don't update filteredOrders here, let the filtering effect handle it
+    } else if (!reduxOrders || !Array.isArray(reduxOrders)) {
+      setOrders([]);
     }
   }, [reduxOrders]);
 
@@ -259,11 +284,12 @@ function ViewOrders() {
   }, [showStatusDropdown, showSortDropdown]);
 
   // Update filtered orders when orders or search term changes (client-side search only)
+  // Memoize the filtering logic to prevent unnecessary recalculations
   useEffect(() => {
-    console.log('📦 Orders from Redux:', orders);
-    console.log('📦 Is Array?', Array.isArray(orders));
-    
-    if (!orders) return;
+    if (!orders || orders.length === 0) {
+      setFilteredOrders([]);
+      return;
+    }
     
     let filtered = Array.isArray(orders) ? [...orders] : [];
     
@@ -274,11 +300,10 @@ function ViewOrders() {
       // Include all statuses except CANCELLED to show orders even after contract creation
       return status !== 'CANCELLED';
     });
-    
-    console.log('📦 Filtered orders:', filtered);
 
     // Filter by search term (client-side)
     if (searchTerm) {
+      const searchLower = searchTerm.toLowerCase();
       filtered = filtered.filter(order => {
         const customerName = order.customerName || order.customer?.fullName || '';
         const orderId = (order.orderId || '').toString();
@@ -287,10 +312,10 @@ function ViewOrders() {
         const customerPhone = order.customerPhone || '';
         
         return (
-          customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          customerName.toLowerCase().includes(searchLower) ||
           orderId.includes(searchTerm) ||
-          orderNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          orderCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          orderNumber.toLowerCase().includes(searchLower) ||
+          orderCode.toLowerCase().includes(searchLower) ||
           customerPhone.includes(searchTerm)
         );
       });
@@ -299,28 +324,37 @@ function ViewOrders() {
     // Sort orders: if statusFilter is selected, prioritize that status first
     let sorted = sortOrders(filtered, sortMode);
     
-    // If a specific status is selected, sort to show that status first
+    // If a specific status is selected, filter first, then sort
     if (statusFilter !== 'all') {
       const selectedStatusUpper = statusFilter.toUpperCase();
-      sorted = sorted.sort((a, b) => {
-        const aStatus = (a.status || '').toUpperCase();
-        const bStatus = (b.status || '').toUpperCase();
-        
-        // If both have the selected status, maintain current sort order
-        if (aStatus === selectedStatusUpper && bStatus === selectedStatusUpper) {
-          return 0;
-        }
-        // If only a has the selected status, a comes first
-        if (aStatus === selectedStatusUpper) return -1;
-        // If only b has the selected status, b comes first
-        if (bStatus === selectedStatusUpper) return 1;
-        // If neither has the selected status, maintain current sort order
-        return 0;
+      // First filter by status
+      const statusFiltered = sorted.filter(order => {
+        const orderStatus = (order.status || '').toUpperCase();
+        return orderStatus === selectedStatusUpper;
       });
+      // Then add non-matching orders
+      const nonMatching = sorted.filter(order => {
+        const orderStatus = (order.status || '').toUpperCase();
+        return orderStatus !== selectedStatusUpper;
+      });
+      sorted = [...statusFiltered, ...nonMatching];
     }
 
     setFilteredOrders(sorted);
+    setCurrentPage(1); // Reset to page 1 when filters change
   }, [searchTerm, orders, sortMode, statusFilter]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const paginatedOrders = filteredOrders.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const getStatusColor = (status) => {
     if (!status) return 'bg-gray-100 text-gray-800';
@@ -565,19 +599,27 @@ function ViewOrders() {
             <h2 className="text-lg font-bold text-gray-900">Quản lý đơn hàng</h2>
             <p className="text-gray-600 mt-0.5 text-xs">Danh sách các đơn hàng đã tạo</p>
           </div>
+          <motion.button
+            onClick={() => navigate('/dealer-staff/create-order')}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-md font-medium"
+          >
+            <PlusCircle className="h-5 w-5 mr-2" />
+            Tạo đơn hàng
+          </motion.button>
         </div>
 
-        {/* Loading State */}
-        {loading && (
+        {/* Loading State - Only show on initial load */}
+        {loading && (!reduxOrders || reduxOrders.length === 0) && (
           <div className="flex items-center justify-center py-6">
             <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-2" />
             <span className="text-gray-600 text-sm">Đang tải danh sách đơn hàng...</span>
           </div>
         )}
 
-        {/* Filters */}
-        {!loading && (
-          <div className="space-y-2 mb-2">
+        {/* Filters - Always show even when loading to prevent layout shift */}
+        <div className="space-y-2 mb-2">
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1">
                 <div className="relative">
@@ -882,11 +924,14 @@ function ViewOrders() {
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
-        )}
+        </div>
 
-        {/* Orders Table */}
-        {!loading && filteredOrders.length === 0 ? (
+        {/* Orders Table - Show skeleton during initial load */}
+        {loading && (!reduxOrders || reduxOrders.length === 0) ? (
+          <div className="py-6">
+            <TableSkeleton rows={5} />
+          </div>
+        ) : filteredOrders.length === 0 ? (
           <div className="text-center py-6">
             <svg className="mx-auto h-10 w-10 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -898,7 +943,7 @@ function ViewOrders() {
                 : 'Chưa có đơn hàng nào được tạo.'}
             </p>
           </div>
-        ) : !loading && (
+        ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
@@ -927,7 +972,7 @@ function ViewOrders() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredOrders.map((order) => (
+                {paginatedOrders.map((order) => (
                   <tr key={order.orderId} className="hover:bg-gray-50">
                     <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-gray-900">
                       {order.orderCode || 'N/A'}
@@ -1047,6 +1092,18 @@ function ViewOrders() {
               </tbody>
             </table>
           </div>
+        )}
+        
+        {/* Pagination */}
+        {filteredOrders.length > 0 && !loading && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            itemsPerPage={itemsPerPage}
+            totalItems={filteredOrders.length}
+            showInfo={true}
+          />
         )}
       </div>
 

@@ -14,7 +14,9 @@ import {
   Calendar,
   TrendingUp,
   Building2,
-  RefreshCw
+  RefreshCw,
+  ArrowUpDown,
+  X
 } from 'lucide-react';
 import { 
   getAllTransactionsThunk,
@@ -24,6 +26,8 @@ import {
   confirmPaymentTransactionThunk,
 } from '../../store/slices/inventoryTransactionSlice';
 import { getAllStoreStocksThunk } from '../../store/slices/store-stockSlice';
+import { getAllModelsThunk } from '../../store/slices/modelSlice';
+import { getAllModelColorsThunk } from '../../store/slices/modelColorSlice';
 import { showError, showSuccess, showWarning } from '../../store/slices/snackbarSlice';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -44,58 +48,135 @@ function DealerOrderManagement() {
   const transactionsStatus = useSelector((s) => s.inventoryTransactions.status);
   const transactionsError = useSelector((s) => s.inventoryTransactions.error);
   const storeStocks = useSelector((s) => s.storeStocks.items);
+  const models = useSelector((s) => s.models.items);
+  const modelColors = useSelector((s) => s.modelColors.items);
 
-  const [activeTab, setActiveTab] = useState('pending'); // pending, payment_review, processing, in_transit, completed
+  // Tab state - load from localStorage or default to 'pending'
+  const [activeTab, setActiveTab] = useState(() => {
+    const savedTab = localStorage.getItem('dealerOrderActiveTab');
+    return savedTab || 'pending';
+  });
+  const [sortOrder, setSortOrder] = useState('updated'); // 'newest', 'oldest', or 'updated'
+  
+  // Save activeTab to localStorage when it changes
+  useEffect(() => {
+    localStorage.setItem('dealerOrderActiveTab', activeTab);
+  }, [activeTab]);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [showDetailModal, setShowDetailModal] = useState(false);
 
   useEffect(() => {
-    // Initial load
+    // Initial load only - no auto-refresh, no polling
     dispatch(getAllTransactionsThunk());
     dispatch(getAllStoreStocksThunk());
-
-    // Auto-refresh transactions every 10 seconds to catch updates
-    const refreshInterval = setInterval(() => {
-      dispatch(getAllTransactionsThunk());
-    }, 10000); // Refresh every 10 seconds
-
-    // Also refresh when window regains focus (user switches back to tab)
-    const handleFocus = () => {
-      dispatch(getAllTransactionsThunk());
-      dispatch(getAllStoreStocksThunk());
-    };
-    window.addEventListener('focus', handleFocus);
-
-    return () => {
-      clearInterval(refreshInterval);
-      window.removeEventListener('focus', handleFocus);
-    };
+    dispatch(getAllModelsThunk());
+    dispatch(getAllModelColorsThunk());
   }, [dispatch]);
 
-  // Filter orders by status
+  // Filter and sort orders by status
   const pendingOrders = useMemo(() => {
-    return transactions.filter(t => (t.status || '').toUpperCase() === 'PENDING');
-  }, [transactions]);
+    const filtered = transactions.filter(t => (t.status || '').toUpperCase() === 'PENDING');
+    return [...filtered].sort((a, b) => {
+      if (sortOrder === 'updated') {
+        // Sort by updatedAt (most recent update first), fallback to createdAt
+        const dateA = new Date(a.updatedAt || a.createdAt || a.orderDate || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.updatedAt || b.createdAt || b.orderDate || b.transactionDate || 0).getTime();
+        return dateB - dateA; // Most recently updated first
+      } else if (sortOrder === 'newest') {
+        // Sort by creation date (newest first)
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateB - dateA; // Newest first
+      } else {
+        // Sort by creation date (oldest first)
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateA - dateB; // Oldest first
+      }
+    });
+  }, [transactions, sortOrder]);
 
   const paymentReviewOrders = useMemo(() => {
-    return transactions.filter(t => (t.status || '').toUpperCase() === 'FILE_UPLOADED');
-  }, [transactions]);
+    const filtered = transactions.filter(t => (t.status || '').toUpperCase() === 'FILE_UPLOADED');
+    return [...filtered].sort((a, b) => {
+      if (sortOrder === 'updated') {
+        const dateA = new Date(a.updatedAt || a.createdAt || a.orderDate || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.updatedAt || b.createdAt || b.orderDate || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else if (sortOrder === 'newest') {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateA - dateB;
+      }
+    });
+  }, [transactions, sortOrder]);
 
   const processingOrders = useMemo(() => {
-    return transactions.filter(t => {
+    const filtered = transactions.filter(t => {
       const statusUpper = (t.status || '').toUpperCase();
       return statusUpper === 'CONFIRMED' || statusUpper === 'PAYMENT_CONFIRMED';
     });
-  }, [transactions]);
+    return [...filtered].sort((a, b) => {
+      if (sortOrder === 'updated') {
+        const dateA = new Date(a.updatedAt || a.createdAt || a.orderDate || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.updatedAt || b.createdAt || b.orderDate || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else if (sortOrder === 'newest') {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateA - dateB;
+      }
+    });
+  }, [transactions, sortOrder]);
 
   const inTransitOrders = useMemo(() => {
-    return transactions.filter(t => (t.status || '').toUpperCase() === 'IN_TRANSIT');
-  }, [transactions]);
+    const filtered = transactions.filter(t => (t.status || '').toUpperCase() === 'IN_TRANSIT');
+    return [...filtered].sort((a, b) => {
+      if (sortOrder === 'updated') {
+        const dateA = new Date(a.updatedAt || a.createdAt || a.orderDate || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.updatedAt || b.createdAt || b.orderDate || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else if (sortOrder === 'newest') {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateA - dateB;
+      }
+    });
+  }, [transactions, sortOrder]);
 
   const completedOrders = useMemo(() => {
-    return transactions.filter(t => {
+    const filtered = transactions.filter(t => {
       const statusUpper = (t.status || '').toUpperCase();
       return statusUpper === 'DELIVERED' || statusUpper === 'COMPLETED';
     });
-  }, [transactions]);
+    return [...filtered].sort((a, b) => {
+      if (sortOrder === 'updated') {
+        const dateA = new Date(a.updatedAt || a.createdAt || a.orderDate || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.updatedAt || b.createdAt || b.orderDate || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else if (sortOrder === 'newest') {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateA - dateB;
+      }
+    });
+  }, [transactions, sortOrder]);
 
   // Handle accept transaction
   const handleAccept = async (order) => {
@@ -107,11 +188,8 @@ function DealerOrderManagement() {
 
     try {
       await dispatch(acceptTransactionThunk(order.inventoryId || order.id)).unwrap();
-      
-      // Refresh transactions to get updated status from server
-      await dispatch(getAllTransactionsThunk()).unwrap();
-      
       dispatch(showSuccess({ message: '✅ Đã chấp nhận đơn hàng!' }));
+      // No manual refresh - polling will update automatically
     } catch (error) {
       dispatch(showError({ message: error?.message || 'Không thể chấp nhận đơn hàng' }));
     }
@@ -128,7 +206,7 @@ function DealerOrderManagement() {
     try {
       await dispatch(rejectTransactionThunk(order.inventoryId || order.id)).unwrap();
       dispatch(showSuccess({ message: '❌ Đã từ chối đơn hàng.' }));
-      dispatch(getAllTransactionsThunk());
+      // No manual refresh - polling will update automatically
     } catch (error) {
       dispatch(showError({ message: error?.message || 'Không thể từ chối đơn hàng' }));
     }
@@ -145,7 +223,7 @@ function DealerOrderManagement() {
     try {
       await dispatch(startShippingTransactionThunk(order.inventoryId || order.id)).unwrap();
       dispatch(showSuccess({ message: '🚚 Đã bắt đầu vận chuyển đơn hàng!' }));
-      dispatch(getAllTransactionsThunk());
+      // No manual refresh - polling will update automatically
     } catch (error) {
       dispatch(showError({ message: error?.message || 'Không thể bắt đầu vận chuyển' }));
     }
@@ -162,7 +240,7 @@ function DealerOrderManagement() {
     try {
       await dispatch(confirmPaymentTransactionThunk(transaction.inventoryId || transaction.id)).unwrap();
       dispatch(showSuccess({ message: '✅ Đã xác nhận thanh toán thành công!' }));
-      dispatch(getAllTransactionsThunk());
+      // No manual refresh - polling will update automatically
     } catch (error) {
       dispatch(showError({ message: error?.message || 'Không thể xác nhận thanh toán' }));
     }
@@ -182,10 +260,43 @@ function DealerOrderManagement() {
     return Math.round(numPrice).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
   };
 
-  // Render order card
+  // Format date with time
+  const formatDateTime = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    const hours = String(date.getHours()).padStart(2, '0');
+    const minutes = String(date.getMinutes()).padStart(2, '0');
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    return `lúc ${hours}:${minutes} ${day} tháng ${month}, ${year}`;
+  };
+
+  // Handle open detail modal
+  const handleOpenDetail = (order) => {
+    setSelectedOrder(order);
+    setShowDetailModal(true);
+  };
+
+  // Handle close detail modal
+  const handleCloseDetail = () => {
+    setShowDetailModal(false);
+    setSelectedOrder(null);
+  };
+
+  // Render order card (compact version)
   const renderOrderCard = (order, index) => {
     const stock = getStockForTransaction(order);
     const statusUpper = (order.status || '').toUpperCase();
+    
+    // Get model and color names from transaction
+    const transactionModel = models.find(m => m.modelId === order.modelId);
+    const transactionColor = modelColors.find(mc => 
+      mc.modelId === order.modelId && 
+      mc.colorId === order.colorId
+    );
+    const modelName = transactionModel?.modelName || stock?.modelName || 'N/A';
+    const colorName = transactionColor?.colorName || stock?.colorName || 'N/A';
     
     return (
       <motion.div
@@ -193,122 +304,321 @@ function DealerOrderManagement() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: index * 0.05 }}
-        className="bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg border border-gray-200 overflow-hidden"
+        onClick={() => handleOpenDetail(order)}
+        className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
       >
-        {/* Order Header */}
-        <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-4">
+        {/* Compact Order Header */}
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-white/20 rounded-lg">
-                <Package className="w-6 h-6" />
-              </div>
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4" />
               <div>
-                <h3 className="text-lg font-bold">Đơn hàng #{order.inventoryId || order.id}</h3>
-                <p className="text-sm text-green-100 flex items-center gap-2">
-                  <Building2 className="w-4 h-4" />
-                  {stock?.storeName || 'N/A'}
+                <h3 className="text-sm font-bold">Đơn hàng #{order.inventoryId || order.id}</h3>
+                <p className="text-xs text-blue-100">
+                  {formatDateTime(order.orderDate || order.createdAt || order.transactionDate)}
                 </p>
               </div>
             </div>
-            <StatusBadge status={order.status} size="md" />
+            <StatusBadge status={order.status} size="sm" />
           </div>
         </div>
 
-        <div className="p-6 space-y-5">
-          {/* Order Status Stepper */}
-          <div className="bg-gradient-to-br from-gray-50 to-white rounded-xl p-5 border border-gray-200">
-            <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-green-600" />
-              Tiến trình đơn hàng
-            </h4>
+        <div className="p-4 space-y-3">
+          {/* Compact Order Status Stepper */}
+          <div className="bg-gray-50 rounded-lg p-2.5 border border-gray-200">
             <OrderStatusStepper currentStatus={order.status} size="sm" />
           </div>
 
-          {/* Order Details */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-              <p className="text-xs text-gray-500 mb-2">Model • Màu</p>
-              <p className="text-sm font-bold text-gray-900">
-                {stock ? `${stock.modelName} • ${stock.colorName}` : 'N/A'}
+          {/* Compact Order Details */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="bg-white rounded-lg p-2 border border-gray-200">
+              <p className="text-xs text-gray-500 mb-1">Model • Màu</p>
+              <p className="text-xs font-semibold text-gray-900 line-clamp-1">
+                {modelName} - {colorName}
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-              <p className="text-xs text-gray-500 mb-2">Số lượng</p>
-              <p className="text-sm font-bold text-emerald-600 flex items-center gap-1">
-                <Package className="w-4 h-4" />
+            <div className="bg-white rounded-lg p-2 border border-gray-200">
+              <p className="text-xs text-gray-500 mb-1">Số lượng</p>
+              <p className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                <Package className="w-3 h-3" />
                 {order.importQuantity} xe
               </p>
             </div>
-            <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
-              <p className="text-xs text-gray-500 mb-2">Ngày đặt</p>
-              <p className="text-sm font-bold text-gray-900 flex items-center gap-1">
-                <Calendar className="w-4 h-4 text-blue-600" />
-                {order.orderDate 
-                  ? new Date(order.orderDate).toLocaleDateString('vi-VN')
-                  : 'N/A'
-                }
+            <div className="bg-white rounded-lg p-2 border border-gray-200">
+              <p className="text-xs text-gray-500 mb-1">Tổng giá</p>
+              <p className="text-xs font-bold text-emerald-600 flex items-center gap-1">
+                <DollarSign className="w-3 h-3" />
+                {formatPrice(order.totalPrice || 0)} VNĐ
               </p>
             </div>
           </div>
 
-          {/* Price Info */}
-          {order.totalPrice > 0 && (
-            <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-200">
-              <div className="flex justify-between items-center">
-                <span className="text-sm font-medium text-gray-700">Tổng giá trị:</span>
-                <span className="text-lg font-bold text-emerald-600 flex items-center gap-1">
-                  <DollarSign className="w-5 h-5" />
-                  {formatPrice(order.totalPrice)} VNĐ
-                </span>
-              </div>
+          {/* Actions - only show for actionable statuses */}
+          {(statusUpper === 'PENDING' || statusUpper === 'FILE_UPLOADED' || statusUpper === 'PAYMENT_CONFIRMED') && (
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-200" onClick={(e) => e.stopPropagation()}>
+              {statusUpper === 'PENDING' && (
+                <>
+                  <ModernButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleReject(order);
+                    }}
+                    variant="danger"
+                    size="sm"
+                    icon={<XCircle className="w-3 h-3" />}
+                  >
+                    Từ chối
+                  </ModernButton>
+                  <ModernButton
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleAccept(order);
+                    }}
+                    variant="success"
+                    size="sm"
+                    icon={<CheckCircle className="w-3 h-3" />}
+                  >
+                    Chấp nhận
+                  </ModernButton>
+                </>
+              )}
+              {statusUpper === 'FILE_UPLOADED' && (
+                <ModernButton
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleConfirmPayment(order);
+                  }}
+                  roleColor="teal"
+                  size="sm"
+                  icon={<CheckCircle className="w-3 h-3" />}
+                >
+                  Xác nhận thanh toán
+                </ModernButton>
+              )}
+              {statusUpper === 'PAYMENT_CONFIRMED' && (
+                <ModernButton
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleStartShipping(order);
+                  }}
+                  roleColor="purple"
+                  size="sm"
+                  icon={<Truck className="w-3 h-3" />}
+                >
+                  Bắt đầu vận chuyển
+                </ModernButton>
+              )}
             </div>
           )}
-
-          {/* Actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-            {statusUpper === 'PENDING' && (
-              <>
-                <ModernButton
-                  onClick={() => handleReject(order)}
-                  variant="danger"
-                  size="md"
-                  icon={<XCircle className="w-4 h-4" />}
-                >
-                  Từ chối
-                </ModernButton>
-                <ModernButton
-                  onClick={() => handleAccept(order)}
-                  variant="success"
-                  size="md"
-                  icon={<CheckCircle className="w-4 h-4" />}
-                >
-                  Chấp nhận
-                </ModernButton>
-              </>
-            )}
-            {statusUpper === 'FILE_UPLOADED' && (
-              <ModernButton
-                onClick={() => handleConfirmPayment(order)}
-                roleColor="teal"
-                size="md"
-                icon={<CheckCircle className="w-4 h-4" />}
-              >
-                Xác nhận
-              </ModernButton>
-            )}
-            {(statusUpper === 'CONFIRMED' || statusUpper === 'PAYMENT_CONFIRMED') && (
-              <ModernButton
-                onClick={() => handleStartShipping(order)}
-                roleColor="purple"
-                size="md"
-                icon={<Truck className="w-4 h-4" />}
-              >
-                Bắt đầu vận chuyển
-              </ModernButton>
-            )}
-          </div>
         </div>
       </motion.div>
+    );
+  };
+
+  // Render detail modal
+  const renderDetailModal = () => {
+    if (!selectedOrder) return null;
+
+    const stock = getStockForTransaction(selectedOrder);
+    const statusUpper = (selectedOrder.status || '').toUpperCase();
+    
+    // Get model and color names
+    const transactionModel = models.find(m => m.modelId === selectedOrder.modelId);
+    const transactionColor = modelColors.find(mc => 
+      mc.modelId === selectedOrder.modelId && 
+      mc.colorId === selectedOrder.colorId
+    );
+    const modelName = transactionModel?.modelName || stock?.modelName || 'N/A';
+    const colorName = transactionColor?.colorName || stock?.colorName || 'N/A';
+
+    return (
+      <AnimatePresence>
+        {showDetailModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 flex items-center justify-center p-4"
+            onClick={handleCloseDetail}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-4xl bg-white rounded-2xl shadow-2xl overflow-hidden max-h-[90vh] overflow-y-auto"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 bg-white/20 rounded-lg">
+                      <FileText className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-bold">Đơn hàng #{selectedOrder.inventoryId || selectedOrder.id}</h3>
+                      <p className="text-sm text-blue-100">
+                        {formatDateTime(selectedOrder.orderDate || selectedOrder.createdAt || selectedOrder.transactionDate)}
+                      </p>
+                    </div>
+                  </div>
+                  {(statusUpper === 'DELIVERED' || statusUpper === 'COMPLETED') && (
+                    <div className="px-4 py-2 bg-green-500 rounded-lg text-white font-semibold text-sm">
+                      Đã giao hàng
+                    </div>
+                  )}
+                  <button
+                    onClick={handleCloseDetail}
+                    className="text-white/80 hover:text-white transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="p-6 space-y-5">
+                {/* Order Status Stepper */}
+                <div className="bg-white rounded-xl p-5 border border-gray-200">
+                  <h4 className="text-sm font-bold text-gray-700 mb-4 flex items-center gap-2">
+                    <TrendingUp className="w-4 h-4 text-green-600" />
+                    Tiến trình đơn hàng
+                  </h4>
+                  <OrderStatusStepper currentStatus={selectedOrder.status} size="sm" />
+                </div>
+
+                {/* Order Details */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                  <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                    <p className="text-xs text-gray-500 mb-2">Model • Màu</p>
+                    <p className="text-sm font-bold text-gray-900">
+                      {modelName} - {colorName}
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                    <p className="text-xs text-gray-500 mb-2">Số lượng</p>
+                    <p className="text-sm font-bold text-emerald-600 flex items-center gap-1">
+                      <Package className="w-4 h-4" />
+                      {selectedOrder.importQuantity} xe
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                    <p className="text-xs text-gray-500 mb-2">Ngày giao hàng</p>
+                    <p className="text-sm font-bold text-gray-900 flex items-center gap-1">
+                      <Calendar className="w-4 h-4 text-blue-600" />
+                      <span className="text-gray-500">Chưa xác định</span>
+                    </p>
+                  </div>
+                  <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
+                    <p className="text-xs text-gray-500 mb-2">Tổng giá</p>
+                    <p className="text-sm font-bold text-emerald-600 flex items-center gap-1">
+                      <DollarSign className="w-4 h-4" />
+                      {formatPrice(selectedOrder.totalPrice || 0)} VNĐ
+                    </p>
+                  </div>
+                </div>
+
+                {/* Price Breakdown */}
+                {selectedOrder.totalPrice > 0 && (selectedOrder.unitBasePrice || selectedOrder.discountPercentage > 0) && (
+                  <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-5 border border-emerald-200">
+                    <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
+                      <DollarSign className="w-4 h-4 text-emerald-600" />
+                      Chi tiết giá
+                    </h4>
+                    <div className="space-y-2">
+                      {selectedOrder.unitBasePrice && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Đơn giá:</span>
+                          <span className="font-medium text-gray-900">{formatPrice(selectedOrder.unitBasePrice)} VNĐ</span>
+                        </div>
+                      )}
+                      {selectedOrder.totalBasePrice && (
+                        <div className="flex justify-between text-sm">
+                          <span className="text-gray-600">Tổng cơ bản:</span>
+                          <span className="font-medium text-gray-900">{formatPrice(selectedOrder.totalBasePrice)} VNĐ</span>
+                        </div>
+                      )}
+                      {selectedOrder.discountPercentage > 0 && selectedOrder.totalBasePrice && (
+                        <div className="flex justify-between text-sm text-orange-600">
+                          <span>Giảm giá ({selectedOrder.discountPercentage}%):</span>
+                          <span className="font-medium">
+                            -{formatPrice(Math.round(selectedOrder.totalBasePrice * (selectedOrder.discountPercentage / 100)))} VNĐ
+                          </span>
+                        </div>
+                      )}
+                      <div className="pt-2 border-t-2 border-emerald-200 flex justify-between">
+                        <span className="text-sm font-bold text-gray-900">Tổng thanh toán:</span>
+                        <span className="text-lg font-bold text-emerald-600">{formatPrice(selectedOrder.totalPrice)} VNĐ</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Completion Status */}
+                {(statusUpper === 'DELIVERED' || statusUpper === 'COMPLETED') && (
+                  <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-4 border border-emerald-200">
+                    <div className="flex items-center gap-2">
+                      <CheckCircle className="w-5 h-5 text-emerald-600" />
+                      <span className="text-sm font-semibold text-gray-900">
+                        Đã hoàn thành và cập nhật vào kho
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Actions */}
+                <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
+                  {statusUpper === 'PENDING' && (
+                    <>
+                      <ModernButton
+                        onClick={() => handleReject(selectedOrder)}
+                        variant="danger"
+                        size="md"
+                        icon={<XCircle className="w-4 h-4" />}
+                      >
+                        Từ chối
+                      </ModernButton>
+                      <ModernButton
+                        onClick={() => handleAccept(selectedOrder)}
+                        variant="success"
+                        size="md"
+                        icon={<CheckCircle className="w-4 h-4" />}
+                      >
+                        Chấp nhận
+                      </ModernButton>
+                    </>
+                  )}
+                  {statusUpper === 'FILE_UPLOADED' && (
+                    <ModernButton
+                      onClick={() => handleConfirmPayment(selectedOrder)}
+                      roleColor="teal"
+                      size="md"
+                      icon={<CheckCircle className="w-4 h-4" />}
+                    >
+                      Xác nhận thanh toán
+                    </ModernButton>
+                  )}
+                  {statusUpper === 'PAYMENT_CONFIRMED' && (
+                    <ModernButton
+                      onClick={() => handleStartShipping(selectedOrder)}
+                      roleColor="purple"
+                      size="md"
+                      icon={<Truck className="w-4 h-4" />}
+                    >
+                      Bắt đầu vận chuyển
+                    </ModernButton>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     );
   };
 
@@ -333,19 +643,38 @@ function DealerOrderManagement() {
           onCancel={confirm.onCancel}
         />
 
+        {/* Order Detail Modal */}
+        {renderDetailModal()}
+
         {/* Header */}
         <motion.div 
           className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-            <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl">
-              <Package className="w-8 h-8 text-white" />
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl">
+                  <Package className="w-8 h-8 text-white" />
+                </div>
+                Quản lý đơn hàng từ đại lý
+              </h1>
+              <p className="text-gray-600 mt-2 ml-[60px]">Xử lý yêu cầu nhập hàng từ Dealer Manager và Staff</p>
             </div>
-            Quản lý đơn hàng từ đại lý
-          </h1>
-          <p className="text-gray-600 mt-2 ml-[60px]">Xử lý yêu cầu nhập hàng từ Dealer Manager và Staff</p>
+            <div className="relative">
+              <ArrowUpDown className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <select
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value)}
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white text-sm min-w-[180px]"
+              >
+                <option value="updated">Cập nhật mới nhất</option>
+                <option value="newest">Mới nhất</option>
+                <option value="oldest">Cũ nhất</option>
+              </select>
+            </div>
+          </div>
         </motion.div>
 
         {/* Statistics Cards */}

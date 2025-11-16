@@ -492,7 +492,7 @@ function ViewContracts() {
                 roleColor="emerald"
               />
             ) : (
-              <ModernTable>
+              <ModernTable className="border-0 shadow-none">
                 <ModernTableHead>
                   <tr>
                     <ModernTableHeader>Mã hợp đồng</ModernTableHeader>

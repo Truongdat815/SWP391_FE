@@ -18,11 +18,61 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Handle hash link clicks for smooth scrolling
+  useEffect(() => {
+    const handleHashClick = (e) => {
+      const target = e.target.closest('a[href^="#"]');
+      if (target && target.getAttribute('href').startsWith('#')) {
+        e.preventDefault();
+        const hash = target.getAttribute('href').substring(1);
+        const element = document.getElementById(hash);
+        if (element) {
+          const offset = 80; // Account for fixed navbar
+          const elementPosition = element.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - offset;
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+          });
+        }
+      }
+    };
+
+    document.addEventListener('click', handleHashClick);
+    return () => document.removeEventListener('click', handleHashClick);
+  }, []);
+
+  const handleHomeClick = (e) => {
+    if (isHomePage) {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  const handleHashLinkClick = (e, hash) => {
+    if (isHomePage) {
+      // If on homepage, just scroll to section
+      e.preventDefault();
+      const element = document.getElementById(hash);
+      if (element) {
+        const offset = 80;
+        const elementPosition = element.getBoundingClientRect().top;
+        const offsetPosition = elementPosition + window.pageYOffset - offset;
+        window.scrollTo({
+          top: offsetPosition,
+          behavior: 'smooth'
+        });
+      }
+    }
+    // If not on homepage, let Link navigate to /#hash
+    // The Home page will handle scrolling after navigation
+  };
+
   const menuItems = [
-    { name: 'Trang chủ', href: '/', isHash: false },
-    { name: 'Dòng xe', href: isHomePage ? '#models' : '/cars', isHash: isHomePage },
-    { name: 'Phụ kiện', href: '#accessories', isHash: true },
-    { name: 'Trạm sạc', href: '#charging', isHash: true },
+    { name: 'Trang chủ', href: '/', isHash: false, isHome: true },
+    { name: 'Dòng xe', href: isHomePage ? '#models' : '/cars', isHash: isHomePage, hash: 'models' },
+    { name: 'Phụ kiện', href: isHomePage ? '#accessories' : '/#accessories', isHash: true, hash: 'accessories' },
+    { name: 'Trạm sạc', href: isHomePage ? '#charging' : '/#charging', isHash: true, hash: 'charging' },
     { name: 'Đại lý', href: '/dealers', isHash: false }
   ];
 
@@ -44,11 +94,20 @@ const Navbar = () => {
             whileHover={{ scale: 1.05 }}
             className="flex-shrink-0"
           >
-            <Link to="/" className="flex items-center space-x-3">
+            <Link 
+              to="/" 
+              onClick={(e) => {
+                if (isHomePage) {
+                  e.preventDefault();
+                  window.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }}
+              className="flex items-center space-x-3"
+            >
               <div className="bg-white p-2 rounded-lg shadow-md">
                 <img src={logo} alt="Electra Logo" className="h-8 w-auto" />
               </div>
-              <span className={`text-2xl font-bold ${isScrolled || !isHomePage ? 'text-green-600' : 'text-white'}`}>Electra</span>
+              <span className={`text-2xl font-extrabold ${isScrolled || !isHomePage ? 'bg-gradient-to-r from-emerald-600 to-sky-600 bg-clip-text text-transparent' : 'text-white'}`}>Electra</span>
             </Link>
           </motion.div>
 
@@ -56,8 +115,15 @@ const Navbar = () => {
           <div className="hidden lg:block">
             <div className="ml-10 flex items-baseline space-x-8">
               {menuItems.map((item, index) => {
-                const MenuComponent = item.isHash ? 'a' : Link;
-                const menuProps = item.isHash ? { href: item.href } : { to: item.href };
+                // Use Link for all items, but handle hash links specially
+                const menuProps = { to: item.href };
+                
+                // Add onClick handler
+                if (item.isHome && isHomePage) {
+                  menuProps.onClick = handleHomeClick;
+                } else if (item.hash) {
+                  menuProps.onClick = (e) => handleHashLinkClick(e, item.hash);
+                }
                 
                 return (
                   <motion.div
@@ -67,16 +133,16 @@ const Navbar = () => {
                     transition={{ delay: index * 0.1 }}
                     whileHover={{ scale: 1.05 }}
                   >
-                    <MenuComponent
+                    <Link
                       {...menuProps}
                       className={`px-3 py-2 rounded-md text-sm font-medium transition-colors duration-200 ${
                         isScrolled || !isHomePage
-                          ? 'text-gray-700 hover:text-green-600' 
-                          : 'text-white hover:text-green-200'
+                          ? 'text-slate-700 hover:text-emerald-600 font-medium' 
+                          : 'text-white hover:text-emerald-300 font-medium'
                       }`}
                     >
                       {item.name}
-                    </MenuComponent>
+                    </Link>
                   </motion.div>
                 );
               })}
@@ -96,7 +162,7 @@ const Navbar = () => {
               >
                 <Link
                   to="/signin"
-                  className="bg-gradient-to-r bg-[#6CA12B] text-white px-6 py-2 rounded-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 inline-block"
+                  className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white px-6 py-2.5 rounded-xl font-bold shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 transition-all duration-300 inline-block"
                 >
                   Đăng nhập
                 </Link>
@@ -139,8 +205,18 @@ const Navbar = () => {
           >
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
               {menuItems.map((item, index) => {
-                const MenuComponent = item.isHash ? 'a' : Link;
-                const menuProps = item.isHash ? { href: item.href } : { to: item.href };
+                const menuProps = { to: item.href };
+                
+                // Add onClick handler
+                const handleClick = (e) => {
+                  setIsMobileMenuOpen(false);
+                  if (item.isHome && isHomePage) {
+                    e.preventDefault();
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  } else if (item.hash) {
+                    handleHashLinkClick(e, item.hash);
+                  }
+                };
                 
                 return (
                   <motion.div
@@ -149,13 +225,13 @@ const Navbar = () => {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
                   >
-                    <MenuComponent
+                    <Link
                       {...menuProps}
-                      onClick={() => setIsMobileMenuOpen(false)}
+                      onClick={handleClick}
                       className="text-gray-700 hover:text-green-600 block px-3 py-2 rounded-md text-base font-medium"
                     >
                       {item.name}
-                    </MenuComponent>
+                    </Link>
                   </motion.div>
                 );
               })}

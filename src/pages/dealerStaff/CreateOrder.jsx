@@ -46,6 +46,7 @@ import ModernButton from '../../components/ui/ModernButton';
 import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
 import EmptyState from '../../components/ui/EmptyState';
 import AnimatedSelect from '@/components/ui/AnimatedSelect';
+import Pagination from '../../components/ui/Pagination';
 import logoImage from '@/assets/images/logo.png';
 
 // Helper function to convert number to Vietnamese words
@@ -133,7 +134,7 @@ const convertNumberToWords = (num) => {
   return finalResult ? (finalResult + ' đồng').replace(/  +/g, ' ') : 'không đồng';
 };
 
-function CreateOrder({ onBack, hideSteps = false, isOpen = true, onClose }) {
+function CreateOrder() {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { getStoreId, user } = useAuth();
@@ -182,6 +183,16 @@ function CreateOrder({ onBack, hideSteps = false, isOpen = true, onClose }) {
   
   // Debounce timer ref
   const validationTimerRef = useRef(null);
+
+  // Set document title
+  useEffect(() => {
+    document.title = 'Tạo đơn hàng - Dealer Staff';
+    
+    // Cleanup: restore default title when component unmounts
+    return () => {
+      document.title = 'Dealer Staff Dashboard';
+    };
+  }, []);
 
   // Load initial data
   useEffect(() => {
@@ -570,7 +581,9 @@ function CreateOrder({ onBack, hideSteps = false, isOpen = true, onClose }) {
           // Keep display info from validation
           modelName: currentValidation.modelName || existingItem.modelName,
           colorName: currentValidation.colorName || existingItem.colorName,
-          promotionName: currentValidation.promotionName || existingItem.promotionName
+          promotionName: currentValidation.promotionName || existingItem.promotionName,
+          price: currentValidation.price || existingItem.price || 0,
+          availableQuantity: currentValidation.availableQuantity || existingItem.availableQuantity || 0
         };
       } else {
         // Add new item
@@ -583,7 +596,9 @@ function CreateOrder({ onBack, hideSteps = false, isOpen = true, onClose }) {
           // Add display info from validation
           modelName: currentValidation.modelName,
           colorName: currentValidation.colorName,
-          promotionName: currentValidation.promotionName
+          promotionName: currentValidation.promotionName,
+          price: currentValidation.price || 0,
+          availableQuantity: currentValidation.availableQuantity || 0
         }];
       }
 
@@ -1215,13 +1230,9 @@ function CreateOrder({ onBack, hideSteps = false, isOpen = true, onClose }) {
       
       // Close popup and refresh orders list after 2 seconds
       setTimeout(() => {
-        if (onClose) {
-          handleClose();
-          // Refresh orders list by dispatching fetchOrders
-          dispatch(fetchOrders());
-        } else {
-          navigate('/dealer-staff/order-management', { state: { tab: 'view' } });
-        }
+        // Navigate back to order management and refresh
+        dispatch(fetchOrders());
+        navigate('/dealer-staff/order-management', { state: { tab: 'view' } });
       }, 2000);
       
     } catch (error) {
@@ -1320,13 +1331,9 @@ function CreateOrder({ onBack, hideSteps = false, isOpen = true, onClose }) {
       
       // Close popup and refresh orders list after 2 seconds
       setTimeout(() => {
-        if (onClose) {
-          handleClose();
-          // Refresh orders list by dispatching fetchOrders
-          dispatch(fetchOrders());
-        } else {
-          navigate('/dealer-staff/order-management', { state: { tab: 'view' } });
-        }
+        // Navigate back to order management and refresh
+        dispatch(fetchOrders());
+        navigate('/dealer-staff/order-management', { state: { tab: 'view' } });
       }, 2000);
       
     } catch (error) {
@@ -1350,34 +1357,8 @@ function CreateOrder({ onBack, hideSteps = false, isOpen = true, onClose }) {
   // Go back
   const handleBack = () => {
     if (currentStep === 1) {
-      // Close popup when on first step
-      if (onClose) {
-        // Reset all state before closing
-        setCurrentStep(1);
-        setSelectedCustomer(null);
-        setSearchTerm('');
-        setError(null);
-        setSuccess(null);
-        setSelectedItems([]);
-        setOrderDetailsResponse(null);
-        setCurrentOrderId(null);
-        setCurrentValidation(null);
-        setFormData({
-          modelId: '',
-          colorId: '',
-          quantity: 1,
-          promotionId: 0
-        });
-        setOrderResponse(null);
-        setPendingConfirmAction(null);
-        setShowConfirmDialog(false);
-        dispatch(clearValidationResult());
-        onClose();
-      } else if (onBack) {
-        onBack();
-      } else {
-        navigate(-1);
-      }
+      // Navigate back to order management
+      navigate('/dealer-staff/order-management');
     } else if (currentStep === 3) {
       // If going back from Step 3, reset all state to allow starting fresh
       setSelectedItems([]);
@@ -1404,38 +1385,8 @@ function CreateOrder({ onBack, hideSteps = false, isOpen = true, onClose }) {
     }
   };
 
-  // Handle close popup
-  const handleClose = () => {
-    if (onClose) {
-      // Reset all state before closing
-      setCurrentStep(1);
-      setSelectedCustomer(null);
-      setSearchTerm('');
-      setError(null);
-      setSuccess(null);
-      setSelectedItems([]);
-      setOrderDetailsResponse(null);
-      setCurrentOrderId(null);
-      setCurrentValidation(null);
-      setFormData({
-        modelId: '',
-        colorId: '',
-        quantity: 1,
-        promotionId: 0
-      });
-      setOrderResponse(null);
-      setPendingConfirmAction(null);
-      setShowConfirmDialog(false);
-      dispatch(clearValidationResult());
-      onClose();
-    }
-  };
-
-  // Don't render if not open
-  if (!isOpen) return null;
-
   return (
-    <>
+    <div className="min-h-screen bg-gray-50">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -1456,87 +1407,68 @@ function CreateOrder({ onBack, hideSteps = false, isOpen = true, onClose }) {
         onCancel={confirm.onCancel}
       />
 
-      {/* Popup Overlay */}
-      <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-white rounded-xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col my-4"
-        >
-          {/* Popup Header */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200 bg-gray-50 flex-shrink-0">
-            <div className="flex items-center">
-              {currentStep === 1 && <Users className="h-6 w-6 text-emerald-600 mr-2" />}
-              {currentStep === 2 && <ShoppingCart className="h-6 w-6 text-emerald-600 mr-2" />}
-              {currentStep === 3 && <CheckCircle className="h-6 w-6 text-emerald-600 mr-2" />}
-              <h2 className="text-xl font-bold text-gray-900">
-                {currentStep === 1 && 'Chọn khách hàng'}
-                {currentStep === 2 && 'Thêm sản phẩm'}
-                {currentStep === 3 && 'Xác nhận đơn hàng'}
-              </h2>
-            </div>
-            <button
-              onClick={handleClose}
-              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          {/* Popup Content - Scrollable */}
-          <div className="flex-1 overflow-y-auto p-6">
-            {/* Error/Success Messages - Only show for step 1 and 3, step 2 shows below validation */}
-      {currentStep !== 2 && error && (
-        <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
-          <AlertCircle className="h-5 w-5 text-red-500 mr-3 flex-shrink-0" />
-          <span className="text-red-700">{error}</span>
-        </div>
-      )}
-      
-      {currentStep !== 2 && success && (
-        <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
-          <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
-          <span className="text-green-700">{success}</span>
-        </div>
-      )}
-
-      {/* Progress Steps - Show at top of popup */}
-      {!hideSteps && (
+      {/* Page Container */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        {/* Page Header with Breadcrumb */}
         <div className="mb-6">
+          {/* Breadcrumb */}
+          <nav className="flex items-center space-x-2 text-sm text-gray-500 mb-4">
+            <button
+              onClick={() => navigate('/dealer-staff/order-management')}
+              className="hover:text-emerald-600 transition-colors"
+            >
+              Quản lý đơn hàng
+            </button>
+            <ChevronRight className="h-4 w-4" />
+            <span className="text-gray-900 font-medium">Tạo đơn hàng</span>
+          </nav>
+
+          {/* Page Title */}
           <div className="flex items-center justify-between">
-            {[
-              { num: 1, label: 'Chọn khách hàng', icon: Users },
-              { num: 2, label: 'Thêm sản phẩm', icon: ShoppingCart },
-              { num: 3, label: 'Xác nhận đơn hàng', icon: CheckCircle }
-            ].map((step, index) => (
-              <div key={step.num} className="flex items-center flex-1">
-                <div className="flex flex-col items-center flex-1">
-                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                    currentStep === step.num 
-                      ? 'bg-emerald-600 text-white' 
-                      : currentStep > step.num
-                      ? 'bg-emerald-500 text-white'
-                      : 'bg-gray-200 text-gray-500'
-                  }`}>
-                    <step.icon className="h-5 w-5" />
-                  </div>
-                  <span className={`mt-2 text-xs font-medium ${
-                    currentStep >= step.num ? 'text-emerald-600' : 'text-gray-500'
-                  }`}>
-                    {step.label}
-                  </span>
-                </div>
-                {index < 2 && (
-                  <div className={`h-1 flex-1 mx-2 ${
-                    currentStep > step.num ? 'bg-emerald-500' : 'bg-gray-200'
-                  }`} />
+            <div className="flex items-center">
+              {currentStep === 1 && <Users className="h-8 w-8 text-emerald-600 mr-3" />}
+              {currentStep === 2 && <ShoppingCart className="h-8 w-8 text-emerald-600 mr-3" />}
+              {currentStep === 3 && <CheckCircle className="h-8 w-8 text-emerald-600 mr-3" />}
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">
+                  {currentStep === 1 && 'Chọn khách hàng'}
+                  {currentStep === 2 && 'Thêm sản phẩm'}
+                  {currentStep === 3 && 'Xác nhận đơn hàng'}
+                </h1>
+                {currentStep === 2 && selectedCustomer && (
+                  <p className="text-sm text-gray-600 mt-1">
+                    Khách hàng: <span className="font-semibold text-emerald-600">{selectedCustomer.fullName}</span>
+                  </p>
                 )}
               </div>
-            ))}
+            </div>
+            <button
+              onClick={handleBack}
+              className="flex items-center px-4 py-2 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors font-medium"
+            >
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              {currentStep === 1 ? 'Quay lại' : 'Quay lại'}
+            </button>
           </div>
         </div>
-      )}
+
+        {/* Page Content */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-200">
+          <div className="p-6">
+            {/* Error/Success Messages - Only show for step 1 and 3, step 2 shows below validation */}
+            {currentStep !== 2 && error && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
+                <AlertCircle className="h-5 w-5 text-red-500 mr-3 flex-shrink-0" />
+                <span className="text-red-700">{error}</span>
+              </div>
+            )}
+            
+            {currentStep !== 2 && success && (
+              <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center">
+                <CheckCircle className="h-5 w-5 text-green-500 mr-3 flex-shrink-0" />
+                <span className="text-green-700">{success}</span>
+              </div>
+            )}
 
       {/* Step Content */}
         
@@ -1585,7 +1517,7 @@ function CreateOrder({ onBack, hideSteps = false, isOpen = true, onClose }) {
               )}
             </div>
 
-            {/* Customer List - Table Design */}
+            {/* Customer List - Modern Card Grid */}
             {customersLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mr-3" />
@@ -1612,173 +1544,83 @@ function CreateOrder({ onBack, hideSteps = false, isOpen = true, onClose }) {
               </div>
             ) : (
               <>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Tên khách hàng
-                        </th>
-                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Số điện thoại
-                        </th>
-                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Email
-                        </th>
-                        <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                          Số CCCD
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {paginatedCustomers.map((customer) => (
-                        <tr
-                          key={customer.customerId}
-                          onClick={() => handleCustomerSelect(customer)}
-                          className="hover:bg-gray-50 cursor-pointer transition-colors"
-                        >
-                          <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-gray-900">
-                            {customer.fullName || 'N/A'}
-                          </td>
-                          <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
-                            {customer.phone || 'N/A'}
-                          </td>
-                          <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
-                            {customer.email || 'N/A'}
-                          </td>
-                          <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
-                            {customer.identificationNumber || 'N/A'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {/* Customer List - Simple List View */}
+                <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+                  {/* List Header */}
+                  <div className="bg-gray-50 px-6 py-3 border-b border-gray-200 hidden md:grid grid-cols-4 gap-4">
+                    <div className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Tên khách hàng
+                    </div>
+                    <div className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Số điện thoại
+                    </div>
+                    <div className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Email
+                    </div>
+                    <div className="text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Số CCCD
+                    </div>
+                  </div>
+                  
+                  {/* List Items */}
+                  <div className="divide-y divide-gray-200">
+                    {paginatedCustomers.map((customer, index) => (
+                      <motion.div
+                        key={customer.customerId}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        onClick={() => handleCustomerSelect(customer)}
+                        className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors flex items-center justify-between group"
+                      >
+                        {/* Customer Info */}
+                        <div className="flex-1 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
+                          <div className="min-w-0">
+                            <h3 className="text-base font-semibold text-gray-900 truncate">
+                              {customer.fullName || 'N/A'}
+                            </h3>
+                            <p className="text-xs text-gray-500 md:hidden mt-0.5">Tên khách hàng</p>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm text-gray-600 truncate">
+                              {customer.phone || 'N/A'}
+                            </p>
+                            <p className="text-xs text-gray-500 md:hidden mt-0.5">Số điện thoại</p>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm text-gray-600 truncate">
+                              {customer.email || 'N/A'}
+                            </p>
+                            <p className="text-xs text-gray-500 md:hidden mt-0.5">Email</p>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-sm text-gray-600 truncate">
+                              {customer.identificationNumber || 'N/A'}
+                            </p>
+                            <p className="text-xs text-gray-500 md:hidden mt-0.5">Số CCCD</p>
+                          </div>
+                        </div>
+
+                        {/* Select Indicator */}
+                        <div className="ml-4 flex-shrink-0">
+                          <ChevronRight className="h-5 w-5 text-gray-400 group-hover:text-emerald-600 transition-colors" />
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
                 </div>
 
-                {/* Pagination Controls */}
-                {filteredCustomers.length > 0 && (
-                  <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-4">
-                    <div className="flex items-center text-sm text-gray-700">
-                      <span>
-                        Hiển thị <span className="font-medium">{startIndex + 1}</span> đến{' '}
-                        <span className="font-medium">{Math.min(endIndex, filteredCustomers.length)}</span> trong tổng số{' '}
-                        <span className="font-medium">{filteredCustomers.length}</span> khách hàng
-                      </span>
-                    </div>
-                    {totalPages > 1 && (
-                    <div className="flex items-center space-x-2">
-                      <button
-                        onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-                        disabled={currentPage === 1}
-                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
-                      >
-                        <ChevronLeft className="h-4 w-4 mr-1" />
-                        Trước
-                      </button>
-                      
-                      <div className="flex items-center space-x-1">
-                        {(() => {
-                          const pages = [];
-                          const showEllipsis = totalPages > 7;
-                          
-                          if (!showEllipsis) {
-                            // Show all pages if less than 7
-                            for (let i = 1; i <= totalPages; i++) {
-                              pages.push(
-                                <button
-                                  key={i}
-                                  onClick={() => setCurrentPage(i)}
-                                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                                    currentPage === i
-                                      ? 'bg-emerald-600 text-white'
-                                      : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                                  }`}
-                                >
-                                  {i}
-                                </button>
-                              );
-                            }
-                          } else {
-                            // Show first page
-                            pages.push(
-                              <button
-                                key={1}
-                                onClick={() => setCurrentPage(1)}
-                                className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                                  currentPage === 1
-                                    ? 'bg-emerald-600 text-white'
-                                    : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                                }`}
-                              >
-                                1
-                              </button>
-                            );
-                            
-                            if (currentPage > 3) {
-                              pages.push(
-                                <span key="ellipsis-start" className="px-2 text-gray-500">
-                                  ...
-                                </span>
-                              );
-                            }
-                            
-                            // Show pages around current page
-                            for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
-                              pages.push(
-                                <button
-                                  key={i}
-                                  onClick={() => setCurrentPage(i)}
-                                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                                    currentPage === i
-                                      ? 'bg-emerald-600 text-white'
-                                      : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                                  }`}
-                                >
-                                  {i}
-                                </button>
-                              );
-                            }
-                            
-                            if (currentPage < totalPages - 2) {
-                              pages.push(
-                                <span key="ellipsis-end" className="px-2 text-gray-500">
-                                  ...
-                                </span>
-                              );
-                            }
-                            
-                            // Show last page
-                            if (totalPages > 1) {
-                              pages.push(
-                                <button
-                                  key={totalPages}
-                                  onClick={() => setCurrentPage(totalPages)}
-                                  className={`px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
-                                    currentPage === totalPages
-                                      ? 'bg-emerald-600 text-white'
-                                      : 'text-gray-700 bg-white border border-gray-300 hover:bg-gray-50'
-                                  }`}
-                                >
-                                  {totalPages}
-                                </button>
-                              );
-                            }
-                          }
-                          
-                          return pages;
-                        })()}
-                      </div>
-
-                      <button
-                        onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-                        disabled={currentPage === totalPages}
-                        className="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center"
-                      >
-                        Sau
-                        <ChevronRight className="h-4 w-4 ml-1" />
-                      </button>
-                    </div>
-                    )}
+                {/* Pagination Controls - Aligned to Right */}
+                {filteredCustomers.length > itemsPerPage && totalPages > 1 && (
+                  <div className="mt-6 flex justify-end">
+                    <Pagination
+                      currentPage={currentPage}
+                      totalPages={totalPages}
+                      onPageChange={setCurrentPage}
+                      itemsPerPage={itemsPerPage}
+                      totalItems={filteredCustomers.length}
+                      showInfo={false}
+                    />
                   </div>
                 )}
               </>
@@ -2015,37 +1857,65 @@ function CreateOrder({ onBack, hideSteps = false, isOpen = true, onClose }) {
                 <h3 className="font-semibold text-gray-900 mb-3">
                   Sản phẩm đã chọn ({selectedItems.length})
                 </h3>
-                <div className="space-y-2 mb-3">
-                  {selectedItems.map((item, index) => (
-                    <div key={index} className="bg-gradient-to-br from-gray-50 to-gray-100 border border-gray-200 rounded-lg p-3">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="font-medium text-gray-900 mb-2">
-                            {item.modelName || 'N/A'} - {item.colorName || 'N/A'}
-                          </div>
-                          <div className="space-y-1 text-sm text-gray-600">
-                            <div>
-                              <span className="font-semibold">Số lượng:</span> {item.quantity || 0}
+                <div className="space-y-3 mb-3">
+                  {selectedItems.map((item, index) => {
+                    const unitPrice = item.price || item.unitPrice || 0;
+                    const promotionName = item.promotionName || 'Không áp dụng';
+                    
+                    return (
+                      <div key={index} className="bg-gradient-to-br from-gray-50 to-white border border-gray-200 rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="flex items-start justify-between">
+                          <div className="flex-1">
+                            {/* Product Name */}
+                            <div className="flex items-center mb-3">
+                              <Package className="h-5 w-5 text-emerald-600 mr-2 flex-shrink-0" />
+                              <div className="font-semibold text-gray-900 text-base">
+                                {item.modelName || 'N/A'} - {item.colorName || 'N/A'}
+                              </div>
                             </div>
-                            {item.promotionName && item.promotionName !== 'Không áp dụng' && (
+                            
+                            {/* Product Details */}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm mt-3 pt-3 border-t border-gray-200">
                               <div>
-                                <span className="font-semibold">Khuyến mãi:</span>{' '}
-                                <span className="inline-flex items-center px-2 py-0.5 bg-pink-100 text-pink-800 rounded-md text-xs font-medium ml-1">
-                                  {item.promotionName}
+                                <span className="text-gray-600">Số lượng:</span>
+                                <span className="font-semibold text-gray-900 ml-2">{item.quantity || 0}</span>
+                              </div>
+                              
+                              <div>
+                                <span className="text-gray-600">Giá:</span>
+                                <span className="font-semibold text-gray-900 ml-2">
+                                  {unitPrice > 0 
+                                    ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(unitPrice)
+                                    : 'N/A'
+                                  }
                                 </span>
                               </div>
-                            )}
+                              
+                              <div>
+                                <span className="text-gray-600">Khuyến mãi:</span>
+                                <span className={`ml-2 ${
+                                  promotionName !== 'Không áp dụng' 
+                                    ? 'inline-flex items-center px-2 py-0.5 bg-pink-100 text-pink-800 rounded-md text-xs font-medium'
+                                    : 'text-gray-700'
+                                }`}>
+                                  {promotionName}
+                                </span>
+                              </div>
+                            </div>
                           </div>
+                          
+                          {/* Remove Button */}
+                          <button
+                            onClick={() => handleRemoveItem(index)}
+                            className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+                            title="Xóa sản phẩm"
+                          >
+                            <X className="h-5 w-5" />
+                          </button>
                         </div>
-                        <button
-                          onClick={() => handleRemoveItem(index)}
-                          className="ml-4 p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                        >
-                          <X className="h-5 w-5" />
-                        </button>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 
                 {/* Order Summary from API Response */}
@@ -2229,36 +2099,11 @@ function CreateOrder({ onBack, hideSteps = false, isOpen = true, onClose }) {
             </div>
           </div>
         )}
-
           </div>
-
-          {/* Popup Footer */}
-          <div className="flex items-center justify-end p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
-          <div className="flex space-x-3">
-            {currentStep === 1 && (
-              <button
-                onClick={handleClose}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
-              >
-                Đóng
-              </button>
-            )}
-            {currentStep > 1 && (
-              <button
-                onClick={handleBack}
-                disabled={orderLoading}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium disabled:opacity-50"
-              >
-                <ArrowLeft className="h-4 w-4 inline-block mr-2" />
-                Quay lại
-              </button>
-            )}
-          </div>
-          </div>
-        </motion.div>
+        </div>
       </div>
 
-      {/* Confirmation Snackbar Dialog - Outside popup */}
+      {/* Confirmation Snackbar Dialog */}
       {showConfirmDialog && pendingConfirmAction && (
         <div className="fixed inset-0 bg-black bg-opacity-70 z-[60] flex items-center justify-center p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
@@ -2314,7 +2159,7 @@ function CreateOrder({ onBack, hideSteps = false, isOpen = true, onClose }) {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }
 

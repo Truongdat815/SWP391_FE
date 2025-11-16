@@ -5,10 +5,12 @@ import { getAllUsersThunk, createUserThunk, deleteUserThunk, updateUserThunk } f
 import { getAllStoresThunk } from '@store/slices/storeSlice';
 import { getAllRolesThunk, createRoleThunk, updateRoleThunk, deleteRoleThunk } from '@store/slices/roleSlice';
 import { getActiveStores } from '@/api/storeService';
+import { updateUserStatus } from '@/api/userService';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedSelect from '@/components/ui/AnimatedSelect';
 import Toast from '@/components/ui/Toast';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Pagination from '@/components/ui/Pagination';
 import { useToast } from '@/hooks/useToast';
 import { useConfirm } from '@/hooks/useConfirm';
 
@@ -125,6 +127,8 @@ function UserManagement() {
 
   const [activeTab, setActiveTab] = useState('dealer-staff');
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState({});
+  const itemsPerPage = 10;
   const [statusFilter, setStatusFilter] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -133,6 +137,9 @@ function UserManagement() {
   const [userToEdit, setUserToEdit] = useState(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [userToView, setUserToView] = useState(null);
+  const [showDisableModal, setShowDisableModal] = useState(false);
+  const [userToDisable, setUserToDisable] = useState(null);
+  const [statusAction, setStatusAction] = useState(null); // 'enable' or 'disable'
   
   const [showAddRoleModal, setShowAddRoleModal] = useState(false);
   const [showEditRoleModal, setShowEditRoleModal] = useState(false);
@@ -166,7 +173,13 @@ function UserManagement() {
 
   const getStatusText = (status) => {
     const upperStatus = String(status || '').toUpperCase();
-    return upperStatus || status;
+    switch (upperStatus) {
+      case 'ACTIVE': return 'Hoạt động';
+      case 'INACTIVE': return 'Không hoạt động';
+      case 'PENDING': return 'Chờ duyệt';
+      case 'DISABLED': return 'Vô hiệu hóa';
+      default: return upperStatus || status;
+    }
   };
 
   const getRoleColor = (roleName) => {
@@ -375,6 +388,48 @@ function UserManagement() {
     setOperationType(null); // Reset operation type khi hủy
   };
 
+  const handleDisableConfirm = async () => {
+    if (!userToDisable || !statusAction) return;
+    
+    const action = statusAction; // Lưu action trước khi reset
+    
+    try {
+      setOperationType('update');
+      
+      // Xác định status mới dựa trên action
+      const newStatus = action === 'enable' ? 'ACTIVE' : 'DISABLED';
+      
+      // Gọi API update status
+      await updateUserStatus(userToDisable.userId, newStatus);
+      
+      // Reset operation type sau khi hoàn thành
+      setOperationType(null);
+      setShowDisableModal(false);
+      setUserToDisable(null);
+      setStatusAction(null);
+      
+      // Thêm delay nhỏ để đảm bảo backend đã xử lý xong
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Refresh danh sách users
+      await dispatch(getAllUsersThunk()).unwrap();
+      
+      success(action === 'enable' ? 'Kích hoạt tài khoản thành công!' : 'Vô hiệu hóa tài khoản thành công!');
+    } catch (err) {
+      console.error(`Failed to ${action} user:`, err);
+      error(action === 'enable' 
+        ? 'Lỗi khi kích hoạt tài khoản: ' + (err.message || 'Có lỗi xảy ra')
+        : 'Lỗi khi vô hiệu hóa tài khoản: ' + (err.message || 'Có lỗi xảy ra'));
+      setOperationType(null); // Reset operation type khi có lỗi
+    }
+  };
+
+  const handleDisableCancel = () => {
+    setShowDisableModal(false);
+    setUserToDisable(null);
+    setStatusAction(null);
+  };
+
   const handleEditClick = async (user) => {
     // Refresh active stores khi mở modal edit
     setIsLoadingActiveStores(true);
@@ -396,7 +451,7 @@ function UserManagement() {
       password: '',
       phone: user.phone || '',
       storeId: user.storeId || '',
-      roleId: user.roleId || '',
+      roleId: user.roleId ? user.roleId.toString() : '',
       status: user.status || 'ACTIVE'
     });
     setShowEditModal(true);
@@ -578,6 +633,22 @@ function UserManagement() {
   const renderUserTable = (roleName, roleColor) => {
     // Lọc người dùng theo role và search term
     const filteredUsers = getFilteredUsersByRole(roleName);
+    
+    // Pagination state per role
+    const roleKey = roleName.toLowerCase().replace(/\s+/g, '-');
+    const pageKey = `page-${roleKey}`;
+    const currentPageForRole = currentPage[pageKey] || 1;
+    
+    // Calculate pagination
+    const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+    const startIndex = (currentPageForRole - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    const paginatedUsers = filteredUsers.slice(startIndex, endIndex);
+    
+    const handlePageChange = (page) => {
+      setCurrentPage(prev => ({ ...prev, [pageKey]: page }));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
 
     return (
       <div className="overflow-x-auto">
@@ -604,9 +675,10 @@ function UserManagement() {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {filteredUsers.map((u, index) => (
+              {paginatedUsers.map((u, index) => (
               <tr 
                 key={u.userId}
+                onClick={() => handleViewDetail(u)}
                 className={`transition-all duration-200 hover:bg-red-50 hover:shadow-sm cursor-pointer
                   ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}`}
               >
@@ -638,9 +710,22 @@ function UserManagement() {
                   </div>
                 </td>
                 <td className="px-3 py-2.5 whitespace-nowrap">
-                  <span className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusColor(u.status)}`}>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setUserToDisable(u);
+                      if (u.status === 'DISABLED') {
+                        setStatusAction('enable');
+                      } else {
+                        setStatusAction('disable');
+                      }
+                      setShowDisableModal(true);
+                    }}
+                    className={`px-3 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusColor(u.status)} transition-all duration-200 cursor-pointer hover:opacity-80 hover:shadow-md transform hover:scale-105`}
+                    title={u.status === 'DISABLED' ? 'Click để kích hoạt lại tài khoản' : 'Click để vô hiệu hóa tài khoản'}
+                  >
                     {getStatusText(u.status)}
-                  </span>
+                  </button>
                 </td>
                 {(roleName !== 'Quản trị viên' && roleName !== 'Admin' && roleName !== 'Nhân viên hãng xe' && roleName !== 'EVM Staff') && (
                   <td className="px-3 py-2.5 whitespace-nowrap">
@@ -648,42 +733,22 @@ function UserManagement() {
                   </td>
                 )}
                 <td className="px-3 py-2.5 whitespace-nowrap">
-                  <div className="flex items-center space-x-2">
-                    <button 
-                      onClick={() => handleEditClick(u)}
-                      className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
-                      
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                    </button>
-                    
-                    <button 
-                      onClick={() => handleViewDetail(u)}
-                      className="p-2 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
-                      
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                      </svg>
-                    </button>
-                    
-                    <button
-                      onClick={() => handleDeleteClick(u)}
-                      className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
-                      
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
+                  <button 
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEditClick(u);
+                    }}
+                    className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 hover:shadow-md transition-all duration-200 transform hover:scale-105"
+                    title="Chỉnh sửa người dùng"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
                 </td>
               </tr>
             ))}
-              {filteredUsers.length === 0 && (
+              {paginatedUsers.length === 0 && (
                 <tr>
                   <td colSpan={roleName === 'Quản trị viên' || roleName === 'Admin' || roleName === 'Nhân viên hãng xe' || roleName === 'EVM Staff' ? "4" : "5"} className="px-6 py-16">
                   <div className="text-center">
@@ -713,6 +778,18 @@ function UserManagement() {
               )}
             </tbody>
           </table>
+        )}
+        
+        {/* Pagination */}
+        {!isUsersFetching && !usersError && filteredUsers.length > 0 && (
+          <Pagination
+            currentPage={currentPageForRole}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            itemsPerPage={itemsPerPage}
+            totalItems={filteredUsers.length}
+            showInfo={true}
+          />
         )}
       </div>
     );
@@ -813,10 +890,10 @@ function UserManagement() {
               className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm hover:shadow-md transition-all bg-white text-gray-900"
             >
               <option value="">Tất cả trạng thái</option>
-              <option value="ACTIVE">ACTIVE</option>
-              <option value="INACTIVE">INACTIVE</option>
-              <option value="PENDING">PENDING</option>
-              <option value="DISABLED">DISABLED</option>
+              <option value="ACTIVE">Hoạt động</option>
+              <option value="INACTIVE">Không hoạt động</option>
+              <option value="PENDING">Chờ duyệt</option>
+              <option value="DISABLED">Vô hiệu hóa</option>
             </select>
             {statusFilter && (
               <button
@@ -1239,21 +1316,6 @@ function UserManagement() {
 
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Mật khẩu mới
-                    </label>
-                    <input
-                      type="password"
-                      name="password"
-                      value={formData.password}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      placeholder="Để trống nếu không muốn thay đổi"
-                    />
-                    <p className="text-xs text-gray-500 mt-1.5">💡 Để trống nếu không muốn thay đổi mật khẩu</p>
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
                       Số điện thoại <span className="text-red-500">*</span>
                     </label>
                     <input
@@ -1265,25 +1327,6 @@ function UserManagement() {
                       placeholder="Nhập số điện thoại"
                       required
                     />
-                  </div>
-
-                  {/* Status Selection */}
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Trạng thái <span className="text-red-500">*</span>
-                    </label>
-                    <select
-                      name="status"
-                      value={formData.status}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
-                      required
-                    >
-                      <option value="ACTIVE">Hoạt động</option>
-                      <option value="INACTIVE">Không hoạt động</option>
-                      <option value="PENDING">Chờ duyệt</option>
-                      <option value="DISABLED">Vô hiệu hóa</option>
-                    </select>
                   </div>
                 </div>
                 
@@ -1320,16 +1363,16 @@ function UserManagement() {
         )}
       </AnimatePresence>
 
-      {/* Delete Confirmation Modal */}
+      {/* Disable User Confirmation Modal */}
       <AnimatePresence>
-        {showDeleteModal && userToDelete && (
+        {showDisableModal && userToDisable && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
             className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm flex items-center justify-center p-4"
-            onClick={handleDeleteCancel}
+            onClick={handleDisableCancel}
           >
             <motion.div 
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -1344,46 +1387,68 @@ function UserManagement() {
               className="w-[480px] p-4 border shadow-lg rounded-lg bg-white"
             >
               <div className="mt-3">
-                <div className="flex items-center justify-center w-16 h-16 mx-auto bg-gradient-to-br from-red-100 to-red-200 rounded-full mb-4 shadow-lg">
-                  <svg className="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                  </svg>
+                <div className={`flex items-center justify-center w-16 h-16 mx-auto bg-gradient-to-br rounded-full mb-4 shadow-lg ${
+                  statusAction === 'enable' 
+                    ? 'from-green-100 to-green-200' 
+                    : 'from-orange-100 to-orange-200'
+                }`}>
+                  {statusAction === 'enable' ? (
+                    <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+                    </svg>
+                  )}
                 </div>
               
               <div className="text-center">
                 <h3 className="text-xl font-bold text-gray-900 mb-3">
-                  Xác nhận xóa người dùng
+                  {statusAction === 'enable' ? 'Xác nhận kích hoạt tài khoản' : 'Xác nhận vô hiệu hóa tài khoản'}
                 </h3>
                 <div className="mt-2 px-4 py-3">
-                  <p className="text-sm text-gray-600 mb-4">
-                    Bạn có chắc chắn muốn xóa người dùng <strong className="text-gray-900">{userToDelete.fullName}</strong> không?
+                  <p className="text-sm text-gray-600 mb-4 text-center leading-relaxed">
+                    {statusAction === 'enable' 
+                      ? <>Bạn có chắc chắn muốn kích hoạt lại tài khoản của<br /><strong className="text-gray-900">{userToDisable.fullName}</strong> không?</>
+                      : <>Bạn có chắc chắn muốn vô hiệu hóa tài khoản của<br /><strong className="text-gray-900">{userToDisable.fullName}</strong> không?</>
+                    }
                   </p>
                   
                   <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-4 text-left shadow-inner">
-                    <div className="space-y-1.5 text-xs text-gray-700">
-                      <div className="flex items-start">
-                        <span className="font-semibold min-w-[80px]">Email:</span>
-                        <span className="flex-1">{userToDelete.email}</span>
+                    <div className="space-y-2 text-xs text-gray-700">
+                      <div className="flex items-center">
+                        <span className="font-semibold min-w-[120px]">Email:</span>
+                        <span className="flex-1">{userToDisable.email}</span>
                       </div>
-                      <div className="flex items-start">
-                        <span className="font-semibold min-w-[80px]">Vai trò:</span>
-                        <span>{userToDelete.roleName}</span>
+                      <div className="flex items-center">
+                        <span className="font-semibold min-w-[120px]">Vai trò:</span>
+                        <span>{userToDisable.roleName}</span>
                       </div>
-                      <div className="flex items-start">
-                        <span className="font-semibold min-w-[80px]">Cửa hàng:</span>
-                        <span>{userToDelete.storeName || 'N/A'}</span>
+                      <div className="flex items-center">
+                        <span className="font-semibold min-w-[120px]">Trạng thái hiện tại:</span>
+                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(userToDisable.status)}`}>
+                          {getStatusText(userToDisable.status)}
+                        </span>
                       </div>
                     </div>
                   </div>
                   
-                  <p className="text-xs text-red-600 font-semibold mt-4">
-                    ⚠️ Hành động này không thể hoàn tác!
+                  <p className={`text-xs font-semibold mt-4 text-center ${
+                    statusAction === 'enable' 
+                      ? 'text-green-600' 
+                      : 'text-orange-600'
+                  }`}>
+                    {statusAction === 'enable' 
+                      ? '✅ Tài khoản sẽ được kích hoạt lại và có thể đăng nhập!'
+                      : '⚠️ Tài khoản sẽ bị vô hiệu hóa và không thể đăng nhập!'
+                    }
                   </p>
                 </div>
                 
                 <div className="flex justify-center space-x-3 mt-6">
                   <motion.button
-                    onClick={handleDeleteCancel}
+                    onClick={handleDisableCancel}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-sm text-sm"
@@ -1391,19 +1456,28 @@ function UserManagement() {
                     Hủy
                   </motion.button>
                   <motion.button
-                    onClick={handleDeleteConfirm}
-                    disabled={isDeletingUser}
+                    onClick={handleDisableConfirm}
+                    disabled={isUpdatingUser}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-sm"
+                    className={`px-4 py-2 text-white rounded-lg transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-sm ${
+                      statusAction === 'enable'
+                        ? 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700'
+                        : 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700'
+                    }`}
                   >
-                    {isDeletingUser && (
+                    {isUpdatingUser && (
                       <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
                     )}
-                    {isDeletingUser ? 'Đang xóa...' : 'Xóa người dùng'}
+                    {isUpdatingUser 
+                      ? 'Đang xử lý...' 
+                      : statusAction === 'enable' 
+                        ? 'Kích hoạt tài khoản' 
+                        : 'Vô hiệu hóa tài khoản'
+                    }
                   </motion.button>
                 </div>
               </div>
@@ -1434,37 +1508,37 @@ function UserManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-2xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-2xl p-5 border shadow-2xl rounded-lg bg-white"
             >
-              <div className="mt-3">
-                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
-                  <h3 className="text-2xl font-bold text-gray-900"> Chi tiết người dùng</h3>
+              <div className="mt-1">
+                <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
+                  <h3 className="text-xl font-bold text-gray-900">Chi tiết người dùng</h3>
                   <button
                     onClick={handleCloseDetailModal}
-                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
+                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-1.5 transition-all"
                   >
-                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                     </svg>
                   </button>
                 </div>
               
-              <div className="space-y-6">
+              <div className="space-y-4">
                 {/* User Avatar and Basic Info */}
-                <div className="flex items-center space-x-6 p-6 bg-gradient-to-br from-gray-50 to-gray-100 rounded-xl border border-gray-200">
-                  <div className={`h-20 w-20 bg-gradient-to-br ${getRoleColor(userToView.roleName)} rounded-full flex items-center justify-center shadow-lg ring-4 ring-opacity-20 ring-gray-300`}>
-                    <span className="text-white font-bold text-2xl">
+                <div className="flex items-center space-x-4 p-4 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border border-gray-200">
+                  <div className={`h-14 w-14 bg-gradient-to-br ${getRoleColor(userToView.roleName)} rounded-full flex items-center justify-center shadow-md ring-2 ring-opacity-20 ring-gray-300 flex-shrink-0`}>
+                    <span className="text-white font-bold text-xl">
                       {userToView.fullName ? userToView.fullName.trim().charAt(0).toUpperCase() : 'U'}
                     </span>
                   </div>
-                  <div className="flex-1">
-                    <h4 className="text-2xl font-bold text-gray-900 mb-1">{userToView.fullName}</h4>
-                    <p className="text-lg text-gray-600 mb-2">{userToView.email}</p>
-                    <div className="flex items-center space-x-4">
-                      <span className={`px-3 py-1 inline-flex text-sm font-semibold rounded-full ${getStatusColor(userToView.status)}`}>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-lg font-bold text-gray-900 mb-1.5 truncate">{userToView.fullName}</h4>
+                    <p className="text-sm text-gray-600 mb-2 truncate">{userToView.email}</p>
+                    <div className="flex items-center space-x-2 flex-wrap">
+                      <span className={`px-2.5 py-1 inline-flex text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(userToView.status)}`}>
                         {getStatusText(userToView.status)}
                       </span>
-                      <span className={`px-3 py-1 inline-flex text-sm font-semibold rounded-full bg-gradient-to-r ${getRoleColor(userToView.roleName)} text-white shadow-md`}>
+                      <span className={`px-2.5 py-1 inline-flex text-xs font-semibold rounded-full bg-gradient-to-r ${getRoleColor(userToView.roleName)} text-white shadow-md whitespace-nowrap`}>
                         {userToView.roleName}
                       </span>
                     </div>
@@ -1472,37 +1546,37 @@ function UserManagement() {
                 </div>
 
                 {/* Detailed Information */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                   {/* Personal Information */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                    <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <svg className="w-5 h-5 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                    <h5 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-blue-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                       </svg>
                       Thông tin cá nhân
                     </h5>
-                    <div className="space-y-3">
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <div className="space-y-2.5">
+                      <div className="flex items-center min-w-0">
+                        <svg className="w-4 h-4 mr-2.5 text-gray-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
                           <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
                         </svg>
-                        <span className="text-sm text-gray-600">Email:</span>
-                        <span className="ml-2 text-sm font-medium text-gray-900">{userToView.email}</span>
+                        <span className="text-sm text-gray-600 whitespace-nowrap">Email:</span>
+                        <span className="ml-2 text-sm font-medium text-gray-900 truncate min-w-0">{userToView.email}</span>
                       </div>
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <div className="flex items-center min-w-0">
+                        <svg className="w-4 h-4 mr-2.5 text-gray-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
                           <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
                         </svg>
-                        <span className="text-sm text-gray-600">Số điện thoại:</span>
-                        <span className="ml-2 text-sm font-medium text-gray-900">{userToView.phone}</span>
+                        <span className="text-sm text-gray-600 whitespace-nowrap">Số điện thoại:</span>
+                        <span className="ml-2 text-sm font-medium text-gray-900 whitespace-nowrap">{userToView.phone}</span>
                       </div>
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="flex items-center min-w-0">
+                        <svg className="w-4 h-4 mr-2.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
-                        <span className="text-sm text-gray-600">Trạng thái:</span>
-                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(userToView.status)}`}>
+                        <span className="text-sm text-gray-600 whitespace-nowrap">Trạng thái:</span>
+                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full whitespace-nowrap ${getStatusColor(userToView.status)}`}>
                           {getStatusText(userToView.status)}
                         </span>
                       </div>
@@ -1510,29 +1584,29 @@ function UserManagement() {
                   </div>
 
                   {/* Role and Store Information */}
-                  <div className="bg-white border border-gray-200 rounded-xl p-6 shadow-sm">
-                    <h5 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
-                      <svg className="w-5 h-5 mr-2 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
+                    <h5 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
+                      <svg className="w-5 h-5 mr-2 text-green-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
                       Thông tin vai trò & cửa hàng
                     </h5>
-                    <div className="space-y-3">
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <div className="space-y-2.5">
+                      <div className="flex items-center min-w-0">
+                        <svg className="w-4 h-4 mr-2.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                         </svg>
-                        <span className="text-sm text-gray-600">Vai trò:</span>
-                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full bg-gradient-to-r ${getRoleColor(userToView.roleName)} text-white shadow-md`}>
+                        <span className="text-sm text-gray-600 whitespace-nowrap">Vai trò:</span>
+                        <span className={`ml-2 px-2 py-1 text-xs font-semibold rounded-full bg-gradient-to-r ${getRoleColor(userToView.roleName)} text-white shadow-md whitespace-nowrap`}>
                           {userToView.roleName}
                         </span>
                       </div>
-                      <div className="flex items-center">
-                        <svg className="w-4 h-4 mr-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <div className="flex items-center min-w-0">
+                        <svg className="w-4 h-4 mr-2.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                         </svg>
-                        <span className="text-sm text-gray-600">Cửa hàng:</span>
-                        <span className="ml-2 text-sm font-medium text-gray-900">
+                        <span className="text-sm text-gray-600 whitespace-nowrap">Cửa hàng:</span>
+                        <span className="ml-2 text-sm font-medium text-gray-900 truncate min-w-0">
                           {userToView.roleName === 'Quản trị viên' || userToView.roleName === 'Admin' || userToView.roleName === 'Nhân viên hãng xe' || userToView.roleName === 'EVM Staff' ? 'Không thuộc cửa hàng' : (userToView.storeName || 'Chưa phân công')}
                         </span>
                       </div>
@@ -1541,7 +1615,7 @@ function UserManagement() {
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+                <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                   <motion.button
                     onClick={handleCloseDetailModal}
                     whileHover={{ scale: 1.02 }}
@@ -1557,7 +1631,7 @@ function UserManagement() {
                     }}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-lg hover:shadow-xl flex items-center"
+                    className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg hover:from-blue-600 hover:to-blue-700 transition-all shadow-md hover:shadow-lg flex items-center text-sm"
                   >
                     <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />

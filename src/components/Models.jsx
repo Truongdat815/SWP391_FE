@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedImage from '../components/Animated';
 import { Link } from 'react-router-dom';
 import { get, API_URL } from '@/api/client';
 import { getModelImage, formatNumber } from '../utils/modelHelpers';
 import Tooltip from './ui/Tooltip';
+import Pagination from './ui/Pagination';
 import logo from '../assets/images/logo.png';
 
 // Body types mapping
@@ -27,6 +28,13 @@ const Models = () => {
   const [error, setError] = useState(null);
   const [selectedVehicles, setSelectedVehicles] = useState([]);
   const [showComparison, setShowComparison] = useState(false);
+  // State để lưu màu đã chọn cho mỗi model: { modelId: colorId }
+  const [selectedColors, setSelectedColors] = useState({});
+  // State để hiển thị dropdown chọn màu cho model nào
+  const [showColorPicker, setShowColorPicker] = useState(null);
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 8; // 4 columns x 2 rows
 
   useEffect(() => {
     const fetchData = async () => {
@@ -207,6 +215,84 @@ const Models = () => {
     return model !== undefined;
   });
 
+  // Nhóm modelColors theo modelId và chỉ lấy unique models
+  const uniqueModels = React.useMemo(() => {
+    const modelMap = new Map();
+    displayModelColors.forEach(mc => {
+      if (!modelMap.has(mc.modelId)) {
+        modelMap.set(mc.modelId, {
+          modelId: mc.modelId,
+          colors: []
+        });
+      }
+      modelMap.get(mc.modelId).colors.push(mc);
+    });
+    return Array.from(modelMap.values());
+  }, [displayModelColors]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(uniqueModels.length / itemsPerPage);
+  const paginatedUniqueModels = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return uniqueModels.slice(startIndex, endIndex);
+  }, [uniqueModels, currentPage, itemsPerPage]);
+
+  // Reset to page 1 when uniqueModels change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [uniqueModels.length]);
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Lấy modelColor hiện tại dựa trên màu đã chọn (hoặc màu đầu tiên)
+  const getCurrentModelColor = (modelId) => {
+    const modelGroup = uniqueModels.find(m => m.modelId === modelId);
+    if (!modelGroup || modelGroup.colors.length === 0) return null;
+    
+    const selectedColorId = selectedColors[modelId];
+    if (selectedColorId) {
+      const selected = modelGroup.colors.find(mc => mc.colorId === selectedColorId);
+      if (selected) return selected;
+    }
+    // Nếu chưa chọn màu, trả về màu đầu tiên
+    return modelGroup.colors[0];
+  };
+
+  // Lấy danh sách màu có sẵn cho một model
+  const getAvailableColors = (modelId) => {
+    const modelGroup = uniqueModels.find(m => m.modelId === modelId);
+    return modelGroup ? modelGroup.colors : [];
+  };
+
+  // Xử lý chọn màu
+  const handleColorSelect = (modelId, colorId) => {
+    setSelectedColors(prev => ({
+      ...prev,
+      [modelId]: colorId
+    }));
+    setShowColorPicker(null);
+  };
+
+  // Đóng dropdown khi click bên ngoài
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showColorPicker && !event.target.closest('.color-picker-container')) {
+        setShowColorPicker(null);
+      }
+    };
+
+    if (showColorPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showColorPicker]);
+
   // Transform model to vehicle format for comparison
   const transformModelToVehicle = (model) => {
     const features = model.description 
@@ -303,37 +389,18 @@ const Models = () => {
           viewport={{ once: true }}
           className="text-center mb-16"
         >
-          <div className="flex flex-col md:flex-row items-center justify-between mb-6 gap-4">
-            <div className="flex-1"></div>
-            <div className="flex-1 text-center">
-              <h2 className="text-4xl md:text-5xl font-bold text-gray-900 mb-6">
+          <div className="text-center mb-6">
+              <div className="inline-block mb-4">
+                <span className="px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-sm font-bold text-emerald-700 uppercase tracking-wider">
+                  Sản phẩm
+                </span>
+              </div>
+              <h2 className="text-4xl md:text-5xl font-extrabold text-slate-900 mb-6 tracking-tight">
                 Dòng xe{' '}
-                <span className="bg-gradient-to-r from-green-600 to-green-800 bg-clip-text text-transparent">
-                  <span className="text-green-600">Electra</span>
+                <span className="bg-gradient-to-r from-emerald-600 via-emerald-500 to-sky-600 bg-clip-text text-transparent">
+                  Electra
                 </span>
               </h2>
-            </div>
-            <div className="flex-1 flex justify-center md:justify-end">
-              {displayModelColors.length > 0 && (
-                <motion.button
-                  onClick={() => setShowComparison(true)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  className="px-4 md:px-6 py-2 md:py-3 bg-gradient-to-r from-green-600 to-green-800 text-white rounded-xl font-semibold hover:shadow-lg transition-all duration-300 flex items-center gap-2 text-sm md:text-base"
-                >
-                  <svg className="w-4 h-4 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                  </svg>
-                  <span className="hidden sm:inline">So sánh xe</span>
-                  <span className="sm:hidden">So sánh</span>
-                  {selectedVehicles.length > 0 && (
-                    <span className="bg-white text-green-600 rounded-full px-2 py-0.5 text-xs font-bold">
-                      {selectedVehicles.length}
-                    </span>
-                  )}
-                </motion.button>
-              )}
-            </div>
           </div>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
             Khám phá bộ sưu tập xe điện đa dạng, từ xe đô thị nhỏ gọn đến SUV cao cấp, 
@@ -381,16 +448,21 @@ const Models = () => {
           </div>
         )}
 
-        {/* Vehicle Grid - Display Model-Colors */}
-        {!loading && !error && displayModelColors.length > 0 && (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {displayModelColors.map((modelColor, index) => {
-              const modelDetails = getModelDetails(modelColor.modelId);
-              const imageUrl = getImageUrl(modelColor.imagePath) || getModelImage(getModelName(modelColor.modelId));
+        {/* Vehicle Grid - Display Unique Models */}
+        {!loading && !error && uniqueModels.length > 0 && (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {paginatedUniqueModels.map((modelGroup, index) => {
+              const currentModelColor = getCurrentModelColor(modelGroup.modelId);
+              if (!currentModelColor) return null;
+              
+              const modelDetails = getModelDetails(modelGroup.modelId);
+              const imageUrl = getImageUrl(currentModelColor.imagePath) || getModelImage(getModelName(modelGroup.modelId));
+              const availableColors = getAvailableColors(modelGroup.modelId);
               
               return (
             <motion.div
-              key={modelColor.modelColorId || `${modelColor.modelId}-${modelColor.colorId}-${index}`}
+              key={modelGroup.modelId}
               initial={{ opacity: 0, y: 30 }}
               whileInView={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.6, delay: index * 0.05 }}
@@ -399,18 +471,19 @@ const Models = () => {
                 y: -8,
                 transition: { duration: 0.3, ease: "easeOut" }
               }}
-              className="group bg-white rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 overflow-hidden border border-gray-100"
+              className="group bg-white rounded-2xl shadow-md hover:shadow-2xl transition-all duration-500 overflow-hidden border border-slate-200/60 hover:border-emerald-300/60"
             >
               {/* Image Container */}
               <div className="relative h-48 overflow-hidden bg-gradient-to-br from-gray-100 to-gray-200">
                 {imageUrl ? (
                   <AnimatedImage
                     src={imageUrl}
-                    alt={`${getModelName(modelColor.modelId)} - ${getColorName(modelColor.colorId)}`}
+                    alt={`${getModelName(modelGroup.modelId)} - ${getColorName(currentModelColor.colorId)}`}
+                    key={`${modelGroup.modelId}-${currentModelColor.colorId}`}
                     className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     onError={(e) => {
                       console.log('Image failed to load, using fallback');
-                      const fallbackImage = getModelImage(getModelName(modelColor.modelId));
+                      const fallbackImage = getModelImage(getModelName(modelGroup.modelId));
                       if (e?.target && e.target.src !== fallbackImage) {
                         e.target.src = fallbackImage;
                       } else if (e?.target) {
@@ -429,7 +502,7 @@ const Models = () => {
                 {/* Body Type Badge */}
                 {modelDetails?.bodyType && (
                   <div className="absolute top-4 left-4">
-                    <span className="bg-gradient-to-r from-green-600 to-green-800 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                    <span className="bg-gradient-to-r from-slate-900/90 to-slate-800/90 backdrop-blur-sm text-white px-4 py-1.5 rounded-full text-xs font-bold tracking-wide border border-white/10">
                       {modelDetails.bodyType}
                     </span>
                   </div>
@@ -440,9 +513,9 @@ const Models = () => {
                   <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 shadow-md">
                     <div 
                       className="w-4 h-4 rounded-full border-2 border-white shadow-sm"
-                      style={{ backgroundColor: getColorCode(modelColor.colorId) }}
+                      style={{ backgroundColor: getColorCode(currentModelColor.colorId) }}
                     />
-                    <span className="text-sm font-medium text-gray-700">{getColorName(modelColor.colorId)}</span>
+                    <span className="text-sm font-medium text-gray-700">{getColorName(currentModelColor.colorId)}</span>
                   </div>
                 </div>
 
@@ -481,7 +554,7 @@ const Models = () => {
               {/* Content */}
               <div className="p-6">
                 <h3 className="text-xl font-bold text-gray-900 mb-2 group-hover:text-green-600 transition-colors duration-300">
-                  {getModelName(modelColor.modelId)}
+                  {getModelName(modelGroup.modelId)}
                 </h3>
                 <p className="text-gray-600 text-sm mb-4">
                   {modelDetails?.modelYear ? `Model ${modelDetails.modelYear}` : 'Mẫu xe điện thông minh'}
@@ -532,77 +605,94 @@ const Models = () => {
                     </div>
                   </>
                 ) : null}
-                
-                {/* Price */}
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-2xl font-bold text-green-600">
-                    {modelColor.price && modelColor.price > 0 
-                      ? `${Number(modelColor.price).toLocaleString('vi-VN')} VNĐ` 
-                      : 'Liên hệ'}
-                  </span>
-                </div>
 
                 {/* Actions */}
                 <div className="flex gap-2">
                   <Tooltip content="Xem thông số kỹ thuật chi tiết và hình ảnh của mẫu xe" placement="top">
-                    <Link to={`/car/${modelColor.modelId}`} className="flex-1">
+                    <Link to={`/car/${modelGroup.modelId}`} className="flex-1">
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className="w-full bg-[#6CA12B] text-white py-3 rounded-xl font-semibold hover:shadow-lg transition-all duration-300"
+                        className="w-full bg-gradient-to-r from-emerald-600 to-emerald-500 text-white py-3 rounded-xl font-bold shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 transition-all duration-300"
                       >
                         Xem chi tiết
                       </motion.button>
                     </Link>
                   </Tooltip>
-                  {isVehicleSelected(modelColor.modelId) ? (
-                    <Tooltip content="Xóa khỏi danh sách so sánh" placement="top">
+                  
+                  {/* Color Picker Button */}
+                  <div className="relative color-picker-container">
+                    <Tooltip content="Chọn màu xe" placement="top">
                       <motion.button
-                        onClick={() => removeVehicleFromComparison(modelColor.modelId)}
+                        onClick={() => setShowColorPicker(showColorPicker === modelGroup.modelId ? null : modelGroup.modelId)}
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
-                        className="px-4 py-3 bg-red-500 text-white rounded-xl font-semibold hover:bg-red-600 transition-all duration-300"
+                        className="px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-semibold transition-all duration-300 flex items-center gap-2"
                       >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
                         </svg>
                       </motion.button>
                     </Tooltip>
-                  ) : (
-                    <Tooltip 
-                      content={canAddToComparison(modelColor.modelId) ? "Thêm vào so sánh" : "Đã đạt tối đa 3 xe để so sánh"} 
-                      placement="top"
-                    >
-                      <motion.button
-                        onClick={() => {
-                          const model = models.find(m => m.modelId === modelColor.modelId);
-                          if (model) addVehicleToComparison(model);
-                        }}
-                        disabled={!canAddToComparison(modelColor.modelId)}
-                        whileHover={{ scale: canAddToComparison(modelColor.modelId) ? 1.05 : 1 }}
-                        whileTap={{ scale: canAddToComparison(modelColor.modelId) ? 0.95 : 1 }}
-                        className={`px-4 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                          canAddToComparison(modelColor.modelId)
-                            ? 'bg-blue-500 text-white hover:bg-blue-600'
-                            : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                        }`}
-                      >
-                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                      </motion.button>
-                    </Tooltip>
-                  )}
+                    
+                    {/* Color Picker Dropdown */}
+                    {showColorPicker === modelGroup.modelId && (
+                      <div className="absolute right-0 bottom-full mb-2 bg-white rounded-xl shadow-2xl border border-gray-200 p-4 z-50 min-w-[200px] color-picker-container">
+                        <div className="text-xs font-semibold text-gray-500 mb-3 uppercase tracking-wide">
+                          Chọn màu xe
+                        </div>
+                        <div className="space-y-2 max-h-64 overflow-y-auto">
+                          {availableColors.map((mc) => (
+                            <button
+                              key={mc.modelColorId || `${mc.modelId}-${mc.colorId}`}
+                              onClick={() => handleColorSelect(modelGroup.modelId, mc.colorId)}
+                              className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all duration-200 ${
+                                currentModelColor.colorId === mc.colorId
+                                  ? 'bg-green-50 border-2 border-green-500'
+                                  : 'hover:bg-gray-50 border-2 border-transparent'
+                              }`}
+                            >
+                              <div 
+                                className="w-6 h-6 rounded-full border-2 border-white shadow-sm flex-shrink-0"
+                                style={{ backgroundColor: getColorCode(mc.colorId) }}
+                              />
+                              <div className="flex-1 text-left">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {getColorName(mc.colorId)}
+                                </div>
+                              </div>
+                              {currentModelColor.colorId === mc.colorId && (
+                                <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                </svg>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </motion.div>
               );
             })}
-          </div>
+            </div>
+
+            {/* Pagination */}
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              itemsPerPage={itemsPerPage}
+              totalItems={uniqueModels.length}
+              showInfo={true}
+            />
+          </>
         )}
 
-        {/* CTA Section - Only show when there are model-colors */}
-        {!loading && !error && displayModelColors.length > 0 && (
+        {/* CTA Section - Only show when there are models */}
+        {!loading && !error && uniqueModels.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           whileInView={{ opacity: 1, y: 0 }}
@@ -610,11 +700,11 @@ const Models = () => {
           viewport={{ once: true }}
           className="text-center mt-16"
         >
-          <div className="bg-gradient-to-r from-green-600 to-green-800 rounded-2xl p-8 text-white">
+          <div className="bg-gradient-to-br from-slate-900 via-emerald-950 to-slate-900 rounded-2xl p-8 text-white border border-emerald-500/20 shadow-2xl">
             <h3 className="text-3xl font-bold mb-4">
               Chưa tìm thấy mẫu xe phù hợp?
             </h3>
-            <p className="text-blue-100 mb-6 max-w-2xl mx-auto">
+            <p className="text-slate-200 mb-6 max-w-2xl mx-auto text-lg">
               Liên hệ với đội ngũ tư vấn chuyên nghiệp của chúng tôi để được hỗ trợ 
               tìm kiếm mẫu xe phù hợp nhất với nhu cầu của bạn.
             </p>
@@ -622,7 +712,7 @@ const Models = () => {
               href="/signin"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              className="bg-white text-green-600 px-8 py-4 rounded-full font-semibold hover:shadow-lg transition-all duration-300 inline-block text-center"
+              className="bg-white text-emerald-600 px-8 py-4 rounded-xl font-bold shadow-xl hover:shadow-2xl transition-all duration-300 inline-block text-center"
             >
               Liên hệ với đại lí 
             </motion.a>

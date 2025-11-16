@@ -18,12 +18,14 @@ import {
   CheckCircle,
   X,
   Package,
-  FileText
+  FileText,
+  ArrowUpDown
 } from 'lucide-react';
 
 
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import Pagination from '../../components/ui/Pagination';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
 import StatusBadge from '../../components/ui/StatusBadge';
@@ -45,8 +47,11 @@ function OrderManagement() {
   const [filteredOrders, setFilteredOrders] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [sortOrder, setSortOrder] = useState('newest'); // 'newest' or 'oldest'
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
   
   // Bulk delete state
   const [selectedOrderIds, setSelectedOrderIds] = useState([]);
@@ -89,11 +94,36 @@ function OrderManagement() {
       });
     }
 
+    // Sort by date (newest first by default)
+    filtered.sort((a, b) => {
+      const dateA = a.orderDate ? new Date(a.orderDate).getTime() : 0;
+      const dateB = b.orderDate ? new Date(b.orderDate).getTime() : 0;
+      
+      if (sortOrder === 'newest') {
+        return dateB - dateA; // Newest first
+      } else {
+        return dateA - dateB; // Oldest first
+      }
+    });
+
     setFilteredOrders(filtered);
     
     // Clear selections when filters change
     setSelectedOrderIds([]);
-  }, [searchTerm, statusFilter, orders]);
+    setCurrentPage(1); // Reset to page 1 when filters change
+  }, [searchTerm, statusFilter, sortOrder, orders]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
+  const paginatedOrders = filteredOrders.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const getStatusColor = (status) => {
     if (!status) return 'bg-gray-100 text-gray-800';
@@ -105,6 +135,9 @@ function OrderManagement() {
       case 'confirmed':
       case 'đã xác nhận':
         return 'bg-blue-100 text-blue-800';
+      case 'contract_signed':
+      case 'đã ký hợp đồng':
+        return 'bg-indigo-100 text-indigo-800';
       case 'processing':
       case 'đang xử lý':
         return 'bg-purple-100 text-purple-800';
@@ -125,9 +158,11 @@ function OrderManagement() {
     switch (lowerStatus) {
       case 'pending': return 'Chờ duyệt';
       case 'confirmed': return 'Đã xác nhận';
+      case 'contract_signed': return 'Đã ký hợp đồng';
       case 'processing': return 'Đang xử lý';
       case 'completed': return 'Hoàn thành';
       case 'cancelled': return 'Đã hủy';
+      case 'canceled': return 'Đã hủy';
       default: return status;
     }
   };
@@ -339,6 +374,19 @@ function OrderManagement() {
                 <option value="cancelled">Đã hủy</option>
               </select>
             </div>
+            <div className="sm:w-48">
+              <div className="relative">
+                <ArrowUpDown className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <select
+                  value={sortOrder}
+                  onChange={(e) => setSortOrder(e.target.value)}
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent appearance-none bg-white"
+                >
+                  <option value="newest">Mới nhất trước</option>
+                  <option value="oldest">Cũ nhất trước</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           {/* Bulk Delete Button */}
@@ -424,7 +472,7 @@ function OrderManagement() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {filteredOrders.map((order) => (
+                {paginatedOrders.map((order) => (
                   <tr 
                     key={order.orderId} 
                     className={`hover:bg-gray-50 transition-colors ${
@@ -481,6 +529,18 @@ function OrderManagement() {
               </tbody>
             </table>
           </div>
+        )}
+        
+        {/* Pagination */}
+        {!loading && filteredOrders.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            itemsPerPage={itemsPerPage}
+            totalItems={filteredOrders.length}
+            showInfo={true}
+          />
         )}
       </div>
 

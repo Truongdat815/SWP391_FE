@@ -8,6 +8,7 @@ import { getAllModelColorsThunk } from '../../store/slices/modelColorSlice';
 import { showSuccess, showError, showWarning } from '../../store/slices/snackbarSlice';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import Pagination from '../../components/ui/Pagination';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
 
@@ -27,6 +28,8 @@ function Inventory() {
   const [inventory, setInventory] = useState([]);
   const [filteredInventory, setFilteredInventory] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
   const [expandedModels, setExpandedModels] = useState(new Set());
   const [reportModal, setReportModal] = useState(false);
   const [createModal, setCreateModal] = useState(false);
@@ -111,14 +114,27 @@ function Inventory() {
     } else {
       const filtered = inventory.filter(vehicle =>
         vehicle.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        vehicle.colors.some(colorItem => 
+        vehicle.colors.some(colorItem =>
           colorItem.color.toLowerCase().includes(searchTerm.toLowerCase()) ||
           colorItem.storeName?.toLowerCase().includes(searchTerm.toLowerCase())
         )
       );
       setFilteredInventory(filtered);
     }
+    setCurrentPage(1); // Reset to page 1 when filter changes
   }, [searchTerm, inventory]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredInventory.length / itemsPerPage);
+  const paginatedInventory = filteredInventory.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleSearchChange = (e) => {
     setSearchTerm(e.target.value);
@@ -573,7 +589,7 @@ function Inventory() {
 
         {/* Vehicle Cards Grid */}
         <div className="space-y-4">
-          {filteredInventory.map((vehicle) => (
+          {paginatedInventory.map((vehicle) => (
             <div key={vehicle.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 hover:shadow-md transition-shadow">
               {/* Vehicle Header */}
               <div className="flex items-center justify-between mb-4">
@@ -665,7 +681,7 @@ function Inventory() {
           ))}
         </div>
 
-        {filteredInventory.length === 0 && storeStocksStatus === 'succeeded' && (
+        {paginatedInventory.length === 0 && filteredInventory.length === 0 && storeStocksStatus === 'succeeded' && (
           <div className="text-center py-4">
             <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
@@ -680,6 +696,18 @@ function Inventory() {
               }
             </p>
           </div>
+        )}
+
+        {/* Pagination */}
+        {filteredInventory.length > 0 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={handlePageChange}
+            itemsPerPage={itemsPerPage}
+            totalItems={filteredInventory.length}
+            showInfo={true}
+          />
         )}
       </div>
 

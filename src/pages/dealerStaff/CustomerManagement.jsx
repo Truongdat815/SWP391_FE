@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import Pagination from '../../components/ui/Pagination';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
 import { ModernTable, ModernTableHead, ModernTableHeader, ModernTableBody, ModernTableRow, ModernTableCell } from '../../components/ui/ModernTable';
@@ -130,6 +131,8 @@ function CustomerManagement() {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
   const [showAddModal, setShowAddModal] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   // Tự động mở modal thêm khách hàng nếu có query param add=new
   useEffect(() => {
@@ -863,7 +866,7 @@ function CustomerManagement() {
                 roleColor="blue"
               />
             ) : (
-              <ModernTable>
+              <ModernTable className="border-0 shadow-none">
                 <ModernTableHead>
                   <tr>
                     <ModernTableHeader>Khách hàng</ModernTableHeader>

@@ -106,11 +106,10 @@ const NotificationBell = ({ brandColor = 'red', basePath = '', onNotificationCli
       }
     };
 
+    // Initial load only - no auto-polling, using realtime updates instead
     loadNotifications();
     
-    // Poll every 30 seconds for new notifications
-    const interval = setInterval(loadNotifications, 30000);
-    return () => clearInterval(interval);
+    // Removed polling interval - using realtime updates instead
   }, [dispatch]);
 
   // Tính notification count và list dựa trên role
@@ -552,10 +551,16 @@ const BaseLayout = ({
 
   const currentMenu = menuItems.find(m => m.path === location.pathname);
 
+  // Title mapping for pages not in menu items
+  const pageTitles = {
+    '/dealer-staff/create-order': 'Tạo đơn hàng',
+  };
+
   // Subtitle mapping for each page
   const pageSubtitles = {
     '/dealer-staff/dashboard': 'Tổng quan bán hàng và thống kê',
     '/dealer-staff/order-management': 'Quản lý và theo dõi đơn hàng của bạn',
+    '/dealer-staff/create-order': 'Tạo đơn hàng mới cho khách hàng',
     '/dealer-staff/customer-management': 'Quản lý thông tin và lịch sử khách hàng',
     '/dealer-staff/contract-management': 'Danh sách hợp đồng đã tạo - Xem và upload hợp đồng đã ký',
     '/dealer-staff/payment-management': 'Thanh toán cho các hợp đồng đã có chữ ký',
@@ -810,7 +815,7 @@ const BaseLayout = ({
           <div className="flex items-center justify-between w-full">
             <div>
               <h2 className="text-2xl font-bold text-gray-900">
-                {currentMenu?.name || defaultTitle}
+                {currentMenu?.name || pageTitles[location.pathname] || defaultTitle}
               </h2>
               {pageSubtitles[location.pathname] && (
                 <p className="text-gray-600 text-sm mt-1">{pageSubtitles[location.pathname]}</p>
