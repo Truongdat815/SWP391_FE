@@ -11,6 +11,7 @@ import {
 } from '../../store/slices/orderSlice';
 import { fetchAllContractsThunk, createContractFromOrderThunk } from '../../store/slices/contractSlice';
 import { getOrderById } from '../../api/orderService';
+import { getContractById } from '../../api/contractService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -164,6 +165,10 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [ordersWithContracts, setOrdersWithContracts] = useState({}); // Map orderId -> contract
   const [creatingContract, setCreatingContract] = useState(null);
+  const [showContractImageModal, setShowContractImageModal] = useState(false);
+  const [contractImage, setContractImage] = useState(null);
+  const [loadingContractImage, setLoadingContractImage] = useState(false);
+  const [contractInfo, setContractInfo] = useState(null);
   // Sort mode - always newest (auto sorted)
   const sortMode = 'newest';
   const sortOrders = (arr, mode = 'newest') => {
@@ -603,6 +608,69 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
     }
   };
 
+  // Handle viewing contract image from order's urlContractFile (direct URL)
+  const handleViewContractImageFromOrder = (imageUrl, order) => {
+    try {
+      setShowContractImageModal(true);
+      setContractImage(imageUrl);
+      
+      // Set contract info from order
+      const contract = ordersWithContracts[order.orderId];
+      if (contract) {
+        setContractInfo(contract);
+      } else {
+        // Create minimal contract info from order
+        setContractInfo({
+          contractCode: order.orderCode || order.orderId || 'N/A',
+          orderCode: order.orderCode,
+          customerName: order.customerName,
+          contractDate: order.orderDate
+        });
+      }
+    } catch (err) {
+      console.error('Error displaying contract image:', err);
+      showError('Không thể hiển thị ảnh hợp đồng');
+      setShowContractImageModal(false);
+    }
+  };
+
+  // Handle viewing contract image by calling API
+  const handleViewContractImage = async (contractId) => {
+    try {
+      setLoadingContractImage(true);
+      setShowContractImageModal(true);
+      
+      // Call API /api/contracts/{id} to get contract
+      const contractData = await getContractById(contractId);
+      
+      // Extract contract info
+      const contract = contractData?.data || contractData;
+      setContractInfo(contract);
+      
+      // Get signed contract image URL
+      const imageUrl = contract?.signedContractFileUrl || contract?.contractFileUrl;
+      
+      if (imageUrl) {
+        setContractImage(imageUrl);
+      } else {
+        showError('Hợp đồng này chưa có ảnh đã ký');
+        setShowContractImageModal(false);
+      }
+    } catch (err) {
+      console.error('Error loading contract image:', err);
+      showError('Không thể tải ảnh hợp đồng: ' + (err.message || err));
+      setShowContractImageModal(false);
+    } finally {
+      setLoadingContractImage(false);
+    }
+  };
+
+  const handleCloseContractImageModal = () => {
+    setShowContractImageModal(false);
+    setContractImage(null);
+    setContractInfo(null);
+  };
+
   return (
     <div className="w-full">
       {/* Toast Notifications */}
@@ -858,28 +926,37 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
                         {getStatusText(order.status)}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-center">
                       {(() => {
+                        // Check if order has urlContractFile (from API response)
+                        const hasUrlContractFile = order.urlContractFile && order.urlContractFile !== 'null' && order.urlContractFile.trim() !== '';
+                        
+                        // Check if contract exists and has signed image (fallback)
                         const contract = ordersWithContracts[order.orderId];
-                        if (contract) {
+                        const hasContractImage = contract && (contract.signedContractFileUrl || contract.contractFileUrl);
+                        
+                        // Show button if order has urlContractFile or contract has image
+                        if (hasUrlContractFile || hasContractImage) {
                           return (
                             <button
-                              onClick={() => navigate('/dealer-staff/contract-management')}
+                              onClick={() => {
+                                // If order has urlContractFile, use it directly; otherwise get from contract
+                                if (hasUrlContractFile) {
+                                  handleViewContractImageFromOrder(order.urlContractFile, order);
+                                } else if (contract) {
+                                  handleViewContractImage(contract.contractId);
+                                }
+                              }}
                               className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-green-100 text-green-800 hover:bg-green-200 transition-colors"
                             >
                               <CheckCircle className="h-3 w-3 mr-1" />
                               Đã có
                             </button>
                           );
-                        } else if (order.status?.toUpperCase() === 'CONFIRMED') {
-                          return (
-                            <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-md bg-gray-100 text-gray-800">
-                              Chưa có
-                            </span>
-                          );
                         } else {
+                          // Show "-" centered if no contract image
                           return (
-                            <span className="inline-flex px-2 py-0.5 text-xs font-semibold rounded-md bg-gray-100 text-gray-400">
+                            <span className="inline-block text-center text-xs font-semibold text-gray-400">
                               -
                             </span>
                           );
@@ -1403,6 +1480,104 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
                 </div>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal for Contract Signed Image */}
+      <AnimatePresence>
+        {showContractImageModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+            onClick={handleCloseContractImageModal}
+          >
+            {loadingContractImage ? (
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ 
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center justify-center bg-white rounded-lg p-8"
+              >
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mr-3" />
+                <span className="text-gray-600 font-medium">Đang tải ảnh hợp đồng...</span>
+              </motion.div>
+            ) : contractImage ? (
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ 
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="relative inline-block max-w-[90vw] max-h-[90vh]"
+              >
+                {/* Close Button - positioned close to image */}
+                <button
+                  onClick={handleCloseContractImageModal}
+                  className="absolute -top-2 -right-2 z-10 bg-black/70 hover:bg-black/90 text-white rounded-full p-2 transition-all shadow-lg"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                
+                {/* Image */}
+                <img 
+                  src={contractImage} 
+                  alt="Hợp đồng đã ký"
+                  className="max-w-full max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                  onError={(e) => {
+                    console.error('Error loading contract image:', e);
+                    showError('Không thể tải ảnh hợp đồng. URL có thể không hợp lệ.');
+                    setContractImage(null);
+                  }}
+                  onLoad={(e) => {
+                    // Image loaded successfully
+                    const img = e.target;
+                    // Ensure image fits within viewport
+                    const maxWidth = window.innerWidth * 0.9;
+                    const maxHeight = window.innerHeight * 0.9;
+                    
+                    if (img.naturalWidth > maxWidth || img.naturalHeight > maxHeight) {
+                      const ratio = Math.min(maxWidth / img.naturalWidth, maxHeight / img.naturalHeight);
+                      img.style.maxWidth = `${img.naturalWidth * ratio}px`;
+                      img.style.maxHeight = `${img.naturalHeight * ratio}px`;
+                    }
+                  }}
+                />
+              </motion.div>
+            ) : (
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ 
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="flex flex-col items-center justify-center bg-white rounded-lg p-12"
+              >
+                <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
+                <h4 className="text-lg font-semibold text-gray-900 mb-2">Không có ảnh hợp đồng</h4>
+                <p className="text-sm text-gray-600 text-center max-w-md">
+                  Hợp đồng này chưa có ảnh đã ký. Vui lòng upload ảnh hợp đồng đã ký trước khi xem.
+                </p>
+              </motion.div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

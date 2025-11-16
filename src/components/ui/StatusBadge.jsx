@@ -7,24 +7,27 @@ const getStatusText = (status) => {
   
   const upperStatus = status.toUpperCase();
   const statusMap = {
+    'DRAFT': 'Bản nháp',
     'PENDING': 'Chờ xử lý',
+    'SIGNED': 'Đã ký',
+    'DEPOSIT_PAID': 'Đã đặt cọc',
+    'FULLY_PAID': 'Đã thanh toán',
+    'COMPLETED': 'Hoàn thành',
+    'CANCELLED': 'Đã hủy',
+    'EXPIRED': 'Hết hạn',
     'ACCEPTED': 'Đã chấp nhận',
     'APPROVED': 'Đã duyệt',
     'CONFIRMED': 'Đã xác nhận',
-    'CONTRACT_PENDING': 'Chờ ký hợp đồng',
-    'CONTRACT_SIGNED': 'Đã ký hợp đồng',
+    'CONTRACT_PENDING': 'Chờ ký',
+    'CONTRACT_SIGNED': 'Đã ký',
     'FILE_UPLOADED': 'Đã upload',
     'PAYMENT_CONFIRMED': 'Đã thanh toán',
-    'FULLY_PAID': 'Đã thanh toán đủ',
-    'SHIPPING': 'Đang vận chuyển',
-    'IN_TRANSIT': 'Đang vận chuyển',
-    'COMPLETED': 'Đã hoàn thành',
-    'DELIVERED': 'Đã giao hàng',
+    'SHIPPING': 'Vận chuyển',
+    'IN_TRANSIT': 'Vận chuyển',
+    'DELIVERED': 'Đã giao',
     'FINISH': 'Hoàn thành',
-    'REJECTED': 'Đã từ chối',
-    'CANCELLED': 'Đã hủy',
+    'REJECTED': 'Từ chối',
     'CANCELED': 'Đã hủy',
-    'DRAFT': 'Bản nháp',
     'PROCESSING': 'Đang xử lý'
   };
   
@@ -33,9 +36,9 @@ const getStatusText = (status) => {
 
 const StatusBadge = ({ status, size = 'md' }) => {
   const sizes = {
-    sm: 'px-2 py-1 text-xs',
-    md: 'px-3 py-1.5 text-sm',
-    lg: 'px-4 py-2 text-base'
+    sm: 'px-2 py-1 text-xs min-w-[70px]',
+    md: 'px-3 py-1.5 text-sm min-w-[90px]',
+    lg: 'px-4 py-2 text-base min-w-[110px]'
   };
 
   const upperStatus = status?.toUpperCase();
