@@ -349,9 +349,30 @@ function ViewContracts() {
 
 
   const getStatusText = (status) => {
-    if (!status) return status || 'N/A';
-    // Return status in English as from API response
-    return status.toUpperCase();
+    if (!status) return 'Không xác định';
+    const upperStatus = status.toUpperCase();
+    const statusMap = {
+      'PENDING': 'Chờ xử lý',
+      'DRAFT': 'Bản nháp',
+      'ACCEPTED': 'Đã chấp nhận',
+      'APPROVED': 'Đã duyệt',
+      'CONFIRMED': 'Đã xác nhận',
+      'CONTRACT_PENDING': 'Chờ ký hợp đồng',
+      'CONTRACT_SIGNED': 'Đã ký hợp đồng',
+      'FILE_UPLOADED': 'Đã upload',
+      'PAYMENT_CONFIRMED': 'Đã thanh toán',
+      'FULLY_PAID': 'Đã thanh toán đủ',
+      'SHIPPING': 'Đang vận chuyển',
+      'IN_TRANSIT': 'Đang vận chuyển',
+      'COMPLETED': 'Đã hoàn thành',
+      'DELIVERED': 'Đã giao hàng',
+      'FINISH': 'Hoàn thành',
+      'REJECTED': 'Đã từ chối',
+      'CANCELLED': 'Đã hủy',
+      'CANCELED': 'Đã hủy',
+      'PROCESSING': 'Đang xử lý'
+    };
+    return statusMap[upperStatus] || status;
   };
 
   return (
@@ -481,109 +502,148 @@ function ViewContracts() {
               </div>
             </div>
 
-            {/* Table */}
-            {loading ? (
-              <TableSkeleton rows={5} />
-            ) : filteredContracts.length === 0 ? (
-              <EmptyState
-                title={searchTerm ? 'Không tìm thấy hợp đồng' : 'Chưa có hợp đồng'}
-                description={searchTerm ? 'Thử thay đổi từ khóa tìm kiếm' : 'Các hợp đồng đã tạo sẽ xuất hiện ở đây'}
-                icon="file"
-                roleColor="emerald"
-              />
-            ) : (
-              <ModernTable className="border-0 shadow-none">
-                <ModernTableHead>
-                  <tr>
-                    <ModernTableHeader>Mã hợp đồng</ModernTableHeader>
-                    <ModernTableHeader>Mã đơn hàng</ModernTableHeader>
-                    <ModernTableHeader>Ngày tạo</ModernTableHeader>
-                    <ModernTableHeader>Trạng thái</ModernTableHeader>
-                    <ModernTableHeader>Tổng thanh toán</ModernTableHeader>
-                    <ModernTableHeader className="text-right">Thao tác</ModernTableHeader>
-                  </tr>
-                </ModernTableHead>
-                <ModernTableBody>
-                  {filteredContracts.map((contract, index) => (
-                    <ModernTableRow key={contract.contractId} index={index}>
-                      <ModernTableCell>
-                        <div className="text-sm font-medium text-gray-900">{contract.contractCode || 'N/A'}</div>
-                      </ModernTableCell>
-                      <ModernTableCell>
-                        <button
-                          onClick={() => handleViewOrder(contract)}
-                          className="text-blue-600 hover:text-blue-900 hover:underline transition-colors font-medium text-sm"
+      {/* Contracts Table */}
+      <div className="bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden">
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-2" />
+            <span className="text-gray-600 text-sm">Đang tải hợp đồng...</span>
+          </div>
+        ) : filteredContracts.length === 0 ? (
+          <div className="text-center py-8">
+            <Package className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+            <p className="text-gray-500 text-base">Không có hợp đồng nào</p>
+            <p className="text-gray-400 text-xs mt-1.5">Các hợp đồng đã tạo sẽ xuất hiện ở đây</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Mã hợp đồng
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Mã đơn hàng
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Ngày tạo
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Trạng thái
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Tổng thanh toán
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    TẢI TỆP
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Hợp đồng đã ký
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                    Thao tác
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {filteredContracts.map((contract) => (
+                  <tr key={contract.contractId} className="hover:bg-gray-50">
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-gray-900">
+                      {contract.contractCode || 'N/A'}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
+                      <button
+                        onClick={() => handleViewOrder(contract)}
+                        className="text-blue-600 hover:text-blue-900 hover:underline transition-colors font-medium"
+                      >
+                        {contract.orderCode || 'N/A'}
+                      </button>
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
+                      {contract.contractDate ? new Date(contract.contractDate).toLocaleDateString('vi-VN') : 'N/A'}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      <StatusBadge status={contract.status || 'PENDING'} size="sm" />
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900 font-medium">
+                      {(contract.totalPayment || 0).toLocaleString('vi-VN')} VNĐ
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
+                      {contract.signedContractFileUrl || contract.contractFileUrl ? (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-green-100 text-green-800">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Đã tải tệp
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-yellow-100 text-yellow-800">
+                          <AlertCircle className="h-3 w-3 mr-1" />
+                          Chưa tải tệp
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
+                      {(contract.signedContractFileUrl || contract.contractFileUrl) ? (
+                        <a 
+                          href={contract.signedContractFileUrl || contract.contractFileUrl} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-900 transition-colors underline font-medium text-xs"
                         >
-                          {contract.orderCode || 'N/A'}
+                          Xem hợp đồng đã ký
+                        </a>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleViewContractDetail(contract)}
+                          className="text-purple-600 hover:text-purple-900 transition-colors"
+                          title="Xem chi tiết hợp đồng"
+                        >
+                          <FileText className="h-4 w-4" />
                         </button>
-                      </ModernTableCell>
-                      <ModernTableCell>
-                        <div className="text-sm text-gray-900">
-                          {contract.contractDate ? new Date(contract.contractDate).toLocaleDateString('vi-VN') : 'N/A'}
-                        </div>
-                      </ModernTableCell>
-                      <ModernTableCell>
-                        <StatusBadge status={contract.status || 'PENDING'} size="sm" />
-                      </ModernTableCell>
-                      <ModernTableCell>
-                        <div className="text-sm text-gray-900 font-medium">
-                          {(contract.totalPayment || 0).toLocaleString('vi-VN')} VNĐ
-                        </div>
-                      </ModernTableCell>
-                      <ModernTableCell>
-                        <div className="flex items-center justify-end gap-1.5">
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => handleViewContractDetail(contract)}
-                            className="p-1.5 rounded-lg bg-purple-50 text-purple-600 hover:bg-purple-100 transition-all"
-                            title="Xem chi tiết hợp đồng"
+                        <button
+                          onClick={() => handleViewContract(contract)}
+                          className="text-emerald-600 hover:text-emerald-900 transition-colors"
+                          title="Xem hợp đồng HTML"
+                        >
+                          <Eye className="h-4 w-4" />
+                        </button>
+                        
+                        {!(contract.signedContractFileUrl || contract.contractFileUrl) ? (
+                          <button
+                            onClick={() => handleUploadClick(contract)}
+                            disabled={uploadingContract === contract.contractId}
+                            className="text-blue-600 hover:text-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            title="Upload hợp đồng đã ký"
                           >
-                            <FileText className="h-4 w-4" />
-                          </motion.button>
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => handleViewContract(contract)}
-                            className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600 hover:bg-emerald-100 transition-all"
-                            title="Xem hợp đồng HTML"
+                            {uploadingContract === contract.contractId ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Upload className="h-4 w-4" />
+                            )}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handlePaymentClick(contract)}
+                            className="text-green-600 hover:text-green-900 transition-colors"
+                            title="Quản lý thanh toán"
                           >
-                            <Eye className="h-4 w-4" />
-                          </motion.button>
-                          
-                          {!(contract.signedContractFileUrl || contract.contractFileUrl) ? (
-                            <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={() => handleUploadClick(contract)}
-                              disabled={uploadingContract === contract.contractId}
-                              className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                              title="Upload hợp đồng đã ký"
-                            >
-                              {uploadingContract === contract.contractId ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Upload className="h-4 w-4" />
-                              )}
-                            </motion.button>
-                          ) : (
-                            <motion.button
-                              whileHover={{ scale: 1.1 }}
-                              whileTap={{ scale: 0.9 }}
-                              onClick={() => handlePaymentClick(contract)}
-                              className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-all"
-                              title="Quản lý thanh toán"
-                            >
-                              <CreditCard className="h-4 w-4" />
-                            </motion.button>
-                          )}
-                        </div>
-                      </ModernTableCell>
-                    </ModernTableRow>
-                  ))}
-                </ModernTableBody>
-              </ModernTable>
-            )}
+                            <CreditCard className="h-4 w-4" />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
           </ModernCardContent>
         </ModernCard>
       </div>

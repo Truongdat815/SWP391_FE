@@ -154,17 +154,29 @@ function OrderManagement() {
 
   const getStatusText = (status) => {
     if (!status) return 'Không xác định';
-    const lowerStatus = status.toLowerCase();
-    switch (lowerStatus) {
-      case 'pending': return 'Chờ duyệt';
-      case 'confirmed': return 'Đã xác nhận';
-      case 'contract_signed': return 'Đã ký hợp đồng';
-      case 'processing': return 'Đang xử lý';
-      case 'completed': return 'Hoàn thành';
-      case 'cancelled': return 'Đã hủy';
-      case 'canceled': return 'Đã hủy';
-      default: return status;
-    }
+    const upperStatus = status.toUpperCase();
+    const statusMap = {
+      'PENDING': 'Chờ xử lý',
+      'DRAFT': 'Bản nháp',
+      'ACCEPTED': 'Đã chấp nhận',
+      'APPROVED': 'Đã duyệt',
+      'CONFIRMED': 'Đã xác nhận',
+      'CONTRACT_PENDING': 'Chờ ký hợp đồng',
+      'CONTRACT_SIGNED': 'Đã ký hợp đồng',
+      'FILE_UPLOADED': 'Đã upload',
+      'PAYMENT_CONFIRMED': 'Đã thanh toán',
+      'FULLY_PAID': 'Đã thanh toán đủ',
+      'SHIPPING': 'Đang vận chuyển',
+      'IN_TRANSIT': 'Đang vận chuyển',
+      'COMPLETED': 'Đã hoàn thành',
+      'DELIVERED': 'Đã giao hàng',
+      'FINISH': 'Hoàn thành',
+      'REJECTED': 'Đã từ chối',
+      'CANCELLED': 'Đã hủy',
+      'CANCELED': 'Đã hủy',
+      'PROCESSING': 'Đang xử lý'
+    };
+    return statusMap[upperStatus] || 'Không xác định';
   };
 
   const handleViewDetails = async (order) => {

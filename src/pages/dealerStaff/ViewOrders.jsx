@@ -372,9 +372,30 @@ function ViewOrders() {
   };
 
   const getStatusText = (status) => {
-    if (!status) return status || 'N/A';
-    // Return status in English as from API response
-    return status.toUpperCase();
+    if (!status) return 'Không xác định';
+    const upperStatus = status.toUpperCase();
+    const statusMap = {
+      'PENDING': 'Chờ xử lý',
+      'DRAFT': 'Bản nháp',
+      'ACCEPTED': 'Đã chấp nhận',
+      'APPROVED': 'Đã duyệt',
+      'CONFIRMED': 'Đã xác nhận',
+      'CONTRACT_PENDING': 'Chờ ký hợp đồng',
+      'CONTRACT_SIGNED': 'Đã ký hợp đồng',
+      'FILE_UPLOADED': 'Đã upload',
+      'PAYMENT_CONFIRMED': 'Đã thanh toán',
+      'FULLY_PAID': 'Đã thanh toán đủ',
+      'SHIPPING': 'Đang vận chuyển',
+      'IN_TRANSIT': 'Đang vận chuyển',
+      'COMPLETED': 'Đã hoàn thành',
+      'DELIVERED': 'Đã giao hàng',
+      'FINISH': 'Hoàn thành',
+      'REJECTED': 'Đã từ chối',
+      'CANCELLED': 'Đã hủy',
+      'CANCELED': 'Đã hủy',
+      'PROCESSING': 'Đang xử lý'
+    };
+    return statusMap[upperStatus] || status;
   };
 
 

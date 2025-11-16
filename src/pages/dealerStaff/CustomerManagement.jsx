@@ -132,7 +132,7 @@ function CustomerManagement() {
   const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 5;
 
   // Tự động mở modal thêm khách hàng nếu có query param add=new
   useEffect(() => {
