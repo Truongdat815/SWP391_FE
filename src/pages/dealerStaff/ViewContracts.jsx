@@ -398,7 +398,7 @@ function ViewContracts() {
       />
 
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 py-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 pt-0 pb-4">
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
           {/* Total Contracts */}
@@ -406,16 +406,17 @@ function ViewContracts() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
           >
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="p-1 bg-blue-100 rounded-lg">
-                <FileText className="h-3.5 w-3.5 text-blue-600" />
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <FileText className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-gray-600 mb-1">Tổng số hợp đồng</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
               </div>
             </div>
-            <p className="text-xs text-gray-600 mb-0.5">Tổng số hợp đồng</p>
-            <p className="text-lg font-bold text-gray-900">{stats.total}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Hợp đồng</p>
           </motion.div>
 
           {/* Today Contracts */}
@@ -423,16 +424,17 @@ function ViewContracts() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
           >
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="p-1 bg-emerald-100 rounded-lg">
-                <Calendar className="h-3.5 w-3.5 text-emerald-600" />
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <Calendar className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-gray-600 mb-1">Hợp đồng hôm nay</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.today}</p>
               </div>
             </div>
-            <p className="text-xs text-gray-600 mb-0.5">Hợp đồng hôm nay</p>
-            <p className="text-lg font-bold text-gray-900">{stats.today}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Hợp đồng mới</p>
           </motion.div>
 
           {/* Uploaded */}
@@ -440,16 +442,17 @@ function ViewContracts() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
           >
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="p-1 bg-green-100 rounded-lg">
-                <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-green-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-gray-600 mb-1">Đã upload</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.uploaded}</p>
               </div>
             </div>
-            <p className="text-xs text-gray-600 mb-0.5">Đã upload</p>
-            <p className="text-lg font-bold text-gray-900">{stats.uploaded}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Hợp đồng</p>
           </motion.div>
 
           {/* Pending Upload */}
@@ -457,16 +460,17 @@ function ViewContracts() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
           >
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="p-1 bg-orange-100 rounded-lg">
-                <AlertCircle className="h-3.5 w-3.5 text-orange-600" />
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <AlertCircle className="h-5 w-5 text-orange-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-gray-600 mb-1">Chờ upload</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.pendingUpload}</p>
               </div>
             </div>
-            <p className="text-xs text-gray-600 mb-0.5">Chờ upload</p>
-            <p className="text-lg font-bold text-gray-900">{stats.pendingUpload}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Hợp đồng</p>
           </motion.div>
         </div>
 
