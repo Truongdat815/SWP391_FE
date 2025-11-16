@@ -471,16 +471,12 @@ function StoreManagement() {
           [fieldName]: yyyymmdd
         };
         
-        // Nếu là start date thay đổi, kiểm tra và cập nhật end date
+        // Nếu là start date thay đổi, kiểm tra và cập nhật end date (chỉ so sánh ngày)
         if (fieldName === 'contractStartDate' && prev.contractEndDate) {
-          const startDate = new Date(yyyymmdd);
-          const endDate = new Date(prev.contractEndDate);
-          
-          // Nếu end date <= start date, tự động set end date = start date + 1 ngày
-          if (endDate <= startDate) {
-            const nextDay = new Date(startDate);
-            nextDay.setDate(nextDay.getDate() + 1);
-            const nextDayStr = nextDay.toISOString().split('T')[0];
+          // Chỉ tự động cập nhật nếu start date >= end date (cùng ngày hoặc sau end date)
+          if (yyyymmdd >= prev.contractEndDate) {
+            // Tự động set end date = start date + 1
+            const nextDayStr = getNextDayYYYYMMDD(yyyymmdd);
             newData.contractEndDate = nextDayStr;
             
             // Cập nhật display value cho end date
@@ -491,6 +487,7 @@ function StoreManagement() {
               }));
             }, 0);
           }
+          // Nếu start date < end date thì giữ nguyên end date, không cần thay đổi
         }
         
         return newData;
@@ -514,16 +511,12 @@ function StoreManagement() {
           [fieldName]: yyyymmdd
         };
         
-        // Nếu là start date thay đổi, kiểm tra và cập nhật end date
+        // Nếu là start date thay đổi, kiểm tra và cập nhật end date (chỉ so sánh ngày)
         if (fieldName === 'contractStartDate' && prev.contractEndDate) {
-          const startDate = new Date(yyyymmdd);
-          const endDate = new Date(prev.contractEndDate);
-          
-          // Nếu end date <= start date, tự động set end date = start date + 1 ngày
-          if (endDate <= startDate) {
-            const nextDay = new Date(startDate);
-            nextDay.setDate(nextDay.getDate() + 1);
-            const nextDayStr = nextDay.toISOString().split('T')[0];
+          // Chỉ tự động cập nhật nếu start date >= end date (cùng ngày hoặc sau end date)
+          if (yyyymmdd >= prev.contractEndDate) {
+            // Tự động set end date = start date + 1
+            const nextDayStr = getNextDayYYYYMMDD(yyyymmdd);
             newData.contractEndDate = nextDayStr;
             
             // Cập nhật display value cho end date
@@ -534,6 +527,7 @@ function StoreManagement() {
               }));
             }, 0);
           }
+          // Nếu start date < end date thì giữ nguyên end date, không cần thay đổi
         }
         
         return newData;
@@ -554,6 +548,25 @@ function StoreManagement() {
     }
   };
 
+  const getTodayYYYYMMDD = () => {
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const day = String(today.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const getNextDayYYYYMMDD = (dateStr) => {
+    // dateStr format: YYYY-MM-DD
+    if (!dateStr) return '';
+    const date = new Date(dateStr + 'T00:00:00');
+    date.setDate(date.getDate() + 1);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
   const validateDateMin = (dateString, minDate) => {
     if (!dateString || !validateDateFormat(dateString)) return false;
     const inputDate = formatDateToYYYYMMDD(dateString);
@@ -563,13 +576,17 @@ function StoreManagement() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate dates
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const minStartDate = tomorrow.toISOString().split('T')[0];
+    // Validate dates - chỉ so sánh ngày tháng năm
+    const todayStr = getTodayYYYYMMDD();
     
-    if (!validateDateFormat(dateDisplay.contractStartDate) || !validateDateMin(dateDisplay.contractStartDate, minStartDate)) {
-      error('Ngày bắt đầu hợp đồng không hợp lệ hoặc phải từ ngày mai trở đi');
+    if (!validateDateFormat(dateDisplay.contractStartDate)) {
+      error('Ngày bắt đầu hợp đồng không hợp lệ');
+      return;
+    }
+    
+    const startDateStr = formatDateToYYYYMMDD(dateDisplay.contractStartDate);
+    if (startDateStr < todayStr) {
+      error('Ngày bắt đầu hợp đồng không được trước ngày hôm nay');
       return;
     }
     
@@ -580,19 +597,18 @@ function StoreManagement() {
     }
     
     if (formData.contractStartDate) {
-      const startDate = new Date(formData.contractStartDate);
-      const nextDay = new Date(startDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      const minEndDate = nextDay.toISOString().split('T')[0];
-      
-      if (!validateDateMin(dateDisplay.contractEndDate, minEndDate)) {
-        error('Ngày kết thúc hợp đồng phải sau ngày bắt đầu hợp đồng');
+      // End date phải ít nhất là start date + 1 ngày (chỉ so sánh ngày)
+      const endDateStr = formatDateToYYYYMMDD(dateDisplay.contractEndDate);
+      const minEndDate = getNextDayYYYYMMDD(formData.contractStartDate);
+      if (endDateStr < minEndDate) {
+        error('Ngày kết thúc hợp đồng phải ít nhất là ngày sau ngày bắt đầu hợp đồng');
         return;
       }
     } else {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      if (!validateDateMin(dateDisplay.contractEndDate, tomorrow.toISOString().split('T')[0])) {
+      // End date phải sau ngày hôm nay (chỉ so sánh ngày)
+      const endDateStr = formatDateToYYYYMMDD(dateDisplay.contractEndDate);
+      const tomorrowStr = getNextDayYYYYMMDD(todayStr);
+      if (endDateStr < tomorrowStr) {
         error('Ngày kết thúc hợp đồng phải sau ngày hiện tại');
         return;
       }
@@ -1565,9 +1581,9 @@ function StoreManagement() {
                       Ngày bắt đầu hợp đồng <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <input
+                    <input
                         type="text"
-                        name="contractStartDate"
+                      name="contractStartDate"
                         value={dateDisplay.contractStartDate}
                         onChange={(e) => handleDateInput(e, 'contractStartDate')}
                         onClick={(e) => {
@@ -1587,22 +1603,22 @@ function StoreManagement() {
                         placeholder="dd/mm/yyyy"
                         maxLength={10}
                         className={`w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all ${
-                          formData.contractStartDate && validateDateFormat(dateDisplay.contractStartDate) && validateDateMin(dateDisplay.contractStartDate, (() => {
-                            const tomorrow = new Date();
-                            tomorrow.setDate(tomorrow.getDate() + 1);
-                            return tomorrow.toISOString().split('T')[0];
-                          })())
+                          formData.contractStartDate && validateDateFormat(dateDisplay.contractStartDate) && (() => {
+                            const todayStr = getTodayYYYYMMDD();
+                            const startDateStr = formatDateToYYYYMMDD(dateDisplay.contractStartDate);
+                            return startDateStr >= todayStr;
+                          })()
                             ? 'text-gray-900 border-green-300'
-                            : dateDisplay.contractStartDate && (!validateDateFormat(dateDisplay.contractStartDate) || !validateDateMin(dateDisplay.contractStartDate, (() => {
-                              const tomorrow = new Date();
-                              tomorrow.setDate(tomorrow.getDate() + 1);
-                              return tomorrow.toISOString().split('T')[0];
-                            })()))
+                            : dateDisplay.contractStartDate && (!validateDateFormat(dateDisplay.contractStartDate) || (() => {
+                              const todayStr = getTodayYYYYMMDD();
+                              const startDateStr = formatDateToYYYYMMDD(dateDisplay.contractStartDate);
+                              return startDateStr < todayStr;
+                            })())
                             ? 'text-gray-900 border-red-300'
                             : 'text-gray-900'
                         }`}
-                        required
-                      />
+                      required
+                    />
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1623,20 +1639,16 @@ function StoreManagement() {
                         id="hidden-date-start"
                         value={formData.contractStartDate}
                         onChange={(e) => handleDatePickerChange(e, 'contractStartDate')}
-                        min={(() => {
-                          const tomorrow = new Date();
-                          tomorrow.setDate(tomorrow.getDate() + 1);
-                          return tomorrow.toISOString().split('T')[0];
-                        })()}
+                        min={getTodayYYYYMMDD()}
                         className="absolute left-0 top-0 w-full h-full opacity-0 pointer-events-none"
                         style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'none', zIndex: 1 }}
                       />
-                      {formData.contractStartDate && validateDateFormat(dateDisplay.contractStartDate) && !validateDateMin(dateDisplay.contractStartDate, (() => {
-                        const tomorrow = new Date();
-                        tomorrow.setDate(tomorrow.getDate() + 1);
-                        return tomorrow.toISOString().split('T')[0];
-                      })()) && (
-                        <p className="text-xs text-red-500 mt-1">Ngày phải từ ngày mai trở đi</p>
+                      {formData.contractStartDate && validateDateFormat(dateDisplay.contractStartDate) && (() => {
+                        const todayStr = getTodayYYYYMMDD();
+                        const startDateStr = formatDateToYYYYMMDD(dateDisplay.contractStartDate);
+                        return startDateStr < todayStr;
+                      })() && (
+                        <p className="text-xs text-red-500 mt-1">Ngày không được trước ngày hôm nay</p>
                       )}
                       {dateDisplay.contractStartDate && !validateDateFormat(dateDisplay.contractStartDate) && (
                         <p className="text-xs text-red-500 mt-1">Định dạng không hợp lệ (dd/mm/yyyy)</p>
@@ -1650,9 +1662,9 @@ function StoreManagement() {
                       Ngày kết thúc hợp đồng <span className="text-red-500">*</span>
                     </label>
                     <div className="relative">
-                      <input
+                    <input
                         type="text"
-                        name="contractEndDate"
+                      name="contractEndDate"
                         value={dateDisplay.contractEndDate}
                         onChange={(e) => handleDateInput(e, 'contractEndDate')}
                         onClick={(e) => {
@@ -1673,37 +1685,33 @@ function StoreManagement() {
                         maxLength={10}
                         className={`w-full px-4 py-3 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all ${
                           formData.contractEndDate && validateDateFormat(dateDisplay.contractEndDate) && (() => {
-                            // End date phải sau start date (nếu có start date)
+                            const endDateStr = formatDateToYYYYMMDD(dateDisplay.contractEndDate);
+                            // End date phải ít nhất là start date + 1 ngày (nếu có start date) - chỉ so sánh ngày
                             if (formData.contractStartDate) {
-                              const startDate = new Date(formData.contractStartDate);
-                              const nextDay = new Date(startDate);
-                              nextDay.setDate(nextDay.getDate() + 1);
-                              const minEndDate = nextDay.toISOString().split('T')[0];
-                              return validateDateMin(dateDisplay.contractEndDate, minEndDate);
+                              const minEndDate = getNextDayYYYYMMDD(formData.contractStartDate);
+                              return endDateStr >= minEndDate;
                             }
-                            // Nếu chưa có start date, phải sau ngày hiện tại
-                            const tomorrow = new Date();
-                            tomorrow.setDate(tomorrow.getDate() + 1);
-                            return validateDateMin(dateDisplay.contractEndDate, tomorrow.toISOString().split('T')[0]);
+                            // Nếu chưa có start date, phải sau ngày hôm nay - chỉ so sánh ngày
+                            const todayStr = getTodayYYYYMMDD();
+                            const tomorrowStr = getNextDayYYYYMMDD(todayStr);
+                            return endDateStr >= tomorrowStr;
                           })()
                             ? 'text-gray-900 border-green-300'
                             : dateDisplay.contractEndDate && (!validateDateFormat(dateDisplay.contractEndDate) || !(() => {
+                              const endDateStr = formatDateToYYYYMMDD(dateDisplay.contractEndDate);
                               if (formData.contractStartDate) {
-                                const startDate = new Date(formData.contractStartDate);
-                                const nextDay = new Date(startDate);
-                                nextDay.setDate(nextDay.getDate() + 1);
-                                const minEndDate = nextDay.toISOString().split('T')[0];
-                                return validateDateMin(dateDisplay.contractEndDate, minEndDate);
+                                const minEndDate = getNextDayYYYYMMDD(formData.contractStartDate);
+                                return endDateStr >= minEndDate;
                               }
-                              const tomorrow = new Date();
-                              tomorrow.setDate(tomorrow.getDate() + 1);
-                              return validateDateMin(dateDisplay.contractEndDate, tomorrow.toISOString().split('T')[0]);
+                              const todayStr = getTodayYYYYMMDD();
+                              const tomorrowStr = getNextDayYYYYMMDD(todayStr);
+                              return endDateStr >= tomorrowStr;
                             })())
                             ? 'text-gray-900 border-red-300'
                             : 'text-gray-900'
                         }`}
-                        required
-                      />
+                      required
+                    />
                       <button
                         type="button"
                         onClick={(e) => {
@@ -1725,35 +1733,31 @@ function StoreManagement() {
                         value={formData.contractEndDate}
                         onChange={(e) => handleDatePickerChange(e, 'contractEndDate')}
                         min={(() => {
-                          // End date min phụ thuộc vào start date
+                          // End date min phụ thuộc vào start date - chỉ so sánh ngày
                           if (formData.contractStartDate) {
-                            const startDate = new Date(formData.contractStartDate);
-                            const nextDay = new Date(startDate);
-                            nextDay.setDate(nextDay.getDate() + 1);
-                            return nextDay.toISOString().split('T')[0];
+                            // Tính ngày kế tiếp từ start date (start date + 1)
+                            return getNextDayYYYYMMDD(formData.contractStartDate);
                           }
-                          // Nếu chưa có start date, min là ngày mai
-                          const tomorrow = new Date();
-                          tomorrow.setDate(tomorrow.getDate() + 1);
-                          return tomorrow.toISOString().split('T')[0];
+                          // Nếu chưa có start date, min là ngày mai (từ hôm nay + 1 ngày)
+                          const todayStr = getTodayYYYYMMDD();
+                          return getNextDayYYYYMMDD(todayStr);
                         })()}
                         className="absolute left-0 top-0 w-full h-full opacity-0 pointer-events-none"
                         style={{ position: 'absolute', left: 0, top: 0, width: '100%', height: '100%', opacity: 0, pointerEvents: 'none', zIndex: 1 }}
                       />
                       {formData.contractEndDate && validateDateFormat(dateDisplay.contractEndDate) && (() => {
+                        const endDateStr = formatDateToYYYYMMDD(dateDisplay.contractEndDate);
+                        // Chỉ so sánh ngày tháng năm - end date phải ít nhất là start date + 1
                         if (formData.contractStartDate) {
-                          const startDate = new Date(formData.contractStartDate);
-                          const nextDay = new Date(startDate);
-                          nextDay.setDate(nextDay.getDate() + 1);
-                          const minEndDate = nextDay.toISOString().split('T')[0];
-                          return !validateDateMin(dateDisplay.contractEndDate, minEndDate);
+                          const minEndDate = getNextDayYYYYMMDD(formData.contractStartDate);
+                          return endDateStr < minEndDate;
                         }
-                        const tomorrow = new Date();
-                        tomorrow.setDate(tomorrow.getDate() + 1);
-                        return !validateDateMin(dateDisplay.contractEndDate, tomorrow.toISOString().split('T')[0]);
+                        const todayStr = getTodayYYYYMMDD();
+                        const tomorrowStr = getNextDayYYYYMMDD(todayStr);
+                        return endDateStr < tomorrowStr;
                       })() && (
                         <p className="text-xs text-red-500 mt-1">
-                          {formData.contractStartDate ? 'Ngày phải sau ngày bắt đầu hợp đồng' : 'Ngày phải sau ngày hiện tại'}
+                          {formData.contractStartDate ? 'Ngày phải ít nhất là ngày sau ngày bắt đầu hợp đồng' : 'Ngày phải sau ngày hiện tại'}
                         </p>
                       )}
                       {dateDisplay.contractEndDate && !validateDateFormat(dateDisplay.contractEndDate) && (
@@ -1858,56 +1862,56 @@ function StoreManagement() {
                   <div className="flex-1">
                     <h4 className="text-lg font-bold text-gray-900 mb-1.5">{storeToView.storeName}</h4>
                     <span className={`px-2.5 py-1 inline-flex text-xs font-semibold rounded-full ${getStatusColor(storeToView.status)}`}>
-                      {getStatusText(storeToView.status)}
-                    </span>
+                        {getStatusText(storeToView.status)}
+                      </span>
                   </div>
                 </div>
 
-                {/* Store Information */}
+                  {/* Store Information */}
                 <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
                   <h5 className="text-base font-semibold text-gray-900 mb-3 flex items-center">
-                    <svg className="w-5 h-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                    </svg>
-                    Thông tin cửa hàng
-                  </h5>
-                  <div className="space-y-2.5">
-                    <div className="flex items-center">
-                      <svg className="w-4 h-4 mr-2.5 text-gray-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                        <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
-                        <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                      <svg className="w-5 h-5 mr-2 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                       </svg>
+                      Thông tin cửa hàng
+                    </h5>
+                  <div className="space-y-2.5">
+                      <div className="flex items-center">
+                      <svg className="w-4 h-4 mr-2.5 text-gray-400 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                          <path d="M2.003 5.884L10 9.882l7.997-3.998A2 2 0 0016 4H4a2 2 0 00-1.997 1.884z" />
+                          <path d="M18 8.118l-8 4-8-4V14a2 2 0 002 2h12a2 2 0 002-2V8.118z" />
+                        </svg>
                       <span className="text-sm text-gray-600">Tên:</span>
-                      <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.storeName}</span>
-                    </div>
-                    <div className="flex items-center">
+                        <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.storeName}</span>
+                      </div>
+                      <div className="flex items-center">
                       <svg className="w-4 h-4 mr-2.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
                       <span className="text-sm text-gray-600">Tỉnh/TP:</span>
-                      <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.provinceName || 'N/A'}</span>
-                    </div>
-                    <div className="flex items-start">
-                      <svg className="w-4 h-4 mr-2.5 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-                      </svg>
-                      <div className="flex-1">
-                        <span className="text-sm text-gray-600">Địa chỉ:</span>
-                        <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.address || 'N/A'}</span>
+                          <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.provinceName || 'N/A'}</span>
                       </div>
-                    </div>
-                    {storeToView.contractStartDate && (
+                      <div className="flex items-start">
+                      <svg className="w-4 h-4 mr-2.5 text-gray-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                        </svg>
+                        <div className="flex-1">
+                          <span className="text-sm text-gray-600">Địa chỉ:</span>
+                          <span className="ml-2 text-sm font-medium text-gray-900">{storeToView.address || 'N/A'}</span>
+                        </div>
+                      </div>
+                      {storeToView.contractStartDate && (
                       <div className="flex items-center">
                         <svg className="w-4 h-4 mr-2.5 text-gray-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span className="text-sm text-gray-600">Hợp đồng:</span>
-                        <span className="ml-2 text-sm font-medium text-gray-900">
-                          {new Date(storeToView.contractStartDate).toLocaleDateString('vi-VN')} - {storeToView.contractEndDate ? new Date(storeToView.contractEndDate).toLocaleDateString('vi-VN') : 'N/A'}
-                        </span>
-                      </div>
-                    )}
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                            <span className="text-sm text-gray-600">Hợp đồng:</span>
+                            <span className="ml-2 text-sm font-medium text-gray-900">
+                              {new Date(storeToView.contractStartDate).toLocaleDateString('vi-VN')} - {storeToView.contractEndDate ? new Date(storeToView.contractEndDate).toLocaleDateString('vi-VN') : 'N/A'}
+                            </span>
+                        </div>
+                      )}
                   </div>
                 </div>
 
