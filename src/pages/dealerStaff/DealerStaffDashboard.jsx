@@ -1,66 +1,123 @@
 import { useState, useEffect, useMemo } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useSelector, useDispatch } from 'react-redux';
-import { fetchOrders } from '../../store/slices/orderSlice';
+import { fetchOrdersByStaffId } from '../../store/slices/orderSlice';
 import { getAllCustomersThunk } from '../../store/slices/customerSlice';
 import { getAllAppointmentsThunk } from '../../store/slices/appointmentSlice';
 import { getAllFeedbacks } from '../../api/feedbackService';
+import { getFeedbackDetailsByFeedbackId } from '../../api/feedbackDetailService';
 import { useAuth } from '../../contexts/AuthContext';
 
 const DealerStaffDashboard = () => {
   const dispatch = useDispatch();
   const { user } = useAuth();
-  const orders = useSelector((s) => s.orders.orders) || [];
+  const allOrders = useSelector((s) => s.orders.items) || [];
   const customers = useSelector((s) => s.customers.items) || [];
   const appointments = useSelector((s) => s.appointments.items) || [];
   const [feedbacks, setFeedbacks] = useState([]);
+  const [feedbacksWithDetails, setFeedbacksWithDetails] = useState([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+  const [loadingFeedbacks, setLoadingFeedbacks] = useState(false);
 
+  // Get current staff ID
+  const currentStaffId = user?.userId || user?.id || user?.user_id;
+
+  // Fetch orders for current staff only
   useEffect(() => {
-    dispatch(fetchOrders());
-    dispatch(getAllCustomersThunk());
-    dispatch(getAllAppointmentsThunk());
-    // Load feedbacks from API
-    getAllFeedbacks()
-      .then(data => setFeedbacks(Array.isArray(data) ? data : []))
-      .catch(err => {
+    if (currentStaffId) {
+      setLoadingOrders(true);
+      dispatch(fetchOrdersByStaffId(currentStaffId))
+        .finally(() => setLoadingOrders(false));
+    }
+  }, [dispatch, currentStaffId]);
+
+  // Load feedbacks with details (rating and content)
+  useEffect(() => {
+    const loadFeedbacksWithDetails = async () => {
+      setLoadingFeedbacks(true);
+      try {
+        const response = await getAllFeedbacks();
+        let feedbacksData = [];
+        
+        // Handle different response structures
+        if (Array.isArray(response)) {
+          feedbacksData = response;
+        } else if (response?.data && Array.isArray(response.data)) {
+          feedbacksData = response.data;
+        } else if (response?.data?.data && Array.isArray(response.data.data)) {
+          feedbacksData = response.data.data;
+        }
+        
+        setFeedbacks(feedbacksData);
+        
+        // Load details for each feedback
+        const feedbacksWithDetailsData = await Promise.all(
+          feedbacksData.map(async (feedback) => {
+            let feedbackDetail = null;
+            try {
+              const feedbackId = feedback.feedbackId || feedback.id || feedback.feedback_id;
+              if (feedbackId) {
+                const detailResponse = await getFeedbackDetailsByFeedbackId(feedbackId);
+                let details = null;
+                
+                if (Array.isArray(detailResponse)) {
+                  details = detailResponse;
+                } else if (detailResponse?.data) {
+                  if (Array.isArray(detailResponse.data)) {
+                    details = detailResponse.data;
+                  } else if (detailResponse.data?.data && Array.isArray(detailResponse.data.data)) {
+                    details = detailResponse.data.data;
+                  } else {
+                    details = detailResponse.data;
+                  }
+                } else {
+                  details = detailResponse;
+                }
+                
+                if (Array.isArray(details) && details.length > 0) {
+                  feedbackDetail = details[0];
+                } else if (details && !Array.isArray(details)) {
+                  feedbackDetail = details;
+                }
+              }
+            } catch (err) {
+              console.log('Error loading feedback detail:', err.message);
+            }
+            
+            return {
+              ...feedback,
+              rating: feedbackDetail?.rating !== undefined ? parseInt(feedbackDetail.rating) : (feedback.rating ? parseInt(feedback.rating) : 0),
+              content: feedbackDetail?.content || feedback.content || 'Không có nội dung',
+              category: feedbackDetail?.category ? feedbackDetail.category.toLowerCase() : (feedback.category || 'service').toLowerCase(),
+              feedbackDetail: feedbackDetail
+            };
+          })
+        );
+        
+        setFeedbacksWithDetails(feedbacksWithDetailsData);
+      } catch (err) {
         console.error('Error loading feedbacks:', err);
         setFeedbacks([]);
-      });
+        setFeedbacksWithDetails([]);
+      } finally {
+        setLoadingFeedbacks(false);
+      }
+    };
+    
+    loadFeedbacksWithDetails();
+    dispatch(getAllCustomersThunk());
+    dispatch(getAllAppointmentsThunk());
   }, [dispatch]);
 
-  // Debug: Log orders data
-  useEffect(() => {
-    if (orders && orders.length > 0) {
-      console.log('📦 Orders loaded in dashboard:', orders.length);
-      console.log('📦 Sample order:', orders[0]);
-      
-      // Debug: Đếm các trạng thái
-      const statusCounts = {};
-      orders.forEach(order => {
-        const status = (order.status || '').toUpperCase();
-        statusCounts[status] = (statusCounts[status] || 0) + 1;
-      });
-      console.log('📊 Order status breakdown:', statusCounts);
-    } else {
-      console.log('⚠️ No orders found or orders array is empty');
-    }
-  }, [orders]);
-
-  // Debug: Log customers data
-  useEffect(() => {
-    if (customers && customers.length > 0) {
-      console.log('👥 Customers loaded in dashboard:', customers.length);
-      console.log('👥 Sample customer:', customers[0]);
-      console.log('👥 Sample customer date fields:', {
-        createdDate: customers[0].createdDate,
-        createdAt: customers[0].createdAt,
-        created_at: customers[0].created_at,
-        created_date: customers[0].created_date,
-      });
-    } else {
-      console.log('⚠️ No customers found or customers array is empty');
-    }
-  }, [customers]);
+  // Filter orders to only show current staff's orders (client-side filter as backup)
+  const orders = useMemo(() => {
+    if (!currentStaffId) return allOrders;
+    
+    return allOrders.filter(order => {
+      const orderStaffId = order.staffId || order.userId || order.staff_id || order.user_id;
+      return String(orderStaffId) === String(currentStaffId);
+    });
+  }, [allOrders, currentStaffId]);
 
   // Tính toán thống kê đơn hàng
   const orderStats = useMemo(() => {
@@ -132,125 +189,102 @@ const DealerStaffDashboard = () => {
     }).length,
   };
 
-  // Tính toán thống kê phản hồi
-  const feedbackStats = {
-    total: feedbacks.length,
-    pending: feedbacks.filter(f => (f.status || '').toUpperCase() === 'PENDING').length,
-    resolved: feedbacks.filter(f => (f.status || '').toUpperCase() === 'RESOLVED').length,
-  };
-
-  // Tính toán dữ liệu doanh thu theo tháng từ orders thực tế
-  const revenueData = useMemo(() => {
-    const now = new Date();
-    const last6Months = [];
+  // Tính toán thống kê phản hồi với rating
+  const feedbackStats = useMemo(() => {
+    const stats = {
+      total: feedbacksWithDetails.length,
+      pending: feedbacksWithDetails.filter(f => (f.status || '').toUpperCase() === 'PENDING' || (f.status || '').toUpperCase() === 'DRAFT').length,
+      resolved: feedbacksWithDetails.filter(f => (f.status || '').toUpperCase() === 'RESOLVED').length,
+      averageRating: 0,
+      ratingDistribution: { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
+    };
     
-    // Tạo mảng 6 tháng gần nhất
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      last6Months.push({
-        month: date.getMonth() + 1,
-        year: date.getFullYear(),
-        monthLabel: `T${date.getMonth() + 1}`,
+    // Calculate average rating and distribution
+    const ratings = feedbacksWithDetails
+      .map(f => f.rating)
+      .filter(r => r > 0 && r <= 5);
+    
+    if (ratings.length > 0) {
+      stats.averageRating = (ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1);
+      
+      // Count rating distribution
+      ratings.forEach(rating => {
+        if (rating >= 1 && rating <= 5) {
+          stats.ratingDistribution[rating] = (stats.ratingDistribution[rating] || 0) + 1;
+        }
       });
     }
+    
+    return stats;
+  }, [feedbacksWithDetails]);
 
-    // Nhóm orders theo tháng và tính toán
-    return last6Months.map(({ month, year, monthLabel }) => {
+  // Calculate revenue data from actual orders (last 6 months)
+  const revenueData = useMemo(() => {
+    const months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'];
+    const now = new Date();
+    const data = months.map((monthLabel, index) => {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+      
       const monthOrders = orders.filter(order => {
-        if (!order.orderDate) return false;
-        const orderDate = new Date(order.orderDate);
-        return orderDate.getMonth() + 1 === month && orderDate.getFullYear() === year;
+        const orderDate = order.orderDate || order.createdAt || order.createdDate;
+        if (!orderDate) return false;
+        const date = new Date(orderDate);
+        return date >= monthStart && date <= monthEnd;
       });
-
-      const revenue = monthOrders.reduce((sum, order) => {
-        const price = parseFloat(order.totalPrice) || parseFloat(order.totalPayment) || parseFloat(order.total_amount) || 0;
-        return sum + price;
-      }, 0);
-
+      
+      const revenue = monthOrders.reduce((sum, o) => sum + (parseFloat(o.totalPrice) || 0), 0);
+      
       return {
         month: monthLabel,
         revenue: revenue,
-        orders: monthOrders.length,
+        orders: monthOrders.length
       };
     });
-  }, [orders]);
-
-  // Phân tích đơn hàng theo trạng thái - tính toán từ dữ liệu thực tế
-  const orderStatusData = useMemo(() => {
-    // Đếm từng trạng thái
-    const statusCounts = {};
-    orders.forEach(order => {
-      const status = (order.status || '').toUpperCase();
-      if (status) {
-        statusCounts[status] = (statusCounts[status] || 0) + 1;
-      }
-    });
-
-    // Map trạng thái sang tên tiếng Việt và màu sắc
-    const statusMap = {
-      'DRAFT': { name: 'Nháp', color: '#9ca3af' },
-      'PENDING': { name: 'Đang chờ', color: '#f59e0b' },
-      'CONFIRMED': { name: 'Đã xác nhận', color: '#10b981' },
-      'APPROVED': { name: 'Đã duyệt', color: '#3b82f6' },
-      'PROCESSING': { name: 'Đang xử lý', color: '#8b5cf6' },
-      'COMPLETED': { name: 'Hoàn thành', color: '#06b6d4' },
-      'CANCELLED': { name: 'Đã hủy', color: '#ef4444' },
-    };
-
-    // Tạo mảng dữ liệu từ status counts, chỉ hiển thị những status có dữ liệu
-    const data = Object.entries(statusCounts)
-      .map(([status, count]) => ({
-        name: statusMap[status]?.name || status,
-        value: count,
-        color: statusMap[status]?.color || '#6b7280',
-        status: status, // Giữ lại status gốc để debug
-      }))
-      .filter(item => item.value > 0) // Chỉ hiển thị status có đơn hàng
-      .sort((a, b) => b.value - a.value); // Sắp xếp theo số lượng giảm dần
-
+    
     return data;
   }, [orders]);
 
-  // Tính toán dữ liệu khách hàng theo tháng từ customers thực tế
+  // Phân tích đơn hàng theo trạng thái
+  const orderStatusData = [
+    { name: 'Đã xác nhận', value: orderStats.confirmed, color: '#10b981' },
+    { name: 'Đang chờ', value: orderStats.pending, color: '#f59e0b' },
+    { name: 'Hoàn thành', value: orderStats.completed, color: '#3b82f6' },
+  ];
+
+  // Calculate customer data from actual orders (last 6 months)
   const customerData = useMemo(() => {
+    const months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'];
     const now = new Date();
-    const last6Months = [];
-    
-    // Tạo mảng 6 tháng gần nhất
-    for (let i = 5; i >= 0; i--) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      last6Months.push({
-        month: date.getMonth() + 1,
-        year: date.getFullYear(),
-        monthLabel: `T${date.getMonth() + 1}`,
+    const data = months.map((monthLabel, index) => {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+      
+      // Get unique customers from orders in this month
+      const monthOrders = orders.filter(order => {
+        const orderDate = order.orderDate || order.createdAt || order.createdDate;
+        if (!orderDate) return false;
+        const date = new Date(orderDate);
+        return date >= monthStart && date <= monthEnd;
       });
-    }
-
-    // Helper function để lấy ngày tạo của customer
-    const getCustomerCreatedDate = (customer) => {
-      return customer.createdDate || customer.createdAt || customer.created_at || customer.created_date || null;
-    };
-
-    // Nhóm customers theo tháng và đếm
-    return last6Months.map(({ month, year, monthLabel }) => {
-      const monthCustomers = customers.filter(customer => {
-        const createdDateStr = getCustomerCreatedDate(customer);
-        if (!createdDateStr) return false;
-        try {
-          const createdDate = new Date(createdDateStr);
-          if (isNaN(createdDate.getTime())) return false;
-          return createdDate.getMonth() + 1 === month && createdDate.getFullYear() === year;
-        } catch {
-          return false;
-        }
-      });
-
+      
+      // Count unique customers
+      const uniqueCustomers = new Set(
+        monthOrders
+          .map(o => o.customerId || o.customer?.customerId || o.customer_id)
+          .filter(id => id)
+      );
+      
       return {
         month: monthLabel,
-        customers: monthCustomers.length,
+        customers: uniqueCustomers.size
       };
     });
-  }, [customers]);
+    
+    return data;
+  }, [orders]);
 
   const COLORS = ['#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6'];
 
@@ -259,7 +293,90 @@ const DealerStaffDashboard = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
+          <h2 className="text-xl font-bold text-gray-900">📊 Tổng quan bán hàng</h2>
+          <p className="text-gray-600 mt-0.5 text-sm">
+            Thống kê và phân tích dữ liệu bán hàng của bạn
+            {user?.fullName && ` - ${user.fullName}`}
+          </p>
         </div>
+        <button 
+          onClick={() => {
+            if (currentStaffId) {
+              dispatch(fetchOrdersByStaffId(currentStaffId));
+            }
+            dispatch(getAllCustomersThunk());
+            dispatch(getAllAppointmentsThunk());
+            // Reload feedbacks with details
+            const loadFeedbacks = async () => {
+              try {
+                const response = await getAllFeedbacks();
+                let feedbacksData = [];
+                
+                if (Array.isArray(response)) {
+                  feedbacksData = response;
+                } else if (response?.data && Array.isArray(response.data)) {
+                  feedbacksData = response.data;
+                } else if (response?.data?.data && Array.isArray(response.data.data)) {
+                  feedbacksData = response.data.data;
+                }
+                
+                setFeedbacks(feedbacksData);
+                
+                const feedbacksWithDetailsData = await Promise.all(
+                  feedbacksData.map(async (feedback) => {
+                    let feedbackDetail = null;
+                    try {
+                      const feedbackId = feedback.feedbackId || feedback.id || feedback.feedback_id;
+                      if (feedbackId) {
+                        const detailResponse = await getFeedbackDetailsByFeedbackId(feedbackId);
+                        let details = null;
+                        
+                        if (Array.isArray(detailResponse)) {
+                          details = detailResponse;
+                        } else if (detailResponse?.data) {
+                          details = Array.isArray(detailResponse.data) ? detailResponse.data : detailResponse.data;
+                        } else {
+                          details = detailResponse;
+                        }
+                        
+                        if (Array.isArray(details) && details.length > 0) {
+                          feedbackDetail = details[0];
+                        } else if (details && !Array.isArray(details)) {
+                          feedbackDetail = details;
+                        }
+                      }
+                    } catch (err) {
+                      console.log('Error loading feedback detail:', err.message);
+                    }
+                    
+                    return {
+                      ...feedback,
+                      rating: feedbackDetail?.rating !== undefined ? parseInt(feedbackDetail.rating) : (feedback.rating ? parseInt(feedback.rating) : 0),
+                      content: feedbackDetail?.content || feedback.content || 'Không có nội dung',
+                      category: feedbackDetail?.category ? feedbackDetail.category.toLowerCase() : (feedback.category || 'service').toLowerCase(),
+                      feedbackDetail: feedbackDetail
+                    };
+                  })
+                );
+                
+                setFeedbacksWithDetails(feedbacksWithDetailsData);
+              } catch (err) {
+                console.error('Error loading feedbacks:', err);
+                setFeedbacks([]);
+                setFeedbacksWithDetails([]);
+              }
+            };
+            
+            loadFeedbacks();
+          }}
+          className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2 text-sm"
+          disabled={loadingOrders}
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+          </svg>
+          {loadingOrders ? 'Đang tải...' : 'Làm mới'}
+        </button>
       </div>
 
       {/* Stats Cards */}
@@ -380,6 +497,221 @@ const DealerStaffDashboard = () => {
             </LineChart>
           </ResponsiveContainer>
         </div>
+      </div>
+
+      {/* Charts Row 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* Order Status Pie */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-gray-900">⚡ Trạng thái đơn hàng</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Phân loại theo trạng thái</p>
+          </div>
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie
+                data={orderStatusData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                outerRadius={80}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {orderStatusData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Pie>
+              <Tooltip 
+                formatter={(value) => [`${value} đơn`, 'Số lượng']}
+                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Feedback Stats */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-gray-900">💬 Phản hồi khách hàng</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Thống kê phản hồi</p>
+          </div>
+          <div className="space-y-3">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
+              <p className="text-xs text-gray-600">Tổng số</p>
+              <p className="text-2xl font-bold text-blue-600 mt-1">{feedbackStats.total}</p>
+            </div>
+            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-3 border border-yellow-200">
+              <p className="text-xs text-gray-600">Đang chờ xử lý</p>
+              <p className="text-2xl font-bold text-yellow-600 mt-1">{feedbackStats.pending}</p>
+            </div>
+            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 border border-green-200">
+              <p className="text-xs text-gray-600">Đã xử lý</p>
+              <p className="text-2xl font-bold text-green-600 mt-1">{feedbackStats.resolved}</p>
+            </div>
+            <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-3 border border-amber-200">
+              <p className="text-xs text-gray-600">Đánh giá trung bình</p>
+              <div className="flex items-center gap-2 mt-1">
+                <p className="text-2xl font-bold text-amber-600">{feedbackStats.averageRating || '0.0'}</p>
+                <div className="flex items-center gap-0.5">
+                  {Array.from({ length: 5 }, (_, i) => {
+                    const starValue = i + 1;
+                    const isFilled = starValue <= Math.round(parseFloat(feedbackStats.averageRating) || 0);
+                    return (
+                      <svg
+                        key={i}
+                        className={`h-5 w-5 ${isFilled ? 'text-amber-500' : 'text-gray-300'}`}
+                        fill="currentColor"
+                        viewBox="0 0 20 20"
+                      >
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                      </svg>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Rating Distribution Chart */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-gray-900">⭐ Phân bố đánh giá</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Số lượng đánh giá theo sao</p>
+          </div>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart
+              data={[
+                { name: '1 sao', value: feedbackStats.ratingDistribution[1] || 0, color: '#ef4444' },
+                { name: '2 sao', value: feedbackStats.ratingDistribution[2] || 0, color: '#f97316' },
+                { name: '3 sao', value: feedbackStats.ratingDistribution[3] || 0, color: '#eab308' },
+                { name: '4 sao', value: feedbackStats.ratingDistribution[4] || 0, color: '#84cc16' },
+                { name: '5 sao', value: feedbackStats.ratingDistribution[5] || 0, color: '#10b981' },
+              ]}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="name" stroke="#6b7280" />
+              <YAxis stroke="#6b7280" />
+              <Tooltip 
+                formatter={(value) => [`${value} đánh giá`, 'Số lượng']}
+                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+              />
+              <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                {[
+                  { name: '1 sao', value: feedbackStats.ratingDistribution[1] || 0, color: '#ef4444' },
+                  { name: '2 sao', value: feedbackStats.ratingDistribution[2] || 0, color: '#f97316' },
+                  { name: '3 sao', value: feedbackStats.ratingDistribution[3] || 0, color: '#eab308' },
+                  { name: '4 sao', value: feedbackStats.ratingDistribution[4] || 0, color: '#84cc16' },
+                  { name: '5 sao', value: feedbackStats.ratingDistribution[5] || 0, color: '#10b981' },
+                ].map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.color} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Quick Actions */}
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
+          <div className="mb-4">
+            <h3 className="text-base font-semibold text-gray-900">⚡ Thao tác nhanh</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Truy cập nhanh các chức năng</p>
+          </div>
+          <div className="space-y-2">
+            <a href="/dealer-staff/order-management" className="block bg-emerald-50 hover:bg-emerald-100 rounded-lg p-3 border border-emerald-200 transition text-center">
+              <p className="text-xs font-medium text-emerald-700">Tạo đơn hàng</p>
+            </a>
+            <a href="/dealer-staff/customer-management" className="block bg-blue-50 hover:bg-blue-100 rounded-lg p-3 border border-blue-200 transition text-center">
+              <p className="text-xs font-medium text-blue-700">Quản lý khách hàng</p>
+            </a>
+            <a href="/dealer-staff/test-drive-schedule" className="block bg-purple-50 hover:bg-purple-100 rounded-lg p-3 border border-purple-200 transition text-center">
+              <p className="text-xs font-medium text-purple-700">Lịch lái thử</p>
+            </a>
+            <a href="/dealer-staff/payment-management" className="block bg-orange-50 hover:bg-orange-100 rounded-lg p-3 border border-orange-200 transition text-center">
+              <p className="text-xs font-medium text-orange-700">Thanh toán</p>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Recent Feedbacks with Details */}
+      <div className="mt-4 bg-white rounded-lg border border-gray-200 shadow-md p-4">
+        <div className="mb-4">
+          <h3 className="text-base font-semibold text-gray-900">📝 Phản hồi gần đây</h3>
+          <p className="text-xs text-gray-500 mt-0.5">Xem chi tiết nội dung và đánh giá</p>
+        </div>
+        {loadingFeedbacks ? (
+          <div className="text-center py-8">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600 mb-2"></div>
+            <p className="text-sm text-gray-600">Đang tải phản hồi...</p>
+          </div>
+        ) : feedbacksWithDetails.length === 0 ? (
+          <div className="text-center py-8">
+            <p className="text-sm text-gray-500">Chưa có phản hồi nào</p>
+          </div>
+        ) : (
+          <div className="space-y-3 max-h-96 overflow-y-auto">
+            {feedbacksWithDetails.slice(0, 10).map((feedback, index) => {
+              const rating = Math.max(0, Math.min(5, parseInt(feedback.rating) || 0));
+              const content = feedback.content || 'Không có nội dung';
+              const customerName = feedback.customerName || feedback.customer?.name || 'Khách hàng';
+              const feedbackDate = feedback.createdDate || feedback.createdAt || feedback.date;
+              const status = (feedback.status || '').toUpperCase();
+              
+              return (
+                <div key={feedback.feedbackId || feedback.id || index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
+                  <div className="flex items-start justify-between mb-2">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2">
+                        <p className="text-sm font-semibold text-gray-900">{customerName}</p>
+                        <span className={`text-xs px-2 py-0.5 rounded ${
+                          status === 'RESOLVED' ? 'bg-green-100 text-green-700' :
+                          status === 'PENDING' || status === 'DRAFT' ? 'bg-yellow-100 text-yellow-700' :
+                          'bg-gray-100 text-gray-700'
+                        }`}>
+                          {status === 'RESOLVED' ? 'Đã xử lý' : status === 'PENDING' || status === 'DRAFT' ? 'Đang chờ' : status}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs text-gray-500">Đánh giá:</span>
+                        <div className="flex items-center gap-0.5">
+                          {Array.from({ length: 5 }, (_, i) => {
+                            const starValue = i + 1;
+                            const isFilled = starValue <= rating;
+                            return (
+                              <svg
+                                key={i}
+                                className={`h-4 w-4 ${isFilled ? 'text-yellow-400' : 'text-gray-300'}`}
+                                fill="currentColor"
+                                viewBox="0 0 20 20"
+                              >
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                            );
+                          })}
+                        </div>
+                        <span className="text-xs text-gray-600">({rating}/5)</span>
+                      </div>
+                    </div>
+                    {feedbackDate && (
+                      <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
+                        {new Date(feedbackDate).toLocaleDateString('vi-VN')}
+                      </span>
+                    )}
+                  </div>
+                  <div className="mt-2">
+                    <p className="text-xs text-gray-600 mb-1">Nội dung:</p>
+                    <p className="text-sm text-gray-800 bg-gray-50 rounded p-2 border border-gray-200">
+                      {content}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -38,6 +38,17 @@ export async function createFeedback(feedbackData) {
         status: feedbackData.status || 'DRAFT'
     };
     
+    // Include optional fields if provided (for APIs that accept them in the main request)
+    if (feedbackData.category !== undefined) {
+        payload.category = feedbackData.category;
+    }
+    if (feedbackData.rating !== undefined) {
+        payload.rating = feedbackData.rating;
+    }
+    if (feedbackData.content !== undefined && feedbackData.content !== null) {
+        payload.content = feedbackData.content;
+    }
+    
     console.log('Creating feedback:', JSON.stringify(payload, null, 2));
     
     return request('/api/feedbacks/create', {
