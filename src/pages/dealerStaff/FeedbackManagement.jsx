@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { getAllFeedbacks, updateFeedbackStatus, createFeedback, updateFeedback } from '@/api/feedbackService';
 import { getFeedbackDetailsByFeedbackId, createFeedbackDetail, updateFeedbackDetail } from '@/api/feedbackDetailService';
 import { getAllOrders } from '@/api/orderService';
@@ -8,7 +8,7 @@ import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
 
 function FeedbackManagement({ onBack }) {
-  const { toast, success, showError, hideToast } = useToast();
+  const { toast, success, error: showError, hideToast } = useToast();
   const { confirm, showConfirm, hideConfirm } = useConfirm();
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -84,6 +84,16 @@ function FeedbackManagement({ onBack }) {
     fetchOrders();
   }, [showCreateForm, showEditForm]);
 
+  // Get feedback count for an order
+  const getFeedbackCountForOrder = (orderId) => {
+    if (!orderId) return 0;
+    const orderIdInt = parseInt(orderId);
+    return feedbacks.filter(f => {
+      const fOrderId = parseInt(f.orderId);
+      return fOrderId === orderIdInt;
+    }).length;
+  };
+
   // Handle order selection
   const handleOrderSelect = (orderId) => {
     if (!orderId || orderId === '') {
@@ -108,6 +118,8 @@ function FeedbackManagement({ onBack }) {
                           selectedOrder.customer?.name ||
                           'N/A';
       
+      const feedbackCount = getFeedbackCountForOrder(orderId);
+      
       setCreateForm(prev => ({
         ...prev,
         orderId: orderId.toString(),
@@ -117,163 +129,208 @@ function FeedbackManagement({ onBack }) {
       console.log('✅ [FeedbackManagement] Đã chọn đơn hàng:', {
         orderId: selectedOrder.orderId || selectedOrder.id,
         customerName: customerName,
+        existingFeedbackCount: feedbackCount,
         fullOrder: selectedOrder
       });
+      
+      // Show info if order already has feedbacks
+      if (feedbackCount > 0) {
+        console.log(`ℹ️ [FeedbackManagement] Đơn hàng này đã có ${feedbackCount} phản hồi`);
+      }
     } else {
       console.warn('⚠️ [FeedbackManagement] Không tìm thấy đơn hàng với ID:', orderId);
       showError('Không tìm thấy đơn hàng được chọn!');
     }
   };
 
-  // Load feedbacks from API
-  useEffect(() => {
-    let isMounted = true; // Flag to prevent state update if component unmounts
-    
-    const fetchFeedbacks = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        console.log('🔄 [FeedbackManagement] Đang tải danh sách phản hồi...');
-        const response = await getAllFeedbacks();
-        
-        if (!isMounted) return; // Don't update state if component unmounted
-        
-        // Debug: Log toàn bộ response để kiểm tra
-        console.log('📥 [FeedbackManagement] Raw API Response:', response);
-        console.log('📥 [FeedbackManagement] Response type:', typeof response);
-        console.log('📥 [FeedbackManagement] Is Array?', Array.isArray(response));
-        if (response && typeof response === 'object') {
-          console.log('📥 [FeedbackManagement] Response keys:', Object.keys(response));
-        }
-        
-        // Handle different response structures
-        let feedbacksData = [];
-        
-        // Check if response is directly an array
-        if (Array.isArray(response)) {
-          feedbacksData = response;
-          console.log('✅ [FeedbackManagement] Response là array, số lượng:', feedbacksData.length);
-        }
-        // Check if response.data is an array
-        else if (response?.data && Array.isArray(response.data)) {
-          feedbacksData = response.data;
-          console.log('✅ [FeedbackManagement] Response.data là array, số lượng:', feedbacksData.length);
-        }
-        // Check if response.data.data is an array
-        else if (response?.data?.data && Array.isArray(response.data.data)) {
-          feedbacksData = response.data.data;
-          console.log('✅ [FeedbackManagement] Response.data.data là array, số lượng:', feedbacksData.length);
-        }
-        // Try other possible structures
-        else if (response?.data && !Array.isArray(response.data)) {
-          console.log('⚠️ [FeedbackManagement] Response.data không phải array:', response.data);
-          // Try to extract array from response.data
-          if (response.data.list && Array.isArray(response.data.list)) {
-            feedbacksData = response.data.list;
-            console.log('✅ [FeedbackManagement] Tìm thấy response.data.list');
-          } else if (response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
-            feedbacksData = response.data.feedbacks;
-            console.log('✅ [FeedbackManagement] Tìm thấy response.data.feedbacks');
-          } else if (response.data.items && Array.isArray(response.data.items)) {
-            feedbacksData = response.data.items;
-            console.log('✅ [FeedbackManagement] Tìm thấy response.data.items');
-          } else {
-            console.warn('⚠️ [FeedbackManagement] Không tìm thấy array trong response');
-          }
-        }
-        
-        console.log('📊 [FeedbackManagement] Processed feedbacksData:', feedbacksData);
-        console.log('📊 [FeedbackManagement] Số lượng feedbacks:', feedbacksData.length);
-        
-        if (feedbacksData.length === 0) {
-          console.warn('⚠️ [FeedbackManagement] Không có feedback nào trong response');
-          setFeedbacks([]);
-          setLoading(false);
-          return;
-        }
-        
-        // Map API response to component format
-        const mappedFeedbacks = await Promise.all(
-          feedbacksData.map(async (feedback, index) => {
-            console.log(`🔄 [FeedbackManagement] Đang xử lý feedback ${index + 1}/${feedbacksData.length}:`, feedback);
-            
-            // Try to get feedback details for content, rating, category
-            let feedbackDetail = null;
-            try {
-              const feedbackId = feedback.feedbackId || feedback.id || feedback.feedback_id;
-              if (feedbackId) {
-                const detailResponse = await getFeedbackDetailsByFeedbackId(feedbackId);
-                const details = detailResponse?.data || detailResponse;
-                if (Array.isArray(details) && details.length > 0) {
-                  feedbackDetail = details[0];
-                  console.log(`✅ [FeedbackManagement] Tìm thấy feedback detail cho feedback ${index + 1}`);
-                } else if (details && !Array.isArray(details)) {
-                  feedbackDetail = details;
-                  console.log(`✅ [FeedbackManagement] Tìm thấy feedback detail (single) cho feedback ${index + 1}`);
-                }
-              }
-            } catch (err) {
-              console.log(`ℹ️ [FeedbackManagement] Không có feedback detail cho feedback ${index + 1}:`, err.message);
-            }
-            
-            const mapped = {
-              id: feedback.feedbackId || feedback.id || feedback.feedback_id,
-              feedbackId: feedback.feedbackId || feedback.id || feedback.feedback_id,
-              customerName: feedback.customerName || feedback.customer_name || 'N/A',
-              orderNumber: feedback.orderId ? `HD-${feedback.orderId}` : feedback.orderNumber || 'N/A',
-              orderId: feedback.orderId || feedback.order_id,
-              vehicleModel: feedback.vehicleModel || feedback.vehicle_model || 'N/A',
-              category: (feedbackDetail?.category || feedback.category || 'service').toLowerCase(),
-              rating: feedbackDetail?.rating || feedback.rating || 0,
-              content: feedbackDetail?.content || feedback.content || 'Không có nội dung',
-              status: (feedback.status || 'pending').toLowerCase(),
-              createdAt: feedback.createdAt || feedback.created_at || feedback.createdDate || new Date().toISOString().split('T')[0],
-              resolvedAt: feedback.resolvedAt || feedback.resolved_at || feedback.resolvedDate || null,
-              feedbackDetailId: feedbackDetail?.feedbackDetailId || feedbackDetail?.id || null
-            };
-            
-            console.log(`✅ [FeedbackManagement] Đã map feedback ${index + 1}:`, mapped);
-            return mapped;
-          })
-        );
-        
-        // Sort by newest first (default)
-        mappedFeedbacks.sort((a, b) => {
-          const dateA = new Date(a.createdAt);
-          const dateB = new Date(b.createdAt);
-          return dateB - dateA; // Newest first
-        });
-        
-        console.log('✅ [FeedbackManagement] Final mapped feedbacks:', mappedFeedbacks);
-        console.log('✅ [FeedbackManagement] Tổng số feedbacks:', mappedFeedbacks.length);
-        
-        if (isMounted) {
-          setFeedbacks(mappedFeedbacks);
-        }
-      } catch (err) {
-        console.error('❌ [FeedbackManagement] Lỗi khi tải feedbacks:', err);
-        if (isMounted) {
-          setError(err.message || 'Không thể tải danh sách phản hồi');
-          setFeedbacks([]);
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
+  // Function to fetch feedbacks (can be called from anywhere)
+  const fetchFeedbacks = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      console.log('🔄 [FeedbackManagement] Đang tải danh sách phản hồi...');
+      const response = await getAllFeedbacks();
+      
+      // Debug: Log toàn bộ response để kiểm tra
+      console.log('📥 [FeedbackManagement] Raw API Response:', response);
+      console.log('📥 [FeedbackManagement] Response type:', typeof response);
+      console.log('📥 [FeedbackManagement] Is Array?', Array.isArray(response));
+      if (response && typeof response === 'object') {
+        console.log('📥 [FeedbackManagement] Response keys:', Object.keys(response));
+      }
+      
+      // Handle different response structures
+      let feedbacksData = [];
+      
+      // Check if response is directly an array
+      if (Array.isArray(response)) {
+        feedbacksData = response;
+        console.log('✅ [FeedbackManagement] Response là array, số lượng:', feedbacksData.length);
+      }
+      // Check if response.data is an array
+      else if (response?.data && Array.isArray(response.data)) {
+        feedbacksData = response.data;
+        console.log('✅ [FeedbackManagement] Response.data là array, số lượng:', feedbacksData.length);
+      }
+      // Check if response.data.data is an array
+      else if (response?.data?.data && Array.isArray(response.data.data)) {
+        feedbacksData = response.data.data;
+        console.log('✅ [FeedbackManagement] Response.data.data là array, số lượng:', feedbacksData.length);
+      }
+      // Try other possible structures
+      else if (response?.data && !Array.isArray(response.data)) {
+        console.log('⚠️ [FeedbackManagement] Response.data không phải array:', response.data);
+        // Try to extract array from response.data
+        if (response.data.list && Array.isArray(response.data.list)) {
+          feedbacksData = response.data.list;
+          console.log('✅ [FeedbackManagement] Tìm thấy response.data.list');
+        } else if (response.data.feedbacks && Array.isArray(response.data.feedbacks)) {
+          feedbacksData = response.data.feedbacks;
+          console.log('✅ [FeedbackManagement] Tìm thấy response.data.feedbacks');
+        } else if (response.data.items && Array.isArray(response.data.items)) {
+          feedbacksData = response.data.items;
+          console.log('✅ [FeedbackManagement] Tìm thấy response.data.items');
+        } else {
+          console.warn('⚠️ [FeedbackManagement] Không tìm thấy array trong response');
         }
       }
-    };
-    
-    fetchFeedbacks();
-    
-    // Cleanup function
-    return () => {
-      isMounted = false;
-    };
+      
+      console.log('📊 [FeedbackManagement] Processed feedbacksData:', feedbacksData);
+      console.log('📊 [FeedbackManagement] Số lượng feedbacks:', feedbacksData.length);
+      
+      if (feedbacksData.length === 0) {
+        console.warn('⚠️ [FeedbackManagement] Không có feedback nào trong response');
+        setFeedbacks([]);
+        setLoading(false);
+        return;
+      }
+      
+      // Map API response to component format
+      const mappedFeedbacks = await Promise.all(
+        feedbacksData.map(async (feedback, index) => {
+          console.log(`🔄 [FeedbackManagement] Đang xử lý feedback ${index + 1}/${feedbacksData.length}:`, feedback);
+          
+          // Try to get feedback details for content, rating, category
+          let feedbackDetail = null;
+          try {
+            const feedbackId = feedback.feedbackId || feedback.id || feedback.feedback_id;
+            if (feedbackId) {
+              console.log(`🔍 [FeedbackManagement] Đang lấy feedback detail cho feedbackId: ${feedbackId}`);
+              const detailResponse = await getFeedbackDetailsByFeedbackId(feedbackId);
+              console.log(`📥 [FeedbackManagement] Detail response raw:`, detailResponse);
+              
+              // Try multiple response structures
+              let details = null;
+              if (Array.isArray(detailResponse)) {
+                details = detailResponse;
+              } else if (detailResponse?.data) {
+                if (Array.isArray(detailResponse.data)) {
+                  details = detailResponse.data;
+                } else if (detailResponse.data?.data && Array.isArray(detailResponse.data.data)) {
+                  details = detailResponse.data.data;
+                } else {
+                  details = detailResponse.data;
+                }
+              } else {
+                details = detailResponse;
+              }
+              
+              console.log(`📊 [FeedbackManagement] Processed details:`, details);
+              
+              if (Array.isArray(details) && details.length > 0) {
+                feedbackDetail = details[0];
+                console.log(`✅ [FeedbackManagement] Tìm thấy feedback detail (array) cho feedback ${index + 1}:`, feedbackDetail);
+              } else if (details && !Array.isArray(details) && (details.rating !== undefined || details.content !== undefined)) {
+                feedbackDetail = details;
+                console.log(`✅ [FeedbackManagement] Tìm thấy feedback detail (single) cho feedback ${index + 1}:`, feedbackDetail);
+              } else {
+                console.log(`ℹ️ [FeedbackManagement] Không có feedback detail cho feedback ${index + 1}, details:`, details);
+              }
+            }
+          } catch (err) {
+            console.log(`ℹ️ [FeedbackManagement] Lỗi khi lấy feedback detail cho feedback ${index + 1}:`, err.message, err);
+          }
+          
+          // Parse rating - ensure it's a number
+          let ratingValue = 0;
+          if (feedbackDetail?.rating !== undefined && feedbackDetail?.rating !== null) {
+            ratingValue = parseInt(feedbackDetail.rating) || 0;
+          } else if (feedback?.rating !== undefined && feedback?.rating !== null) {
+            ratingValue = parseInt(feedback.rating) || 0;
+          }
+          
+          // Get content
+          let contentValue = 'Không có nội dung';
+          if (feedbackDetail?.content) {
+            contentValue = feedbackDetail.content;
+          } else if (feedback?.content) {
+            contentValue = feedback.content;
+          }
+          
+          // Get category
+          let categoryValue = 'service';
+          if (feedbackDetail?.category) {
+            categoryValue = (feedbackDetail.category || 'service').toLowerCase();
+          } else if (feedback?.category) {
+            categoryValue = (feedback.category || 'service').toLowerCase();
+          }
+          
+          console.log(`📝 [FeedbackManagement] Mapped values cho feedback ${index + 1}:`, {
+            rating: ratingValue,
+            content: contentValue,
+            category: categoryValue,
+            hasDetail: !!feedbackDetail
+          });
+          
+          const mapped = {
+            id: feedback.feedbackId || feedback.id || feedback.feedback_id,
+            feedbackId: feedback.feedbackId || feedback.id || feedback.feedback_id,
+            customerName: feedback.customerName || feedback.customer_name || 'N/A',
+            orderNumber: feedback.orderId ? `HD-${feedback.orderId}` : feedback.orderNumber || 'N/A',
+            orderId: feedback.orderId || feedback.order_id,
+            vehicleModel: feedback.vehicleModel || feedback.vehicle_model || 'N/A',
+            category: categoryValue,
+            rating: ratingValue,
+            content: contentValue,
+            status: (feedback.status || 'pending').toLowerCase(),
+            createdAt: feedback.createdAt || feedback.created_at || feedback.createdDate || new Date().toISOString().split('T')[0],
+            resolvedAt: feedback.resolvedAt || feedback.resolved_at || feedback.resolvedDate || null,
+            feedbackDetailId: feedbackDetail?.feedbackDetailId || feedbackDetail?.id || null
+          };
+          
+          console.log(`✅ [FeedbackManagement] Đã map feedback ${index + 1}:`, mapped);
+          return mapped;
+        })
+      );
+      
+      // Sort by newest first (default)
+      mappedFeedbacks.sort((a, b) => {
+        const dateA = new Date(a.createdAt);
+        const dateB = new Date(b.createdAt);
+        return dateB - dateA; // Newest first
+      });
+      
+      console.log('✅ [FeedbackManagement] Final mapped feedbacks:', mappedFeedbacks);
+      console.log('✅ [FeedbackManagement] Tổng số feedbacks:', mappedFeedbacks.length);
+      
+      setFeedbacks(mappedFeedbacks);
+      setLoading(false);
+    } catch (err) {
+      console.error('❌ [FeedbackManagement] Lỗi khi tải feedbacks:', err);
+      setError(err.message || 'Không thể tải danh sách phản hồi');
+      setFeedbacks([]);
+      setLoading(false);
+    }
   }, []);
 
+  // Load feedbacks from API on mount
+  useEffect(() => {
+    fetchFeedbacks();
+  }, [fetchFeedbacks]);
+
   // Sort feedbacks - use useMemo to avoid infinite loop
-  const sortedFeedbacks = React.useMemo(() => {
+  const sortedFeedbacks = useMemo(() => {
     if (feedbacks.length === 0) return feedbacks;
     
     const sorted = [...feedbacks];
@@ -440,6 +497,16 @@ function FeedbackManagement({ onBack }) {
         showError('Vui lòng chọn đơn hàng để tự động điền tên khách hàng!');
         return;
       }
+
+      if (!createForm.content || createForm.content.trim() === '') {
+        showError('Vui lòng nhập nội dung phản hồi!');
+        return;
+      }
+
+      if (!createForm.rating || createForm.rating < 1 || createForm.rating > 5) {
+        showError('Vui lòng chọn đánh giá từ 1 đến 5 sao!');
+        return;
+      }
       
       const orderIdInt = parseInt(createForm.orderId);
       if (isNaN(orderIdInt) || orderIdInt <= 0) {
@@ -450,11 +517,14 @@ function FeedbackManagement({ onBack }) {
       console.log('🔄 [FeedbackManagement] Đang tạo feedback:', createForm);
       console.log('🔄 [FeedbackManagement] OrderId (parsed):', orderIdInt);
       
-      // Create feedback first
+      // Create feedback with all data (API may require rating, content, category in main request)
       const feedbackResponse = await createFeedback({
         orderId: orderIdInt,
         customerName: createForm.customerName,
-        status: createForm.status
+        status: createForm.status,
+        category: createForm.category.toUpperCase(),
+        rating: createForm.rating,
+        content: createForm.content.trim()
       });
       
       console.log('📥 [FeedbackManagement] Create feedback response:', feedbackResponse);
@@ -471,20 +541,30 @@ function FeedbackManagement({ onBack }) {
       
       console.log('✅ [FeedbackManagement] Đã tạo feedback với ID:', feedbackId);
       
-      // Create feedback detail
+      // Try to create feedback detail if API doesn't automatically create it
+      // Some APIs may create detail automatically when rating/content/category are provided
+      // So we try to create detail, but don't fail if it already exists or isn't needed
       try {
-        await createFeedbackDetail({
+        const detailResponse = await createFeedbackDetail({
           feedbackId: feedbackId,
           category: createForm.category.toUpperCase(),
           rating: createForm.rating,
-          content: createForm.content
+          content: createForm.content.trim()
         });
         
-        console.log('✅ [FeedbackManagement] Đã tạo feedback detail');
+        console.log('✅ [FeedbackManagement] Đã tạo feedback detail:', detailResponse);
       } catch (detailErr) {
-        console.error('❌ [FeedbackManagement] Lỗi khi tạo feedback detail:', detailErr);
-        // Nếu feedback đã được tạo nhưng detail fail, vẫn hiển thị success
-        // vì có thể tạo detail sau
+        // Check if error is because detail already exists or isn't needed
+        const errorMsg = detailErr.message || '';
+        if (errorMsg.includes('already exists') || 
+            errorMsg.includes('duplicate') ||
+            errorMsg.includes('already created')) {
+          console.log('ℹ️ [FeedbackManagement] Feedback detail đã tồn tại, bỏ qua');
+        } else {
+          console.warn('⚠️ [FeedbackManagement] Không thể tạo feedback detail:', detailErr);
+          // Don't throw error - main feedback was created successfully
+          // Detail might have been created automatically by API
+        }
       }
       
       // Close form and reset
@@ -500,8 +580,8 @@ function FeedbackManagement({ onBack }) {
       
       success('Tạo phản hồi thành công!');
       
-      // Refresh feedbacks list by reloading the page
-      window.location.reload();
+      // Refresh feedbacks list without reloading page
+      await fetchFeedbacks();
     } catch (err) {
       console.error('❌ [FeedbackManagement] Lỗi khi tạo feedback:', err);
       console.error('❌ [FeedbackManagement] Error details:', {
@@ -511,15 +591,40 @@ function FeedbackManagement({ onBack }) {
       });
       
       let errorMessage = 'Lỗi khi tạo phản hồi';
+      
+      // Xử lý các loại lỗi khác nhau
       if (err.message) {
-        errorMessage += ': ' + err.message;
+        if (err.message.includes('502') || err.message.includes('Bad Gateway')) {
+          errorMessage = 'Lỗi kết nối đến server. Vui lòng thử lại sau hoặc kiểm tra kết nối mạng.';
+        } else if (err.message.includes('500') || err.message.includes('Internal Server Error')) {
+          errorMessage = 'Lỗi server. Vui lòng thử lại sau.';
+        } else if (err.message.includes('404') || err.message.includes('Not Found')) {
+          errorMessage = 'Không tìm thấy API endpoint. Vui lòng liên hệ quản trị viên.';
+        } else if (err.message.includes('403') || err.message.includes('Forbidden')) {
+          errorMessage = 'Bạn không có quyền thực hiện thao tác này.';
+        } else if (err.message.includes('401') || err.message.includes('Unauthorized')) {
+          errorMessage = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+        } else {
+          errorMessage += ': ' + err.message;
+        }
       } else if (err.response?.data?.message) {
         errorMessage += ': ' + err.response.data.message;
       } else {
         errorMessage += '. Vui lòng thử lại hoặc kiểm tra console để biết thêm chi tiết.';
       }
       
-      showError(errorMessage);
+      // Đảm bảo showError luôn được gọi an toàn
+      try {
+        if (typeof showError === 'function') {
+          showError(errorMessage);
+        } else {
+          console.error('⚠️ showError is not a function, showing alert instead');
+          alert(errorMessage);
+        }
+      } catch (displayErr) {
+        console.error('❌ Lỗi khi hiển thị error message:', displayErr);
+        alert(errorMessage);
+      }
     }
   };
 
@@ -589,12 +694,14 @@ function FeedbackManagement({ onBack }) {
       
       console.log('✅ [FeedbackManagement] Đã cập nhật feedback');
       
-      // Refresh feedbacks list
-      window.location.reload();
-      
+      // Close form
       setShowEditForm(false);
       setSelectedFeedback(null);
+      
       success('Cập nhật phản hồi thành công!');
+      
+      // Refresh feedbacks list without reloading page
+      await fetchFeedbacks();
     } catch (err) {
       console.error('❌ [FeedbackManagement] Lỗi khi cập nhật feedback:', err);
       showError('Lỗi khi cập nhật phản hồi: ' + (err.message || 'Vui lòng thử lại'));
@@ -602,16 +709,60 @@ function FeedbackManagement({ onBack }) {
   };
 
   const renderStars = (rating) => {
-    return Array.from({ length: 5 }, (_, index) => (
-      <svg
-        key={index}
-        className={`h-4 w-4 ${index < rating ? 'text-yellow-400' : 'text-gray-300'}`}
-        fill="currentColor"
-        viewBox="0 0 20 20"
-      >
-        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-      </svg>
-    ));
+    // Ensure rating is a number between 0 and 5
+    const ratingNum = typeof rating === 'number' ? rating : parseInt(rating) || 0;
+    const clampedRating = Math.max(0, Math.min(5, ratingNum));
+    
+    return Array.from({ length: 5 }, (_, index) => {
+      const starValue = index + 1;
+      const isFilled = starValue <= clampedRating;
+      
+      return (
+        <svg
+          key={index}
+          className={`h-4 w-4 ${isFilled ? 'text-yellow-400' : 'text-gray-300'}`}
+          fill={isFilled ? 'currentColor' : 'none'}
+          stroke={isFilled ? 'currentColor' : 'currentColor'}
+          strokeWidth={isFilled ? 0 : 1}
+          viewBox="0 0 20 20"
+        >
+          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+        </svg>
+      );
+    });
+  };
+
+  // Interactive star rating selector component
+  const StarRatingSelector = ({ value, onChange }) => {
+    const [hoverRating, setHoverRating] = useState(0);
+    
+    return (
+      <div className="flex items-center gap-1">
+        {Array.from({ length: 5 }, (_, index) => {
+          const starValue = index + 1;
+          const isFilled = starValue <= (hoverRating || value);
+          
+          return (
+            <button
+              key={index}
+              type="button"
+              onClick={() => onChange(starValue)}
+              onMouseEnter={() => setHoverRating(starValue)}
+              onMouseLeave={() => setHoverRating(0)}
+              className="focus:outline-none transition-transform hover:scale-110"
+            >
+              <svg
+                className={`h-8 w-8 ${isFilled ? 'text-yellow-400' : 'text-gray-300'} transition-colors`}
+                fill="currentColor"
+                viewBox="0 0 20 20"
+              >
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+            </button>
+          );
+        })}
+      </div>
+    );
   };
 
   const getSortText = () => {
@@ -830,9 +981,11 @@ function FeedbackManagement({ onBack }) {
                                             order.customer?.customerName || 
                                             order.customer?.name ||
                                             'N/A';
+                        const feedbackCount = getFeedbackCountForOrder(orderId);
+                        const feedbackInfo = feedbackCount > 0 ? ` (${feedbackCount} phản hồi)` : '';
                         return (
                           <option key={orderId} value={orderId}>
-                            {orderCode} - {customerName}
+                            {orderCode} - {customerName}{feedbackInfo}
                           </option>
                         );
                       })}
@@ -854,15 +1007,11 @@ function FeedbackManagement({ onBack }) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Đánh giá (1-5) *</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="5"
+                  <StarRatingSelector
                     value={createForm.rating}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, rating: parseInt(e.target.value) }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    required
+                    onChange={(rating) => setCreateForm(prev => ({ ...prev, rating }))}
                   />
+                  {/* No hidden input needed - validation is handled in handleCreateFeedback */}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Nội dung *</label>
@@ -947,9 +1096,11 @@ function FeedbackManagement({ onBack }) {
                                             order.customer?.customerName || 
                                             order.customer?.name ||
                                             'N/A';
+                        const feedbackCount = getFeedbackCountForOrder(orderId);
+                        const feedbackInfo = feedbackCount > 0 ? ` (${feedbackCount} phản hồi)` : '';
                         return (
                           <option key={orderId} value={orderId}>
-                            {orderCode} - {customerName}
+                            {orderCode} - {customerName}{feedbackInfo}
                           </option>
                         );
                       })}
@@ -971,15 +1122,11 @@ function FeedbackManagement({ onBack }) {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Đánh giá (1-5) *</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="5"
+                  <StarRatingSelector
                     value={createForm.rating}
-                    onChange={(e) => setCreateForm(prev => ({ ...prev, rating: parseInt(e.target.value) }))}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
-                    required
+                    onChange={(rating) => setCreateForm(prev => ({ ...prev, rating }))}
                   />
+                  {/* No hidden input needed - validation is handled in handleUpdateFeedback */}
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">Nội dung *</label>

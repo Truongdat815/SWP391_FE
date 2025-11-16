@@ -442,7 +442,7 @@ function ViewContracts() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="bg-gray-50">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -464,7 +464,7 @@ function ViewContracts() {
       />
 
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 py-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 pt-0 pb-4">
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
           {/* Total Contracts */}
@@ -472,7 +472,7 @@ function ViewContracts() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -493,7 +493,7 @@ function ViewContracts() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -514,7 +514,7 @@ function ViewContracts() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -535,7 +535,7 @@ function ViewContracts() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -554,12 +554,6 @@ function ViewContracts() {
 
         {/* Main Content Card */}
         <ModernCard className="overflow-hidden">
-          <ModernCardHeader
-            title="Quản lý hợp đồng"
-            icon={<FileText className="w-5 h-5" />}
-            roleColor="emerald"
-          />
-
           <ModernCardContent>
             {/* Search Bar */}
             <div className="mb-4">

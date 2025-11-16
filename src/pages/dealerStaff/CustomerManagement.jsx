@@ -13,19 +13,22 @@ import {
   Filter, 
   Edit, 
   Eye, 
-  Trash2, 
   FileText, 
   ChevronDown,
   Calendar,
   TrendingUp,
   X,
   Phone,
-  Mail,
   MapPin,
-  CreditCard,
   CheckCircle,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
+  ShoppingBag,
+  DollarSign,
+  Store,
+  User,
+  Clock,
+  Package
 } from 'lucide-react';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -348,6 +351,136 @@ function CustomerManagement() {
     updateAddress(value);
   };
 
+  // Function để parse địa chỉ từ string thành các phần
+  const parseAddress = async (addressString) => {
+    if (!addressString) return null;
+
+    // Tách địa chỉ theo dấu phẩy
+    const parts = addressString.split(',').map(p => p.trim()).filter(p => p);
+    
+    if (parts.length === 0) return null;
+
+    let foundProvince = null;
+    let foundDistrict = null;
+    let foundWard = null;
+    let detailAddr = '';
+    let loadedDistricts = [];
+    let loadedWards = [];
+
+    // Tìm province (từ cuối lên)
+    for (let i = parts.length - 1; i >= 0; i--) {
+      const part = parts[i];
+      const province = provinces.find(p => 
+        p.name.toLowerCase() === part.toLowerCase() ||
+        p.name.toLowerCase().includes(part.toLowerCase()) ||
+        part.toLowerCase().includes(p.name.toLowerCase())
+      );
+      if (province) {
+        foundProvince = province;
+        // Load districts cho province này
+        if (province.districts && province.districts.length > 0) {
+          loadedDistricts = province.districts;
+          setDistricts(province.districts);
+        } else {
+          // Nếu không có districts, fetch từ API
+          try {
+            const provinceData = await fetchExternalApi(`https://provinces.open-api.vn/api/p/${province.code}?depth=2`);
+            if (provinceData && provinceData.districts) {
+              loadedDistricts = provinceData.districts;
+              setDistricts(provinceData.districts);
+            }
+          } catch (error) {
+            console.error('Error fetching districts:', error);
+          }
+        }
+        break;
+      }
+    }
+
+    // Tìm district (từ cuối lên, trước province)
+    if (foundProvince && loadedDistricts.length > 0) {
+      const provinceIndex = parts.findIndex(p => 
+        p.toLowerCase() === foundProvince.name.toLowerCase() ||
+        foundProvince.name.toLowerCase().includes(p.toLowerCase())
+      );
+      
+      for (let i = provinceIndex - 1; i >= 0; i--) {
+        const part = parts[i];
+        const district = loadedDistricts.find(d => 
+          d.name.toLowerCase() === part.toLowerCase() ||
+          d.name.toLowerCase().includes(part.toLowerCase()) ||
+          part.toLowerCase().includes(d.name.toLowerCase())
+        );
+        if (district) {
+          foundDistrict = district;
+          // Load wards cho district này
+          if (district.wards && district.wards.length > 0) {
+            loadedWards = district.wards;
+            setWards(district.wards);
+          } else {
+            // Nếu không có wards, fetch từ API
+            try {
+              const districtData = await fetchExternalApi(`https://provinces.open-api.vn/api/d/${district.code}?depth=2`);
+              if (districtData && districtData.wards) {
+                loadedWards = districtData.wards;
+                setWards(districtData.wards);
+              }
+            } catch (error) {
+              console.error('Error fetching wards:', error);
+            }
+          }
+          break;
+        }
+      }
+    }
+
+    // Tìm ward (từ cuối lên, trước district)
+    if (foundDistrict && loadedWards.length > 0) {
+      const districtIndex = parts.findIndex(p => 
+        p.toLowerCase() === foundDistrict.name.toLowerCase() ||
+        foundDistrict.name.toLowerCase().includes(p.toLowerCase())
+      );
+      
+      for (let i = districtIndex - 1; i >= 0; i--) {
+        const part = parts[i];
+        const ward = loadedWards.find(w => 
+          w.name.toLowerCase() === part.toLowerCase() ||
+          w.name.toLowerCase().includes(part.toLowerCase()) ||
+          part.toLowerCase().includes(w.name.toLowerCase())
+        );
+        if (ward) {
+          foundWard = ward;
+          break;
+        }
+      }
+    }
+
+    // Phần còn lại là detail address
+    const provinceIndex = foundProvince ? parts.findIndex(p => 
+      p.toLowerCase() === foundProvince.name.toLowerCase() ||
+      foundProvince.name.toLowerCase().includes(p.toLowerCase())
+    ) : parts.length;
+    
+    const districtIndex = foundDistrict ? parts.findIndex(p => 
+      p.toLowerCase() === foundDistrict.name.toLowerCase() ||
+      foundDistrict.name.toLowerCase().includes(p.toLowerCase())
+    ) : provinceIndex;
+    
+    const wardIndex = foundWard ? parts.findIndex(p => 
+      p.toLowerCase() === foundWard.name.toLowerCase() ||
+      foundWard.name.toLowerCase().includes(p.toLowerCase())
+    ) : districtIndex;
+
+    detailAddr = parts.slice(0, wardIndex !== -1 ? wardIndex : districtIndex !== -1 ? districtIndex : provinceIndex).join(', ');
+
+    return {
+      provinceCode: foundProvince?.code?.toString() || null,
+      districtCode: foundDistrict?.code?.toString() || null,
+      wardCode: foundWard?.code?.toString() || null,
+      detailAddress: detailAddr
+    };
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -489,7 +622,7 @@ function CustomerManagement() {
     setCustomerToDelete(null);
   };
 
-  const handleEditClick = (customer) => {
+  const handleEditClick = async (customer) => {
     setCustomerToEdit(customer);
     setFormData({
       fullName: customer.fullName || '',
@@ -498,6 +631,38 @@ function CustomerManagement() {
       phone: customer.phone || '',
       identificationNumber: customer.identificationNumber || ''
     });
+
+    // Parse địa chỉ và đổ vào các field
+    if (customer.address) {
+      try {
+        const parsedAddress = await parseAddress(customer.address);
+        if (parsedAddress) {
+          setSelectedProvinceCode(parsedAddress.provinceCode);
+          setSelectedDistrictCode(parsedAddress.districtCode);
+          setSelectedWardCode(parsedAddress.wardCode);
+          setDetailAddress(parsedAddress.detailAddress);
+          
+          // Đợi một chút để districts và wards được load
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
+          // Cập nhật lại địa chỉ sau khi đã set các giá trị
+          setTimeout(() => updateAddress(parsedAddress.detailAddress), 100);
+        }
+      } catch (error) {
+        console.error('Error parsing address:', error);
+        // Nếu parse lỗi, vẫn mở modal nhưng không có dữ liệu địa chỉ
+        setDetailAddress('');
+        setSelectedProvinceCode(null);
+        setSelectedDistrictCode(null);
+        setSelectedWardCode(null);
+      }
+    } else {
+      setDetailAddress('');
+      setSelectedProvinceCode(null);
+      setSelectedDistrictCode(null);
+      setSelectedWardCode(null);
+    }
+
     setShowEditModal(true);
   };
 
@@ -716,7 +881,7 @@ function CustomerManagement() {
       />
 
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 py-4">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 pt-0 pb-4">
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
           {/* Total Customers */}
@@ -724,16 +889,17 @@ function CustomerManagement() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
           >
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="p-1 bg-blue-100 rounded-lg">
-                <Users className="h-3.5 w-3.5 text-blue-600" />
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Users className="h-5 w-5 text-blue-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-gray-600 mb-1">Tổng số khách hàng</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
               </div>
             </div>
-            <p className="text-xs text-gray-600 mb-0.5">Tổng số khách hàng</p>
-            <p className="text-lg font-bold text-gray-900">{stats.total}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Khách hàng</p>
           </motion.div>
 
           {/* Today Customers */}
@@ -741,16 +907,17 @@ function CustomerManagement() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
           >
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="p-1 bg-emerald-100 rounded-lg">
-                <Calendar className="h-3.5 w-3.5 text-emerald-600" />
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-emerald-100 rounded-lg">
+                <Calendar className="h-5 w-5 text-emerald-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-gray-600 mb-1">Khách hàng hôm nay</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.today}</p>
               </div>
             </div>
-            <p className="text-xs text-gray-600 mb-0.5">Khách hàng hôm nay</p>
-            <p className="text-lg font-bold text-gray-900">{stats.today}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Khách hàng mới</p>
           </motion.div>
 
           {/* This Month */}
@@ -758,16 +925,17 @@ function CustomerManagement() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-shadow"
+            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
           >
-            <div className="flex items-center justify-between mb-1.5">
-              <div className="p-1 bg-purple-100 rounded-lg">
-                <TrendingUp className="h-3.5 w-3.5 text-purple-600" />
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <TrendingUp className="h-5 w-5 text-purple-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-xs text-gray-600 mb-1">Khách hàng tháng này</p>
+                <p className="text-2xl font-bold text-gray-900">{stats.thisMonth}</p>
               </div>
             </div>
-            <p className="text-xs text-gray-600 mb-0.5">Khách hàng tháng này</p>
-            <p className="text-lg font-bold text-gray-900">{stats.thisMonth}</p>
-            <p className="text-xs text-gray-500 mt-0.5">Khách hàng</p>
           </motion.div>
         </div>
 
@@ -889,7 +1057,7 @@ function CustomerManagement() {
                   <ModernTableHead>
                     <tr>
                       <ModernTableHeader>Khách hàng</ModernTableHeader>
-                      <ModernTableHeader>Liên hệ</ModernTableHeader>
+                      <ModernTableHeader className="pl-10">Liên hệ</ModernTableHeader>
                       <ModernTableHeader>Địa chỉ</ModernTableHeader>
                       <ModernTableHeader className="text-center align-middle">Thao tác</ModernTableHeader>
                     </tr>
@@ -898,32 +1066,18 @@ function CustomerManagement() {
                     {paginatedCustomers.map((customer, index) => (
                     <ModernTableRow key={customer.customerId} index={index}>
                       <ModernTableCell>
-                        <div>
-                          <div className="text-sm font-semibold text-gray-900">{customer.fullName}</div>
-                          <div className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                            <Mail className="h-3 w-3" />
-                            {customer.email}
-                          </div>
-                        </div>
+                        <div className="text-sm font-semibold text-gray-900">{customer.fullName}</div>
                       </ModernTableCell>
-                      <ModernTableCell>
+                      <ModernTableCell className="pl-3">
                         <div className="text-sm font-medium text-gray-900 flex items-center gap-1.5">
                           <Phone className="h-3.5 w-3.5 text-gray-400" />
                           {customer.phone}
                         </div>
                       </ModernTableCell>
                       <ModernTableCell>
-                        <div className="space-y-1.5">
-                          <div className="text-sm text-gray-900 flex items-center gap-1.5">
-                            <MapPin className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
-                            <span className="truncate">{customer.address || 'Chưa cập nhật'}</span>
-                          </div>
-                          {customer.identificationNumber && (
-                            <div className="text-xs text-gray-500 flex items-center gap-1.5">
-                              <CreditCard className="h-3 w-3 text-gray-400 flex-shrink-0" />
-                              <span>CMND/CCCD: {customer.identificationNumber}</span>
-                            </div>
-                          )}
+                        <div className="text-sm text-gray-900 flex items-center gap-1.5">
+                          <MapPin className="h-3.5 w-3.5 text-gray-400 flex-shrink-0" />
+                          <span className="truncate">{customer.address || 'Chưa cập nhật'}</span>
                         </div>
                       </ModernTableCell>
                       <ModernTableCell className="text-center align-middle">
@@ -956,16 +1110,6 @@ function CustomerManagement() {
                             title="Xem đơn hàng"
                           >
                             <FileText className="h-4 w-4" />
-                          </motion.button>
-                          
-                          <motion.button
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            onClick={() => handleDeleteClick(customer)}
-                            className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all border border-red-200"
-                            title="Xóa khách hàng"
-                          >
-                            <Trash2 className="h-4 w-4" />
                           </motion.button>
                         </div>
                       </ModernTableCell>
@@ -1444,16 +1588,14 @@ function CustomerManagement() {
                       placeholder="Nhập số nhà, tên đường (ví dụ: 123 Đường ABC)"
                       required
                     />
-                    <p className="text-xs text-gray-500 mt-1">
-                      💡 Địa chỉ sẽ tự động bao gồm: [Số nhà, tên đường] + Phường/Xã + Quận/Huyện + Tỉnh/Thành phố
-                    </p>
+                   
                   </div>
 
                   {/* Full Address Preview */}
                   {formData.address && (
                     <div className="md:col-span-2">
                       <label className="block text-xs font-semibold text-gray-700 mb-1.5">
-                        Địa chỉ đầy đủ (tự động tạo)
+                        Địa chỉ đầy đủ 
                       </label>
                       <textarea
                         name="address"
@@ -1502,7 +1644,7 @@ function CustomerManagement() {
                     {isCreatingCustomer && (
                       <Loader2 className="animate-spin -ml-1 mr-1.5 h-4 w-4 text-white" />
                     )}
-                    {isCreatingCustomer ? '⏳ Đang cập nhật...' : '✅ Cập nhật khách hàng'}
+                    {isCreatingCustomer ? '⏳ Đang cập nhật...' : ' Cập nhật khách hàng'}
                   </motion.button>
                 </div>
               </form>
@@ -1705,13 +1847,6 @@ function CustomerManagement() {
                           <p className="text-xs font-medium text-gray-900 mt-0.5">{customerToView.address}</p>
                         </div>
                       </div>
-                      <div className="flex items-center">
-                        <svg className="w-3.5 h-3.5 mr-2 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
-                        </svg>
-                        <span className="text-xs text-gray-600">Customer ID:</span>
-                        <span className="ml-2 text-xs font-mono text-gray-500">#{customerToView.customerId}</span>
-                      </div>
                     </div>
                   </div>
                 </div>
@@ -1788,13 +1923,21 @@ function CustomerManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="w-full max-w-6xl p-5 border shadow-2xl rounded-xl bg-white max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-6xl p-6 border shadow-2xl rounded-2xl bg-gradient-to-br from-white to-gray-50 max-h-[90vh] overflow-y-auto"
             >
-              <div className="mt-3">
-                <div className="flex justify-between items-center mb-4 pb-3 border-b border-gray-200">
-                  <div className="flex items-center gap-2">
-                    <FileText className="h-6 w-6 text-blue-600" />
-                    <h3 className="text-2xl font-bold text-gray-900">Đơn hàng của khách hàng</h3>
+              <div className="mt-2">
+                {/* Header */}
+                <div className="flex justify-between items-center mb-6 pb-4 border-b border-gray-200">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg">
+                      <ShoppingBag className="h-6 w-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-bold text-gray-900">Đơn hàng của khách hàng</h3>
+                      <p className="text-sm text-gray-500 mt-0.5">
+                        {customerOrders.length > 0 ? `${customerOrders.length} đơn hàng` : 'Danh sách đơn hàng'}
+                      </p>
+                    </div>
                   </div>
                   <button
                     onClick={handleCloseOrdersModal}
@@ -1806,77 +1949,138 @@ function CustomerManagement() {
               
                 {/* Loading State */}
                 {loadingOrders ? (
-                  <div className="flex items-center justify-center py-4">
-                    <Loader2 className="animate-spin h-8 w-8 text-purple-600 mr-3" />
-                    <span className="text-gray-600">Đang tải đơn hàng...</span>
+                  <div className="flex flex-col items-center justify-center py-12">
+                    <Loader2 className="animate-spin h-12 w-12 text-blue-600 mb-4" />
+                    <span className="text-gray-600 font-medium">Đang tải đơn hàng...</span>
                   </div>
                 ) : customerOrders.length === 0 ? (
-                  <div className="text-center py-4">
-                    <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                    </svg>
-                    <h3 className="mt-4 text-lg font-semibold text-gray-900">Chưa có đơn hàng</h3>
-                    <p className="mt-2 text-sm text-gray-500">Khách hàng này chưa có đơn hàng nào</p>
+                  <div className="text-center py-12">
+                    <div className="mx-auto w-20 h-20 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mb-4">
+                      <Package className="h-10 w-10 text-gray-400" />
+                    </div>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2">Chưa có đơn hàng</h3>
+                    <p className="text-sm text-gray-500">Khách hàng này chưa có đơn hàng nào</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {customerOrders.map((order, index) => (
-                      <div key={order.orderId || index} className="bg-gray-50 border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <h4 className="text-lg font-semibold text-gray-900">
-                                Đơn hàng #{order.orderCode || order.orderId}
-                              </h4>
-                              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(order.status)}`}>
-                                {getStatusText(order.status)}
-                              </span>
-                            </div>
-                            
-                            <div className="grid grid-cols-2 gap-4 text-sm">
-                              <div>
-                                <span className="text-gray-600">Ngày tạo:</span>
-                                <span className="ml-2 font-medium text-gray-900">
-                                  {order.orderDate ? new Date(order.orderDate).toLocaleDateString('vi-VN') : 'N/A'}
-                                </span>
+                      <motion.div
+                        key={order.orderId || index}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="group relative bg-white border border-gray-200 rounded-xl p-5 hover:shadow-xl hover:border-blue-300 transition-all duration-300 overflow-hidden"
+                      >
+                        {/* Gradient Background Effect */}
+                        <div className="absolute inset-0 bg-gradient-to-r from-blue-50/0 via-blue-50/0 to-blue-50/0 group-hover:from-blue-50/50 group-hover:via-blue-50/30 group-hover:to-blue-50/0 transition-all duration-300" />
+                        
+                        <div className="relative">
+                          {/* Header Row */}
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex items-center gap-3 flex-1">
+                              <div className="p-2 bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg shadow-md">
+                                <FileText className="h-5 w-5 text-white" />
                               </div>
-                              <div>
-                                <span className="text-gray-600">Nhân viên:</span>
-                                <span className="ml-2 font-medium text-gray-900">
-                                  {order.staffName || 'N/A'}
-                                </span>
+                              <div className="flex-1">
+                                <h4 className="text-lg font-bold text-gray-900 mb-1">
+                                  Đơn hàng #{order.orderCode || order.orderId}
+                                </h4>
+                                <div className="flex items-center gap-2">
+                                  <span className={`px-3 py-1 rounded-full text-xs font-semibold shadow-sm ${getStatusColor(order.status)}`}>
+                                    {getStatusText(order.status)}
+                                  </span>
+                                  {order.orderDate && (
+                                    <span className="text-xs text-gray-500 flex items-center gap-1">
+                                      <Clock className="h-3 w-3" />
+                                      {new Date(order.orderDate).toLocaleDateString('vi-VN', {
+                                        day: '2-digit',
+                                        month: '2-digit',
+                                        year: 'numeric',
+                                        hour: '2-digit',
+                                        minute: '2-digit'
+                                      })}
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                              {order.totalPayment !== null && order.totalPayment !== undefined && (
-                                <div>
-                                  <span className="text-gray-600">Tổng tiền:</span>
-                                  <span className="ml-2 font-semibold text-purple-600">
-                                    {order.totalPayment?.toLocaleString('vi-VN')} VNĐ
-                                  </span>
-                                </div>
-                              )}
-                              {order.storeName && (
-                                <div>
-                                  <span className="text-gray-600">Cửa hàng:</span>
-                                  <span className="ml-2 font-medium text-gray-900">
-                                    {order.storeName}
-                                  </span>
-                                </div>
-                              )}
                             </div>
                           </div>
+                          
+                          {/* Information Grid */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {/* Ngày tạo */}
+                            <div className="flex items-start gap-3 p-3 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border border-gray-200">
+                              <div className="p-1.5 bg-blue-100 rounded-lg">
+                                <Calendar className="h-4 w-4 text-blue-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-500 mb-0.5">Ngày tạo</p>
+                                <p className="text-sm font-semibold text-gray-900">
+                                  {order.orderDate ? new Date(order.orderDate).toLocaleDateString('vi-VN', {
+                                    day: '2-digit',
+                                    month: '2-digit',
+                                    year: 'numeric'
+                                  }) : 'N/A'}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Nhân viên */}
+                            <div className="flex items-start gap-3 p-3 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border border-gray-200">
+                              <div className="p-1.5 bg-green-100 rounded-lg">
+                                <User className="h-4 w-4 text-green-600" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-500 mb-0.5">Nhân viên</p>
+                                <p className="text-sm font-semibold text-gray-900 truncate">
+                                  {order.staffName || 'N/A'}
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Tổng tiền */}
+                            {order.totalPayment !== null && order.totalPayment !== undefined && (
+                              <div className="flex items-start gap-3 p-3 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200">
+                                <div className="p-1.5 bg-purple-100 rounded-lg">
+                                  <DollarSign className="h-4 w-4 text-purple-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-gray-500 mb-0.5">Tổng tiền</p>
+                                  <p className="text-base font-bold text-purple-700">
+                                    {order.totalPayment?.toLocaleString('vi-VN')} VNĐ
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Cửa hàng */}
+                            {order.storeName && (
+                              <div className="flex items-start gap-3 p-3 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border border-gray-200">
+                                <div className="p-1.5 bg-orange-100 rounded-lg">
+                                  <Store className="h-4 w-4 text-orange-600" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-xs font-medium text-gray-500 mb-0.5">Cửa hàng</p>
+                                  <p className="text-sm font-semibold text-gray-900 truncate">
+                                    {order.storeName}
+                                  </p>
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
-                      </div>
+                      </motion.div>
                     ))}
                   </div>
                 )}
 
                 {/* Close Button */}
-                <div className="flex justify-end pt-4 border-t border-gray-200 mt-4">
+                <div className="flex justify-end pt-6 border-t border-gray-200 mt-6">
                   <motion.button
                     onClick={handleCloseOrdersModal}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
-                    className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-md"
+                    className="px-6 py-2.5 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-lg hover:from-gray-200 hover:to-gray-300 transition-all shadow-md font-medium"
                   >
                     Đóng
                   </motion.button>
