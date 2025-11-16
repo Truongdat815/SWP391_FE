@@ -132,6 +132,48 @@ export const statusColors = {
     light: 'bg-gray-100',
     dot: 'bg-gray-400'
   },
+  PENDING: {
+    bg: 'bg-gradient-to-r from-yellow-500 to-orange-500',
+    text: 'text-white',
+    light: 'bg-yellow-100',
+    dot: 'bg-yellow-500'
+  },
+  SIGNED: {
+    bg: 'bg-gradient-to-r from-blue-500 to-indigo-500',
+    text: 'text-white',
+    light: 'bg-blue-100',
+    dot: 'bg-blue-500'
+  },
+  DEPOSIT_PAID: {
+    bg: 'bg-gradient-to-r from-teal-500 to-cyan-500',
+    text: 'text-white',
+    light: 'bg-teal-100',
+    dot: 'bg-teal-500'
+  },
+  FULLY_PAID: {
+    bg: 'bg-gradient-to-r from-green-600 to-emerald-600',
+    text: 'text-white',
+    light: 'bg-green-100',
+    dot: 'bg-green-600'
+  },
+  COMPLETED: {
+    bg: 'bg-gradient-to-r from-green-500 to-teal-500',
+    text: 'text-white',
+    light: 'bg-green-100',
+    dot: 'bg-green-500'
+  },
+  CANCELLED: {
+    bg: 'bg-gradient-to-r from-red-500 to-pink-500',
+    text: 'text-white',
+    light: 'bg-red-100',
+    dot: 'bg-red-500'
+  },
+  EXPIRED: {
+    bg: 'bg-gradient-to-r from-orange-500 to-red-500',
+    text: 'text-white',
+    light: 'bg-orange-100',
+    dot: 'bg-orange-500'
+  },
   APPROVED: {
     bg: 'bg-gradient-to-r from-indigo-500 to-blue-500',
     text: 'text-white',
@@ -143,12 +185,6 @@ export const statusColors = {
     text: 'text-white',
     light: 'bg-purple-100',
     dot: 'bg-purple-500'
-  },
-  SIGNED: {
-    bg: 'bg-gradient-to-r from-emerald-500 to-green-500',
-    text: 'text-white',
-    light: 'bg-emerald-100',
-    dot: 'bg-emerald-500'
   },
   UPLOADED: {
     bg: 'bg-gradient-to-r from-teal-500 to-cyan-500',

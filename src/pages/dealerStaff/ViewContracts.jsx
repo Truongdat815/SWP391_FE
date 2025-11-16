@@ -5,7 +5,7 @@ import {
   uploadSignedContractThunk,
   fetchAllContractsThunk
 } from '../../store/slices/contractSlice';
-import { getContractHtml, getContractDetail } from '../../api/contractService';
+import { getContractHtml, getContractDetail, getContractById } from '../../api/contractService';
 import { getOrderById } from '../../api/orderService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -41,6 +41,7 @@ import ModernButton from '../../components/ui/ModernButton';
 import { ModernTable, ModernTableHead, ModernTableHeader, ModernTableBody, ModernTableRow, ModernTableCell } from '../../components/ui/ModernTable';
 import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
 import EmptyState from '../../components/ui/EmptyState';
+import Pagination from '../../components/ui/Pagination';
 
 // Helper function to aggregate order details with same modelId and colorId
 const aggregateOrderDetails = (details) => {
@@ -115,6 +116,14 @@ function ViewContracts() {
   const [showContractDetailModal, setShowContractDetailModal] = useState(false);
   const [contractDetail, setContractDetail] = useState(null);
   const [loadingContractDetail, setLoadingContractDetail] = useState(false);
+  const [showContractImageModal, setShowContractImageModal] = useState(false);
+  const [contractImage, setContractImage] = useState(null);
+  const [loadingContractImage, setLoadingContractImage] = useState(false);
+  const [contractInfo, setContractInfo] = useState(null);
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
 
   // Fetch contracts on component mount
   useEffect(() => {
@@ -148,6 +157,22 @@ function ViewContracts() {
         return dateB - dateA; // Descending order (newest first)
       });
   }, [contracts, searchTerm]);
+
+  // Reset to page 1 when search term changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm]);
+
+  // Calculate pagination
+  const totalPages = Math.ceil(filteredContracts.length / itemsPerPage);
+  const paginatedContracts = filteredContracts.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page);
+  };
 
   // Calculate statistics
   const stats = useMemo(() => {
@@ -347,6 +372,47 @@ function ViewContracts() {
     setContractDetail(null);
   };
 
+  // Handle viewing contract signed image
+  const handleViewContractImage = async (contract) => {
+    try {
+      setLoadingContractImage(true);
+      setShowContractImageModal(true);
+      
+      // Check if contract has signedContractFileUrl directly
+      const imageUrl = contract.signedContractFileUrl || contract.contractFileUrl;
+      
+      if (imageUrl) {
+        setContractImage(imageUrl);
+        setContractInfo(contract);
+      } else {
+        // If no direct URL, try to fetch from API
+        const contractData = await getContractById(contract.contractId);
+        const contractDetail = contractData?.data || contractData;
+        
+        const fetchedImageUrl = contractDetail?.signedContractFileUrl || contractDetail?.contractFileUrl;
+        if (fetchedImageUrl) {
+          setContractImage(fetchedImageUrl);
+          setContractInfo(contractDetail);
+        } else {
+          error('Hợp đồng này chưa có ảnh đã ký');
+          setShowContractImageModal(false);
+        }
+      }
+    } catch (err) {
+      console.error('Error loading contract image:', err);
+      error('Không thể tải ảnh hợp đồng: ' + (err.message || err));
+      setShowContractImageModal(false);
+    } finally {
+      setLoadingContractImage(false);
+    }
+  };
+
+  const handleCloseContractImageModal = () => {
+    setShowContractImageModal(false);
+    setContractImage(null);
+    setContractInfo(null);
+  };
+
 
   const getStatusText = (status) => {
     if (!status) return 'Không xác định';
@@ -376,7 +442,7 @@ function ViewContracts() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="bg-gray-50">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -408,14 +474,17 @@ function ViewContracts() {
             transition={{ delay: 0.1 }}
             className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
           >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <FileText className="h-5 w-5 text-blue-600" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1 bg-blue-100 rounded-lg">
+                  <FileText className="h-3.5 w-3.5 text-blue-600" />
+                </div>
+                <p className="text-xs text-gray-600 font-medium">Tổng số hợp đồng</p>
               </div>
-              <div className="flex-1">
-                <p className="text-xs text-gray-600 mb-1">Tổng số hợp đồng</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-              </div>
+            </div>
+            <div className="flex items-center gap-1 mt-2">
+              <p className="text-xl font-bold text-gray-900">{stats.total.toLocaleString('vi-VN')}</p>
+              <p className="text-sm font-medium text-gray-600">đơn</p>
             </div>
           </motion.div>
 
@@ -426,14 +495,17 @@ function ViewContracts() {
             transition={{ delay: 0.2 }}
             className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
           >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-100 rounded-lg">
-                <Calendar className="h-5 w-5 text-emerald-600" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1 bg-emerald-100 rounded-lg">
+                  <Calendar className="h-3.5 w-3.5 text-emerald-600" />
+                </div>
+                <p className="text-xs text-gray-600 font-medium">Hợp đồng hôm nay</p>
               </div>
-              <div className="flex-1">
-                <p className="text-xs text-gray-600 mb-1">Hợp đồng hôm nay</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.today}</p>
-              </div>
+            </div>
+            <div className="flex items-center gap-1 mt-2">
+              <p className="text-xl font-bold text-gray-900">{stats.today.toLocaleString('vi-VN')}</p>
+              <p className="text-sm font-medium text-gray-600">đơn</p>
             </div>
           </motion.div>
 
@@ -444,14 +516,17 @@ function ViewContracts() {
             transition={{ delay: 0.3 }}
             className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
           >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <CheckCircle className="h-5 w-5 text-green-600" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1 bg-green-100 rounded-lg">
+                  <CheckCircle className="h-3.5 w-3.5 text-green-600" />
+                </div>
+                <p className="text-xs text-gray-600 font-medium">Đã upload</p>
               </div>
-              <div className="flex-1">
-                <p className="text-xs text-gray-600 mb-1">Đã upload</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.uploaded}</p>
-              </div>
+            </div>
+            <div className="flex items-center gap-1 mt-2">
+              <p className="text-xl font-bold text-gray-900">{stats.uploaded.toLocaleString('vi-VN')}</p>
+              <p className="text-sm font-medium text-gray-600">đơn</p>
             </div>
           </motion.div>
 
@@ -462,27 +537,23 @@ function ViewContracts() {
             transition={{ delay: 0.4 }}
             className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
           >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-orange-100 rounded-lg">
-                <AlertCircle className="h-5 w-5 text-orange-600" />
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="p-1 bg-orange-100 rounded-lg">
+                  <AlertCircle className="h-3.5 w-3.5 text-orange-600" />
+                </div>
+                <p className="text-xs text-gray-600 font-medium">Chờ upload</p>
               </div>
-              <div className="flex-1">
-                <p className="text-xs text-gray-600 mb-1">Chờ upload</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.pendingUpload}</p>
-              </div>
+            </div>
+            <div className="flex items-center gap-1 mt-2">
+              <p className="text-xl font-bold text-gray-900">{stats.pendingUpload.toLocaleString('vi-VN')}</p>
+              <p className="text-sm font-medium text-gray-600">đơn</p>
             </div>
           </motion.div>
         </div>
 
         {/* Main Content Card */}
         <ModernCard className="overflow-hidden">
-          <ModernCardHeader
-            title="Quản lý hợp đồng"
-            subtitle={`${filteredContracts.length} hợp đồng`}
-            icon={<FileText className="w-5 h-5" />}
-            roleColor="emerald"
-          />
-
           <ModernCardContent>
             {/* Search Bar */}
             <div className="mb-4">
@@ -520,132 +591,132 @@ function ViewContracts() {
             <p className="text-gray-400 text-xs mt-1.5">Các hợp đồng đã tạo sẽ xuất hiện ở đây</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Mã hợp đồng
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Mã đơn hàng
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Ngày tạo
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Trạng thái
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Tổng thanh toán
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    TẢI TỆP
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Hợp đồng đã ký
-                  </th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                    Thao tác
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {filteredContracts.map((contract) => (
-                  <tr key={contract.contractId} className="hover:bg-gray-50">
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {contract.contractCode || 'N/A'}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
-                      <button
-                        onClick={() => handleViewOrder(contract)}
-                        className="text-blue-600 hover:text-blue-900 hover:underline transition-colors font-medium"
-                      >
-                        {contract.orderCode || 'N/A'}
-                      </button>
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
-                      {contract.contractDate ? new Date(contract.contractDate).toLocaleDateString('vi-VN') : 'N/A'}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap">
-                      <StatusBadge status={contract.status || 'PENDING'} size="sm" />
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900 font-medium">
-                      {(contract.totalPayment || 0).toLocaleString('vi-VN')} VNĐ
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
-                      {contract.signedContractFileUrl || contract.contractFileUrl ? (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-green-100 text-green-800">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Đã tải tệp
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-md bg-yellow-100 text-yellow-800">
-                          <AlertCircle className="h-3 w-3 mr-1" />
-                          Chưa tải tệp
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
-                      {(contract.signedContractFileUrl || contract.contractFileUrl) ? (
-                        <a 
-                          href={contract.signedContractFileUrl || contract.contractFileUrl} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-900 transition-colors underline font-medium text-xs"
-                        >
-                          Xem hợp đồng đã ký
-                        </a>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleViewContractDetail(contract)}
-                          className="text-purple-600 hover:text-purple-900 transition-colors"
-                          title="Xem chi tiết hợp đồng"
-                        >
-                          <FileText className="h-4 w-4" />
-                        </button>
-                        <button
-                          onClick={() => handleViewContract(contract)}
-                          className="text-emerald-600 hover:text-emerald-900 transition-colors"
-                          title="Xem hợp đồng HTML"
-                        >
-                          <Eye className="h-4 w-4" />
-                        </button>
-                        
-                        {!(contract.signedContractFileUrl || contract.contractFileUrl) ? (
-                          <button
-                            onClick={() => handleUploadClick(contract)}
-                            disabled={uploadingContract === contract.contractId}
-                            className="text-blue-600 hover:text-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Upload hợp đồng đã ký"
-                          >
-                            {uploadingContract === contract.contractId ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Upload className="h-4 w-4" />
-                            )}
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handlePaymentClick(contract)}
-                            className="text-green-600 hover:text-green-900 transition-colors"
-                            title="Quản lý thanh toán"
-                          >
-                            <CreditCard className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Mã hợp đồng
+                    </th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Mã đơn hàng
+                    </th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Ngày tạo
+                    </th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Trạng thái
+                    </th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Tổng thanh toán
+                    </th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Số tiền còn lại
+                    </th>
+                    <th className="px-3 py-2.5 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">
+                      Thao tác
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {paginatedContracts.map((contract) => (
+                    <tr key={contract.contractId} className="hover:bg-gray-50">
+                      <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-gray-900">
+                        {contract.contractCode || 'N/A'}
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
+                        <button
+                          onClick={() => handleViewOrder(contract)}
+                          className="text-blue-600 hover:text-blue-900 hover:underline transition-colors font-medium"
+                        >
+                          {contract.orderCode || 'N/A'}
+                        </button>
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
+                        {contract.contractDate ? new Date(contract.contractDate).toLocaleDateString('vi-VN') : 'N/A'}
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap">
+                        <StatusBadge status={contract.status || 'PENDING'} size="sm" />
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {(contract.totalPayment || 0).toLocaleString('vi-VN')} VNĐ
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900 font-medium">
+                        {(contract.remainingAmountToPay || 0).toLocaleString('vi-VN')} VNĐ
+                      </td>
+                      <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium">
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleViewContractDetail(contract)}
+                            className="text-purple-600 hover:text-purple-900 transition-colors"
+                            title="Xem chi tiết hợp đồng"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </button>
+                          {(contract.signedContractFileUrl || contract.contractFileUrl) ? (
+                            <button
+                              onClick={() => handleViewContractImage(contract)}
+                              className="text-emerald-600 hover:text-emerald-900 transition-colors"
+                              title="Xem ảnh hợp đồng đã ký"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleViewContract(contract)}
+                              className="text-emerald-600 hover:text-emerald-900 transition-colors"
+                              title="Xem hợp đồng HTML"
+                            >
+                              <Eye className="h-4 w-4" />
+                            </button>
+                          )}
+                          
+                          {!(contract.signedContractFileUrl || contract.contractFileUrl) ? (
+                            <button
+                              onClick={() => handleUploadClick(contract)}
+                              disabled={uploadingContract === contract.contractId}
+                              className="text-blue-600 hover:text-blue-900 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              title="Upload hợp đồng đã ký"
+                            >
+                              {uploadingContract === contract.contractId ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Upload className="h-4 w-4" />
+                              )}
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handlePaymentClick(contract)}
+                              className="text-green-600 hover:text-green-900 transition-colors"
+                              title="Quản lý thanh toán"
+                            >
+                              <CreditCard className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="mt-4">
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={filteredContracts.length}
+                  showInfo={true}
+                  itemLabel="hợp đồng"
+                />
+              </div>
+            )}
+          </>
         )}
       </div>
           </ModernCardContent>
@@ -1344,6 +1415,104 @@ function ViewContracts() {
                 </button>
               </div>
             </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal for Contract Signed Image */}
+      <AnimatePresence>
+        {showContractImageModal && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-4"
+            onClick={handleCloseContractImageModal}
+          >
+            {loadingContractImage ? (
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ 
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="flex items-center justify-center bg-white rounded-lg p-8"
+              >
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-600 mr-3" />
+                <span className="text-gray-600 font-medium">Đang tải ảnh hợp đồng...</span>
+              </motion.div>
+            ) : contractImage ? (
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ 
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="relative inline-block max-w-[90vw] max-h-[90vh]"
+              >
+                {/* Close Button - positioned close to image */}
+                <button
+                  onClick={handleCloseContractImageModal}
+                  className="absolute -top-2 -right-2 z-10 bg-black/70 hover:bg-black/90 text-white rounded-full p-2 transition-all shadow-lg"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+                
+                {/* Image */}
+                <img 
+                  src={contractImage} 
+                  alt="Hợp đồng đã ký"
+                  className="max-w-full max-h-[90vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}
+                  onError={(e) => {
+                    console.error('Error loading contract image:', e);
+                    error('Không thể tải ảnh hợp đồng. URL có thể không hợp lệ.');
+                    setContractImage(null);
+                  }}
+                  onLoad={(e) => {
+                    // Image loaded successfully
+                    const img = e.target;
+                    // Ensure image fits within viewport
+                    const maxWidth = window.innerWidth * 0.9;
+                    const maxHeight = window.innerHeight * 0.9;
+                    
+                    if (img.naturalWidth > maxWidth || img.naturalHeight > maxHeight) {
+                      const ratio = Math.min(maxWidth / img.naturalWidth, maxHeight / img.naturalHeight);
+                      img.style.maxWidth = `${img.naturalWidth * ratio}px`;
+                      img.style.maxHeight = `${img.naturalHeight * ratio}px`;
+                    }
+                  }}
+                />
+              </motion.div>
+            ) : (
+              <motion.div 
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.95, opacity: 0 }}
+                transition={{ 
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 25
+                }}
+                onClick={(e) => e.stopPropagation()}
+                className="flex flex-col items-center justify-center bg-white rounded-lg p-12"
+              >
+                <AlertCircle className="h-12 w-12 text-gray-400 mb-4" />
+                <h4 className="text-lg font-semibold text-gray-900 mb-2">Không có ảnh hợp đồng</h4>
+                <p className="text-sm text-gray-600 text-center max-w-md">
+                  Hợp đồng này chưa có ảnh đã ký. Vui lòng upload ảnh hợp đồng đã ký trước khi xem.
+                </p>
+              </motion.div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
