@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import { get } from '@/api/client'
 import Pagination from '../../components/ui/Pagination'
 
@@ -8,7 +8,17 @@ function CarListing() {
   const [currentPage, setCurrentPage] = useState(1)
   const itemsPerPage = 9 // 3 columns x 3 rows
 
+  // Use ref to prevent duplicate API calls (especially with StrictMode)
+  const hasFetchedRef = useRef(false);
+
   useEffect(() => {
+    // Only fetch once, even if component remounts due to StrictMode
+    if (hasFetchedRef.current) {
+      return;
+    }
+    
+    hasFetchedRef.current = true;
+    
     const fetchModels = async () => {
       try {
         // Try with token first, if fails with 401, try without token (public endpoint)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../../contexts/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -112,14 +112,46 @@ function TestDriveSchedule({ onBack }) {
     });
   };
 
+  // Use ref to prevent duplicate API calls
+  const hasFetchedInitialDataRef = useRef(false);
+
   // Fetch initial data
   useEffect(() => {
+    // Only fetch once
+    if (hasFetchedInitialDataRef.current) {
+      return;
+    }
+    
+    hasFetchedInitialDataRef.current = true;
     dispatch(getAllCustomersThunk());
     dispatch(getAllModelsThunk());
   }, [dispatch]);
 
+  // Use ref to track last fetched filters to prevent duplicate calls
+  const lastFetchedFiltersRef = useRef({ filterStatus: null, filterModelId: null, filterCustomerId: null, storeId: null });
+
   // Fetch appointments with filters
   useEffect(() => {
+    const currentFilters = {
+      filterStatus,
+      filterModelId,
+      filterCustomerId,
+      storeId: user?.storeId
+    };
+    
+    // Skip if filters haven't changed
+    const lastFilters = lastFetchedFiltersRef.current;
+    if (
+      lastFilters.filterStatus === currentFilters.filterStatus &&
+      lastFilters.filterModelId === currentFilters.filterModelId &&
+      lastFilters.filterCustomerId === currentFilters.filterCustomerId &&
+      lastFilters.storeId === currentFilters.storeId
+    ) {
+      return;
+    }
+    
+    lastFetchedFiltersRef.current = currentFilters;
+    
     if (filterStatus) {
       dispatch(getAppointmentsByStatusThunk(filterStatus));
     } else if (filterModelId) {

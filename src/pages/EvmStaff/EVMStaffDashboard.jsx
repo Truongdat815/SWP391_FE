@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useSelector, useDispatch } from 'react-redux';
 import { getAllModelsThunk } from '../../store/slices/modelSlice';
@@ -15,7 +15,17 @@ const EVMStaffDashboard = () => {
   const transactions = useSelector((s) => s.inventoryTransactions.items) || [];
   const storeStocks = useSelector((s) => s.storeStocks.items) || [];
 
+  // Use ref to prevent duplicate API calls
+  const hasFetchedRef = useRef(false);
+
   useEffect(() => {
+    // Only fetch once
+    if (hasFetchedRef.current) {
+      return;
+    }
+    
+    hasFetchedRef.current = true;
+    
     dispatch(getAllModelsThunk());
     dispatch(getAllModelColorsThunk());
     dispatch(getAllTransactionsThunk());

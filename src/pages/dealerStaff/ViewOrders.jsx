@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -221,8 +221,17 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
     }
   }, [location.state, dispatch]); // Only depend on location state
 
+  // Use ref to prevent duplicate API calls for contracts
+  const hasFetchedContractsRef = useRef(false);
+
   // Fetch contracts on mount
   useEffect(() => {
+    // Only fetch once
+    if (hasFetchedContractsRef.current) {
+      return;
+    }
+    
+    hasFetchedContractsRef.current = true;
     dispatch(fetchAllContractsThunk());
   }, [dispatch]);
 

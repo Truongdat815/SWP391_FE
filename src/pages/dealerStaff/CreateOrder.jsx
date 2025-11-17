@@ -448,6 +448,12 @@ function CreateOrder() {
         ? promotions.find(p => p.promotionId === formData.promotionId)
         : null;
       
+      // Get price: use priceOfStore if available and > 0, otherwise fallback to model price
+      const model = models.find(m => m.modelId === formData.modelId);
+      const price = (matchingStock.priceOfStore && matchingStock.priceOfStore > 0) 
+        ? matchingStock.priceOfStore 
+        : (model?.price || 0);
+      
       // Store validation result
       setCurrentValidation({
         modelId: formData.modelId,
@@ -460,7 +466,7 @@ function CreateOrder() {
         isValid: true,
         stockId: matchingStock.stockId,
         availableQuantity: matchingStock.quantity,
-        price: matchingStock.priceOfStore
+        price: price
       });
       
       // Don't show success message - validation result box already shows "Sản phẩm hợp lệ"
@@ -471,7 +477,7 @@ function CreateOrder() {
     } finally {
       setIsValidating(false);
     }
-  }, [formData, filteredStoreStocks, storeStocksStatus, getStoreId, modelColors, promotions, getModelName, getColorName, dispatch]);
+  }, [formData, filteredStoreStocks, storeStocksStatus, getStoreId, modelColors, promotions, models, getModelName, getColorName, dispatch]);
 
   // Debounced validation function
   const debouncedValidate = useCallback(() => {
@@ -1327,7 +1333,7 @@ function CreateOrder() {
         storeName: confirmData.storeName
       });
       
-      setSuccess('Tạo và xác nhận đơn hàng thành công! Trạng thái: CONFIRMED');
+      setSuccess('Tạo và xác nhận đơn hàng thành công! Trạng thái: Đã xác nhận');
       
       // Close popup and refresh orders list after 2 seconds
       setTimeout(() => {
@@ -1800,8 +1806,8 @@ function CreateOrder() {
                         <p><strong>Màu:</strong> {currentValidation.colorName}</p>
                         <p><strong>Số lượng:</strong> {currentValidation.quantity}</p>
                         <p><strong>Tồn kho có sẵn:</strong> {currentValidation.availableQuantity} xe</p>
-                        {currentValidation.price && (
-                          <p><strong>Giá:</strong> {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(currentValidation.price)}</p>
+                        {currentValidation.price && !isNaN(Number(currentValidation.price)) && Number(currentValidation.price) > 0 && (
+                          <p><strong>Giá:</strong> {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(Number(currentValidation.price))}</p>
                         )}
                         <p><strong>Khuyến mãi:</strong> {currentValidation.promotionName}</p>
                       </div>
@@ -1993,10 +1999,10 @@ function CreateOrder() {
         {/* STEP 3: Confirm Order - Simple Display */}
         {currentStep === 3 && (
           <div>
-            <div className="flex items-center mb-4">
+            {/* <div className="flex items-center mb-4">
               <CheckCircle className="h-7 w-7 text-emerald-600 mr-2" />
               <h2 className="text-xl font-bold text-gray-900">Xác nhận đơn hàng</h2>
-            </div>
+            </div> */}
 
             {(orderResponse || orderDetailsResponse) && (
               <div className="space-y-4 mb-6">
@@ -2129,7 +2135,7 @@ function CreateOrder() {
                     <span className="font-medium">Tổng thanh toán:</span> {pendingConfirmAction.totalPayment.toLocaleString('vi-VN')}đ
                   </p>
                   <p className="mt-2 text-orange-600 font-medium">
-                    Đơn hàng sẽ chuyển sang trạng thái CONFIRMED và không thể chỉnh sửa.
+                    Đơn hàng sẽ chuyển sang trạng thái "Đã xác nhận" và không thể chỉnh sửa.
                   </p>
                 </div>
               </div>

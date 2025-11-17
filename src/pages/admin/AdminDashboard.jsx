@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useSelector, useDispatch } from 'react-redux';
 import { getAllStoresThunk } from '@store/slices/storeSlice';
@@ -11,11 +11,17 @@ const AdminDashboard = () => {
   const storesStatus = useSelector((s) => s.stores.status);
   const usersStatus = useSelector((s) => s.users.status);
 
+  // Use ref for extra safety (already has status check)
+  const hasFetchedStoresRef = useRef(false);
+  const hasFetchedUsersRef = useRef(false);
+
   useEffect(() => {
-    if (storesStatus === 'idle') {
+    if (storesStatus === 'idle' && !hasFetchedStoresRef.current) {
+      hasFetchedStoresRef.current = true;
       dispatch(getAllStoresThunk());
     }
-    if (usersStatus === 'idle') {
+    if (usersStatus === 'idle' && !hasFetchedUsersRef.current) {
+      hasFetchedUsersRef.current = true;
       dispatch(getAllUsersThunk());
     }
   }, [dispatch, storesStatus, usersStatus]);

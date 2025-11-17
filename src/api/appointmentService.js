@@ -1,6 +1,6 @@
 import { API_URL } from './client';
 
-const getToken = () => localStorage.getItem('access_token') || localStorage.getItem('accessToken');
+const getToken = () => sessionStorage.getItem('access_token') || sessionStorage.getItem('accessToken');
 
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();

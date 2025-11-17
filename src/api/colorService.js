@@ -1,6 +1,6 @@
 import { API_URL } from './client';
 
-const getToken = () => localStorage.getItem('access_token');
+const getToken = () => sessionStorage.getItem('access_token');
 
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();
@@ -25,8 +25,15 @@ async function request(path, { method = 'GET', body } = {}) {
 
 // Colors CRUD
 export async function getAllColors() {
-    // Backend swagger shows /api/colors/all
-    return request('/api/colors/all', { method: 'GET' });
+    try {
+        return await request('/api/colors/all', { method: 'GET' });
+    } catch (err) {
+        if (err.status === 404) {
+            console.warn('Colors endpoint not found, returning empty data');
+            return { data: [] };
+        }
+        throw err;
+    }
 }
 
 export async function createColor(color) {

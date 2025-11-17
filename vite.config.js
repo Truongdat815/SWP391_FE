@@ -15,14 +15,7 @@ export default defineConfig({
     host: "0.0.0.0",
     port: 5173,
     strictPort: true,
-    proxy: {
-      '/api': {
-        target: 'https://tiembanhvuive.io.vn',  // địa chỉ backend Spring Boot
-        changeOrigin: true,
-        secure: true,  // Đổi sang true vì đây là HTTPS
-        rewrite: (path) => path,
-      },
-    },
+    // Removed proxy - using VITE_API_URL environment variable instead
   },
   
 });

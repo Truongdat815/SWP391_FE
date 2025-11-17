@@ -14,9 +14,9 @@ export const loginThunk = createAsyncThunk(
             if (response.code === 0 || response.message === 'User login successfully') {
                 const { accessToken, refreshToken } = response.data || response;
                 
-                // Save tokens to localStorage
-                localStorage.setItem('access_token', accessToken);
-                localStorage.setItem('refresh_token', refreshToken);
+                // Save tokens to sessionStorage
+                sessionStorage.setItem('access_token', accessToken);
+                sessionStorage.setItem('refresh_token', refreshToken);
                 
                 // Get user info from API - only use /api/users/all
                 console.log('Getting user info for email:', credentials.email);
@@ -50,8 +50,8 @@ export const loginThunk = createAsyncThunk(
                     throw new Error('User info not found');
                 }
                 
-                // Save user info to localStorage
-                localStorage.setItem('user_info', JSON.stringify(userInfo));
+                // Save user info to sessionStorage
+                sessionStorage.setItem('user_info', JSON.stringify(userInfo));
                 
                 return {
                     tokens: response.data || response,
@@ -72,7 +72,7 @@ export const refreshTokenThunk = createAsyncThunk(
     'auth/refreshToken',
     async (_, { rejectWithValue }) => {
         try {
-            const refreshToken = localStorage.getItem('refresh_token');
+            const refreshToken = sessionStorage.getItem('refresh_token');
             if (!refreshToken) {
                 throw new Error('No refresh token available');
             }
@@ -82,8 +82,8 @@ export const refreshTokenThunk = createAsyncThunk(
             if (response.code === 0) {
                 const { accessToken, refreshToken: newRefreshToken } = response.data;
                 
-                localStorage.setItem('access_token', accessToken);
-                localStorage.setItem('refresh_token', newRefreshToken);
+                sessionStorage.setItem('access_token', accessToken);
+                sessionStorage.setItem('refresh_token', newRefreshToken);
                 
                 return response.data;
             } else {
@@ -95,10 +95,10 @@ export const refreshTokenThunk = createAsyncThunk(
     }
 );
 
-// Initialize auth state from localStorage
+// Initialize auth state from sessionStorage
 const initializeAuthState = () => {
-    const userInfo = localStorage.getItem('user_info');
-    const accessToken = localStorage.getItem('access_token');
+    const userInfo = sessionStorage.getItem('user_info');
+    const accessToken = sessionStorage.getItem('access_token');
     
     if (userInfo && accessToken) {
         try {
@@ -107,7 +107,7 @@ const initializeAuthState = () => {
                 user: JSON.parse(userInfo),
                 tokens: {
                     accessToken,
-                    refreshToken: localStorage.getItem('refresh_token')
+                    refreshToken: sessionStorage.getItem('refresh_token')
                 }
             };
         } catch (error) {

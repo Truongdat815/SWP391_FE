@@ -4,37 +4,13 @@ import * as inventoryTransactionService from '@api/inventory-transactionService'
 // Thunks
 export const getAllTransactionsThunk = createAsyncThunk(
     'inventoryTransactions/getAll',
-    async (_, { rejectWithValue, getState }) => {
+    async (_, { rejectWithValue }) => {
         try {
-            // Get user role from auth state to determine if we need all transactions
-            const state = getState();
-            const user = state.auth?.user;
-            const userRole = user?.roleId || user?.roleName?.toLowerCase() || '';
-            
-            // EVM Staff (roleId: 2) and Admin (roleId: 1) don't have storeId, need all transactions
-            const isEvmStaff = userRole === 2 || userRole === 'evm-staff' || 
-                              (typeof userRole === 'string' && userRole.includes('nhân viên hãng xe'));
-            const isAdmin = userRole === 1 || userRole === 'admin' || 
-                           (typeof userRole === 'string' && userRole.includes('quản trị viên'));
-            
-            // If user is EVM Staff or Admin, request all transactions without store filter
-            const options = (isEvmStaff || isAdmin) ? { all: true } : {};
-            
-            return await inventoryTransactionService.getAllTransactions(options);
+            return await inventoryTransactionService.getAllTransactions();
         } catch (err) {
-            // Handle specific error code 1004 (store not found) for EVM Staff
-            const errorCode = err.code || (err.response?.code);
-            const errorMessage = err.message || '';
-            
-            if (errorCode === 1004 || errorMessage.includes('Không tìm thấy store') || errorMessage.includes('1004')) {
-                // User is likely EVM Staff/Admin without storeId, retry with all=true
-                console.log('Store not found error (1004), retrying with all=true for EVM Staff/Admin');
-                try {
-                    return await inventoryTransactionService.getAllTransactions({ all: true });
-                } catch (retryErr) {
-                    console.error('Retry failed:', retryErr);
-                    return rejectWithValue(retryErr.message || 'Failed to fetch inventory transactions');
-                }
+            // Nếu là 404, return empty array thay vì reject
+            if (err.status === 404) {
+                return { data: [] };
             }
             return rejectWithValue(err.message || 'Failed to fetch inventory transactions');
         }

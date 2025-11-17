@@ -8,6 +8,10 @@ export const getAllStoreStocksThunk = createAsyncThunk(
         try {
             return await storeStockService.getAllStoreStocks();
         } catch (err) {
+            // Nếu là 404, return empty array thay vì reject
+            if (err.status === 404) {
+                return { data: [] };
+            }
             return rejectWithValue(err.message || 'Failed to fetch store stocks');
         }
     }

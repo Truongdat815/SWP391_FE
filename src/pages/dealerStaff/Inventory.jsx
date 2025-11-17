@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useAuth } from '../../contexts/AuthContext';
 import { getAllStoreStocksThunk } from '../../store/slices/store-stockSlice';
@@ -36,8 +36,17 @@ function Inventory() {
   const [expandedModels, setExpandedModels] = useState(new Set());
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Use ref to prevent duplicate API calls
+  const hasFetchedStoreStocksRef = useRef(false);
+
   // Fetch all store stocks from API
   useEffect(() => {
+    // Only fetch once
+    if (hasFetchedStoreStocksRef.current) {
+      return;
+    }
+    
+    hasFetchedStoreStocksRef.current = true;
     dispatch(getAllStoreStocksThunk());
   }, [dispatch]);
 

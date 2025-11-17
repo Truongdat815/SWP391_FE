@@ -88,19 +88,32 @@ const NotificationBell = ({ brandColor = 'red', basePath = '', onNotificationCli
   const [isLoading, setIsLoading] = useState(false);
   const notificationRef = useRef(null);
 
+  // Use ref to prevent duplicate API calls
+  const hasFetchedNotificationsRef = useRef(false);
+
   // Load notifications dựa trên role
   useEffect(() => {
+    // Only fetch once
+    if (hasFetchedNotificationsRef.current) {
+      return;
+    }
+    
+    hasFetchedNotificationsRef.current = true;
+    
     const loadNotifications = async () => {
       try {
         setIsLoading(true);
         
-        // Load transactions and storeStocks
-        await Promise.all([
-          dispatch(getAllTransactionsThunk()).unwrap(),
-          dispatch(getAllStoreStocksThunk()).unwrap()
-        ]);
+        // Chỉ load nếu không phải Admin
+        if (!basePath.includes('/admin')) {
+          await Promise.all([
+            dispatch(getAllTransactionsThunk()).unwrap(),
+            dispatch(getAllStoreStocksThunk()).unwrap()
+          ]);
+        }
       } catch (error) {
-        console.error('Error loading notifications:', error);
+        console.warn('Could not load notifications:', error.message);
+        // Không show error cho user, chỉ log warning
       } finally {
         setIsLoading(false);
       }

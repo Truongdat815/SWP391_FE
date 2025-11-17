@@ -1,6 +1,6 @@
 import { API_URL } from './client';
 
-const getToken = () => localStorage.getItem('access_token');
+const getToken = () => sessionStorage.getItem('access_token');
 
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();
@@ -53,12 +53,6 @@ export async function createContractFromOrder(orderId) {
             orderId: orderId
         }
     });
-}
-
-// Get contract HTML URL for opening in new tab
-export function getContractHtmlUrl(contractId) {
-    const baseUrl = API_URL || 'https://tiembanhvuive.io.vn';
-    return `${baseUrl}/api/contracts/${contractId}`;
 }
 
 // Get contract HTML with authentication and inline CSS (API: GET /api/contracts/{id})
@@ -123,19 +117,6 @@ export async function getAllContracts() {
         return response.data;
     }
     return response;
-}
-
-// Get contract by order ID (check if order has contract)
-export async function getContractByOrderId(orderId) {
-    try {
-        const contracts = await getAllContracts();
-        const contractsList = contracts?.data || contracts || [];
-        const contract = contractsList.find(c => String(c.orderId) === String(orderId));
-        return contract || null;
-    } catch (error) {
-        console.error('Error checking contract for order:', error);
-        return null;
-    }
 }
 
 // Upload signed contract file (API: POST /api/contracts/{contractId}/upload-signed)

@@ -23,23 +23,16 @@ export const updateUserThunk = createAsyncThunk(
     }
 );
 
-export const getUserByNameThunk = createAsyncThunk(
-    'users/getByName',
-    async (name, { rejectWithValue }) => {
-        try {
-            return await userService.getUserByName(name);
-        } catch (err) {
-            return rejectWithValue(err.message || 'Failed to fetch user');
-        }
-    }
-);
-
 export const getAllUsersThunk = createAsyncThunk(
     'users/getAll',
     async (_, { rejectWithValue }) => {
         try {
             return await userService.getAllUsers();
         } catch (err) {
+            // Nếu là 404, return empty array thay vì reject
+            if (err.status === 404) {
+                return { data: [] };
+            }
             return rejectWithValue(err.message || 'Failed to fetch users');
         }
     }
@@ -98,19 +91,6 @@ const userSlice = createSlice({
                 state.items = state.items.map((u) => (u.userId === updated.userId ? updated : u));
             })
             .addCase(updateUserThunk.rejected, (state, action) => {
-                state.status = 'failed';
-                state.error = action.payload;
-            })
-
-            .addCase(getUserByNameThunk.pending, (state) => {
-                state.status = 'loading';
-                state.error = null;
-            })
-            .addCase(getUserByNameThunk.fulfilled, (state, action) => {
-                state.status = 'succeeded';
-                state.selected = action.payload;
-            })
-            .addCase(getUserByNameThunk.rejected, (state, action) => {
                 state.status = 'failed';
                 state.error = action.payload;
             })

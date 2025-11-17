@@ -1,6 +1,6 @@
 import { API_URL } from './client';
 
-const getToken = () => localStorage.getItem('access_token');
+const getToken = () => sessionStorage.getItem('access_token');
 
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();
@@ -29,28 +29,16 @@ async function request(path, { method = 'GET', body } = {}) {
 
 // Inventory Transactions API
 export async function getAllTransactions(options = {}) {
-    // For EVM Staff or Admin (users without storeId), try different approaches
-    if (options.all === true || options.includeAll === true) {
-        // Try with query parameter first
-        try {
-            const params = new URLSearchParams();
-            params.append('all', 'true');
-            const url = `/api/inventory-transactions/all?${params.toString()}`;
-            return await request(url, { method: 'GET' });
-        } catch (err) {
-            // If query parameter doesn't work, try admin endpoint
-            try {
-                return await request('/api/inventory-transactions/admin/all', { method: 'GET' });
-            } catch (adminErr) {
-                // If admin endpoint doesn't exist, try without store filter
-                // Backend should handle based on JWT token role
-                return await request('/api/inventory-transactions/all', { method: 'GET' });
-            }
+    try {
+        return await request('/api/inventory-transactions/all', { method: 'GET' });
+    } catch (err) {
+        // Nếu lỗi 404, trả về empty array thay vì throw error
+        if (err.status === 404) {
+            console.warn('Inventory transactions endpoint not found, returning empty data');
+            return { data: [] };
         }
+        throw err;
     }
-    
-    // Default: regular endpoint (for dealer manager/staff with storeId)
-    return request('/api/inventory-transactions/all', { method: 'GET' });
 }
 
 export async function getTransactionsByStoreStock(storeStockId) {

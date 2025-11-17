@@ -3,7 +3,6 @@ import {
     createPromotion,
     createPromotionForAllModels,
     getAllPromotions,
-    getPromotionByName,
     updatePromotion,
     deletePromotion,
     getActivePromotions
