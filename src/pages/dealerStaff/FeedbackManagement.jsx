@@ -38,7 +38,42 @@ function FeedbackManagement({ onBack }) {
 
   const [orders, setOrders] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
-  const [deletedFeedbackIds, setDeletedFeedbackIds] = useState(new Set()); // Track deleted feedback IDs
+  
+  // Load deleted feedback IDs from localStorage on mount
+  const [deletedFeedbackIds, setDeletedFeedbackIds] = useState(() => {
+    try {
+      const saved = localStorage.getItem('deletedFeedbackIds');
+      if (saved) {
+        const idsArray = JSON.parse(saved);
+        console.log('📦 [FeedbackManagement] Loaded deletedFeedbackIds from localStorage:', idsArray);
+        return new Set(idsArray);
+      }
+    } catch (err) {
+      console.error('❌ [FeedbackManagement] Error loading deletedFeedbackIds from localStorage:', err);
+    }
+    return new Set();
+  });
+  
+  // Save deletedFeedbackIds to localStorage whenever it changes
+  // Use a ref to track if this is the initial mount
+  const isInitialMount = useRef(true);
+  
+  useEffect(() => {
+    // Skip saving on initial mount to avoid overwriting localStorage with empty Set
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      console.log('📦 [FeedbackManagement] Skipping localStorage save on initial mount');
+      return;
+    }
+    
+    try {
+      const idsArray = Array.from(deletedFeedbackIds);
+      localStorage.setItem('deletedFeedbackIds', JSON.stringify(idsArray));
+      console.log('💾 [FeedbackManagement] Saved deletedFeedbackIds to localStorage:', idsArray);
+    } catch (err) {
+      console.error('❌ [FeedbackManagement] Error saving deletedFeedbackIds to localStorage:', err);
+    }
+  }, [deletedFeedbackIds]);
 
   // Close dropdowns when clicking outside
   useEffect(() => {
@@ -146,12 +181,19 @@ function FeedbackManagement({ onBack }) {
   };
 
   // Function to fetch feedbacks (can be called from anywhere)
-  const fetchFeedbacks = useCallback(async () => {
+  // Accept deletedIds parameter to use latest value
+  const fetchFeedbacks = useCallback(async (deletedIdsOverride = null) => {
     try {
       setLoading(true);
       setError(null);
       
+      // Use override if provided, otherwise use state
+      const currentDeletedIds = deletedIdsOverride !== null 
+        ? (deletedIdsOverride instanceof Set ? deletedIdsOverride : new Set(deletedIdsOverride))
+        : deletedFeedbackIds;
+      
       console.log('🔄 [FeedbackManagement] Đang tải danh sách phản hồi...');
+      console.log('🔄 [FeedbackManagement] Using deletedFeedbackIds:', Array.from(currentDeletedIds));
       const response = await getAllFeedbacks();
       
       // Debug: Log toàn bộ response để kiểm tra
@@ -208,21 +250,53 @@ function FeedbackManagement({ onBack }) {
         return;
       }
       
+      // Filter out deleted feedbacks first
+      // Use the currentDeletedIds from parameter or state
+      const deletedIdsSet = currentDeletedIds instanceof Set ? currentDeletedIds : new Set(Array.isArray(currentDeletedIds) ? currentDeletedIds : []);
+      console.log(`🔍 [FeedbackManagement] deletedFeedbackIds before filter:`, Array.from(deletedIdsSet));
+      console.log(`🔍 [FeedbackManagement] deletedFeedbackIds type:`, typeof currentDeletedIds, currentDeletedIds instanceof Set);
+      
+      // Ensure feedbacksData is an array
+      if (!Array.isArray(feedbacksData)) {
+        console.error('❌ [FeedbackManagement] feedbacksData is not an array:', feedbacksData);
+        setFeedbacks([]);
+        setLoading(false);
+        return;
+      }
+      
+      console.log(`🔍 [FeedbackManagement] feedbacksData IDs:`, feedbacksData.map(f => String(f.feedbackId || f.id || f.feedback_id)));
+      
+      const filteredFeedbacksData = feedbacksData.filter(feedback => {
+        const feedbackId = feedback.feedbackId || feedback.id || feedback.feedback_id;
+        if (!feedbackId) {
+          console.warn(`⚠️ [FeedbackManagement] Feedback without ID:`, feedback);
+          return true; // Keep if no ID (shouldn't happen)
+        }
+        
+        const idStr = String(feedbackId);
+        const isDeleted = deletedIdsSet.has(idStr);
+        if (isDeleted) {
+          console.log(`🗑️ [FeedbackManagement] Filtering out deleted feedback: ${idStr} (deletedFeedbackIds size: ${deletedIdsSet.size})`);
+        }
+        return !isDeleted;
+      });
+      
+      console.log(`📊 [FeedbackManagement] Before filter: ${feedbacksData.length} feedbacks, After filter: ${filteredFeedbacksData.length} feedbacks`);
+      
+      if (feedbacksData.length !== filteredFeedbacksData.length) {
+        const removedIds = feedbacksData
+          .filter(f => {
+            const id = String(f.feedbackId || f.id || f.feedback_id);
+            return deletedIdsSet.has(id);
+          })
+          .map(f => String(f.feedbackId || f.id || f.feedback_id));
+        console.log(`🗑️ [FeedbackManagement] Removed feedback IDs:`, removedIds);
+      }
+      
       // Map API response to component format
       const mappedFeedbacks = await Promise.all(
-        feedbacksData
-          .filter(feedback => {
-            // Filter out deleted feedbacks
-            const feedbackId = feedback.feedbackId || feedback.id || feedback.feedback_id;
-            const idStr = String(feedbackId);
-            const isDeleted = deletedFeedbackIds.has(idStr);
-            if (isDeleted) {
-              console.log(`🗑️ [FeedbackManagement] Filtering out deleted feedback: ${idStr}`);
-            }
-            return !isDeleted;
-          })
-          .map(async (feedback, index) => {
-            console.log(`🔄 [FeedbackManagement] Đang xử lý feedback ${index + 1}/${feedbacksData.length}:`, feedback);
+        filteredFeedbacksData.map(async (feedback, index) => {
+            console.log(`🔄 [FeedbackManagement] Đang xử lý feedback ${index + 1}/${filteredFeedbacksData.length}:`, feedback);
           
           // Try to get feedback details for content, rating, category
           let feedbackDetail = null;
@@ -403,8 +477,31 @@ function FeedbackManagement({ onBack }) {
       
       console.log('✅ [FeedbackManagement] Final mapped feedbacks:', mappedFeedbacks);
       console.log('✅ [FeedbackManagement] Tổng số feedbacks:', mappedFeedbacks.length);
+      console.log('✅ [FeedbackManagement] Mapped feedback IDs:', mappedFeedbacks.map(f => String(f.feedbackId || f.id)));
       
-      setFeedbacks(mappedFeedbacks);
+      // Double-check: filter again after mapping to ensure no deleted feedbacks slip through
+      const finalFilteredFeedbacks = mappedFeedbacks.filter(f => {
+        const idStr = String(f.feedbackId || f.id);
+        const isDeleted = deletedIdsSet.has(idStr);
+        if (isDeleted) {
+          console.error(`❌ [FeedbackManagement] ERROR: Deleted feedback ${idStr} found in mappedFeedbacks! This should not happen.`);
+        }
+        return !isDeleted;
+      });
+      
+      if (finalFilteredFeedbacks.length !== mappedFeedbacks.length) {
+        console.warn(`⚠️ [FeedbackManagement] Found ${mappedFeedbacks.length - finalFilteredFeedbacks.length} deleted feedback(s) in mappedFeedbacks, filtering them out`);
+      }
+      
+      // NOTE: We do NOT clean up deletedFeedbackIds here because:
+      // 1. Backend might still return deleted feedbacks in some cases (soft delete)
+      // 2. We want to persist the deletion state across page reloads
+      // 3. Cleanup should only happen when we're certain the backend has permanently deleted the feedback
+      // The deletedFeedbackIds will persist in localStorage and continue to filter out deleted feedbacks
+      // If you want to clean up old deleted IDs, you can add a manual cleanup function or use a TTL mechanism
+      
+      console.log(`✅ [FeedbackManagement] Setting feedbacks state with ${finalFilteredFeedbacks.length} feedbacks`);
+      setFeedbacks(finalFilteredFeedbacks);
       setLoading(false);
     } catch (err) {
       console.error('❌ [FeedbackManagement] Lỗi khi tải feedbacks:', err);
@@ -412,12 +509,13 @@ function FeedbackManagement({ onBack }) {
       setFeedbacks([]);
       setLoading(false);
     }
-  }, []);
+  }, [deletedFeedbackIds]); // Keep dependency for when it changes, but use parameter for latest value
 
   // Load feedbacks from API on mount
   useEffect(() => {
     fetchFeedbacks();
-  }, [fetchFeedbacks]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount, fetchFeedbacks will use latest deletedFeedbackIds from closure
 
   // Sort feedbacks - use useMemo to avoid infinite loop
   const sortedFeedbacks = useMemo(() => {
@@ -908,14 +1006,6 @@ function FeedbackManagement({ onBack }) {
     console.log('🔄 [FeedbackManagement] Đang xóa feedback:', feedbackId, '(as string:', feedbackIdStr + ')');
     console.log('🔄 [FeedbackManagement] Feedback to delete:', feedback);
     
-    // Add to deleted set to prevent it from reappearing after refresh
-    setDeletedFeedbackIds(prev => {
-      const newSet = new Set(prev);
-      newSet.add(feedbackIdStr);
-      console.log(`🗑️ [FeedbackManagement] Added ${feedbackIdStr} to deleted set. Total deleted: ${newSet.size}`);
-      return newSet;
-    });
-    
     // Optimistic update: Remove from UI immediately
     setFeedbacks(prevFeedbacks => {
       const filtered = prevFeedbacks.filter(f => {
@@ -927,8 +1017,18 @@ function FeedbackManagement({ onBack }) {
         }
         return shouldKeep;
       });
-      console.log(`📊 [FeedbackManagement] Before delete: ${prevFeedbacks.length} feedbacks, After optimistic delete: ${filtered.length} feedbacks`);
+      console.log(`📊 [FeedbackManagement] Before optimistic delete: ${prevFeedbacks.length} feedbacks, After optimistic delete: ${filtered.length} feedbacks`);
       return filtered;
+    });
+    
+    // Add to deleted set to prevent it from reappearing after refresh
+    // Do this AFTER optimistic update to ensure state is updated
+    setDeletedFeedbackIds(prev => {
+      const newSet = new Set(prev);
+      newSet.add(feedbackIdStr);
+      console.log(`🗑️ [FeedbackManagement] Added ${feedbackIdStr} to deleted set. Total deleted: ${newSet.size}`);
+      console.log(`🗑️ [FeedbackManagement] Current deletedFeedbackIds:`, Array.from(newSet));
+      return newSet;
     });
     
     try {
@@ -948,13 +1048,26 @@ function FeedbackManagement({ onBack }) {
       
       success('Đã xóa feedback thành công!');
       
-      // Wait a bit to ensure backend has processed the delete
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Wait a bit to ensure backend has processed the delete and state is updated
+      await new Promise(resolve => setTimeout(resolve, 100));
       
-      // Refresh feedbacks list to ensure sync with backend
-      // The deleted feedback will be filtered out by deletedFeedbackIds set
+      // Get the latest deletedFeedbackIds using functional update to ensure we have the latest value
+      let latestDeletedIds;
+      setDeletedFeedbackIds(prev => {
+        const newSet = new Set(prev);
+        newSet.add(feedbackIdStr);
+        latestDeletedIds = newSet;
+        return newSet;
+      });
+      
+      // Wait for state update to complete
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
       console.log('🔄 [FeedbackManagement] Refreshing feedbacks list...');
-      await fetchFeedbacks();
+      console.log('🔄 [FeedbackManagement] Will use deletedFeedbackIds:', Array.from(latestDeletedIds));
+      
+      // Pass the latest deletedIds to fetchFeedbacks to ensure it uses the correct value
+      await fetchFeedbacks(latestDeletedIds);
       console.log('✅ [FeedbackManagement] Feedbacks list refreshed');
     } catch (err) {
       console.error('❌ [FeedbackManagement] Lỗi khi xóa feedback:', err);
