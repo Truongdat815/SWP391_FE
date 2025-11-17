@@ -483,7 +483,7 @@ function PaymentManagement() {
       {/* Contracts Table */}
       <ModernCard>
         <ModernCardHeader
-          title="Danh sách hợp đồng"
+          title="Danh sách thanh toán theo hợp đồng"
           subtitle={`${contractsWithSignedImage.length} hợp đồng có chữ ký`}
           icon={<FileText className="w-5 h-5" />}
           roleColor="emerald"
