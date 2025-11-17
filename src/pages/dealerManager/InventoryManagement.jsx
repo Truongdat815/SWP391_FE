@@ -14,7 +14,6 @@ import {
   RefreshCw,
   Search,
   Calendar,
-  DollarSign,
   FileText,
   Send,
   Edit,
@@ -1789,7 +1788,7 @@ function InventoryManagement() {
                           <div className="bg-white rounded-lg p-4 border border-gray-200 shadow-sm">
                             <p className="text-xs text-gray-500 mb-2">Tổng giá</p>
                             <p className="text-sm font-bold text-emerald-600 flex items-center gap-1">
-                              <DollarSign className="w-4 h-4" />
+                              <span className="text-xs font-semibold">VND</span>
                               {selectedOrderDetail.totalPrice > 0 ? formatPrice(selectedOrderDetail.totalPrice) : 'N/A'} VNĐ
                             </p>
                           </div>
@@ -1799,7 +1798,7 @@ function InventoryManagement() {
                         {selectedOrderDetail.totalPrice > 0 && (selectedOrderDetail.unitBasePrice || selectedOrderDetail.discountPercentage > 0) && (
                           <div className="bg-gradient-to-br from-emerald-50 to-green-50 rounded-xl p-5 border border-emerald-200">
                             <h4 className="text-sm font-bold text-gray-700 mb-3 flex items-center gap-2">
-                              <DollarSign className="w-4 h-4 text-emerald-600" />
+                              <span className="text-xs font-semibold text-emerald-600">VND</span>
                               Chi tiết giá
                             </h4>
                             <div className="space-y-2">

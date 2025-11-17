@@ -237,9 +237,67 @@ const promotionSlice = createSlice({
             .addCase(updatePromotionById.fulfilled, (state, action) => {
                 state.loading = false;
                 const updatedPromotion = action.payload.data || action.payload;
-                const index = state.promotions.findIndex(p => p.promotionId === updatedPromotion.promotionId);
+                
+                // If response doesn't have promotion data, just show success
+                // The component will fetch fresh data anyway
+                if (!updatedPromotion || !updatedPromotion.promotionId) {
+                    state.success = 'Cập nhật khuyến mãi thành công!';
+                    return;
+                }
+                
+                // Normalize promotionId to number for comparison
+                const updatedId = Number(updatedPromotion.promotionId);
+                
+                // Find the promotion to update by promotionId
+                const index = state.promotions.findIndex(p => {
+                    const pId = Number(p.promotionId);
+                    // Check if promotionId matches
+                    if (pId === updatedId) return true;
+                    // Also check if it's a summary promotion with relatedPromotionIds
+                    if (p.relatedPromotionIds && Array.isArray(p.relatedPromotionIds)) {
+                        return p.relatedPromotionIds.some(id => Number(id) === updatedId);
+                    }
+                    return false;
+                });
+                
                 if (index !== -1) {
-                    state.promotions[index] = updatedPromotion;
+                    // If it's a summary promotion, we need to update the active status
+                    // but keep the summary structure
+                    if (state.promotions[index].relatedPromotionIds && state.promotions[index].relatedPromotionIds.length > 0) {
+                        // Update the active status of the summary promotion based on the updated promotion
+                        state.promotions[index] = {
+                            ...state.promotions[index],
+                            active: updatedPromotion.active !== undefined ? updatedPromotion.active : state.promotions[index].active
+                        };
+                    } else {
+                        // Regular promotion, merge the updated data
+                        // Prioritize active status from response
+                        state.promotions[index] = {
+                            ...state.promotions[index],
+                            ...updatedPromotion,
+                            // Ensure active status is from response if available
+                            active: updatedPromotion.active !== undefined ? updatedPromotion.active : state.promotions[index].active,
+                            // Ensure promotionId is preserved
+                            promotionId: state.promotions[index].promotionId
+                        };
+                    }
+                } else {
+                    // If not found, it might be a new promotion or the structure changed
+                    // Try to find by matching other fields
+                    const altIndex = state.promotions.findIndex(p => 
+                        p.promotionName === updatedPromotion.promotionName &&
+                        p.promotionType === updatedPromotion.promotionType &&
+                        Number(p.amount) === Number(updatedPromotion.amount) &&
+                        Number(p.modelId) === Number(updatedPromotion.modelId)
+                    );
+                    if (altIndex !== -1) {
+                        state.promotions[altIndex] = {
+                            ...state.promotions[altIndex],
+                            ...updatedPromotion,
+                            // Preserve existing promotionId
+                            promotionId: state.promotions[altIndex].promotionId
+                        };
+                    }
                 }
                 state.success = 'Cập nhật khuyến mãi thành công!';
             })

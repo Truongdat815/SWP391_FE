@@ -454,18 +454,6 @@ function OrderManagement() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-4 py-3 text-left">
-                    <div className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
-                        checked={filteredOrders.length > 0 && selectedOrderIds.length === filteredOrders.length}
-                        onChange={handleSelectAll}
-                        className="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500 cursor-pointer"
-                        
-                      />
-                      <span className="text-xs font-medium text-gray-600">Tất cả</span>
-                    </div>
-                  </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Mã đơn hàng
                   </th>
@@ -487,18 +475,8 @@ function OrderManagement() {
                 {paginatedOrders.map((order) => (
                   <tr 
                     key={order.orderId} 
-                    className={`hover:bg-gray-50 transition-colors ${
-                      selectedOrderIds.includes(order.orderId) ? 'bg-emerald-50' : ''
-                    }`}
+                    className="hover:bg-gray-50 transition-colors"
                   >
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <input
-                        type="checkbox"
-                        checked={selectedOrderIds.includes(order.orderId)}
-                        onChange={() => handleSelectOrder(order.orderId)}
-                        className="h-4 w-4 text-emerald-600 border-gray-300 rounded focus:ring-emerald-500"
-                      />
-                    </td>
                     <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-gray-900">
                       {order.orderNumber || `ORD-${order.orderId}`}
                     </td>
