@@ -26,7 +26,6 @@ import {
   CheckCircle,
   XCircle,
   Percent,
-  DollarSign,
   Filter
 } from 'lucide-react';
 
@@ -593,7 +592,7 @@ function PromotionManagement() {
                     {promotions.filter(p => p.promotionType === 'FIXED_AMOUNT').length}
                   </p>
                 </div>
-                <DollarSign className="h-6 w-6 text-purple-600" />
+                <span className="text-sm font-semibold text-purple-600">VND</span>
               </div>
             </div>
           </div>
@@ -726,7 +725,7 @@ function PromotionManagement() {
                           {promotion.promotionType === 'PERCENTAGE' ? (
                             <Percent className="h-4 w-4 text-blue-600 mr-2" />
                           ) : (
-                            <DollarSign className="h-4 w-4 text-purple-600 mr-2" />
+                            <span className="text-xs font-semibold text-purple-600 mr-2">VND</span>
                           )}
                           <span className="text-sm font-semibold text-gray-900">
                             {formatAmount(promotion.amount, promotion.promotionType)}
@@ -1294,7 +1293,7 @@ function PromotionManagement() {
                       {selectedPromotion.promotionType === 'PERCENTAGE' ? (
                         <Percent className="h-5 w-5 text-blue-600 mr-2" />
                       ) : (
-                        <DollarSign className="h-5 w-5 text-purple-600 mr-2" />
+                        <span className="text-sm font-semibold text-purple-600 mr-2">VND</span>
                       )}
                       <span className="text-sm font-medium text-gray-700">Loại khuyến mãi</span>
                     </div>

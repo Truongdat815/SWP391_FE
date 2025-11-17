@@ -114,4 +114,9 @@ export async function updateFeedback(feedbackId, feedbackData) {
     });
 }
 
+// Delete feedback
+export async function deleteFeedback(feedbackId) {
+    return request(`/api/feedbacks/delete/${feedbackId}`, { method: 'DELETE' });
+}
+
 
