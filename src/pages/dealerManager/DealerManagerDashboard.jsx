@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchOrders, fetchOrdersByStaffId } from '../../store/slices/orderSlice';
@@ -36,18 +36,34 @@ const DealerManagerDashboard = () => {
     );
   }, [users]);
 
+  // Use ref to prevent duplicate API calls
+  const lastFetchedStaffIdRef = useRef(null);
+  const hasFetchedFeedbacksRef = useRef(false);
+  const hasFetchedOtherDataRef = useRef(false);
+
   // Fetch orders based on selected staff
   useEffect(() => {
-    setLoadingOrders(true);
-    if (selectedStaffId === 'all') {
-      dispatch(fetchOrders()).finally(() => setLoadingOrders(false));
-    } else {
-      dispatch(fetchOrdersByStaffId(selectedStaffId)).finally(() => setLoadingOrders(false));
+    // Only fetch if selectedStaffId changed or hasn't been fetched yet
+    if (lastFetchedStaffIdRef.current !== selectedStaffId) {
+      lastFetchedStaffIdRef.current = selectedStaffId;
+      setLoadingOrders(true);
+      if (selectedStaffId === 'all') {
+        dispatch(fetchOrders()).finally(() => setLoadingOrders(false));
+      } else {
+        dispatch(fetchOrdersByStaffId(selectedStaffId)).finally(() => setLoadingOrders(false));
+      }
     }
   }, [dispatch, selectedStaffId]);
 
   // Load feedbacks with details (rating and content)
   useEffect(() => {
+    // Only fetch once
+    if (hasFetchedFeedbacksRef.current) {
+      return;
+    }
+    
+    hasFetchedFeedbacksRef.current = true;
+    
     const loadFeedbacksWithDetails = async () => {
       setLoadingFeedbacks(true);
       try {
@@ -122,9 +138,14 @@ const DealerManagerDashboard = () => {
     };
     
     loadFeedbacksWithDetails();
-    dispatch(getAllStoreStocksThunk());
-    dispatch(fetchPromotions());
-    dispatch(getAllUsersThunk());
+    
+    // Fetch other data only once
+    if (!hasFetchedOtherDataRef.current) {
+      hasFetchedOtherDataRef.current = true;
+      dispatch(getAllStoreStocksThunk());
+      dispatch(fetchPromotions());
+      dispatch(getAllUsersThunk());
+    }
   }, [dispatch]);
 
   // Filter orders based on selected staff (client-side filter as backup)

@@ -1,6 +1,6 @@
 import { API_URL } from './client';
 
-const getToken = () => localStorage.getItem('access_token');
+const getToken = () => sessionStorage.getItem('access_token');
 
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();
@@ -31,7 +31,15 @@ async function request(path, { method = 'GET', body } = {}) {
 
 // Get all store stocks
 export async function getAllStoreStocks() {
-    return request('/api/store-stocks/all', { method: 'GET' });
+    try {
+        return await request('/api/store-stocks/all', { method: 'GET' });
+    } catch (err) {
+        if (err.status === 404) {
+            console.warn('Store stocks endpoint not found, returning empty data');
+            return { data: [] };
+        }
+        throw err;
+    }
 }
 
 // Get store stocks by store ID

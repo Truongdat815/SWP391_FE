@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { 
@@ -125,8 +125,17 @@ function ViewContracts() {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
+  // Use ref to prevent duplicate API calls
+  const hasFetchedContractsRef = useRef(false);
+
   // Fetch contracts on component mount
   useEffect(() => {
+    // Only fetch once
+    if (hasFetchedContractsRef.current) {
+      return;
+    }
+    
+    hasFetchedContractsRef.current = true;
     dispatch(fetchAllContractsThunk());
   }, [dispatch]);
 
@@ -1181,7 +1190,7 @@ function ViewContracts() {
                         </p>
                       </div>
                       <div>
-                        <p className="text-xs text-blue-700">Tổng thuế</p>
+                        <p className="text-xs text-blue-700">Phí dịch vụ và biển số</p>
                         <p className="text-xs font-semibold text-blue-900">
                           {(contractDetail.orderTotalTaxPrice || 0).toLocaleString('vi-VN')} VNĐ
                         </p>
@@ -1281,7 +1290,7 @@ function ViewContracts() {
                                 Giảm giá
                               </th>
                               <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
-                                Thuế
+                                Phí Biển Số và Dịch vụ
                               </th>
                               <th className="px-3 py-2 text-right text-xs font-semibold text-gray-700 uppercase tracking-wider">
                                 Thành tiền

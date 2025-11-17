@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -45,7 +45,17 @@ function ProductManagement() {
   const [selectedImageFile, setSelectedImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
 
+  // Use ref to prevent duplicate API calls
+  const hasFetchedRef = useRef(false);
+
   useEffect(() => {
+    // Only fetch once
+    if (hasFetchedRef.current) {
+      return;
+    }
+    
+    hasFetchedRef.current = true;
+    
     dispatch(getAllModelColorsThunk());
     dispatch(getAllModelsThunk());
     dispatch(getAllColorsThunk());

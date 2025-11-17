@@ -12,7 +12,7 @@ const DealerDetail = () => {
     const fetchDealer = async () => {
       try {
         setLoading(true);
-        const token = localStorage.getItem('access_token');
+        const token = sessionStorage.getItem('access_token');
         const headers = {
           'Content-Type': 'application/json',
         };

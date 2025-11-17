@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { get } from '@/api/client';
 import { useDispatch, useSelector } from 'react-redux';
 import { getAllUsersThunk, createUserThunk, deleteUserThunk, updateUserThunk } from '@store/slices/userSlice';
@@ -57,7 +57,6 @@ function UserManagement() {
   const rolesStatus = useSelector((s) => s.roles.status);
   const rolesError = useSelector((s) => s.roles.error);
   const isRolesFetching = rolesStatus === 'loading';
-  const [usersApi, setUsersApi] = useState([]);
 
   const { toast, hideToast, success, error } = useToast();
   const { confirm, showConfirm } = useConfirm();
@@ -68,30 +67,7 @@ function UserManagement() {
     }
   }, [dispatch, usersStatus]);
 
-  // Fallback fetch chỉ khi Redux thất bại hoặc không có data sau khi loaded
-  useEffect(() => {
-    // Chỉ fetch fallback nếu Redux đã hoàn thành nhưng không có data hoặc có lỗi
-    if (usersStatus === 'succeeded' && (!users || users.length === 0)) {
-      console.log('Redux returned empty, trying fallback API...');
-      get('/api/users/all')
-        .then((res) => {
-          const userData = res?.data?.data || res?.data || [];
-          setUsersApi(Array.isArray(userData) ? userData : []);
-        })
-        .catch((err) => console.error('Lỗi lấy danh sách người dùng (fallback):', err));
-    } else if (usersStatus === 'failed') {
-      // Nếu Redux thất bại, thử fallback
-      console.log('Redux failed, trying fallback API...');
-      get('/api/users/all')
-        .then((res) => {
-          const userData = res?.data?.data || res?.data || [];
-          setUsersApi(Array.isArray(userData) ? userData : []);
-        })
-        .catch((err) => console.error('Lỗi lấy danh sách người dùng (fallback):', err));
-    }
-  }, [usersStatus, users]);
-
-  const usersList = (users && users.length) ? users : usersApi;
+  const usersList = users || [];
 
   useEffect(() => {
     if (storesStatus === 'idle') {
@@ -99,8 +75,18 @@ function UserManagement() {
     }
   }, [dispatch, storesStatus]);
 
+  // Use ref to prevent duplicate API calls
+  const hasFetchedActiveStoresRef = useRef(false);
+
   // Fetch active stores khi component mount hoặc khi mở modal thêm user
   useEffect(() => {
+    // Only fetch once
+    if (hasFetchedActiveStoresRef.current) {
+      return;
+    }
+    
+    hasFetchedActiveStoresRef.current = true;
+    
     const fetchActiveStores = async () => {
       setIsLoadingActiveStores(true);
       try {

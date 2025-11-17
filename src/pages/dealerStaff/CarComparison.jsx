@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
@@ -83,8 +83,18 @@ function CarComparison() {
     dispatch(getAllModelColorsThunk());
   }, [dispatch]);
 
+  // Use ref to prevent duplicate API calls
+  const hasFetchedColorsRef = useRef(false);
+
   // Fetch colors
   useEffect(() => {
+    // Only fetch once
+    if (hasFetchedColorsRef.current) {
+      return;
+    }
+    
+    hasFetchedColorsRef.current = true;
+    
     const fetchColors = async () => {
       try {
         setLoadingColors(true);

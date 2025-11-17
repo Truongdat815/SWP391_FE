@@ -1,6 +1,6 @@
 import { API_URL } from './client';
 
-const getToken = () => localStorage.getItem('access_token');
+const getToken = () => sessionStorage.getItem('access_token');
 
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();
@@ -78,11 +78,6 @@ export async function getAllPromotions() {
     return request('/api/promotions/all', { method: 'GET' });
 }
 
-// Get promotion by name
-export async function getPromotionByName(name) {
-    return request(`/api/promotions/${encodeURIComponent(name)}`, { method: 'GET' });
-}
-
 // Update promotion
 export async function updatePromotion(promotionId, promotionData) {
     return request(`/api/promotions/${promotionId}`, {
@@ -114,32 +109,6 @@ export async function getActivePromotions() {
             const endDate = new Date(promo.endDate);
             return now >= startDate && now <= endDate;
         });
-    }
-    return [];
-}
-
-// Get promotions by model (helper function - filter client-side)
-export async function getPromotionsByModel(modelId) {
-    const response = await getAllPromotions();
-    const allPromotions = response.data || response;
-    
-    if (Array.isArray(allPromotions)) {
-        return allPromotions.filter(promo => 
-            promo.modelId === modelId || promo.modelId === 0 // 0 = apply to all
-        );
-    }
-    return [];
-}
-
-// Get promotions by store (helper function - filter client-side)
-export async function getPromotionsByStore(storeId) {
-    const response = await getAllPromotions();
-    const allPromotions = response.data || response;
-    
-    if (Array.isArray(allPromotions)) {
-        return allPromotions.filter(promo => 
-            promo.storeId === storeId || promo.storeId === 0 // 0 = apply to all
-        );
     }
     return [];
 }

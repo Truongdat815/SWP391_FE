@@ -36,10 +36,10 @@ function SignIn() {
         email: 'test@admin.com'
       };
       
-      // Save to localStorage
-      localStorage.setItem('access_token', 'mock_token');
-      localStorage.setItem('refresh_token', 'mock_refresh_token');
-      localStorage.setItem('user_info', JSON.stringify(mockUser));
+      // Save to sessionStorage
+      sessionStorage.setItem('access_token', 'mock_token');
+      sessionStorage.setItem('refresh_token', 'mock_refresh_token');
+      sessionStorage.setItem('user_info', JSON.stringify(mockUser));
       
       console.log('Mock login successful, navigating to /admin');
       navigate('/admin');

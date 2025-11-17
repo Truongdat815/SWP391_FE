@@ -1,6 +1,6 @@
 import { API_URL } from './client';
 
-const getToken = () => localStorage.getItem('access_token');
+const getToken = () => sessionStorage.getItem('access_token');
 
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();
@@ -31,12 +31,16 @@ export async function updateUser({ userId, ...user }) {
     return request(`/api/users/update/${encodeURIComponent(userId)}`, { method: 'PUT', body: user });
 }
 
-export async function getUserByName(name) {
-    return request(`/api/users/${encodeURIComponent(name)}`, { method: 'GET' });
-}
-
 export async function getAllUsers() {
-    return request('/api/users/all', { method: 'GET' });
+    try {
+        return await request('/api/users/all', { method: 'GET' });
+    } catch (err) {
+        if (err.status === 404) {
+            console.warn('Users endpoint not found, returning empty data');
+            return { data: [] };
+        }
+        throw err;
+    }
 }
 
 export async function deleteUser(userId) {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import BaseLayout from './BaseLayout';
 import { get } from '@/api/client';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,6 +13,8 @@ const AdminLayout = () => {
   });
 
   // Lấy thông tin admin từ session
+  const hasFetchedRef = useRef(false);
+  
   useEffect(() => {
     const fetchAdminInfo = async () => {
       try {
@@ -28,8 +30,10 @@ const AdminLayout = () => {
             email: user.email || 'admin@electra.com',
             role: 'Quản trị viên hệ thống',
           });
-        } else {
-          // Fallback: try to get user from API if no session
+          hasFetchedRef.current = true;
+        } else if (!hasFetchedRef.current) {
+          // Fallback: try to get user from API if no session (only once)
+          hasFetchedRef.current = true;
           const response = await get('/api/users/all');
           const users = response?.data?.data || [];
           
@@ -56,7 +60,7 @@ const AdminLayout = () => {
     };
 
     fetchAdminInfo();
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, user?.userId]); // Only depend on userId, not entire user object
 
   const menuItems = [
     { 

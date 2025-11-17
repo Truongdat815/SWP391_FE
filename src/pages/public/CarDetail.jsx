@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getModelImage, getModelPoster, formatPrice, formatNumber } from '../../utils/modelHelpers';
@@ -17,6 +17,9 @@ function CarDetail() {
   const [error, setError] = useState(null)
   const [selectedImage, setSelectedImage] = useState('main')
   const [activeTab, setActiveTab] = useState('overview')
+
+  // Use ref to prevent duplicate API calls for the same modelId
+  const lastFetchedModelIdRef = useRef(null);
 
   // Get image URL from model-color imagePath
   const getImageUrl = (imagePath) => {
@@ -71,6 +74,13 @@ function CarDetail() {
 
   useEffect(() => {
     window.scrollTo(0, 0)
+    
+    // Only fetch if modelId changed or hasn't been fetched yet
+    if (lastFetchedModelIdRef.current === modelId) {
+      return;
+    }
+    
+    lastFetchedModelIdRef.current = modelId;
     
     const fetchData = async () => {
       try {

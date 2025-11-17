@@ -1,6 +1,6 @@
 import { API_URL } from './client';
 
-const getToken = () => localStorage.getItem('access_token');
+const getToken = () => sessionStorage.getItem('access_token');
 
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();
@@ -42,11 +42,6 @@ export async function getAllModelColors(options = {}) {
     // For EVM Staff/Admin without storeId, backend should handle gracefully
     // For Dealer Manager/Staff with storeId, backend should filter by storeId
     return request('/api/model-colors/all', { method: 'GET' });
-}
-
-// Get by ID
-export async function getModelColorById(id) {
-    return request(`/api/model-colors/${encodeURIComponent(id)}`, { method: 'GET' });
 }
 
 // Get by Model ID

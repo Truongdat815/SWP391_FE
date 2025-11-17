@@ -1,6 +1,6 @@
 import { API_URL } from './client';
 
-const getToken = () => localStorage.getItem('access_token');
+const getToken = () => sessionStorage.getItem('access_token');
 
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();
@@ -52,11 +52,6 @@ export async function createFeedbackDetail(feedbackDetailData) {
     });
 }
 
-// Get feedback detail by ID
-export async function getFeedbackDetailById(feedbackDetailId) {
-    return request(`/api/feedback-details/${feedbackDetailId}`, { method: 'GET' });
-}
-
 // Get all feedback details by feedbackId
 export async function getFeedbackDetailsByFeedbackId(feedbackId) {
     return request(`/api/feedback-details/feedback/${feedbackId}`, { method: 'GET' });
@@ -70,8 +65,4 @@ export async function updateFeedbackDetail(feedbackDetailId, feedbackDetailData)
     });
 }
 
-// Delete feedback detail
-export async function deleteFeedbackDetail(feedbackDetailId) {
-    return request(`/api/feedback-details/delete/${feedbackDetailId}`, { method: 'DELETE' });
-}
 

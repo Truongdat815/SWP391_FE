@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { get, fetchExternalApi } from '@/api/client'; // Thêm fetchExternalApi
 import { useDispatch, useSelector } from 'react-redux';
 import { 
@@ -39,7 +39,6 @@ function StoreManagement() {
   const storesError = useSelector((s) => s.stores.error);
   const isStoresFetching = storesStatus === 'loading';
   const isCreatingStore = storesStatus === 'loading';
-  const [storesApi, setStoresApi] = useState([]);
 
   const { toast, hideToast, success, error } = useToast();
   const { confirm, showConfirm } = useConfirm();
@@ -78,15 +77,24 @@ function StoreManagement() {
     }
   }, [dispatch, storesStatus]);
 
-  // Fallback fetch via api client for direct API usage
-  useEffect(() => {
-    get('/api/stores/all')
-      .then((res) => setStoresApi(Array.isArray(res?.data?.data) ? res.data.data : []))
-      .catch((err) => console.error('Lỗi lấy danh sách store:', err));
-  }, []);
+  // Use ref to prevent duplicate API calls for monthly revenue
+  const hasFetchedRevenueRef = useRef(false);
+  const lastStoresLengthRef = useRef(0);
 
   // Fetch monthly revenue for all stores
   useEffect(() => {
+    // Only fetch if stores are loaded and haven't fetched yet, or stores count changed
+    const currentStoresLength = stores?.length || 0;
+    const shouldFetch = stores && stores.length > 0 && 
+                       (!hasFetchedRevenueRef.current || lastStoresLengthRef.current !== currentStoresLength);
+    
+    if (!shouldFetch) {
+      return;
+    }
+    
+    hasFetchedRevenueRef.current = true;
+    lastStoresLengthRef.current = currentStoresLength;
+    
     const fetchMonthlyRevenue = async () => {
       try {
         const response = await getStoresRevenueMonthly();
@@ -116,14 +124,21 @@ function StoreManagement() {
       }
     };
     
-    const allStores = (stores && stores.length) ? stores : storesApi;
-    if (allStores.length > 0) {
-      fetchMonthlyRevenue();
-    }
-  }, [stores, storesApi]);
+    fetchMonthlyRevenue();
+  }, [stores]);
+
+  // Use ref to prevent duplicate API calls for provinces
+  const hasFetchedProvincesRef = useRef(false);
 
   // Fetch provinces từ API bên thứ 3 - sử dụng depth=3 để có đầy đủ wards
   useEffect(() => {
+    // Only fetch once
+    if (hasFetchedProvincesRef.current) {
+      return;
+    }
+    
+    hasFetchedProvincesRef.current = true;
+    
     const fetchProvinces = async () => {
       setLoadingProvinces(true);
       try {
@@ -150,7 +165,7 @@ function StoreManagement() {
     fetchProvinces();
   }, []);
 
-  const allStoresList = (stores && stores.length) ? stores : storesApi;
+  const allStoresList = stores || [];
   
   // Frontend filtering to replace removed thunks
   const storesList = allStoresList.filter(store => {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedImage from '../components/Animated';
 import { Link } from 'react-router-dom';
@@ -36,7 +36,17 @@ const Models = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8; // 4 columns x 2 rows
 
+  // Use ref to prevent duplicate API calls (especially with StrictMode)
+  const hasFetchedRef = useRef(false);
+
   useEffect(() => {
+    // Only fetch once, even if component remounts due to StrictMode
+    if (hasFetchedRef.current) {
+      return;
+    }
+    
+    hasFetchedRef.current = true;
+    
     const fetchData = async () => {
       try {
         setLoading(true);

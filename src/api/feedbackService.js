@@ -1,6 +1,6 @@
 import { API_URL } from './client';
 
-const getToken = () => localStorage.getItem('access_token');
+const getToken = () => sessionStorage.getItem('access_token');
 
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();
@@ -67,11 +67,6 @@ export async function getAllFeedbacks() {
     return request('/api/feedbacks/all', { method: 'GET' });
 }
 
-// Get feedbacks by status
-export async function getFeedbacksByStatus(status) {
-    return request(`/api/feedbacks/status/${status}`, { method: 'GET' });
-}
-
 // Update feedback status
 export async function updateFeedbackStatus(feedbackId, status) {
     return request(`/api/feedbacks/update/${feedbackId}`, {
@@ -88,8 +83,4 @@ export async function updateFeedback(feedbackId, feedbackData) {
     });
 }
 
-// Delete feedback
-export async function deleteFeedback(feedbackId) {
-    return request(`/api/feedbacks/delete/${feedbackId}`, { method: 'DELETE' });
-}
 

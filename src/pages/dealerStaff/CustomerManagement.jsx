@@ -53,8 +53,6 @@ function CustomerManagement() {
   const customersError = useSelector((s) => s.customers.error);
   const isCustomersFetching = customersStatus === 'loading';
   const isCreatingCustomer = customersStatus === 'loading';
-  
-  const [customersApi, setCustomersApi] = useState([]);
   const location = useLocation();
   const sortDropdownRef = useRef(null);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
@@ -83,53 +81,8 @@ function CustomerManagement() {
     };
   }, [showSortDropdown]);
 
-  // Fallback fetch via api client for direct API usage (Only if Redux fails)
-  useEffect(() => {
-    // Only fetch if Redux customers list is empty after initial load
-    if (customersStatus === 'succeeded' && customers.length === 0) {
-      console.log('🔄 Fallback: Fetching customers directly from API...');
-      get('/api/customers/all')
-        .then((res) => {
-          console.log('📥 Fallback API response:', res);
-          // ✅ Xử lý nhiều cấu trúc response
-          let customersData = [];
-          
-          if (Array.isArray(res?.data?.data)) {
-            customersData = res.data.data;
-          } else if (Array.isArray(res?.data)) {
-            customersData = res.data;
-          } else if (Array.isArray(res)) {
-            customersData = res;
-          } else if (res?.data && typeof res.data === 'object') {
-            const dataValues = Object.values(res.data);
-            if (dataValues.length > 0 && Array.isArray(dataValues[0])) {
-              customersData = dataValues[0];
-            }
-          }
-          
-          console.log('✅ Fallback: Extracted customers:', customersData.length);
-          setCustomersApi(customersData);
-        })
-        .catch((err) => {
-          console.error('❌ Fallback: Lỗi lấy danh sách khách hàng:', err);
-          setCustomersApi([]);
-        });
-    }
-  }, [customersStatus, customers.length]);
-
-  // Backend đã filter theo storeId, chỉ cần lấy danh sách từ API
-  // ✅ Đảm bảo customers và customersApi là array
-  const customersArray = Array.isArray(customers) ? customers : [];
-  const customersApiArray = Array.isArray(customersApi) ? customersApi : [];
-  
-  // ✅ Ưu tiên Redux customers, fallback về API customers
-  const finalCustomersList = customersArray.length > 0 ? customersArray : customersApiArray;
-  
-  // ✅ Debug log để kiểm tra
-  console.log('🔍 CustomerManagement Debug:');
-  console.log('- Redux customers:', customersArray.length);
-  console.log('- API customers:', customersApiArray.length);
-  console.log('- finalCustomersList:', finalCustomersList.length);
+  // Use Redux customers only
+  const finalCustomersList = Array.isArray(customers) ? customers : [];
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortMode, setSortMode] = useState('newest'); // 'newest' | 'oldest' | 'name-asc' | 'name-desc'
@@ -144,8 +97,18 @@ function CustomerManagement() {
     }
   }, [location]);
 
+  // Use ref to prevent duplicate API calls for provinces
+  const hasFetchedProvincesRef = useRef(false);
+
   // Fetch provinces từ API bên thứ 3 - sử dụng depth=3 để có đầy đủ wards
   useEffect(() => {
+    // Only fetch once
+    if (hasFetchedProvincesRef.current) {
+      return;
+    }
+    
+    hasFetchedProvincesRef.current = true;
+    
     const fetchProvinces = async () => {
       setLoadingProvinces(true);
       try {

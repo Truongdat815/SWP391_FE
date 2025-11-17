@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useSelector, useDispatch } from 'react-redux';
 import { fetchOrdersByStaffId } from '../../store/slices/orderSlice';
@@ -22,9 +22,16 @@ const DealerStaffDashboard = () => {
   // Get current staff ID
   const currentStaffId = user?.userId || user?.id || user?.user_id;
 
+  // Use ref to prevent duplicate API calls
+  const lastFetchedStaffIdRef = useRef(null);
+  const hasFetchedFeedbacksRef = useRef(false);
+  const hasFetchedCustomersAppointmentsRef = useRef(false);
+
   // Fetch orders for current staff only
   useEffect(() => {
-    if (currentStaffId) {
+    // Only fetch if currentStaffId changed or hasn't been fetched yet
+    if (currentStaffId && lastFetchedStaffIdRef.current !== currentStaffId) {
+      lastFetchedStaffIdRef.current = currentStaffId;
       setLoadingOrders(true);
       dispatch(fetchOrdersByStaffId(currentStaffId))
         .finally(() => setLoadingOrders(false));
@@ -33,6 +40,13 @@ const DealerStaffDashboard = () => {
 
   // Load feedbacks with details (rating and content)
   useEffect(() => {
+    // Only fetch once
+    if (hasFetchedFeedbacksRef.current) {
+      return;
+    }
+    
+    hasFetchedFeedbacksRef.current = true;
+    
     const loadFeedbacksWithDetails = async () => {
       setLoadingFeedbacks(true);
       try {
@@ -105,8 +119,13 @@ const DealerStaffDashboard = () => {
     };
     
     loadFeedbacksWithDetails();
-    dispatch(getAllCustomersThunk());
-    dispatch(getAllAppointmentsThunk());
+    
+    // Fetch customers and appointments only once
+    if (!hasFetchedCustomersAppointmentsRef.current) {
+      hasFetchedCustomersAppointmentsRef.current = true;
+      dispatch(getAllCustomersThunk());
+      dispatch(getAllAppointmentsThunk());
+    }
   }, [dispatch]);
 
   // Filter orders to only show current staff's orders (client-side filter as backup)
