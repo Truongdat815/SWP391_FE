@@ -37,6 +37,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import ModernButton from '../../components/ui/ModernButton';
 import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
 import EmptyState from '../../components/ui/EmptyState';
+import ToggleSwitch from '../../components/ui/ToggleSwitch';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function PromotionManagement() {
@@ -54,6 +55,7 @@ function PromotionManagement() {
   const [statusFilter, setStatusFilter] = useState('all'); // all, active, inactive
   const [typeFilter, setTypeFilter] = useState('all'); // all, PERCENTAGE, FIXED_AMOUNT
   const [filteredPromotions, setFilteredPromotions] = useState([]);
+  const [optimisticUpdates, setOptimisticUpdates] = useState({}); // Track optimistic updates
   
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -417,6 +419,99 @@ function PromotionManagement() {
     setShowDetailModal(true);
   };
 
+  // Quick toggle active status
+  const handleToggleActive = async (promotion) => {
+    const newActiveStatus = !promotion.active;
+    const promotionId = promotion.promotionId;
+    
+    // Optimistic update - update UI immediately
+    const promotionIdsToUpdate = [];
+    if ((promotion.modelId === 0 || promotion.modelId === null) && promotion.relatedPromotionIds && promotion.relatedPromotionIds.length > 0) {
+      // For summary promotion, update all related promotion IDs
+      promotionIdsToUpdate.push(...promotion.relatedPromotionIds);
+    } else {
+      promotionIdsToUpdate.push(promotionId);
+    }
+    
+    // Set optimistic updates for all related promotions
+    setOptimisticUpdates(prev => {
+      const newUpdates = { ...prev };
+      promotionIdsToUpdate.forEach(id => {
+        newUpdates[id] = newActiveStatus;
+      });
+      return newUpdates;
+    });
+    
+    try {
+      // If it's a summary promotion (modelId = 0) with relatedPromotionIds, 
+      // we need to update all related promotions
+      if ((promotion.modelId === 0 || promotion.modelId === null) && promotion.relatedPromotionIds && promotion.relatedPromotionIds.length > 0) {
+        // Update all related promotions
+        const updatePromises = promotion.relatedPromotionIds.map(pId => {
+          // Find the actual promotion to get its full data
+          const actualPromo = promotions.find(p => p.promotionId === pId);
+          if (actualPromo) {
+            return dispatch(updatePromotionById({
+              promotionId: pId,
+              promotionData: {
+                ...actualPromo,
+                active: newActiveStatus
+              }
+            })).unwrap();
+          }
+          return Promise.resolve();
+        });
+        await Promise.all(updatePromises);
+      } else {
+        // Single promotion update
+        await dispatch(updatePromotionById({
+          promotionId: promotion.promotionId,
+          promotionData: {
+            ...promotion,
+            active: newActiveStatus
+          }
+        })).unwrap();
+      }
+      
+      // The reducer should have updated the state with the response
+      // Clear optimistic update after a short delay to let reducer update
+      // Only fetch if we need to refresh (e.g., for summary promotions)
+      setTimeout(() => {
+        // Clear optimistic update - reducer should have the correct state now
+        setOptimisticUpdates(prev => {
+          const newUpdates = { ...prev };
+          promotionIdsToUpdate.forEach(id => {
+            delete newUpdates[id];
+          });
+          return newUpdates;
+        });
+        
+        // Only fetch if it's a summary promotion to ensure all related promotions are synced
+        if ((promotion.modelId === 0 || promotion.modelId === null) && promotion.relatedPromotionIds && promotion.relatedPromotionIds.length > 0) {
+          // For summary promotions, fetch after a delay to ensure backend is synced
+          setTimeout(() => {
+            dispatch(fetchPromotions());
+          }, 300);
+        }
+      }, 100);
+    } catch (error) {
+      console.error('Failed to toggle promotion status:', error);
+      showToastError('Không thể cập nhật trạng thái khuyến mãi');
+      
+      // Revert optimistic updates on error
+      setOptimisticUpdates(prev => {
+        const newUpdates = { ...prev };
+        promotionIdsToUpdate.forEach(id => {
+          delete newUpdates[id];
+        });
+        return newUpdates;
+      });
+      
+      // Refresh on error to get correct state
+      dispatch(fetchPromotions());
+    }
+  };
+
   // Check if promotion is currently active
   const isPromotionActive = (promotion) => {
     if (!promotion.active) return false;
@@ -701,6 +796,9 @@ function PromotionManagement() {
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Trạng thái
                     </th>
+                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Kích hoạt
+                    </th>
                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Thao tác
                     </th>
@@ -752,6 +850,32 @@ function PromotionManagement() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {getStatusBadge(promotion)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center">
+                          <ToggleSwitch
+                            checked={(() => {
+                              // Check optimistic update first
+                              if (optimisticUpdates[promotion.promotionId] !== undefined) {
+                                return optimisticUpdates[promotion.promotionId];
+                              }
+                              // For summary promotions, check if any related promotion has optimistic update
+                              if (promotion.relatedPromotionIds && promotion.relatedPromotionIds.length > 0) {
+                                const relatedUpdate = promotion.relatedPromotionIds.find(id => 
+                                  optimisticUpdates[id] !== undefined
+                                );
+                                if (relatedUpdate !== undefined) {
+                                  return optimisticUpdates[relatedUpdate];
+                                }
+                              }
+                              // Fallback to actual promotion active status
+                              return promotion.active ?? false;
+                            })()}
+                            onChange={() => handleToggleActive(promotion)}
+                            disabled={loading}
+                            size="sm"
+                          />
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
@@ -969,6 +1093,22 @@ function PromotionManagement() {
                   </select>
                  
                 </div>
+
+                {/* Active Toggle */}
+                <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Trạng thái kích hoạt
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      {formData.active ? 'Khuyến mãi đang được kích hoạt' : 'Khuyến mãi chưa được kích hoạt'}
+                    </p>
+                  </div>
+                  <ToggleSwitch
+                    checked={formData.active}
+                    onChange={() => setFormData(prev => ({ ...prev, active: !prev.active }))}
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 mt-6 pt-6 border-t border-gray-200">
@@ -1171,6 +1311,22 @@ function PromotionManagement() {
                       </option>
                     ))}
                   </select>
+                </div>
+
+                {/* Active Toggle */}
+                <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Trạng thái kích hoạt
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      {formData.active ? 'Khuyến mãi đang được kích hoạt' : 'Khuyến mãi chưa được kích hoạt'}
+                    </p>
+                  </div>
+                  <ToggleSwitch
+                    checked={formData.active}
+                    onChange={() => setFormData(prev => ({ ...prev, active: !prev.active }))}
+                  />
                 </div>
               </div>
 
