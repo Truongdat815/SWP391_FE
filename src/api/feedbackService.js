@@ -2,6 +2,25 @@ import { API_URL } from './client';
 
 const getToken = () => sessionStorage.getItem('access_token');
 
+// Map frontend category to backend enum
+const mapCategoryToBackend = (category) => {
+    const normalizedCategory = (category || '').toUpperCase();
+    switch (normalizedCategory) {
+        case 'SERVICE':
+            return 'CUSTOMER_SERVICE';
+        case 'PRODUCT':
+            return 'PRODUCT_QUALITY';
+        case 'COMPLAINT':
+            return 'CUSTOMER_SERVICE'; // Map complaint to customer service
+        case 'CUSTOMER_SERVICE':
+        case 'WEBSITE_EXPERIENCE':
+        case 'PRODUCT_QUALITY':
+            return normalizedCategory; // Already in backend format
+        default:
+            return 'CUSTOMER_SERVICE'; // Default fallback
+    }
+};
+
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();
     const url = `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
@@ -23,8 +42,13 @@ async function request(path, { method = 'GET', body } = {}) {
     
     if (!res.ok) {
         const message = (isJson && data?.message) || res.statusText || 'Request failed';
+        const error = new Error(message);
+        // Attach response data for better error handling
+        error.status = res.status;
+        error.data = data;
+        error.response = { data };
         console.error(`❌ API Error (Feedback): ${method} ${url}`, { status: res.status, message, data });
-        throw new Error(message);
+        throw error;
     }
     
     return data;
@@ -40,7 +64,7 @@ export async function createFeedback(feedbackData) {
     
     // Include optional fields if provided (for APIs that accept them in the main request)
     if (feedbackData.category !== undefined) {
-        payload.category = feedbackData.category;
+        payload.category = mapCategoryToBackend(feedbackData.category);
     }
     if (feedbackData.rating !== undefined) {
         payload.rating = feedbackData.rating;
@@ -77,9 +101,16 @@ export async function updateFeedbackStatus(feedbackId, status) {
 
 // Update feedback (full update)
 export async function updateFeedback(feedbackId, feedbackData) {
+    const payload = { ...feedbackData };
+    
+    // Map category if provided
+    if (payload.category) {
+        payload.category = mapCategoryToBackend(payload.category);
+    }
+    
     return request(`/api/feedbacks/update/${feedbackId}`, {
         method: 'PUT',
-        body: feedbackData
+        body: payload
     });
 }
 
