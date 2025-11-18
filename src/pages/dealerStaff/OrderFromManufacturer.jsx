@@ -90,35 +90,35 @@ function OrderFromManufacturer({ onBack }) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-2xl font-bold text-gray-900">Đặt xe từ hãng sản xuất</h2>
+    <div className="w-full max-w-6xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5">
+      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4 md:p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-3 sm:mb-4 md:mb-5">
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Đặt xe từ hãng sản xuất</h2>
           <button
             onClick={onBack}
-            className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            className="flex items-center justify-center px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-600 hover:text-gray-800 transition-colors duration-200 gap-1.5 sm:gap-2 whitespace-nowrap flex-shrink-0"
           >
-            <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
-            Quay lại
+            <span>Quay lại</span>
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8">
           {/* Order Form */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Tạo đơn đặt hàng mới</h3>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <h3 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Tạo đơn đặt hàng mới</h3>
+            <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1.5 sm:mb-2">
                   Mẫu xe *
                 </label>
                 <select
                   name="vehicleModel"
                   value={formData.vehicleModel}
                   onChange={handleInputChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
                   required
                 >
                   <option value="">Chọn mẫu xe</option>

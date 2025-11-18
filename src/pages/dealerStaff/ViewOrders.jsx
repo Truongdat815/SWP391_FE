@@ -681,7 +681,7 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -705,24 +705,24 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
       <div className="w-full">
         {/* Loading State - Only show on initial load */}
         {loading && (!reduxOrders || reduxOrders.length === 0) && (
-          <div className="flex items-center justify-center py-6">
-            <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-2" />
-            <span className="text-gray-600 text-sm">Đang tải danh sách đơn hàng...</span>
+          <div className="flex items-center justify-center py-6 sm:py-8">
+            <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin text-emerald-600 mr-2" />
+            <span className="text-xs sm:text-sm text-gray-600">Đang tải danh sách đơn hàng...</span>
           </div>
         )}
 
         {/* Filters - Always show even when loading to prevent layout shift */}
-        <div className="space-y-2 mb-2">
-            <div className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1">
+        <div className="space-y-2 sm:space-y-3 mb-2 sm:mb-3">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <div className="flex-1 min-w-0">
                 <div className="relative">
-                  <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <Search className="absolute left-2.5 sm:left-3 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Tìm kiếm theo tên khách hàng, mã đơn hàng..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
+                    className="w-full pl-8 sm:pl-9 md:pl-10 pr-3 sm:pr-4 py-2 sm:py-2.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
                   />
                 </div>
               </div>

@@ -276,16 +276,16 @@ function QuoteOrderManagement() {
   const totals = calculateOrderTotals();
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="w-full max-w-6xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="flex items-center space-x-3">
-              <h1 className="text-2xl font-bold text-gray-900">
+      <div className="mb-4 sm:mb-6 md:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                 {isQuoteMode ? 'Tạo báo giá mới' : 'Quản lý đơn hàng'}
               </h1>
-              <span className={`px-3 py-1 text-sm font-medium rounded-full ${
+              <span className={`px-2 sm:px-3 py-1 text-xs sm:text-sm font-medium rounded-full ${
                 isQuoteMode 
                   ? 'bg-yellow-100 text-yellow-800' 
                   : 'bg-blue-100 text-blue-800'
@@ -293,24 +293,28 @@ function QuoteOrderManagement() {
                 {isQuoteMode ? '📋 Báo giá' : '📦 Đơn hàng'}
               </span>
             </div>
-            <p className="text-gray-600 mt-1">
+            <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-1">
               {isQuoteMode ? 'Tạo báo giá cho khách hàng' : 'Quản lý thông tin đơn hàng'}
             </p>
           </div>
           <button 
             onClick={() => navigate('/dealer-staff')}
-            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            className="px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-600 hover:text-gray-800 transition-colors duration-200 flex items-center justify-center gap-1.5 sm:gap-2 whitespace-nowrap flex-shrink-0"
           >
-            ← Quay lại Dashboard
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+            </svg>
+            <span className="hidden sm:inline">Quay lại Dashboard</span>
+            <span className="sm:hidden">Quay lại</span>
           </button>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-3 sm:space-y-4 md:space-y-5">
         {/* Order Information */}
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold text-gray-900">
+        <div className="bg-white rounded-lg shadow p-3 sm:p-4 md:p-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
+            <h2 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900">
               {isQuoteMode ? 'Thông tin báo giá' : 'Thông tin đơn hàng'}
             </h2>
             

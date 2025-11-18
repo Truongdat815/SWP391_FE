@@ -1192,7 +1192,7 @@ function StoreManagement() {
 
 
   return (
-    <div className="px-4 space-y-4">
+    <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5 space-y-3 sm:space-y-4 md:space-y-5">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 

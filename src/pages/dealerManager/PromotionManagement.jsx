@@ -643,71 +643,71 @@ function PromotionManagement() {
         onCancel={confirm.onCancel}
       />
 
-      <div className="h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-3 overflow-hidden">
-      <div className="max-w-7xl mx-auto h-full flex flex-col space-y-2">
+      <div className="h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-2 sm:p-3 md:p-4 overflow-hidden">
+      <div className="w-full max-w-7xl mx-auto h-full flex flex-col space-y-2 sm:space-y-3 md:space-y-4">
         {/* Header */}
-        <div className="mb-2 flex-shrink-0">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                <Tag className="h-6 w-6 mr-2 text-emerald-600" />
-                Quản Lý Khuyến Mãi
+        <div className="mb-2 sm:mb-3 flex-shrink-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-2 sm:mb-3">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-1.5 sm:gap-2">
+                <Tag className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-600 flex-shrink-0" />
+                <span className="truncate">Quản Lý Khuyến Mãi</span>
               </h1>
-              <p className="text-gray-600 mt-1 text-sm">
+              <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-0.5 sm:mt-1">
                 Tạo và quản lý các chương trình khuyến mãi cho sản phẩm
               </p>
             </div>
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center px-4 py-2 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-lg hover:from-emerald-700 hover:to-blue-700 transition-all shadow-md text-sm"
+              className="flex items-center justify-center px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-lg hover:from-emerald-700 hover:to-blue-700 transition-all duration-200 shadow-md text-xs sm:text-sm md:text-base font-medium whitespace-nowrap flex-shrink-0"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Tạo Khuyến Mãi
+              <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
+              <span>Tạo Khuyến Mãi</span>
             </button>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mt-2">
-            <div className="bg-white p-3 rounded-lg shadow-md border border-gray-100">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mt-2 sm:mt-3">
+            <div className="bg-white p-2.5 sm:p-3 md:p-4 rounded-lg shadow-md border border-gray-100">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600">Tổng khuyến mãi</p>
-                  <p className="text-xl font-bold text-gray-900">{promotions.length}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-gray-600">Tổng khuyến mãi</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">{promotions.length}</p>
                 </div>
-                <Tag className="h-6 w-6 text-emerald-600" />
+                <Tag className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-600 flex-shrink-0 ml-2" />
               </div>
             </div>
-            <div className="bg-white p-3 rounded-lg shadow-md border border-gray-100">
+            <div className="bg-white p-2.5 sm:p-3 md:p-4 rounded-lg shadow-md border border-gray-100">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600">Đang áp dụng</p>
-                  <p className="text-xl font-bold text-green-600">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-gray-600">Đang áp dụng</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-green-600">
                     {promotions.filter(p => isPromotionActive(p)).length}
                   </p>
                 </div>
-                <CheckCircle className="h-6 w-6 text-green-600" />
+                <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 flex-shrink-0 ml-2" />
               </div>
             </div>
-            <div className="bg-white p-3 rounded-lg shadow-md border border-gray-100">
+            <div className="bg-white p-2.5 sm:p-3 md:p-4 rounded-lg shadow-md border border-gray-100">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600">Giảm giá %</p>
-                  <p className="text-xl font-bold text-blue-600">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-gray-600">Giảm giá %</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600">
                     {promotions.filter(p => p.promotionType === 'PERCENTAGE').length}
                   </p>
                 </div>
-                <Percent className="h-6 w-6 text-blue-600" />
+                <Percent className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 flex-shrink-0 ml-2" />
               </div>
             </div>
-            <div className="bg-white p-3 rounded-lg shadow-md border border-gray-100">
+            <div className="bg-white p-2.5 sm:p-3 md:p-4 rounded-lg shadow-md border border-gray-100">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600">Giảm cố định</p>
-                  <p className="text-xl font-bold text-purple-600">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-gray-600">Giảm cố định</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-purple-600">
                     {promotions.filter(p => p.promotionType === 'FIXED_AMOUNT').length}
                   </p>
                 </div>
-                <span className="text-sm font-semibold text-purple-600">VND</span>
+                <span className="text-xs sm:text-sm font-semibold text-purple-600 flex-shrink-0 ml-2">VND</span>
               </div>
             </div>
           </div>

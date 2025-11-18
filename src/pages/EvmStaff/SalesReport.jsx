@@ -116,52 +116,54 @@ function SalesReport({ onBack }) {
   };
 
   return (
-    <div className="space-y-4 w-full">
+    <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5 space-y-3 sm:space-y-4 md:space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Báo cáo & phân tích</h1>
-          <p className="text-gray-600 mt-1">Doanh số theo khu vực, tồn kho & tốc độ tiêu thụ</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">Báo cáo & phân tích</h1>
+          <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-0.5 sm:mt-1">
+            Doanh số theo khu vực, tồn kho & tốc độ tiêu thụ
+          </p>
         </div>
         <button
           onClick={onBack}
-          className="flex items-center px-4 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+          className="flex items-center justify-center px-3 sm:px-4 py-2 text-xs sm:text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200 gap-1.5 sm:gap-2 whitespace-nowrap flex-shrink-0"
         >
-          <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Quay lại
+          <span>Quay lại</span>
         </button>
       </div>
 
       {/* Stats Overview */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-          <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-green-50 text-green-600">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+            <div className="p-2 sm:p-2.5 md:p-3 rounded-lg bg-green-50 text-green-600 flex-shrink-0">
+              <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Tổng doanh số</p>
-              <p className="text-2xl font-bold text-gray-900">546 xe</p>
-              <p className="text-sm text-green-600">+15%</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-gray-600">Tổng doanh số</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">546 xe</p>
+              <p className="text-xs sm:text-sm text-green-600">+15%</p>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
-          <div className="flex items-center">
-            <div className="p-3 rounded-lg bg-blue-50 text-blue-600">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 sm:p-4">
+          <div className="flex items-center gap-2 sm:gap-3 md:gap-4">
+            <div className="p-2 sm:p-2.5 md:p-3 rounded-lg bg-blue-50 text-blue-600 flex-shrink-0">
+              <svg className="h-5 w-5 sm:h-6 sm:w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
               </svg>
             </div>
-            <div className="ml-4">
-              <p className="text-sm font-medium text-gray-600">Tổng doanh thu</p>
-              <p className="text-2xl font-bold text-gray-900">30.4B VNĐ</p>
-              <p className="text-sm text-green-600">+18%</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs sm:text-sm font-medium text-gray-600">Tổng doanh thu</p>
+              <p className="text-xl sm:text-2xl font-bold text-gray-900">30.4B VNĐ</p>
+              <p className="text-xs sm:text-sm text-green-600">+18%</p>
             </div>
           </div>
         </div>

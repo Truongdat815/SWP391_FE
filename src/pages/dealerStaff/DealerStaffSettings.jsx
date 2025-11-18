@@ -149,39 +149,39 @@ const DealerStaffSettings = () => {
   }, []);
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50 p-2 sm:p-3 md:p-4">
+      <div className="w-full max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-2xl p-4 mb-4 shadow-sm">
-          <h1 className="text-3xl font-bold text-gray-900">{t.title}</h1>
-          <p className="text-gray-600 mt-2">{t.subtitle}</p>
+        <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-xl sm:rounded-2xl p-3 sm:p-4 md:p-5 mb-3 sm:mb-4 shadow-sm">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">{t.title}</h1>
+          <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-1 sm:mt-2">{t.subtitle}</p>
           {unsavedChanges && (
-            <div className="mt-3 inline-flex items-center gap-2 px-3 py-1.5 bg-orange-100 text-orange-700 rounded-lg text-sm font-medium">
-              <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <div className="mt-2 sm:mt-3 inline-flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 sm:py-1.5 bg-orange-100 text-orange-700 rounded-lg text-xs sm:text-sm font-medium">
+              <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.964-1.333-2.732 0L3.082 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
-              {t.unsavedWarning}
+              <span>{t.unsavedWarning}</span>
             </div>
           )}
         </div>
 
-        <div className="grid grid-cols-12 gap-4">
+        <div className="grid grid-cols-12 gap-3 sm:gap-4">
           {/* Sidebar */}
           <div className="col-span-12 lg:col-span-3">
-            <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-4 sticky top-6">
+            <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-200 shadow-sm p-3 sm:p-4 sticky top-4 sm:top-6">
               <nav className="space-y-1">
                 {sections.map((section) => (
                   <button
                     key={section.id}
                     onClick={() => setActiveSection(section.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition ${
+                    className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg sm:rounded-xl transition-all duration-200 text-xs sm:text-sm ${
                       activeSection === section.id
                         ? 'bg-emerald-50 text-emerald-700 font-medium'
                         : 'text-gray-600 hover:bg-gray-50'
                     }`}
                   >
-                    <span className="text-xl">{section.icon}</span>
-                    <span className="text-sm">{section.name}</span>
+                    <span className="text-lg sm:text-xl flex-shrink-0">{section.icon}</span>
+                    <span className="truncate">{section.name}</span>
                   </button>
                 ))}
               </nav>

@@ -68,31 +68,31 @@ const AdminHelp = ({ onBack }) => {
   );
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-4">
+    <div className="w-full max-w-4xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5 space-y-3 sm:space-y-4 md:space-y-5">
       {onBack && (
         <button
           onClick={onBack}
-          className="mb-3 flex items-center text-gray-600 hover:text-gray-900 transition-colors text-sm"
+          className="mb-3 sm:mb-4 flex items-center text-xs sm:text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200 gap-1.5 sm:gap-2"
         >
-          <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Quay lại
+          <span>Quay lại</span>
         </button>
       )}
-      <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 rounded-lg p-4 shadow-sm">
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Trợ giúp quản trị</h1>
-        <p className="text-gray-600 mt-0.5 text-sm">Hướng dẫn và hỗ trợ cho quản trị viên hệ thống</p>
+      <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-5 shadow-sm">
+        <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">Trợ giúp quản trị</h1>
+        <p className="text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1">Hướng dẫn và hỗ trợ cho quản trị viên hệ thống</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 space-y-4">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="lg:col-span-2 space-y-3 sm:space-y-4">
           {/* Tabs */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-md">
-            <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 mb-6">
+          <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-5 shadow-md">
+            <div className="flex flex-col sm:flex-row gap-1 bg-gray-100 rounded-lg p-1 mb-4 sm:mb-5 md:mb-6">
               <button
                 onClick={() => setActiveTab('faq')}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition ${
+                className={`flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 ${
                   activeTab === 'faq'
                     ? 'bg-white text-red-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
@@ -102,7 +102,7 @@ const AdminHelp = ({ onBack }) => {
               </button>
               <button
                 onClick={() => setActiveTab('troubleshooting')}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition ${
+                className={`flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 ${
                   activeTab === 'troubleshooting'
                     ? 'bg-white text-red-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
@@ -112,7 +112,7 @@ const AdminHelp = ({ onBack }) => {
               </button>
               <button
                 onClick={() => setActiveTab('docs')}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition ${
+                className={`flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 ${
                   activeTab === 'docs'
                     ? 'bg-white text-red-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'

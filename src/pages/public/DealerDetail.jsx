@@ -172,8 +172,8 @@ const DealerDetail = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header Section */}
-      <div className="bg-gradient-to-br from-green-600 to-green-800 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="bg-gradient-to-br from-green-600 to-green-800 text-white py-12 sm:py-14 md:py-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -181,18 +181,18 @@ const DealerDetail = () => {
           >
             <Link
               to="/dealers"
-              className="inline-flex items-center text-green-200 hover:text-white mb-6 transition-colors duration-200"
+              className="inline-flex items-center text-green-200 hover:text-white mb-4 sm:mb-5 md:mb-6 transition-colors duration-200 text-xs sm:text-sm md:text-base"
             >
-              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-3 h-3 sm:w-4 sm:h-4 mr-1.5 sm:mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
               </svg>
-              Quay lại danh sách đại lý
+              <span>Quay lại danh sách đại lý</span>
             </Link>
             
-            <h1 className="text-4xl md:text-5xl font-bold mb-4">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-3 sm:mb-4">
               {dealer.name}
             </h1>
-            <p className="text-xl text-green-100 max-w-3xl">
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-green-100 max-w-3xl">
               {dealer.description}
             </p>
           </motion.div>
@@ -200,8 +200,8 @@ const DealerDetail = () => {
       </div>
 
       {/* Content Section */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 py-12 sm:py-14 md:py-16">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-10 md:gap-12">
           {/* Dealer Image */}
           <motion.div
             initial={{ opacity: 0, x: -20 }}
