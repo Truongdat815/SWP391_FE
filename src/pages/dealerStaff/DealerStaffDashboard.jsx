@@ -308,17 +308,18 @@ const DealerStaffDashboard = () => {
   const COLORS = ['#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#8b5cf6'];
 
   return (
-    <div className="px-4 py-3 space-y-4">
-      {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">📊 Tổng quan bán hàng</h2>
-          <p className="text-gray-600 mt-0.5 text-sm">
-            Thống kê và phân tích dữ liệu bán hàng của bạn
-            {user?.fullName && ` - ${user.fullName}`}
-          </p>
-        </div>
-        <button 
+    <div className="h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-3 overflow-hidden">
+      <div className="max-w-7xl mx-auto h-full flex flex-col space-y-2">
+        {/* Header */}
+        <div className="flex justify-between items-center flex-shrink-0">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">📊 Tổng quan bán hàng</h2>
+            <p className="text-gray-600 mt-0.5 text-xs">
+              Thống kê và phân tích dữ liệu bán hàng của bạn
+              {user?.fullName && ` - ${user.fullName}`}
+            </p>
+          </div>
+          <button 
           onClick={() => {
             if (currentStaffId) {
               dispatch(fetchOrdersByStaffId(currentStaffId));
@@ -388,7 +389,7 @@ const DealerStaffDashboard = () => {
             
             loadFeedbacks();
           }}
-          className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2 text-sm"
+          className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2 text-xs font-medium shadow-sm"
           disabled={loadingOrders}
         >
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -399,17 +400,17 @@ const DealerStaffDashboard = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-2 flex-shrink-0">
         {/* Total Orders */}
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg p-3 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-emerald-100 text-xs font-medium">Tổng đơn hàng</p>
-              <h3 className="text-2xl font-bold mt-1.5">{orderStats.total}</h3>
-              <p className="text-emerald-100 text-xs mt-1.5">{orderStats.completed} đã hoàn thành</p>
+              <h3 className="text-xl font-bold mt-0.5">{orderStats.total}</h3>
+              <p className="text-emerald-100 text-xs mt-0.5">{orderStats.completed} đã hoàn thành</p>
             </div>
-            <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="h-10 w-10 bg-white/20 rounded-full flex items-center justify-center">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
@@ -417,15 +418,15 @@ const DealerStaffDashboard = () => {
         </div>
 
         {/* Total Revenue */}
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-3 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-xs font-medium">Tổng doanh thu</p>
-              <h3 className="text-2xl font-bold mt-1.5">{((orderStats.totalRevenue || 0) / 1000000).toFixed(1)}M</h3>
-              <p className="text-blue-100 text-xs mt-1.5">VNĐ</p>
+              <h3 className="text-xl font-bold mt-0.5">{((orderStats.totalRevenue || 0) / 1000000).toFixed(1)}M</h3>
+              <p className="text-blue-100 text-xs mt-0.5">VNĐ</p>
             </div>
-            <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="h-10 w-10 bg-white/20 rounded-full flex items-center justify-center">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             </div>
@@ -433,15 +434,15 @@ const DealerStaffDashboard = () => {
         </div>
 
         {/* Customers */}
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-3 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-purple-100 text-xs font-medium">Khách hàng</p>
-              <h3 className="text-2xl font-bold mt-1.5">{customerStats.total}</h3>
-              <p className="text-purple-100 text-xs mt-1.5">+{customerStats.newThisMonth} mới tháng này</p>
+              <h3 className="text-xl font-bold mt-0.5">{customerStats.total}</h3>
+              <p className="text-purple-100 text-xs mt-0.5">+{customerStats.newThisMonth} mới tháng này</p>
             </div>
-            <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="h-10 w-10 bg-white/20 rounded-full flex items-center justify-center">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
@@ -449,15 +450,15 @@ const DealerStaffDashboard = () => {
         </div>
 
         {/* Appointments */}
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
+        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-3 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-orange-100 text-xs font-medium">Lịch lái thử</p>
-              <h3 className="text-2xl font-bold mt-1.5">{appointmentStats.upcoming}</h3>
-              <p className="text-orange-100 text-xs mt-1.5">{appointmentStats.today} hôm nay</p>
+              <h3 className="text-xl font-bold mt-0.5">{appointmentStats.upcoming}</h3>
+              <p className="text-orange-100 text-xs mt-0.5">{appointmentStats.today} hôm nay</p>
             </div>
-            <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="h-10 w-10 bg-white/20 rounded-full flex items-center justify-center">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
@@ -466,16 +467,17 @@ const DealerStaffDashboard = () => {
       </div>
 
       {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 flex-1 min-h-0">
         {/* Revenue Chart */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3 flex flex-col min-h-0">
+          <div className="flex items-center justify-between mb-2 flex-shrink-0">
             <div>
-              <h3 className="text-base font-semibold text-gray-900">📈 Doanh thu theo tháng</h3>
+              <h3 className="text-sm font-semibold text-gray-900">📈 Doanh thu theo tháng</h3>
               <p className="text-xs text-gray-500 mt-0.5">Xu hướng doanh thu 6 tháng gần nhất</p>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={280}>
+          <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={revenueData}>
               <defs>
                 <linearGradient id="colorRevenueStaff" x1="0" y1="0" x2="0" y2="1">
@@ -493,17 +495,19 @@ const DealerStaffDashboard = () => {
               <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenueStaff)" />
             </AreaChart>
           </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Customers Chart */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3 flex flex-col min-h-0">
+          <div className="flex items-center justify-between mb-2 flex-shrink-0">
             <div>
-              <h3 className="text-base font-semibold text-gray-900">👥 Khách hàng theo tháng</h3>
+              <h3 className="text-sm font-semibold text-gray-900">👥 Khách hàng theo tháng</h3>
               <p className="text-xs text-gray-500 mt-0.5">Số lượng khách hàng mới 6 tháng</p>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={280}>
+          <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart data={customerData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="month" stroke="#6b7280" />
@@ -515,18 +519,20 @@ const DealerStaffDashboard = () => {
               <Line type="monotone" dataKey="customers" stroke="#8b5cf6" strokeWidth={3} dot={{ fill: '#8b5cf6', r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
+          </div>
         </div>
       </div>
 
       {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 flex-1 min-h-0">
         {/* Order Status Pie */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-          <div className="mb-4">
-            <h3 className="text-base font-semibold text-gray-900">⚡ Trạng thái đơn hàng</h3>
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3 flex flex-col min-h-0">
+          <div className="mb-2 flex-shrink-0">
+            <h3 className="text-sm font-semibold text-gray-900">⚡ Trạng thái đơn hàng</h3>
             <p className="text-xs text-gray-500 mt-0.5">Phân loại theo trạng thái</p>
           </div>
-          <ResponsiveContainer width="100%" height={280}>
+          <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
                 data={orderStatusData}
@@ -534,7 +540,7 @@ const DealerStaffDashboard = () => {
                 cy="50%"
                 labelLine={false}
                 label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
+                outerRadius={60}
                 fill="#8884d8"
                 dataKey="value"
               >
@@ -548,31 +554,32 @@ const DealerStaffDashboard = () => {
               />
             </PieChart>
           </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Feedback Stats */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-          <div className="mb-4">
-            <h3 className="text-base font-semibold text-gray-900">💬 Phản hồi khách hàng</h3>
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3 flex flex-col min-h-0">
+          <div className="mb-2 flex-shrink-0">
+            <h3 className="text-sm font-semibold text-gray-900">💬 Phản hồi khách hàng</h3>
             <p className="text-xs text-gray-500 mt-0.5">Thống kê phản hồi</p>
           </div>
-          <div className="space-y-3">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
+          <div className="space-y-2 flex-1 overflow-y-auto">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 border border-blue-200">
               <p className="text-xs text-gray-600">Tổng số</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">{feedbackStats.total}</p>
+              <p className="text-lg font-bold text-blue-600 mt-0.5">{feedbackStats.total}</p>
             </div>
-            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-3 border border-yellow-200">
+            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-2 border border-yellow-200">
               <p className="text-xs text-gray-600">Đang chờ xử lý</p>
-              <p className="text-2xl font-bold text-yellow-600 mt-1">{feedbackStats.pending}</p>
+              <p className="text-lg font-bold text-yellow-600 mt-0.5">{feedbackStats.pending}</p>
             </div>
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 border border-green-200">
+            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-2 border border-green-200">
               <p className="text-xs text-gray-600">Đã xử lý</p>
-              <p className="text-2xl font-bold text-green-600 mt-1">{feedbackStats.resolved}</p>
+              <p className="text-lg font-bold text-green-600 mt-0.5">{feedbackStats.resolved}</p>
             </div>
-            <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-3 border border-amber-200">
+            <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-2 border border-amber-200">
               <p className="text-xs text-gray-600">Đánh giá trung bình</p>
-              <div className="flex items-center gap-2 mt-1">
-                <p className="text-2xl font-bold text-amber-600">{feedbackStats.averageRating || '0.0'}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <p className="text-lg font-bold text-amber-600">{feedbackStats.averageRating || '0.0'}</p>
                 <div className="flex items-center gap-0.5">
                   {Array.from({ length: 5 }, (_, i) => {
                     const starValue = i + 1;
@@ -580,7 +587,7 @@ const DealerStaffDashboard = () => {
                     return (
                       <svg
                         key={i}
-                        className={`h-5 w-5 ${isFilled ? 'text-amber-500' : 'text-gray-300'}`}
+                        className={`h-3.5 w-3.5 ${isFilled ? 'text-amber-500' : 'text-gray-300'}`}
                         fill="currentColor"
                         viewBox="0 0 20 20"
                       >
@@ -595,12 +602,13 @@ const DealerStaffDashboard = () => {
         </div>
 
         {/* Rating Distribution Chart */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-          <div className="mb-4">
-            <h3 className="text-base font-semibold text-gray-900">⭐ Phân bố đánh giá</h3>
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3 flex flex-col min-h-0">
+          <div className="mb-2 flex-shrink-0">
+            <h3 className="text-sm font-semibold text-gray-900">⭐ Phân bố đánh giá</h3>
             <p className="text-xs text-gray-500 mt-0.5">Số lượng đánh giá theo sao</p>
           </div>
-          <ResponsiveContainer width="100%" height={280}>
+          <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={[
                 { name: '1 sao', value: feedbackStats.ratingDistribution[1] || 0, color: '#ef4444' },
@@ -630,107 +638,31 @@ const DealerStaffDashboard = () => {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Quick Actions */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-          <div className="mb-4">
-            <h3 className="text-base font-semibold text-gray-900">⚡ Thao tác nhanh</h3>
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3 flex flex-col min-h-0">
+          <div className="mb-2 flex-shrink-0">
+            <h3 className="text-sm font-semibold text-gray-900">⚡ Thao tác nhanh</h3>
             <p className="text-xs text-gray-500 mt-0.5">Truy cập nhanh các chức năng</p>
           </div>
-          <div className="space-y-2">
-            <a href="/dealer-staff/order-management" className="block bg-emerald-50 hover:bg-emerald-100 rounded-lg p-3 border border-emerald-200 transition text-center">
+          <div className="space-y-1.5 flex-1 flex flex-col justify-center">
+            <a href="/dealer-staff/order-management" className="block bg-emerald-50 hover:bg-emerald-100 rounded-lg p-2 border border-emerald-200 transition text-center">
               <p className="text-xs font-medium text-emerald-700">Tạo đơn hàng</p>
             </a>
-            <a href="/dealer-staff/customer-management" className="block bg-blue-50 hover:bg-blue-100 rounded-lg p-3 border border-blue-200 transition text-center">
+            <a href="/dealer-staff/customer-management" className="block bg-blue-50 hover:bg-blue-100 rounded-lg p-2 border border-blue-200 transition text-center">
               <p className="text-xs font-medium text-blue-700">Quản lý khách hàng</p>
             </a>
-            <a href="/dealer-staff/test-drive-schedule" className="block bg-purple-50 hover:bg-purple-100 rounded-lg p-3 border border-purple-200 transition text-center">
+            <a href="/dealer-staff/test-drive-schedule" className="block bg-purple-50 hover:bg-purple-100 rounded-lg p-2 border border-purple-200 transition text-center">
               <p className="text-xs font-medium text-purple-700">Lịch lái thử</p>
             </a>
-            <a href="/dealer-staff/payment-management" className="block bg-orange-50 hover:bg-orange-100 rounded-lg p-3 border border-orange-200 transition text-center">
+            <a href="/dealer-staff/payment-management" className="block bg-orange-50 hover:bg-orange-100 rounded-lg p-2 border border-orange-200 transition text-center">
               <p className="text-xs font-medium text-orange-700">Thanh toán</p>
             </a>
           </div>
         </div>
       </div>
-
-      {/* Recent Feedbacks with Details */}
-      <div className="mt-4 bg-white rounded-lg border border-gray-200 shadow-md p-4">
-        <div className="mb-4">
-          <h3 className="text-base font-semibold text-gray-900">📝 Phản hồi gần đây</h3>
-          <p className="text-xs text-gray-500 mt-0.5">Xem chi tiết nội dung và đánh giá</p>
-        </div>
-        {loadingFeedbacks ? (
-          <div className="text-center py-8">
-            <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600 mb-2"></div>
-            <p className="text-sm text-gray-600">Đang tải phản hồi...</p>
-          </div>
-        ) : feedbacksWithDetails.length === 0 ? (
-          <div className="text-center py-8">
-            <p className="text-sm text-gray-500">Chưa có phản hồi nào</p>
-          </div>
-        ) : (
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {feedbacksWithDetails.slice(0, 10).map((feedback, index) => {
-              const rating = Math.max(0, Math.min(5, parseInt(feedback.rating) || 0));
-              const content = feedback.content || 'Không có nội dung';
-              const customerName = feedback.customerName || feedback.customer?.name || 'Khách hàng';
-              const feedbackDate = feedback.createdDate || feedback.createdAt || feedback.date;
-              const status = (feedback.status || '').toUpperCase();
-              
-              return (
-                <div key={feedback.feedbackId || feedback.id || index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <p className="text-sm font-semibold text-gray-900">{customerName}</p>
-                        <span className={`text-xs px-2 py-0.5 rounded ${
-                          status === 'RESOLVED' ? 'bg-green-100 text-green-700' :
-                          status === 'PENDING' || status === 'DRAFT' ? 'bg-yellow-100 text-yellow-700' :
-                          'bg-gray-100 text-gray-700'
-                        }`}>
-                          {status === 'RESOLVED' ? 'Đã xử lý' : status === 'PENDING' || status === 'DRAFT' ? 'Đang chờ' : status}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-xs text-gray-500">Đánh giá:</span>
-                        <div className="flex items-center gap-0.5">
-                          {Array.from({ length: 5 }, (_, i) => {
-                            const starValue = i + 1;
-                            const isFilled = starValue <= rating;
-                            return (
-                              <svg
-                                key={i}
-                                className={`h-4 w-4 ${isFilled ? 'text-yellow-400' : 'text-gray-300'}`}
-                                fill="currentColor"
-                                viewBox="0 0 20 20"
-                              >
-                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                              </svg>
-                            );
-                          })}
-                        </div>
-                        <span className="text-xs text-gray-600">({rating}/5)</span>
-                      </div>
-                    </div>
-                    {feedbackDate && (
-                      <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
-                        {new Date(feedbackDate).toLocaleDateString('vi-VN')}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-2">
-                    <p className="text-xs text-gray-600 mb-1">Nội dung:</p>
-                    <p className="text-sm text-gray-800 bg-gray-50 rounded p-2 border border-gray-200">
-                      {content}
-                    </p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </div>
     </div>
   );

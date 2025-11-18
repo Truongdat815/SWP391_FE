@@ -643,11 +643,11 @@ function PromotionManagement() {
         onCancel={confirm.onCancel}
       />
 
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-3">
-      <div className="max-w-7xl mx-auto">
+      <div className="h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-3 overflow-hidden">
+      <div className="max-w-7xl mx-auto h-full flex flex-col space-y-2">
         {/* Header */}
-        <div className="mb-3">
-          <div className="flex items-center justify-between mb-3">
+        <div className="mb-2 flex-shrink-0">
+          <div className="flex items-center justify-between mb-2">
             <div>
               <h1 className="text-2xl font-bold text-gray-900 flex items-center">
                 <Tag className="h-6 w-6 mr-2 text-emerald-600" />
@@ -667,7 +667,7 @@ function PromotionManagement() {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 mt-2">
             <div className="bg-white p-3 rounded-lg shadow-md border border-gray-100">
               <div className="flex items-center justify-between">
                 <div>
@@ -741,7 +741,7 @@ function PromotionManagement() {
         </AnimatePresence>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-2 flex-shrink-0">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
             <div className="relative">
@@ -786,7 +786,7 @@ function PromotionManagement() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex-1 min-h-0 flex flex-col">
           {loading ? (
             <div className="flex items-center justify-center p-12">
               <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
@@ -797,7 +797,7 @@ function PromotionManagement() {
               <p className="text-gray-500">Không tìm thấy khuyến mãi nào</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto flex-1 min-h-0">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -932,10 +932,11 @@ function PromotionManagement() {
 
         {/* Results count */}
         {!loading && filteredPromotions.length > 0 && (
-          <div className="mt-4 text-sm text-gray-600 text-center">
+          <div className="mt-2 text-xs text-gray-600 text-center flex-shrink-0">
             Hiển thị {filteredPromotions.length} / {promotions.length} khuyến mãi
           </div>
         )}
+      </div>
       </div>
 
       {/* Add Modal */}
@@ -1111,7 +1112,9 @@ function PromotionManagement() {
                       </option>
                     ))}
                   </select>
-                 
+                  <p className="text-xs text-gray-500 mt-1">
+                    Lưu ý: Chọn "Tất cả các model" sẽ tạo khuyến mãi cho tất cả các mẫu xe
+                  </p>
                 </div>
 
                 {/* Active Toggle */}
@@ -1324,13 +1327,16 @@ function PromotionManagement() {
                     onChange={handleInputChange}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   >
-                    <option value="0">Tất cả</option>
+                    <option value="0">Tất cả các model</option>
                     {models.map(model => (
                       <option key={model.modelId} value={model.modelId}>
                         {model.modelName}
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Lưu ý: Chọn "Tất cả các model" sẽ tạo khuyến mãi cho tất cả các mẫu xe
+                  </p>
                 </div>
 
                 {/* Active Toggle */}
@@ -1566,7 +1572,6 @@ function PromotionManagement() {
           </motion.div>
         </div>
       )}
-      </div>
     </div>
   );
 }
