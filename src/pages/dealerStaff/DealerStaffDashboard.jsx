@@ -6,6 +6,7 @@ import { getAllCustomersThunk } from '../../store/slices/customerSlice';
 import { getAllAppointmentsThunk } from '../../store/slices/appointmentSlice';
 import { getAllFeedbacks } from '../../api/feedbackService';
 import { getFeedbackDetailsByFeedbackId } from '../../api/feedbackDetailService';
+import { getStaffOrderStats } from '../../api/orderService';
 import { useAuth } from '../../contexts/AuthContext';
 
 const DealerStaffDashboard = () => {
@@ -18,6 +19,8 @@ const DealerStaffDashboard = () => {
   const [feedbacksWithDetails, setFeedbacksWithDetails] = useState([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [loadingFeedbacks, setLoadingFeedbacks] = useState(false);
+  const [staffStats, setStaffStats] = useState({ totalOrders: 0, monthlyRevenue: 0, orders: [] });
+  const [loadingStats, setLoadingStats] = useState(false);
 
   // Get current staff ID
   const currentStaffId = user?.userId || user?.id || user?.user_id;
@@ -26,6 +29,43 @@ const DealerStaffDashboard = () => {
   const lastFetchedStaffIdRef = useRef(null);
   const hasFetchedFeedbacksRef = useRef(false);
   const hasFetchedCustomersAppointmentsRef = useRef(false);
+  const lastFetchedStatsStaffIdRef = useRef(null);
+
+  // Fetch staff order statistics (total orders and monthly revenue)
+  useEffect(() => {
+    if (currentStaffId && lastFetchedStatsStaffIdRef.current !== currentStaffId) {
+      lastFetchedStatsStaffIdRef.current = currentStaffId;
+      setLoadingStats(true);
+      
+      const fetchStaffStats = async () => {
+        try {
+          const response = await getStaffOrderStats(currentStaffId);
+          // Handle different response structures
+          let statsData = null;
+          if (response?.data) {
+            statsData = response.data;
+          } else if (response) {
+            statsData = response;
+          }
+          
+          if (statsData) {
+            setStaffStats({
+              totalOrders: statsData.totalOrders || 0,
+              monthlyRevenue: statsData.monthlyRevenue || 0,
+              orders: statsData.orders || []
+            });
+          }
+        } catch (error) {
+          console.error('Error fetching staff stats:', error);
+          setStaffStats({ totalOrders: 0, monthlyRevenue: 0, orders: [] });
+        } finally {
+          setLoadingStats(false);
+        }
+      };
+      
+      fetchStaffStats();
+    }
+  }, [currentStaffId]);
 
   // Fetch orders for current staff only
   useEffect(() => {
@@ -237,33 +277,44 @@ const DealerStaffDashboard = () => {
     return stats;
   }, [feedbacksWithDetails]);
 
-  // Calculate revenue data from actual orders (last 6 months)
+  // Calculate revenue data from API orders (last 3 months)
   const revenueData = useMemo(() => {
-    const months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'];
     const now = new Date();
-    const data = months.map((monthLabel, index) => {
-      const monthDate = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1);
+    // Use orders from API response if available, otherwise fallback to Redux orders
+    const ordersToUse = staffStats.orders && staffStats.orders.length > 0 ? staffStats.orders : orders;
+    
+    // Generate data for last 3 months (current month and 2 previous months)
+    const data = [];
+    for (let i = 2; i >= 0; i--) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
       const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
       
-      const monthOrders = orders.filter(order => {
+      // Format month label as "Tháng X" (e.g., "Tháng 9", "Tháng 10", "Tháng 11")
+      const monthLabel = `Tháng ${monthDate.getMonth() + 1}`;
+      
+      const monthOrders = ordersToUse.filter(order => {
         const orderDate = order.orderDate || order.createdAt || order.createdDate;
         if (!orderDate) return false;
         const date = new Date(orderDate);
         return date >= monthStart && date <= monthEnd;
       });
       
-      const revenue = monthOrders.reduce((sum, o) => sum + (parseFloat(o.totalPrice) || 0), 0);
+      // Use totalPayment or totalPrice from API response
+      const revenue = monthOrders.reduce((sum, o) => {
+        const price = parseFloat(o.totalPayment) || parseFloat(o.totalPrice) || 0;
+        return sum + price;
+      }, 0);
       
-      return {
+      data.push({
         month: monthLabel,
         revenue: revenue,
         orders: monthOrders.length
-      };
-    });
+      });
+    }
     
     return data;
-  }, [orders]);
+  }, [staffStats.orders, orders]);
 
   // Phân tích đơn hàng theo trạng thái
   const orderStatusData = [
@@ -312,7 +363,7 @@ const DealerStaffDashboard = () => {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-xl font-bold text-gray-900">📊 Tổng quan bán hàng</h2>
+          <h2 className="text-xl font-bold text-gray-900"> Tổng quan bán hàng</h2>
           <p className="text-gray-600 mt-0.5 text-sm">
             Thống kê và phân tích dữ liệu bán hàng của bạn
             {user?.fullName && ` - ${user.fullName}`}
@@ -322,6 +373,31 @@ const DealerStaffDashboard = () => {
           onClick={() => {
             if (currentStaffId) {
               dispatch(fetchOrdersByStaffId(currentStaffId));
+              // Refresh staff stats
+              setLoadingStats(true);
+              getStaffOrderStats(currentStaffId)
+                .then(response => {
+                  let statsData = null;
+                  if (response?.data) {
+                    statsData = response.data;
+                  } else if (response) {
+                    statsData = response;
+                  }
+                  
+                  if (statsData) {
+                    setStaffStats({
+                      totalOrders: statsData.totalOrders || 0,
+                      monthlyRevenue: statsData.monthlyRevenue || 0,
+                      orders: statsData.orders || []
+                    });
+                  }
+                })
+                .catch(error => {
+                  console.error('Error fetching staff stats:', error);
+                })
+                .finally(() => {
+                  setLoadingStats(false);
+                });
             }
             dispatch(getAllCustomersThunk());
             dispatch(getAllAppointmentsThunk());
@@ -399,14 +475,20 @@ const DealerStaffDashboard = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Total Orders */}
         <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-emerald-100 text-xs font-medium">Tổng đơn hàng</p>
-              <h3 className="text-2xl font-bold mt-1.5">{orderStats.total}</h3>
-              <p className="text-emerald-100 text-xs mt-1.5">{orderStats.completed} đã hoàn thành</p>
+              <h3 className="text-2xl font-bold mt-1.5">
+                {loadingStats ? (
+                  <span className="inline-block animate-pulse">...</span>
+                ) : (
+                  staffStats.totalOrders || 0
+                )}
+              </h3>
+             
             </div>
             <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -421,28 +503,18 @@ const DealerStaffDashboard = () => {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-xs font-medium">Tổng doanh thu</p>
-              <h3 className="text-2xl font-bold mt-1.5">{((orderStats.totalRevenue || 0) / 1000000).toFixed(1)}M</h3>
-              <p className="text-blue-100 text-xs mt-1.5">VNĐ</p>
+              <h3 className="text-2xl font-bold mt-1.5">
+                {loadingStats ? (
+                  <span className="inline-block animate-pulse">...</span>
+                ) : (
+                  ((staffStats.monthlyRevenue || 0) / 1000000).toFixed(1) + 'M'
+                )}
+              </h3>
+              <p className="text-blue-100 text-xs mt-1.5">VNĐ (tháng này)</p>
             </div>
             <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-              </svg>
-            </div>
-          </div>
-        </div>
-
-        {/* Customers */}
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-purple-100 text-xs font-medium">Khách hàng</p>
-              <h3 className="text-2xl font-bold mt-1.5">{customerStats.total}</h3>
-              <p className="text-purple-100 text-xs mt-1.5">+{customerStats.newThisMonth} mới tháng này</p>
-            </div>
-            <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
           </div>
@@ -472,7 +544,7 @@ const DealerStaffDashboard = () => {
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-base font-semibold text-gray-900">📈 Doanh thu theo tháng</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Xu hướng doanh thu 6 tháng gần nhất</p>
+              <p className="text-xs text-gray-500 mt-0.5">Xu hướng doanh thu 3 tháng gần nhất</p>
             </div>
           </div>
           <ResponsiveContainer width="100%" height={280}>
@@ -492,61 +564,6 @@ const DealerStaffDashboard = () => {
               />
               <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenueStaff)" />
             </AreaChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Customers Chart */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h3 className="text-base font-semibold text-gray-900">👥 Khách hàng theo tháng</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Số lượng khách hàng mới 6 tháng</p>
-            </div>
-          </div>
-          <ResponsiveContainer width="100%" height={280}>
-            <LineChart data={customerData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
-              <Tooltip 
-                formatter={(value) => [`${value} khách hàng`, 'Số lượng']}
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-              />
-              <Line type="monotone" dataKey="customers" stroke="#8b5cf6" strokeWidth={3} dot={{ fill: '#8b5cf6', r: 4 }} />
-            </LineChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-
-      {/* Charts Row 2 */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {/* Order Status Pie */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-          <div className="mb-4">
-            <h3 className="text-base font-semibold text-gray-900">⚡ Trạng thái đơn hàng</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Phân loại theo trạng thái</p>
-          </div>
-          <ResponsiveContainer width="100%" height={280}>
-            <PieChart>
-              <Pie
-                data={orderStatusData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {orderStatusData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.color} />
-                ))}
-              </Pie>
-              <Tooltip 
-                formatter={(value) => [`${value} đơn`, 'Số lượng']}
-                contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-              />
-            </PieChart>
           </ResponsiveContainer>
         </div>
 
@@ -593,7 +610,10 @@ const DealerStaffDashboard = () => {
             </div>
           </div>
         </div>
+      </div>
 
+      {/* Charts Row 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Rating Distribution Chart */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
           <div className="mb-4">
@@ -632,35 +652,12 @@ const DealerStaffDashboard = () => {
           </ResponsiveContainer>
         </div>
 
-        {/* Quick Actions */}
+        {/* Recent Feedbacks with Details */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
           <div className="mb-4">
-            <h3 className="text-base font-semibold text-gray-900">⚡ Thao tác nhanh</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Truy cập nhanh các chức năng</p>
+            <h3 className="text-base font-semibold text-gray-900">📝 Phản hồi gần đây</h3>
+            <p className="text-xs text-gray-500 mt-0.5">Xem chi tiết nội dung và đánh giá</p>
           </div>
-          <div className="space-y-2">
-            <a href="/dealer-staff/order-management" className="block bg-emerald-50 hover:bg-emerald-100 rounded-lg p-3 border border-emerald-200 transition text-center">
-              <p className="text-xs font-medium text-emerald-700">Tạo đơn hàng</p>
-            </a>
-            <a href="/dealer-staff/customer-management" className="block bg-blue-50 hover:bg-blue-100 rounded-lg p-3 border border-blue-200 transition text-center">
-              <p className="text-xs font-medium text-blue-700">Quản lý khách hàng</p>
-            </a>
-            <a href="/dealer-staff/test-drive-schedule" className="block bg-purple-50 hover:bg-purple-100 rounded-lg p-3 border border-purple-200 transition text-center">
-              <p className="text-xs font-medium text-purple-700">Lịch lái thử</p>
-            </a>
-            <a href="/dealer-staff/payment-management" className="block bg-orange-50 hover:bg-orange-100 rounded-lg p-3 border border-orange-200 transition text-center">
-              <p className="text-xs font-medium text-orange-700">Thanh toán</p>
-            </a>
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Feedbacks with Details */}
-      <div className="mt-4 bg-white rounded-lg border border-gray-200 shadow-md p-4">
-        <div className="mb-4">
-          <h3 className="text-base font-semibold text-gray-900">📝 Phản hồi gần đây</h3>
-          <p className="text-xs text-gray-500 mt-0.5">Xem chi tiết nội dung và đánh giá</p>
-        </div>
         {loadingFeedbacks ? (
           <div className="text-center py-8">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600 mb-2"></div>
@@ -731,6 +728,7 @@ const DealerStaffDashboard = () => {
             })}
           </div>
         )}
+        </div>
       </div>
     </div>
   );

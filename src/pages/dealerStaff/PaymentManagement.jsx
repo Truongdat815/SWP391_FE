@@ -180,24 +180,39 @@ function PaymentManagement() {
     }
   }, [searchParams, setSearchParams, handlePaymentCallback]);
 
-  // Handle contractId from navigation state
+  // Handle contractId from navigation state - auto open payment modal
   useEffect(() => {
-    if (location.state?.contractId) {
+    if (location.state?.contractId && !loading && contracts.length > 0) {
       const contractId = location.state.contractId;
-      setHighlightedContractId(contractId);
       
-      // Scroll to the contract after a short delay
-      setTimeout(() => {
-        const element = document.getElementById(`contract-row-${contractId}`);
-        if (element) {
-          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-      }, 300);
+      // Find the contract in all contracts
+      const contract = contracts.find(c => c.contractId === contractId);
       
-      // Clear the state
+      if (contract) {
+        // Set highlighted contract ID for visual indication
+        setHighlightedContractId(contractId);
+        
+        // Auto-open payment modal for this contract
+        setSelectedContract(contract);
+        setShowPaymentModal(true);
+        setPaymentForm({
+          paymentType: 'DEPOSIT',
+          paymentMethod: 'VNPAY'
+        });
+        
+        // Scroll to the contract in the table if it exists (only if contract has signed file)
+        setTimeout(() => {
+          const element = document.getElementById(`contract-row-${contractId}`);
+          if (element) {
+            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 500);
+      }
+      
+      // Clear the state after handling
       window.history.replaceState({}, document.title);
     }
-  }, [location]);
+  }, [location, contracts, loading]);
 
   // Filter contracts that have signed contract file uploaded and sort from newest to oldest
   const contractsWithSignedImage = (contracts || [])
@@ -400,7 +415,7 @@ function PaymentManagement() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto -mt-4">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -422,7 +437,7 @@ function PaymentManagement() {
       />
 
       {/* Header with Statistics */}
-      <div className="mb-6">
+      <div className="mb-6 pt-2">
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -470,9 +485,7 @@ function PaymentManagement() {
                       {pendingAmount.toLocaleString('vi-VN')} VNĐ
                     </p>
                   </div>
-                  <div className="p-3 bg-gradient-to-br from-yellow-500 to-orange-600 rounded-lg shadow-md">
-                    <DollarSign className="w-6 h-6 text-white" />
-                  </div>
+                  
                 </div>
               </ModernCardContent>
             </ModernCard>
