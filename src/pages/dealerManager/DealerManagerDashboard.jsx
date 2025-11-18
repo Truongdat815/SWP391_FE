@@ -271,17 +271,17 @@ const DealerManagerDashboard = () => {
   const COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
 
   return (
-    <div className="px-4 py-3 space-y-4">
+    <div className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 space-y-3 sm:space-y-4 md:space-y-5">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           {/* Staff Filter Dropdown */}
-          <div className="relative">
-            <label className="text-xs text-gray-600 mr-2">Lọc theo nhân viên:</label>
+          <div className="relative w-full sm:w-auto">
+            <label className="text-xs sm:text-sm text-gray-600 mr-2 block sm:inline">Lọc theo nhân viên:</label>
             <select
               value={selectedStaffId}
               onChange={(e) => setSelectedStaffId(e.target.value)}
-              className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm min-w-[200px]"
+              className="w-full sm:min-w-[200px] px-3 sm:px-4 py-2 sm:py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 text-xs sm:text-sm"
               disabled={loadingOrders}
             >
               <option value="all">Tất cả nhân viên</option>
@@ -306,23 +306,23 @@ const DealerManagerDashboard = () => {
               dispatch(getAllStoreStocksThunk());
               dispatch(fetchPromotions());
             }}
-            className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2 text-sm"
+            className="px-3 sm:px-4 py-2 sm:py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center justify-center gap-2 text-xs sm:text-sm font-medium shadow-sm flex-shrink-0"
             disabled={loadingOrders}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            {loadingOrders ? 'Đang tải...' : 'Làm mới'}
+            <span className="whitespace-nowrap">{loadingOrders ? 'Đang tải...' : 'Làm mới'}</span>
           </button>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-1">
-        <div className="flex gap-2">
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-1 sm:p-1.5">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
           <button
             onClick={() => setActiveTab(1)}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
               activeTab === 1
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'text-gray-600 hover:bg-gray-100'
@@ -332,7 +332,7 @@ const DealerManagerDashboard = () => {
           </button>
           <button
             onClick={() => setActiveTab(2)}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
               activeTab === 2
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'text-gray-600 hover:bg-gray-100'
@@ -342,7 +342,7 @@ const DealerManagerDashboard = () => {
           </button>
           <button
             onClick={() => setActiveTab(3)}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
               activeTab === 3
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'text-gray-600 hover:bg-gray-100'

@@ -1095,7 +1095,7 @@ function InventoryManagement() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5 lg:py-6 space-y-4 sm:space-y-5 md:space-y-6">
         {/* Toast Notifications */}
         <Toast 
           show={toast.show} 
@@ -1117,31 +1117,31 @@ function InventoryManagement() {
         />
 
         {/* Tabs Navigation */}
-        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-2">
-          <div className="flex gap-2">
+        <div className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-1.5 sm:p-2">
+          <div className="flex flex-col sm:flex-row gap-2">
             <motion.button
               onClick={() => setActiveTab('inventory')}
-              className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all ${
+              className={`flex-1 px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm md:text-base font-semibold transition-all duration-200 ${
                 activeTab === 'inventory'
                   ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white shadow-lg'
-                  : 'text-gray-600'
+                  : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
-              <div className="flex items-center justify-center gap-2">
-                <Package className="w-5 h-5" />
-                <span>Tồn kho</span>
+              <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                <Package className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                <span className="whitespace-nowrap">Tồn kho</span>
               </div>
             </motion.button>
             <motion.button
               onClick={() => setActiveTab('transactions')}
-              className={`flex-1 px-6 py-3 rounded-xl font-semibold transition-all ${
+              className={`flex-1 px-4 sm:px-5 md:px-6 py-2.5 sm:py-3 rounded-lg sm:rounded-xl text-xs sm:text-sm md:text-base font-semibold transition-all duration-200 ${
                 activeTab === 'transactions'
                   ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-lg'
-                  : 'text-gray-600'
+                  : 'text-gray-600 hover:bg-gray-50'
               }`}
             >
-              <div className="flex items-center justify-center gap-2">
-                <FileText className="w-5 h-5" />
+              <div className="flex items-center justify-center gap-1.5 sm:gap-2">
+                <FileText className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
                 <span>Lịch sử đặt hàng</span>
                 {stats.totalTransactions > 0 && (
                   <span className={`ml-2 px-2 py-0.5 rounded-full text-xs font-bold ${

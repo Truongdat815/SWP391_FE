@@ -194,30 +194,30 @@ function OrderManagement() {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 pt-0 pb-4">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 md:px-6 lg:px-8 pt-0 pb-3 sm:pb-4 md:pb-5">
         
         {/* Statistics Cards - Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-5">
           {/* Today Orders */}
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             onClick={() => handleTabChange('all')}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-all cursor-pointer hover:border-blue-300"
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-all duration-200 cursor-pointer hover:border-blue-300"
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-blue-100 rounded-lg">
-                  <Calendar className="h-4 w-4 text-blue-600" />
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg flex-shrink-0">
+                  <Calendar className="h-3 w-3 sm:h-4 sm:w-4 text-blue-600" />
                 </div>
-                <p className="text-xs text-gray-600 font-medium">Đơn hàng hôm nay</p>
+                <p className="text-xs sm:text-sm text-gray-600 font-medium truncate">Đơn hàng hôm nay</p>
               </div>
-              <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
+              <ChevronRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gray-400 flex-shrink-0 ml-2" />
             </div>
             <div className="flex items-center gap-1 mt-2">
-              <p className="text-xl font-bold text-gray-900">{stats.todayOrders.toLocaleString('vi-VN')}</p>
-              <p className="text-sm font-medium text-gray-600">đơn</p>
+              <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">{stats.todayOrders.toLocaleString('vi-VN')}</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600">đơn</p>
             </div>
           </motion.div>
 
@@ -226,18 +226,18 @@ function OrderManagement() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 hover:shadow-md transition-all"
+            className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 sm:p-4 hover:shadow-md transition-all duration-200"
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-emerald-100 rounded-lg">
-                  <DollarSign className="h-4 w-4 text-emerald-600" />
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="p-1.5 sm:p-2 bg-emerald-100 rounded-lg flex-shrink-0">
+                  <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-emerald-600" />
                 </div>
-                <p className="text-xs text-gray-600 font-medium">Doanh thu hôm nay</p>
+                <p className="text-xs sm:text-sm text-gray-600 font-medium truncate">Doanh thu hôm nay</p>
               </div>
             </div>
             <div className="flex items-center gap-1 mt-2">
-              <p className="text-xl font-bold text-gray-900">
+              <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">
                 {stats.todayRevenue >= 1000000 
                   ? `${(stats.todayRevenue / 1000000).toFixed(1)}M`
                   : stats.todayRevenue >= 1000
@@ -245,7 +245,7 @@ function OrderManagement() {
                   : stats.todayRevenue.toLocaleString('vi-VN')
                 }
               </p>
-              <p className="text-sm font-medium text-gray-600">VNĐ</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600">VNĐ</p>
             </div>
           </motion.div>
 
@@ -255,7 +255,7 @@ function OrderManagement() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3 }}
             onClick={() => handleTabChange('draft')}
-            className={`bg-white rounded-lg shadow-sm border-2 p-3 hover:shadow-md transition-all cursor-pointer ${
+            className={`bg-white rounded-lg shadow-sm border-2 p-3 sm:p-4 hover:shadow-md transition-all duration-200 cursor-pointer ${
               activeTab === 'draft' || activeTab === 'pending'
                 ? 'border-orange-500 bg-orange-50' 
                 : stats.needAttention > 0
@@ -264,22 +264,24 @@ function OrderManagement() {
             }`}
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-orange-100 rounded-lg">
-                  <AlertCircle className="h-4 w-4 text-orange-600" />
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="p-1.5 sm:p-2 bg-orange-100 rounded-lg flex-shrink-0">
+                  <AlertCircle className="h-3 w-3 sm:h-4 sm:w-4 text-orange-600" />
                 </div>
-                <p className="text-xs text-gray-600 font-medium">Cần xử lý</p>
+                <p className="text-xs sm:text-sm text-gray-600 font-medium truncate">Cần xử lý</p>
               </div>
-              {stats.needAttention > 0 && (
-                <span className="px-2 py-0.5 bg-orange-500 text-white text-xs font-bold rounded-full">
-                  {stats.needAttention}
-                </span>
-              )}
-              <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
+              <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                {stats.needAttention > 0 && (
+                  <span className="px-2 py-0.5 bg-orange-500 text-white text-xs font-bold rounded-full">
+                    {stats.needAttention}
+                  </span>
+                )}
+                <ChevronRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gray-400" />
+              </div>
             </div>
             <div className="flex items-center gap-1 mt-2">
-              <p className="text-xl font-bold text-gray-900">{stats.needAttention.toLocaleString('vi-VN')}</p>
-              <p className="text-sm font-medium text-gray-600">đơn</p>
+              <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">{stats.needAttention.toLocaleString('vi-VN')}</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600">đơn</p>
             </div>
           </motion.div>
 
@@ -289,7 +291,7 @@ function OrderManagement() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
             onClick={() => handleTabChange('confirmed')}
-            className={`bg-white rounded-lg shadow-sm border-2 p-3 hover:shadow-md transition-all cursor-pointer ${
+            className={`bg-white rounded-lg shadow-sm border-2 p-3 sm:p-4 hover:shadow-md transition-all duration-200 cursor-pointer ${
               activeTab === 'confirmed' 
                 ? 'border-emerald-500 bg-emerald-50' 
                 : stats.confirmedWithoutContract > 0
@@ -298,32 +300,34 @@ function OrderManagement() {
             }`}
           >
             <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="p-1.5 bg-amber-100 rounded-lg">
-                  <FileText className="h-4 w-4 text-amber-600" />
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <div className="p-1.5 sm:p-2 bg-amber-100 rounded-lg flex-shrink-0">
+                  <FileText className="h-3 w-3 sm:h-4 sm:w-4 text-amber-600" />
                 </div>
-                <p className="text-xs text-gray-600 font-medium">Chưa có hợp đồng</p>
+                <p className="text-xs sm:text-sm text-gray-600 font-medium truncate">Chưa có hợp đồng</p>
               </div>
-              {stats.confirmedWithoutContract > 0 && (
-                <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full">
-                  {stats.confirmedWithoutContract}
-                </span>
-              )}
-              <ChevronRight className="h-3.5 w-3.5 text-gray-400" />
+              <div className="flex items-center gap-1 flex-shrink-0 ml-2">
+                {stats.confirmedWithoutContract > 0 && (
+                  <span className="px-2 py-0.5 bg-amber-500 text-white text-xs font-bold rounded-full">
+                    {stats.confirmedWithoutContract}
+                  </span>
+                )}
+                <ChevronRight className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-gray-400" />
+              </div>
             </div>
             <div className="flex items-center gap-1 mt-2">
-              <p className="text-xl font-bold text-gray-900">{stats.confirmedWithoutContract.toLocaleString('vi-VN')}</p>
-              <p className="text-sm font-medium text-gray-600">đơn</p>
+              <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">{stats.confirmedWithoutContract.toLocaleString('vi-VN')}</p>
+              <p className="text-xs sm:text-sm font-medium text-gray-600">đơn</p>
             </div>
           </motion.div>
         </div>
 
         {/* Status Tabs Navigation */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4 overflow-hidden">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-3 sm:mb-4 md:mb-5 overflow-hidden">
           {/* Tabs Row with Create Button */}
-          <div className="flex items-center justify-between border-b border-gray-200">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between border-b border-gray-200 gap-2 sm:gap-0">
             {/* Tabs */}
-            <div className="overflow-x-auto scrollbar-hide flex-1">
+            <div className="overflow-x-auto scrollbar-hide flex-1 -mx-2 px-2">
               <nav className="flex" aria-label="Status Tabs">
                 {statusTabs.map((tab) => {
                   const isActive = activeTab === tab.status;
@@ -337,16 +341,16 @@ function OrderManagement() {
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                       className={`
-                        flex items-center gap-2 px-4 py-3 text-sm font-medium whitespace-nowrap border-b-3 transition-all relative min-w-fit
+                        flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 sm:py-3 text-xs sm:text-sm font-medium whitespace-nowrap border-b-3 transition-all duration-200 relative min-w-fit
                         ${colorClasses}
                         ${isActive ? 'font-semibold' : ''}
                       `}
                       title={tab.description}
                     >
-                      <span>{tab.label}</span>
+                      <span className="truncate">{tab.label}</span>
                       {tab.count > 0 && (
                         <span className={`
-                          px-2 py-0.5 rounded-full text-xs font-bold
+                          px-1.5 sm:px-2 py-0.5 rounded-full text-xs font-bold flex-shrink-0
                           ${badgeClasses}
                         `}>
                           {tab.count}
@@ -354,7 +358,7 @@ function OrderManagement() {
                       )}
                       {/* Priority indicator */}
                       {tab.priority && tab.count > 0 && !isActive && (
-                        <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-orange-500 rounded-full animate-pulse"></span>
+                        <span className="absolute -top-1 -right-1 h-2 w-2 sm:h-2.5 sm:w-2.5 bg-orange-500 rounded-full animate-pulse"></span>
                       )}
                     </motion.button>
                   );
@@ -363,21 +367,21 @@ function OrderManagement() {
             </div>
             
             {/* Create Order Button */}
-            <div className="px-4 py-2 flex-shrink-0">
+            <div className="px-3 sm:px-4 py-2 flex-shrink-0 border-t sm:border-t-0 border-gray-200 sm:border-0">
               <motion.button
                 onClick={() => navigate('/dealer-staff/create-order')}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="flex items-center px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-colors shadow-md font-medium text-sm whitespace-nowrap"
+                className="flex items-center justify-center w-full sm:w-auto px-3 sm:px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all duration-200 shadow-md font-medium text-xs sm:text-sm whitespace-nowrap"
               >
-                <PlusCircle className="h-5 w-5 mr-2" />
-                Tạo đơn hàng mới
+                <PlusCircle className="h-4 w-4 sm:h-5 sm:w-5 mr-1 sm:mr-2" />
+                <span className="truncate">Tạo đơn hàng mới</span>
               </motion.button>
             </div>
           </div>
 
           {/* Tab Content */}
-          <div className="p-4">
+          <div className="p-3 sm:p-4 md:p-5">
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}

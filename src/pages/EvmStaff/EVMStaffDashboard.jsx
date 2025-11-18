@@ -121,41 +121,41 @@ const EVMStaffDashboard = () => {
   };
 
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-3 overflow-hidden">
-      <div className="max-w-7xl mx-auto h-full flex flex-col space-y-3">
+    <div className="h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-2 sm:p-3 md:p-4 overflow-hidden">
+      <div className="max-w-7xl mx-auto h-full flex flex-col space-y-2 sm:space-y-3 md:space-y-4">
         {/* Header Section */}
         <div className="flex justify-end flex-shrink-0">
           <button 
             onClick={handleRefresh}
-            className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center gap-2 text-xs font-medium shadow-sm"
+            className="px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center gap-2 text-xs sm:text-sm font-medium shadow-sm"
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Làm mới
+            <span className="whitespace-nowrap">Làm mới</span>
           </button>
         </div>
 
         {/* Stats Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 flex-shrink-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 flex-shrink-0">
           {/* Sản phẩm Card */}
           <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100">
-            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-3">
+            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-3 sm:p-4 md:p-5">
               <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-emerald-100 text-xs font-medium mb-0.5">Tổng sản phẩm</p>
-                  <h3 className="text-2xl font-bold text-white mb-0.5">{productStats.totalModels}</h3>
-                  <p className="text-emerald-100 text-xs">{productStats.totalVariants} kiểu xe</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-emerald-100 text-xs sm:text-sm font-medium mb-0.5">Tổng sản phẩm</p>
+                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-0.5">{productStats.totalModels}</h3>
+                  <p className="text-emerald-100 text-xs sm:text-sm">{productStats.totalVariants} kiểu xe</p>
                 </div>
-                <div className="h-10 w-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0 ml-2">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
                 </div>
               </div>
             </div>
-            <div className="p-2 bg-gray-50">
-              <div className="flex items-center justify-between text-xs">
+            <div className="p-2 sm:p-2.5 md:p-3 bg-gray-50">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
                 <span className="text-gray-600">Đang hoạt động</span>
                 <span className="font-semibold text-emerald-600">{productStats.activeModels}</span>
               </div>
@@ -164,22 +164,22 @@ const EVMStaffDashboard = () => {
 
           {/* Đơn đại lý Card */}
           <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 sm:p-4 md:p-5">
               <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-blue-100 text-xs font-medium mb-0.5">Tổng đơn hàng</p>
-                  <h3 className="text-2xl font-bold text-white mb-0.5">{orderStats.total}</h3>
-                  <p className="text-blue-100 text-xs">{orderStats.pending} đang chờ</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-blue-100 text-xs sm:text-sm font-medium mb-0.5">Tổng đơn hàng</p>
+                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-0.5">{orderStats.total}</h3>
+                  <p className="text-blue-100 text-xs sm:text-sm">{orderStats.pending} đang chờ</p>
                 </div>
-                <div className="h-10 w-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0 ml-2">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
                   </svg>
                 </div>
               </div>
             </div>
-            <div className="p-2 bg-gray-50">
-              <div className="flex items-center justify-between text-xs">
+            <div className="p-2 sm:p-2.5 md:p-3 bg-gray-50">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
                 <span className="text-gray-600">Đang xử lý</span>
                 <span className="font-semibold text-blue-600">{orderStats.processing}</span>
               </div>
@@ -188,24 +188,24 @@ const EVMStaffDashboard = () => {
 
           {/* Hoàn thành Card */}
           <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100">
-            <div className="bg-gradient-to-br from-green-500 to-green-600 p-3">
+            <div className="bg-gradient-to-br from-green-500 to-green-600 p-3 sm:p-4 md:p-5">
               <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-green-100 text-xs font-medium mb-0.5">Đã hoàn thành</p>
-                  <h3 className="text-2xl font-bold text-white mb-0.5">{orderStats.completed}</h3>
-                  <p className="text-green-100 text-xs">
+                <div className="flex-1 min-w-0">
+                  <p className="text-green-100 text-xs sm:text-sm font-medium mb-0.5">Đã hoàn thành</p>
+                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-0.5">{orderStats.completed}</h3>
+                  <p className="text-green-100 text-xs sm:text-sm">
                     {orderStats.total > 0 ? Math.round((orderStats.completed / orderStats.total) * 100) : 0}% tổng đơn
                   </p>
                 </div>
-                <div className="h-10 w-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0 ml-2">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                 </div>
               </div>
             </div>
-            <div className="p-2 bg-gray-50">
-              <div className="flex items-center justify-between text-xs">
+            <div className="p-2 sm:p-2.5 md:p-3 bg-gray-50">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
                 <span className="text-gray-600">Tỷ lệ thành công</span>
                 <span className="font-semibold text-green-600">
                   {orderStats.total > 0 ? Math.round((orderStats.completed / orderStats.total) * 100) : 0}%
@@ -216,22 +216,22 @@ const EVMStaffDashboard = () => {
 
           {/* Tồn kho Card */}
           <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100">
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-3">
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-3 sm:p-4 md:p-5">
               <div className="flex items-center justify-between">
-                <div className="flex-1">
-                  <p className="text-purple-100 text-xs font-medium mb-0.5">Tổng tồn kho</p>
-                  <h3 className="text-2xl font-bold text-white mb-0.5">{inventoryStats.totalQuantity}</h3>
-                  <p className="text-purple-100 text-xs">{inventoryStats.distributedStores} cửa hàng</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-purple-100 text-xs sm:text-sm font-medium mb-0.5">Tổng tồn kho</p>
+                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-0.5">{inventoryStats.totalQuantity}</h3>
+                  <p className="text-purple-100 text-xs sm:text-sm">{inventoryStats.distributedStores} cửa hàng</p>
                 </div>
-                <div className="h-10 w-10 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm">
-                  <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0 ml-2">
+                  <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
                 </div>
               </div>
             </div>
-            <div className="p-2 bg-gray-50">
-              <div className="flex items-center justify-between text-xs">
+            <div className="p-2 sm:p-2.5 md:p-3 bg-gray-50">
+              <div className="flex items-center justify-between text-xs sm:text-sm">
                 <span className="text-gray-600">Số lượng items</span>
                 <span className="font-semibold text-purple-600">{inventoryStats.totalItems}</span>
               </div>
@@ -240,12 +240,12 @@ const EVMStaffDashboard = () => {
         </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 flex-1 min-h-0">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3 md:gap-4 flex-1 min-h-0">
           {/* Đơn hàng theo tháng */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-3 flex flex-col min-h-0">
-            <div className="mb-2 flex-shrink-0">
-              <h3 className="text-sm font-bold text-gray-900">Đơn hàng theo tháng</h3>
-              <p className="text-xs text-gray-500">Xu hướng 6 tháng gần nhất</p>
+          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-3 sm:p-4 md:p-5 flex flex-col min-h-0">
+            <div className="mb-2 sm:mb-3 flex-shrink-0">
+              <h3 className="text-xs sm:text-sm md:text-base font-bold text-gray-900">Đơn hàng theo tháng</h3>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Xu hướng 6 tháng gần nhất</p>
             </div>
             <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
