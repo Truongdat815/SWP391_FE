@@ -1,10 +1,19 @@
 // Simple API client using Vite env-based base URL
 export const API_URL = import.meta?.env?.VITE_API_URL || 'https://tiembanhvuive.io.vn';
 
+// Helper function to build URL without double slashes
+export function buildUrl(baseUrl, path) {
+    // Remove trailing slash from baseUrl
+    const cleanBaseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+    // Ensure path starts with /
+    const cleanPath = path.startsWith('/') ? path : `/${path}`;
+    return `${cleanBaseUrl}${cleanPath}`;
+}
+
 // Enhanced request function with token handling
 async function request(path, { method = 'GET', body } = {}) {
     const token = sessionStorage.getItem('access_token') || sessionStorage.getItem('accessToken');
-    const url = `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+    const url = buildUrl(API_URL, path);
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -43,7 +52,8 @@ export async function get(path, options = {}) {
     const skipAuth = options.skipAuth || false;
     
     if (skipAuth) {
-        const response = await fetch(`${API_URL}${path.startsWith('/') ? '' : '/'}${path}`);
+        const url = buildUrl(API_URL, path);
+        const response = await fetch(url);
         if (!response.ok) {
             throw new Error(`Request failed: ${response.status}`);
         }
