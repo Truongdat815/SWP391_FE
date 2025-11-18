@@ -19,7 +19,16 @@ function OrderManagement() {
   const [searchParams, setSearchParams] = useSearchParams();
   
   // Get active tab from URL or default to 'all'
-  const activeTab = searchParams.get('status') || 'all';
+  // Redirect 'pending' tab to 'all' since pending tab is removed
+  const urlTab = searchParams.get('status') || 'all';
+  const activeTab = urlTab === 'pending' ? 'all' : urlTab;
+  
+  // Redirect if user is on pending tab
+  useEffect(() => {
+    if (urlTab === 'pending') {
+      setSearchParams({});
+    }
+  }, [urlTab, setSearchParams]);
   
   // Get orders from Redux store
   const orders = useSelector((state) => state.orders.orders) || [];
@@ -128,16 +137,6 @@ function OrderManagement() {
       priority: stats.draft > 0
     },
     {
-      id: 'pending',
-      status: 'pending',
-      label: 'Chờ xử lý',
-      count: stats.pending,
-      color: 'yellow',
-      description: 'Đơn hàng đang chờ xử lý',
-      badgeColor: 'bg-yellow-500',
-      priority: stats.pending > 0
-    },
-    {
       id: 'confirmed',
       status: 'confirmed',
       label: 'Đã xác nhận',
@@ -173,7 +172,6 @@ function OrderManagement() {
     const colorMap = {
       all: isActive ? 'border-gray-500 bg-gray-50 text-gray-700' : 'text-gray-600 hover:border-gray-300',
       draft: isActive ? 'border-gray-500 bg-gray-50 text-gray-700' : 'text-gray-600 hover:border-gray-300',
-      pending: isActive ? 'border-yellow-500 bg-yellow-50 text-yellow-700' : 'text-yellow-600 hover:border-yellow-300',
       confirmed: isActive ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'text-emerald-600 hover:border-emerald-300',
       completed: isActive ? 'border-green-500 bg-green-50 text-green-700' : 'text-green-600 hover:border-green-300',
     };
@@ -184,7 +182,6 @@ function OrderManagement() {
     const badgeMap = {
       all: 'bg-gray-500 text-white',
       draft: 'bg-gray-500 text-white',
-      pending: 'bg-yellow-500 text-white',
       confirmed: 'bg-emerald-500 text-white',
       completed: 'bg-green-500 text-white',
     };
@@ -256,7 +253,7 @@ function OrderManagement() {
             transition={{ delay: 0.3 }}
             onClick={() => handleTabChange('draft')}
             className={`bg-white rounded-lg shadow-sm border-2 p-3 hover:shadow-md transition-all cursor-pointer ${
-              activeTab === 'draft' || activeTab === 'pending'
+              activeTab === 'draft'
                 ? 'border-orange-500 bg-orange-50' 
                 : stats.needAttention > 0
                 ? 'border-orange-300 hover:border-orange-400'
@@ -351,10 +348,6 @@ function OrderManagement() {
                         `}>
                           {tab.count}
                         </span>
-                      )}
-                      {/* Priority indicator */}
-                      {tab.priority && tab.count > 0 && !isActive && (
-                        <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-orange-500 rounded-full animate-pulse"></span>
                       )}
                     </motion.button>
                   );

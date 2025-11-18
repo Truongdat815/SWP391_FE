@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
@@ -12,6 +12,7 @@ import {
 import { fetchAllContractsThunk, createContractFromOrderThunk } from '../../store/slices/contractSlice';
 import { getOrderById } from '../../api/orderService';
 import { getContractById } from '../../api/contractService';
+import { getAllPayments, filterPaymentsByContract } from '../../api/paymentService';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
@@ -169,6 +170,7 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
   const [contractImage, setContractImage] = useState(null);
   const [loadingContractImage, setLoadingContractImage] = useState(false);
   const [contractInfo, setContractInfo] = useState(null);
+  const [allPayments, setAllPayments] = useState([]);
   // Sort mode - always newest (auto sorted)
   const sortMode = 'newest';
   const sortOrders = (arr, mode = 'newest') => {
@@ -223,6 +225,7 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
 
   // Use ref to prevent duplicate API calls for contracts
   const hasFetchedContractsRef = useRef(false);
+  const hasFetchedPaymentsRef = useRef(false);
 
   // Fetch contracts on mount
   useEffect(() => {
@@ -234,6 +237,26 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
     hasFetchedContractsRef.current = true;
     dispatch(fetchAllContractsThunk());
   }, [dispatch]);
+
+  // Fetch payments on mount
+  useEffect(() => {
+    // Only fetch once
+    if (hasFetchedPaymentsRef.current) {
+      return;
+    }
+    
+    hasFetchedPaymentsRef.current = true;
+    const fetchPayments = async () => {
+      try {
+        const response = await getAllPayments();
+        const paymentsData = Array.isArray(response) ? response : (response?.data || []);
+        setAllPayments(paymentsData);
+      } catch (error) {
+        console.error('Error fetching payments:', error);
+      }
+    };
+    fetchPayments();
+  }, []);
 
   // Map contracts to orders - use parent prop if available, otherwise use Redux
   useEffect(() => {
@@ -306,6 +329,39 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
     setStatusFilter(defaultStatusFilter);
   }, [defaultStatusFilter]);
 
+  // Helper function to check if order is fully paid
+  const isOrderFullyPaid = useCallback((order) => {
+    // Check if order has FULLY_PAID status
+    const orderStatus = (order.status || '').toUpperCase();
+    if (orderStatus === 'FULLY_PAID') {
+      return true;
+    }
+
+    // Check payment status through contract
+    const contract = ordersWithContracts[order.orderId];
+    if (!contract) {
+      return false; // No contract means no payment yet
+    }
+
+    // Calculate paid amount from payments
+    const contractPayments = filterPaymentsByContract(
+      allPayments,
+      contract.contractId,
+      contract.contractCode
+    );
+
+    // Sum only completed payments
+    const paidAmount = contractPayments
+      .filter(payment => payment.status === 'COMPLETED' || payment.status === 'SUCCESS' || payment.status === 'PAID')
+      .reduce((sum, payment) => sum + (payment.amount || 0), 0);
+
+    // Get total payment amount
+    const totalPayment = contract.totalPayment || order.totalPayment || order.totalPrice || 0;
+
+    // Check if fully paid (with small tolerance for floating point errors)
+    return paidAmount >= totalPayment - 0.01;
+  }, [ordersWithContracts, allPayments]);
+
   // Update filtered orders when orders or search term changes (client-side search only)
   // Memoize the filtering logic to prevent unnecessary recalculations
   useEffect(() => {
@@ -317,11 +373,17 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
     let filtered = Array.isArray(orders) ? [...orders] : [];
     
     // If activeTab is 'cancelled', show only CANCELLED orders
+    // If activeTab is 'completed', show only fully paid orders
     // Otherwise, exclude CANCELLED by default (unless 'all' tab)
     if (activeTab === 'cancelled') {
       filtered = filtered.filter(order => {
         const status = (order.status || '').toUpperCase();
         return status === 'CANCELLED';
+      });
+    } else if (activeTab === 'completed') {
+      // Only show orders that are fully paid
+      filtered = filtered.filter(order => {
+        return isOrderFullyPaid(order);
       });
     } else {
       // Show all orders except CANCELLED (including orders that have been converted to contracts)
@@ -356,8 +418,8 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
     // Sort orders: if statusFilter is selected, prioritize that status first
     let sorted = sortOrders(filtered, sortMode);
     
-    // If a specific status is selected, filter by that status only
-    if (statusFilter !== 'all' && activeTab !== 'cancelled') {
+    // If a specific status is selected, filter by that status only (but not for 'completed' tab)
+    if (statusFilter !== 'all' && activeTab !== 'cancelled' && activeTab !== 'completed') {
       const selectedStatusUpper = statusFilter.toUpperCase();
       // Filter by status - only show matching status
       sorted = sorted.filter(order => {
@@ -368,7 +430,7 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
 
     setFilteredOrders(sorted);
     setCurrentPage(1); // Reset to page 1 when filters change
-  }, [searchTerm, orders, sortMode, statusFilter, activeTab]);
+  }, [searchTerm, orders, sortMode, statusFilter, activeTab, isOrderFullyPaid]);
 
   // Calculate pagination
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);

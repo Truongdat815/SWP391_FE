@@ -102,6 +102,11 @@ export async function getOrdersByStaffId(staffId) {
     return request(`/api/orders/staff/${staffId}`, { method: 'GET' });
 }
 
+// Get staff order statistics (total orders and monthly revenue)
+export async function getStaffOrderStats(staffId) {
+    return request(`/api/orders/staff/${staffId}`, { method: 'GET' });
+}
+
 // Confirm order (DRAFT → CONFIRMED)
 export async function confirmOrder(orderId) {
     return request(`/api/orders/${orderId}/confirm`, {
