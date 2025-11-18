@@ -1,10 +1,10 @@
-import { API_URL } from './client';
+import { API_URL, buildUrl } from './client';
 
 const getToken = () => sessionStorage.getItem('access_token');
 
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();
-    const url = `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+    const url = buildUrl(API_URL, path);
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -92,7 +92,7 @@ export async function confirmPaymentTransaction(inventoryId) {
 
 export async function uploadReceipt(inventoryId, file) {
     const token = getToken();
-    const url = `${API_URL}/api/inventory-transactions/${encodeURIComponent(inventoryId)}/upload-receipt`;
+    const url = buildUrl(API_URL, `/api/inventory-transactions/${encodeURIComponent(inventoryId)}/upload-receipt`);
     
     const formData = new FormData();
     formData.append('file', file);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { API_URL, buildUrl } from '@/api/client';
 
 const DealerDetail = () => {
   const { id } = useParams();
@@ -20,7 +21,8 @@ const DealerDetail = () => {
           headers['Authorization'] = `Bearer ${token}`;
         }
         
-        const response = await fetch(`http://localhost:8080/api/stores/all`, { headers });
+        const url = buildUrl(API_URL, '/api/stores/all');
+        const response = await fetch(url, { headers });
         
         if (!response.ok) {
           throw new Error('Failed to fetch dealer details');

@@ -1,10 +1,10 @@
-import { API_URL } from './client';
+import { API_URL, buildUrl } from './client';
 
 const getToken = () => sessionStorage.getItem('access_token');
 
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();
-    const url = `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+    const url = buildUrl(API_URL, path);
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -82,7 +82,7 @@ export async function deleteModelColor(id) {
 // Upload model color image
 export async function uploadModelColorImage(modelId, colorId, file) {
     const token = getToken();
-    const url = `${API_URL}/api/model-colors/${encodeURIComponent(modelId)}/${encodeURIComponent(colorId)}/upload-model-color-image`;
+    const url = buildUrl(API_URL, `/api/model-colors/${encodeURIComponent(modelId)}/${encodeURIComponent(colorId)}/upload-model-color-image`);
     
     const formData = new FormData();
     formData.append('file', file);
