@@ -4,6 +4,13 @@ import { motion, AnimatePresence, LayoutGroup } from 'framer-motion';
 import { useSelector, useDispatch } from 'react-redux';
 import { getAllTransactionsThunk } from '../store/slices/inventoryTransactionSlice';
 import { getAllStoreStocksThunk } from '../store/slices/store-stockSlice';
+import { fetchOrders } from '../store/slices/orderSlice';
+import { getAllAppointmentsThunk } from '../store/slices/appointmentSlice';
+import { getAllUsersThunk } from '../store/slices/userSlice';
+import { getAllStoresThunk } from '../store/slices/storeSlice';
+import { getAllContracts } from '../api/contractService';
+import { getAllPayments } from '../api/paymentService';
+import { getAllFeedbacks } from '../api/feedbackService';
 import { useAuth } from '../contexts/AuthContext';
 import logo from '../assets/images/logo.png';
 
@@ -79,11 +86,20 @@ const formatTimeAgo = (date) => {
 // Component NotificationBell với hiệu ứng đẹp mắt
 const NotificationBell = ({ brandColor = 'red', basePath = '', onNotificationClick }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { user } = useAuth();
-  const transactions = useSelector((state) => state.inventoryTransactions.items);
-  const storeStocks = useSelector((state) => state.storeStocks.items);
+  const transactions = useSelector((state) => state.inventoryTransactions.items || []);
+  const storeStocks = useSelector((state) => state.storeStocks.items || []);
+  const orders = useSelector((state) => state.orders.orders || []);
+  const appointments = useSelector((state) => state.appointments.items || []);
+  const users = useSelector((state) => state.users.items || []);
+  const stores = useSelector((state) => state.stores.items || []);
+  const [payments, setPayments] = useState([]);
+  const [contracts, setContracts] = useState([]);
+  const [feedbacks, setFeedbacks] = useState([]);
   const [notificationCount, setNotificationCount] = useState(0);
   const [notifications, setNotifications] = useState([]);
+  const [readNotifications, setReadNotifications] = useState(new Set());
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const notificationRef = useRef(null);
@@ -93,180 +109,505 @@ const NotificationBell = ({ brandColor = 'red', basePath = '', onNotificationCli
 
   // Load notifications dựa trên role
   useEffect(() => {
-    // Only fetch once
-    if (hasFetchedNotificationsRef.current) {
-      return;
-    }
-    
-    hasFetchedNotificationsRef.current = true;
-    
     const loadNotifications = async () => {
       try {
         setIsLoading(true);
         
-        // Chỉ load nếu không phải Admin
-        if (!basePath.includes('/admin')) {
-          await Promise.all([
-            dispatch(getAllTransactionsThunk()).unwrap(),
-            dispatch(getAllStoreStocksThunk()).unwrap()
-          ]);
+        const loadPromises = [];
+        
+        // Load data based on role
+        if (basePath.includes('/admin')) {
+          // Admin: Load users, stores, transactions, storeStocks
+          loadPromises.push(
+            dispatch(getAllUsersThunk()).unwrap().catch(() => []),
+            dispatch(getAllStoresThunk()).unwrap().catch(() => []),
+            dispatch(getAllTransactionsThunk()).unwrap().catch(() => []),
+            dispatch(getAllStoreStocksThunk()).unwrap().catch(() => [])
+          );
+        } else if (basePath.includes('/evm-staff')) {
+          // EVM Staff: Load orders, transactions, storeStocks
+          loadPromises.push(
+            dispatch(fetchOrders()).unwrap().catch(() => []),
+            dispatch(getAllTransactionsThunk()).unwrap().catch(() => []),
+            dispatch(getAllStoreStocksThunk()).unwrap().catch(() => [])
+          );
+        } else if (basePath.includes('/dealer-manager')) {
+          // Dealer Manager: Load orders, appointments, payments, contracts, feedbacks, transactions, storeStocks
+          loadPromises.push(
+            dispatch(fetchOrders()).unwrap().catch(() => []),
+            dispatch(getAllAppointmentsThunk()).unwrap().catch(() => []),
+            dispatch(getAllTransactionsThunk()).unwrap().catch(() => []),
+            dispatch(getAllStoreStocksThunk()).unwrap().catch(() => []),
+            getAllPayments().catch(() => []).then(data => {
+              const paymentsData = Array.isArray(data) ? data : (data?.data || []);
+              setPayments(paymentsData);
+            }),
+            getAllContracts().catch(() => []).then(data => {
+              const contractsData = Array.isArray(data) ? data : (data?.data || []);
+              setContracts(contractsData);
+            }),
+            getAllFeedbacks().catch(() => []).then(data => {
+              const feedbacksData = Array.isArray(data) ? data : (data?.data || []);
+              setFeedbacks(feedbacksData);
+            })
+          );
+        } else if (basePath.includes('/dealer-staff')) {
+          // Dealer Staff: Load orders, appointments, payments, contracts, feedbacks, transactions, storeStocks
+          loadPromises.push(
+            dispatch(fetchOrders()).unwrap().catch(() => []),
+            dispatch(getAllAppointmentsThunk()).unwrap().catch(() => []),
+            dispatch(getAllTransactionsThunk()).unwrap().catch(() => []),
+            dispatch(getAllStoreStocksThunk()).unwrap().catch(() => []),
+            getAllPayments().catch(() => []).then(data => {
+              const paymentsData = Array.isArray(data) ? data : (data?.data || []);
+              setPayments(paymentsData);
+            }),
+            getAllContracts().catch(() => []).then(data => {
+              const contractsData = Array.isArray(data) ? data : (data?.data || []);
+              setContracts(contractsData);
+            }),
+            getAllFeedbacks().catch(() => []).then(data => {
+              const feedbacksData = Array.isArray(data) ? data : (data?.data || []);
+              setFeedbacks(feedbacksData);
+            })
+          );
         }
+        
+        await Promise.all(loadPromises);
       } catch (error) {
         console.warn('Could not load notifications:', error.message);
-        // Không show error cho user, chỉ log warning
       } finally {
         setIsLoading(false);
+        hasFetchedNotificationsRef.current = true;
       }
     };
 
-    // Initial load only - no auto-polling, using realtime updates instead
-    loadNotifications();
+    // Initial load
+    if (!hasFetchedNotificationsRef.current) {
+      loadNotifications();
+    }
     
-    // Removed polling interval - using realtime updates instead
-  }, [dispatch]);
+    // Refresh every 30 seconds
+    const interval = setInterval(() => {
+      hasFetchedNotificationsRef.current = false;
+      loadNotifications();
+    }, 30000);
+    
+    return () => clearInterval(interval);
+  }, [dispatch, basePath]);
 
   // Tính notification count và list dựa trên role
   useEffect(() => {
-    if (!transactions || transactions.length === 0) {
-      setNotificationCount(0);
-      setNotifications([]);
-      return;
-    }
-
     let count = 0;
     let notificationList = [];
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
-    // Logic khác nhau cho từng role
-    if (basePath.includes('/evm-staff')) {
-      // EVM Staff: Nhận notification về pending orders từ dealers
-      const pendingOrders = transactions.filter(t => {
-        const statusUpper = (t.status || '').toUpperCase();
-        return statusUpper === 'PENDING' || statusUpper === 'REQUESTED';
-      });
+    // Helper function to check if notification is unread
+    const isUnread = (id) => !readNotifications.has(id);
+
+    // Helper function to create notification
+    const createNotification = (id, type, title, message, time, actionPath = null) => {
+      // Create stable ID based on type and id (not timestamp)
+      const stableId = `${type}_${id}`;
+      return {
+        id: stableId,
+        type,
+        title,
+        message,
+        time,
+        unread: isUnread(stableId),
+        actionPath
+      };
+    };
+
+    if (basePath.includes('/admin')) {
+      // Admin: User mới cần duyệt, Store mới, Low stock, System alerts
       
-      count = pendingOrders.length;
-      notificationList = pendingOrders.map(order => ({
-        id: order.inventoryId || order.id,
-        type: 'order_request',
-        title: 'Yêu cầu đặt hàng mới',
-        message: `Đơn hàng #${order.inventoryId || order.id} đang chờ xử lý`,
-        time: order.transactionDate ? new Date(order.transactionDate) : new Date(),
-        unread: true
-      }));
+      // 1. Users với status PENDING
+      const pendingUsers = users.filter(u => {
+        const status = (u.status || '').toUpperCase();
+        const createdDate = u.createdDate ? new Date(u.createdDate) : null;
+        return status === 'PENDING' && (!createdDate || createdDate >= oneDayAgo);
+      });
+      pendingUsers.forEach(u => {
+        notificationList.push(createNotification(
+          u.userId || u.id,
+          'user_pending',
+          '👤 Người dùng mới cần duyệt',
+          `${u.fullName || u.name || 'Người dùng'} đang chờ được duyệt`,
+          u.createdDate ? new Date(u.createdDate) : new Date(),
+          '/admin/user-management'
+        ));
+      });
+
+      // 2. Stores với status PENDING hoặc mới tạo
+      const pendingStores = stores.filter(s => {
+        const status = (s.status || '').toUpperCase();
+        const createdDate = s.createdDate ? new Date(s.createdDate) : null;
+        return (status === 'PENDING' || !status) && (!createdDate || createdDate >= oneDayAgo);
+      });
+      pendingStores.forEach(s => {
+        notificationList.push(createNotification(
+          s.storeId || s.id,
+          'store_pending',
+          '🏪 Cửa hàng mới cần duyệt',
+          `Cửa hàng ${s.storeName || s.name || 'Mới'} đang chờ được duyệt`,
+          s.createdDate ? new Date(s.createdDate) : new Date(),
+          '/admin/store-management'
+        ));
+      });
+
+      // 3. Low stock toàn hệ thống (quantity < 5)
+      const lowStockItems = storeStocks.filter(s => {
+        const quantity = parseInt(s.quantity || s.stockQuantity || 0);
+        return quantity > 0 && quantity < 5;
+      });
+      if (lowStockItems.length > 0) {
+        notificationList.push(createNotification(
+          'low_stock_all',
+          'low_stock',
+          '⚠️ Cảnh báo tồn kho thấp',
+          `Có ${lowStockItems.length} sản phẩm đang sắp hết hàng trong hệ thống`,
+          new Date(),
+          '/admin/store-management'
+        ));
+      }
+
+      count = notificationList.length;
+    } else if (basePath.includes('/evm-staff')) {
+      // EVM Staff: Đơn hàng mới từ dealer, Inventory requests, Low stock
+      
+      // 1. Orders với status DRAFT hoặc CONFIRMED từ dealer (không phải EVM staff)
+      const dealerOrders = orders.filter(o => {
+        const status = (o.status || '').toUpperCase();
+        const createdDate = o.createdDate ? new Date(o.createdDate) : new Date();
+        return (status === 'DRAFT' || status === 'CONFIRMED') && createdDate >= oneDayAgo;
+      });
+      dealerOrders.forEach(o => {
+        notificationList.push(createNotification(
+          o.orderId || o.id,
+          'order_new',
+          '🆕 Đơn hàng mới từ dealer',
+          `Đơn hàng #${o.orderId || o.id} cần xử lý`,
+          o.createdDate ? new Date(o.createdDate) : new Date(),
+          '/evm-staff/dealer-order-management'
+        ));
+      });
+
+      // 2. Inventory transactions với status PENDING hoặc REQUESTED
+      const pendingTransactions = transactions.filter(t => {
+        const status = (t.status || '').toUpperCase();
+        const transactionDate = t.transactionDate ? new Date(t.transactionDate) : new Date();
+        return (status === 'PENDING' || status === 'REQUESTED') && transactionDate >= oneDayAgo;
+      });
+      pendingTransactions.forEach(t => {
+        notificationList.push(createNotification(
+          t.inventoryId || t.id,
+          'inventory_request',
+          '📦 Yêu cầu nhập kho mới',
+          `Yêu cầu nhập kho #${t.inventoryId || t.id} đang chờ xử lý`,
+          t.transactionDate ? new Date(t.transactionDate) : new Date(),
+          '/evm-staff/product-management'
+        ));
+      });
+
+      // 3. Low stock alerts
+      const lowStockItems = storeStocks.filter(s => {
+        const quantity = parseInt(s.quantity || s.stockQuantity || 0);
+        return quantity > 0 && quantity < 5;
+      });
+      if (lowStockItems.length > 0) {
+        notificationList.push(createNotification(
+          'low_stock_evm',
+          'low_stock',
+          '⚠️ Cảnh báo tồn kho thấp',
+          `Có ${lowStockItems.length} sản phẩm đang sắp hết hàng`,
+          new Date(),
+          '/evm-staff/product-management'
+        ));
+      }
+
+      count = notificationList.length;
     } else if (basePath.includes('/dealer-manager')) {
-      // Dealer Manager: Nhận notification về order status updates
+      // Dealer Manager: Đơn hàng mới từ staff, Payments, Appointments, Inventory updates, Feedback
       const myStoreId = user?.storeId;
       const myStockIds = new Set(storeStocks
         .filter(s => s.storeId === myStoreId)
         .map(s => s.stockId)
       );
-      
+
+      // 1. Orders mới từ staff trong store (status DRAFT)
+      const newOrders = orders.filter(o => {
+        const status = (o.status || '').toUpperCase();
+        const createdDate = o.createdDate ? new Date(o.createdDate) : new Date();
+        const orderStoreId = o.storeId || (o.staffId && user?.storeId);
+        return status === 'DRAFT' && orderStoreId === myStoreId && createdDate >= oneDayAgo;
+      });
+      newOrders.forEach(o => {
+        notificationList.push(createNotification(
+          o.orderId || o.id,
+          'order_new',
+          '🆕 Đơn hàng mới từ nhân viên',
+          `Đơn hàng #${o.orderId || o.id} cần được xác nhận`,
+          o.createdDate ? new Date(o.createdDate) : new Date(),
+          '/dealer-manager/order-management'
+        ));
+      });
+
+      // 2. Payments mới
+      const newPayments = payments.filter(p => {
+        const paymentDate = p.paymentDate ? new Date(p.paymentDate) : new Date();
+        const contractStoreId = contracts.find(c => c.contractId === p.contractId)?.storeId;
+        return paymentDate >= oneDayAgo && contractStoreId === myStoreId;
+      });
+      newPayments.forEach(p => {
+        notificationList.push(createNotification(
+          p.paymentId || p.id,
+          'payment_new',
+          '💰 Thanh toán mới',
+          `Thanh toán #${p.paymentId || p.id} đã được thực hiện`,
+          p.paymentDate ? new Date(p.paymentDate) : new Date(),
+          '/dealer-manager/order-management'
+        ));
+      });
+
+      // 3. Appointments mới
+      const newAppointments = appointments.filter(a => {
+        const appointmentDate = a.appointmentDate ? new Date(a.appointmentDate) : new Date();
+        const appointmentStoreId = a.storeId;
+        return appointmentStoreId === myStoreId && appointmentDate >= oneDayAgo;
+      });
+      newAppointments.forEach(a => {
+        notificationList.push(createNotification(
+          a.appointmentId || a.id,
+          'appointment_new',
+          '📅 Lịch hẹn mới',
+          `Lịch hẹn #${a.appointmentId || a.id} đã được đặt`,
+          a.appointmentDate ? new Date(a.appointmentDate) : new Date(),
+          '/dealer-manager/order-management'
+        ));
+      });
+
+      // 4. Inventory updates (COMPLETED, PROCESSING, REJECTED)
       const relevantTransactions = transactions.filter(t => {
-        const statusUpper = (t.status || '').toUpperCase();
-        const isCompleted = statusUpper === 'COMPLETED';
-        const isProcessing = statusUpper === 'PROCESSING';
-        const isRejected = statusUpper === 'REJECTED';
+        const status = (t.status || '').toUpperCase();
+        const transactionDate = t.transactionDate ? new Date(t.transactionDate) : new Date();
         const belongsToMyStore = myStockIds.has(t.storeStockId) || 
                                  (t.storeStock && t.storeStock.storeId === myStoreId);
-        
-        return (isCompleted || isProcessing || isRejected) && belongsToMyStore;
+        return (status === 'COMPLETED' || status === 'PROCESSING' || status === 'REJECTED') && 
+               belongsToMyStore && transactionDate >= oneDayAgo;
       });
-      
-      count = relevantTransactions.length;
-      notificationList = relevantTransactions.map(t => {
-        const statusUpper = (t.status || '').toUpperCase();
-        if (statusUpper === 'COMPLETED') {
-          return {
-            id: t.inventoryId || t.id,
-            type: 'inventory_completed',
-            title: '✅ Xe đã được nhập kho',
-            message: `${t.importQuantity} xe đã được thêm vào kho thành công`,
-            time: t.transactionDate ? new Date(t.transactionDate) : new Date(),
-            unread: true
-          };
-        } else if (statusUpper === 'PROCESSING') {
-          return {
-            id: t.inventoryId || t.id,
-            type: 'order_processing',
-            title: '⏳ Đơn hàng đang xử lý',
-            message: `Đơn hàng #${t.inventoryId || t.id} đang được EVM xử lý`,
-            time: t.transactionDate ? new Date(t.transactionDate) : new Date(),
-            unread: true
-          };
-        } else if (statusUpper === 'REJECTED') {
-          return {
-            id: t.inventoryId || t.id,
-            type: 'order_rejected',
-            title: '❌ Yêu cầu bị từ chối',
-            message: `Yêu cầu đặt hàng #${t.inventoryId || t.id} đã bị EVM từ chối`,
-            time: t.transactionDate ? new Date(t.transactionDate) : new Date(),
-            unread: true
-          };
+      relevantTransactions.forEach(t => {
+        const status = (t.status || '').toUpperCase();
+        if (status === 'COMPLETED') {
+          notificationList.push(createNotification(
+            t.inventoryId || t.id,
+            'inventory_completed',
+            '✅ Xe đã được nhập kho',
+            `${t.importQuantity || 0} xe đã được thêm vào kho thành công`,
+            t.transactionDate ? new Date(t.transactionDate) : new Date(),
+            '/dealer-manager/inventory-management'
+          ));
+        } else if (status === 'PROCESSING') {
+          notificationList.push(createNotification(
+            t.inventoryId || t.id,
+            'order_processing',
+            '⏳ Đơn hàng đang xử lý',
+            `Đơn hàng #${t.inventoryId || t.id} đang được EVM xử lý`,
+            t.transactionDate ? new Date(t.transactionDate) : new Date(),
+            '/dealer-manager/inventory-management'
+          ));
+        } else if (status === 'REJECTED') {
+          notificationList.push(createNotification(
+            t.inventoryId || t.id,
+            'order_rejected',
+            '❌ Yêu cầu bị từ chối',
+            `Yêu cầu đặt hàng #${t.inventoryId || t.id} đã bị EVM từ chối`,
+            t.transactionDate ? new Date(t.transactionDate) : new Date(),
+            '/dealer-manager/inventory-management'
+          ));
         }
-        return null;
-      }).filter(n => n !== null);
+      });
+
+      // 5. Feedback mới
+      const newFeedbacks = feedbacks.filter(f => {
+        const feedbackDate = f.createdDate ? new Date(f.createdDate) : new Date();
+        const orderStoreId = orders.find(o => o.orderId === f.orderId)?.storeId;
+        return orderStoreId === myStoreId && feedbackDate >= oneDayAgo;
+      });
+      newFeedbacks.forEach(f => {
+        notificationList.push(createNotification(
+          f.feedbackId || f.id,
+          'feedback_new',
+          '💬 Phản hồi mới từ khách hàng',
+          `Phản hồi #${f.feedbackId || f.id} cần được xem xét`,
+          f.createdDate ? new Date(f.createdDate) : new Date(),
+          '/dealer-manager/order-management'
+        ));
+      });
+
+      count = notificationList.length;
     } else if (basePath.includes('/dealer-staff')) {
-      // Dealer Staff: Nhận notification về order status updates từ Manager
-      // Manager gửi request → EVM duyệt/từ chối → Staff nhận thông báo
+      // Dealer Staff: Order status updates, Payments, Appointments, Feedback, Inventory updates
       const myStoreId = user?.storeId;
+      const myUserId = user?.userId || user?.id;
       const myStockIds = new Set(storeStocks
         .filter(s => s.storeId === myStoreId)
         .map(s => s.stockId)
       );
-      
+
+      // 1. Order status updates (CONFIRMED, CANCELLED) cho orders của staff này
+      const myOrders = orders.filter(o => {
+        const orderStaffId = o.staffId || o.createdBy;
+        const status = (o.status || '').toUpperCase();
+        const updatedDate = o.updatedDate ? new Date(o.updatedDate) : new Date();
+        return (orderStaffId === myUserId || o.storeId === myStoreId) && 
+               (status === 'CONFIRMED' || status === 'CANCELLED') && 
+               updatedDate >= oneDayAgo;
+      });
+      myOrders.forEach(o => {
+        const status = (o.status || '').toUpperCase();
+        if (status === 'CONFIRMED') {
+          notificationList.push(createNotification(
+            o.orderId || o.id,
+            'order_confirmed',
+            '✅ Đơn hàng đã được xác nhận',
+            `Đơn hàng #${o.orderId || o.id} đã được quản lý xác nhận`,
+            o.updatedDate ? new Date(o.updatedDate) : new Date(),
+            '/dealer-staff/order-management'
+          ));
+        } else if (status === 'CANCELLED') {
+          notificationList.push(createNotification(
+            o.orderId || o.id,
+            'order_cancelled',
+            '❌ Đơn hàng đã bị hủy',
+            `Đơn hàng #${o.orderId || o.id} đã bị hủy`,
+            o.updatedDate ? new Date(o.updatedDate) : new Date(),
+            '/dealer-staff/order-management'
+          ));
+        }
+      });
+
+      // 2. Payments mới cho contracts của orders của staff này
+      const myOrderIds = new Set(orders
+        .filter(o => (o.staffId || o.createdBy) === myUserId || o.storeId === myStoreId)
+        .map(o => o.orderId || o.id)
+      );
+      const myContractIds = new Set(contracts
+        .filter(c => myOrderIds.has(c.orderId))
+        .map(c => c.contractId || c.id)
+      );
+      const newPayments = payments.filter(p => {
+        const paymentDate = p.paymentDate ? new Date(p.paymentDate) : new Date();
+        return myContractIds.has(p.contractId) && paymentDate >= oneDayAgo;
+      });
+      newPayments.forEach(p => {
+        notificationList.push(createNotification(
+          p.paymentId || p.id,
+          'payment_new',
+          '💰 Thanh toán mới',
+          `Thanh toán #${p.paymentId || p.id} đã được thực hiện`,
+          p.paymentDate ? new Date(p.paymentDate) : new Date(),
+          '/dealer-staff/payment-management'
+        ));
+      });
+
+      // 3. Appointments mới cho staff này
+      const myAppointments = appointments.filter(a => {
+        const appointmentDate = a.appointmentDate ? new Date(a.appointmentDate) : new Date();
+        const appointmentStaffId = a.staffId || a.createdBy;
+        return (appointmentStaffId === myUserId || a.storeId === myStoreId) && 
+               appointmentDate >= oneDayAgo;
+      });
+      myAppointments.forEach(a => {
+        notificationList.push(createNotification(
+          a.appointmentId || a.id,
+          'appointment_new',
+          '📅 Lịch hẹn mới',
+          `Lịch hẹn #${a.appointmentId || a.id} đã được đặt`,
+          a.appointmentDate ? new Date(a.appointmentDate) : new Date(),
+          '/dealer-staff/test-drive-schedule'
+        ));
+      });
+
+      // 4. Feedback mới cho orders của staff này
+      const newFeedbacks = feedbacks.filter(f => {
+        const feedbackDate = f.createdDate ? new Date(f.createdDate) : new Date();
+        return myOrderIds.has(f.orderId) && feedbackDate >= oneDayAgo;
+      });
+      newFeedbacks.forEach(f => {
+        notificationList.push(createNotification(
+          f.feedbackId || f.id,
+          'feedback_new',
+          '💬 Phản hồi mới từ khách hàng',
+          `Phản hồi #${f.feedbackId || f.id} cần được xem xét`,
+          f.createdDate ? new Date(f.createdDate) : new Date(),
+          '/dealer-staff/feedback-management'
+        ));
+      });
+
+      // 5. Inventory updates (COMPLETED, PROCESSING, REJECTED)
       const relevantTransactions = transactions.filter(t => {
-        const statusUpper = (t.status || '').toUpperCase();
-        const isCompleted = statusUpper === 'COMPLETED';
-        const isProcessing = statusUpper === 'PROCESSING';
-        const isRejected = statusUpper === 'REJECTED';
+        const status = (t.status || '').toUpperCase();
+        const transactionDate = t.transactionDate ? new Date(t.transactionDate) : new Date();
         const belongsToMyStore = myStockIds.has(t.storeStockId) || 
                                  (t.storeStock && t.storeStock.storeId === myStoreId);
-        
-        return (isCompleted || isProcessing || isRejected) && belongsToMyStore;
+        return (status === 'COMPLETED' || status === 'PROCESSING' || status === 'REJECTED') && 
+               belongsToMyStore && transactionDate >= oneDayAgo;
       });
-      
-      count = relevantTransactions.length;
-      notificationList = relevantTransactions.map(t => {
-        const statusUpper = (t.status || '').toUpperCase();
-        if (statusUpper === 'COMPLETED') {
-          return {
-            id: t.inventoryId || t.id,
-            type: 'inventory_completed',
-            title: '✅ Xe đã được nhập kho',
-            message: `${t.importQuantity} xe đã được thêm vào kho thành công`,
-            time: t.transactionDate ? new Date(t.transactionDate) : new Date(),
-            unread: true
-          };
-        } else if (statusUpper === 'PROCESSING') {
-          return {
-            id: t.inventoryId || t.id,
-            type: 'order_processing',
-            title: '⏳ Đơn hàng đang xử lý',
-            message: `Đơn hàng #${t.inventoryId || t.id} đang được EVM xử lý`,
-            time: t.transactionDate ? new Date(t.transactionDate) : new Date(),
-            unread: true
-          };
-        } else if (statusUpper === 'REJECTED') {
-          return {
-            id: t.inventoryId || t.id,
-            type: 'order_rejected',
-            title: '❌ Yêu cầu bị từ chối',
-            message: `Yêu cầu đặt hàng #${t.inventoryId || t.id} đã bị EVM từ chối`,
-            time: t.transactionDate ? new Date(t.transactionDate) : new Date(),
-            unread: true
-          };
+      relevantTransactions.forEach(t => {
+        const status = (t.status || '').toUpperCase();
+        if (status === 'COMPLETED') {
+          notificationList.push(createNotification(
+            t.inventoryId || t.id,
+            'inventory_completed',
+            '✅ Xe đã được nhập kho',
+            `${t.importQuantity || 0} xe đã được thêm vào kho thành công`,
+            t.transactionDate ? new Date(t.transactionDate) : new Date(),
+            '/dealer-staff/inventory'
+          ));
+        } else if (status === 'PROCESSING') {
+          notificationList.push(createNotification(
+            t.inventoryId || t.id,
+            'order_processing',
+            '⏳ Đơn hàng đang xử lý',
+            `Đơn hàng #${t.inventoryId || t.id} đang được EVM xử lý`,
+            t.transactionDate ? new Date(t.transactionDate) : new Date(),
+            '/dealer-staff/inventory'
+          ));
+        } else if (status === 'REJECTED') {
+          notificationList.push(createNotification(
+            t.inventoryId || t.id,
+            'order_rejected',
+            '❌ Yêu cầu bị từ chối',
+            `Yêu cầu đặt hàng #${t.inventoryId || t.id} đã bị EVM từ chối`,
+            t.transactionDate ? new Date(t.transactionDate) : new Date(),
+            '/dealer-staff/inventory'
+          ));
         }
-        return null;
-      }).filter(n => n !== null);
-    } else if (basePath.includes('/admin')) {
-      // Admin: System alerts
-      count = 0;
-      notificationList = [];
+      });
+
+      count = notificationList.length;
     }
 
-    setNotificationCount(count);
+    // Filter out read notifications and sort by time
+    const unreadNotifications = notificationList.filter(n => n.unread);
+    setNotificationCount(unreadNotifications.length);
     setNotifications(notificationList.sort((a, b) => b.time - a.time));
-  }, [transactions, storeStocks, basePath, user]);
+  }, [transactions, storeStocks, orders, appointments, payments, contracts, feedbacks, users, stores, basePath, user, readNotifications]);
+
+  // Handle notification click
+  const handleNotificationClick = (notification) => {
+    // Mark as read
+    setReadNotifications(prev => new Set([...prev, notification.id]));
+    
+    // Navigate if actionPath exists
+    if (notification.actionPath) {
+      setIsOpen(false);
+      navigate(notification.actionPath);
+    }
+  };
 
   // Click outside to close
   useEffect(() => {
@@ -456,21 +797,30 @@ const NotificationBell = ({ brandColor = 'red', basePath = '', onNotificationCli
                         initial={{ opacity: 0, x: -20 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.1 }}
+                        onClick={() => handleNotificationClick(notification)}
                         className={`p-4 cursor-pointer transition-colors ${
                           notification.unread ? 'bg-blue-50' : 'hover:bg-gray-50'
                         }`}
                       >
                         <div className="flex items-start gap-3">
-                          <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center ${
+                          <div className={`flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-lg ${
                             notification.unread 
                               ? 'bg-blue-100' 
                               : 'bg-gray-100'
                           }`}>
-                                   {notification.type === 'order_request' ? '🟢' : 
-                                    notification.type === 'inventory_request' ? '🔵' :
-                                    notification.type === 'inventory_completed' ? '✅' :
-                                    notification.type === 'order_processing' ? '⏳' :
-                                    notification.type === 'order_rejected' ? '❌' : '🟢'}
+                            {notification.type === 'order_request' || notification.type === 'order_new' ? '🟢' : 
+                             notification.type === 'inventory_request' ? '🔵' :
+                             notification.type === 'inventory_completed' ? '✅' :
+                             notification.type === 'order_processing' ? '⏳' :
+                             notification.type === 'order_rejected' ? '❌' :
+                             notification.type === 'order_confirmed' ? '✅' :
+                             notification.type === 'order_cancelled' ? '❌' :
+                             notification.type === 'payment_new' ? '💰' :
+                             notification.type === 'appointment_new' ? '📅' :
+                             notification.type === 'feedback_new' ? '💬' :
+                             notification.type === 'user_pending' ? '👤' :
+                             notification.type === 'store_pending' ? '🏪' :
+                             notification.type === 'low_stock' ? '⚠️' : '🟢'}
                           </div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
