@@ -100,7 +100,7 @@ const DealerStaffDashboard = () => {
             
             return {
               ...feedback,
-              rating: feedbackDetail?.rating !== undefined ? parseInt(feedbackDetail.rating) : (feedback.rating ? parseInt(feedback.rating) : 0),
+              rating: feedbackDetail?.rating !== undefined ? parseFloat(feedbackDetail.rating) || 0 : (feedback.rating ? parseFloat(feedback.rating) || 0 : 0),
               content: feedbackDetail?.content || feedback.content || 'Không có nội dung',
               category: feedbackDetail?.category ? feedbackDetail.category.toLowerCase() : (feedback.category || 'service').toLowerCase(),
               feedbackDetail: feedbackDetail
@@ -226,10 +226,12 @@ const DealerStaffDashboard = () => {
     if (ratings.length > 0) {
       stats.averageRating = (ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1);
       
-      // Count rating distribution
+      // Count rating distribution - round to nearest integer (1-5)
       ratings.forEach(rating => {
-        if (rating >= 1 && rating <= 5) {
-          stats.ratingDistribution[rating] = (stats.ratingDistribution[rating] || 0) + 1;
+        // Round rating to nearest integer between 1 and 5
+        const roundedRating = Math.max(1, Math.min(5, Math.round(parseFloat(rating) || 0)));
+        if (roundedRating >= 1 && roundedRating <= 5) {
+          stats.ratingDistribution[roundedRating] = (stats.ratingDistribution[roundedRating] || 0) + 1;
         }
       });
     }
@@ -310,97 +312,6 @@ const DealerStaffDashboard = () => {
   return (
     <div className="h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-2 sm:p-3 md:p-4 overflow-hidden">
       <div className="max-w-7xl mx-auto h-full flex flex-col space-y-2 sm:space-y-3 md:space-y-4">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4 flex-shrink-0">
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">
-              📊 Tổng quan bán hàng
-            </h2>
-            <p className="text-gray-600 mt-0.5 text-xs sm:text-sm">
-              Thống kê và phân tích dữ liệu bán hàng của bạn
-              {user?.fullName && ` - ${user.fullName}`}
-            </p>
-          </div>
-          <button 
-          onClick={() => {
-            if (currentStaffId) {
-              dispatch(fetchOrdersByStaffId(currentStaffId));
-            }
-            dispatch(getAllCustomersThunk());
-            dispatch(getAllAppointmentsThunk());
-            // Reload feedbacks with details
-            const loadFeedbacks = async () => {
-              try {
-                const response = await getAllFeedbacks();
-                let feedbacksData = [];
-                
-                if (Array.isArray(response)) {
-                  feedbacksData = response;
-                } else if (response?.data && Array.isArray(response.data)) {
-                  feedbacksData = response.data;
-                } else if (response?.data?.data && Array.isArray(response.data.data)) {
-                  feedbacksData = response.data.data;
-                }
-                
-                setFeedbacks(feedbacksData);
-                
-                const feedbacksWithDetailsData = await Promise.all(
-                  feedbacksData.map(async (feedback) => {
-                    let feedbackDetail = null;
-                    try {
-                      const feedbackId = feedback.feedbackId || feedback.id || feedback.feedback_id;
-                      if (feedbackId) {
-                        const detailResponse = await getFeedbackDetailsByFeedbackId(feedbackId);
-                        let details = null;
-                        
-                        if (Array.isArray(detailResponse)) {
-                          details = detailResponse;
-                        } else if (detailResponse?.data) {
-                          details = Array.isArray(detailResponse.data) ? detailResponse.data : detailResponse.data;
-                        } else {
-                          details = detailResponse;
-                        }
-                        
-                        if (Array.isArray(details) && details.length > 0) {
-                          feedbackDetail = details[0];
-                        } else if (details && !Array.isArray(details)) {
-                          feedbackDetail = details;
-                        }
-                      }
-                    } catch (err) {
-                      console.log('Error loading feedback detail:', err.message);
-                    }
-                    
-                    return {
-                      ...feedback,
-                      rating: feedbackDetail?.rating !== undefined ? parseInt(feedbackDetail.rating) : (feedback.rating ? parseInt(feedback.rating) : 0),
-                      content: feedbackDetail?.content || feedback.content || 'Không có nội dung',
-                      category: feedbackDetail?.category ? feedbackDetail.category.toLowerCase() : (feedback.category || 'service').toLowerCase(),
-                      feedbackDetail: feedbackDetail
-                    };
-                  })
-                );
-                
-                setFeedbacksWithDetails(feedbacksWithDetailsData);
-              } catch (err) {
-                console.error('Error loading feedbacks:', err);
-                setFeedbacks([]);
-                setFeedbacksWithDetails([]);
-              }
-            };
-            
-            loadFeedbacks();
-          }}
-          className="px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center gap-2 text-xs sm:text-sm font-medium shadow-sm flex-shrink-0"
-          disabled={loadingOrders}
-        >
-          <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          <span className="whitespace-nowrap">{loadingOrders ? 'Đang tải...' : 'Làm mới'}</span>
-        </button>
-      </div>
-
       {/* Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 flex-shrink-0">
         {/* Total Orders */}
@@ -622,9 +533,14 @@ const DealerStaffDashboard = () => {
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="name" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
+              <YAxis 
+                stroke="#6b7280" 
+                allowDecimals={false}
+                domain={[0, 'auto']}
+                tickFormatter={(value) => Math.round(value).toString()}
+              />
               <Tooltip 
-                formatter={(value) => [`${value} đánh giá`, 'Số lượng']}
+                formatter={(value) => [`${Math.round(value)} đánh giá`, 'Số lượng']}
                 contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
               />
               <Bar dataKey="value" radius={[8, 8, 0, 0]}>

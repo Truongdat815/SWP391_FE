@@ -49,6 +49,8 @@ import TestDriveSchedule from './pages/dealerStaff/TestDriveSchedule'
 import PaymentManagement from './pages/dealerStaff/PaymentManagement'
 import CarComparison from './pages/dealerStaff/CarComparison'
 import FeedbackManagement from './pages/dealerStaff/FeedbackManagement'
+import UserGuide from './pages/dealerStaff/UserGuide'
+import FAQ from './pages/dealerStaff/FAQ'
 
 // EVM Staff Sub Pages
 import EVMStaffDashboard from './pages/EvmStaff/EVMStaffDashboard'
@@ -156,6 +158,8 @@ function AnimatedRoutes() {
             <Route path="profile" element={<CommonProfile />} />
             <Route path="settings" element={<CommonSettings />} />
             <Route path="help" element={<CommonHelp />} />
+            <Route path="user-guide" element={<UserGuide />} />
+            <Route path="faq" element={<FAQ />} />
           </Route>
 
           {/* Dealer Manager Routes - Protected */}

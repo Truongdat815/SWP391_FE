@@ -845,63 +845,6 @@ function CustomerManagement() {
 
       {/* Main Container */}
       <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 pt-0 pb-3 sm:pb-4 md:pb-5">
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 sm:gap-3 md:gap-4 mb-3 sm:mb-4 md:mb-5">
-          {/* Total Customers */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 sm:pt-4 pb-3 sm:pb-4 px-3 sm:px-4 hover:shadow-md transition-all duration-200"
-          >
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="p-1.5 sm:p-2 bg-blue-100 rounded-lg flex-shrink-0">
-                <Users className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Tổng số khách hàng</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">{stats.total}</p>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Today Customers */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 sm:pt-4 pb-3 sm:pb-4 px-3 sm:px-4 hover:shadow-md transition-all duration-200"
-          >
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="p-1.5 sm:p-2 bg-emerald-100 rounded-lg flex-shrink-0">
-                <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-emerald-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Khách hàng hôm nay</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">{stats.today}</p>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* This Month */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 sm:pt-4 pb-3 sm:pb-4 px-3 sm:px-4 hover:shadow-md transition-all duration-200"
-          >
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="p-1.5 sm:p-2 bg-purple-100 rounded-lg flex-shrink-0">
-                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-xs sm:text-sm text-gray-600 mb-1">Khách hàng tháng này</p>
-                <p className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">{stats.thisMonth}</p>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
         {/* Main Content Card */}
         <ModernCard className="overflow-hidden">
           <ModernCardHeader
