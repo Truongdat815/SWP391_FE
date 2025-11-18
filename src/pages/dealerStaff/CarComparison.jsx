@@ -4,7 +4,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { getAllModelsThunk } from '../../store/slices/modelSlice';
 import { getAllModelColorsThunk } from '../../store/slices/modelColorSlice';
-import { get, API_URL } from '../../api/client';
+import { get, API_URL, buildUrl } from '../../api/client';
 import { getModelImage, formatPrice, formatNumber, getBodyTypeColor, getBodyTypeIcon } from '../../utils/modelHelpers';
 import { ModernCard, ModernCardHeader, ModernCardContent } from '../../components/ui/ModernCard';
 import ModernButton from '../../components/ui/ModernButton';
@@ -160,13 +160,13 @@ function CarComparison() {
     
     if (url.startsWith('/')) {
       if (API_URL && API_URL.trim() !== '') {
-        return `${API_URL}${url}`;
+        return buildUrl(API_URL, url);
       }
       return url;
     }
     
     if (API_URL && API_URL.trim() !== '') {
-      return `${API_URL}/${url}`;
+      return buildUrl(API_URL, `/${url}`);
     }
     
     return url;

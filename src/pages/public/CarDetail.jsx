@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { getModelImage, getModelPoster, formatPrice, formatNumber } from '../../utils/modelHelpers';
 import logo from '../../assets/images/logo.png';
 import Tooltip from '@/components/ui/Tooltip';
-import { get, API_URL } from '@/api/client';
+import { get, API_URL, buildUrl } from '@/api/client';
 
 function CarDetail() {
   const { modelId } = useParams();
@@ -35,13 +35,13 @@ function CarDetail() {
     
     if (url.startsWith('/')) {
       if (API_URL && API_URL.trim() !== '') {
-        return `${API_URL}${url}`;
+        return buildUrl(API_URL, url);
       }
       return url;
     }
     
     if (API_URL && API_URL.trim() !== '') {
-      return `${API_URL}/${url}`;
+      return buildUrl(API_URL, `/${url}`);
     }
     
     return url;

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import AnimatedImage from '../components/Animated';
 import { Link } from 'react-router-dom';
-import { get, API_URL } from '@/api/client';
+import { get, API_URL, buildUrl } from '@/api/client';
 import { getModelImage, formatNumber } from '../utils/modelHelpers';
 import Tooltip from './ui/Tooltip';
 import Pagination from './ui/Pagination';
@@ -206,14 +206,14 @@ const Models = () => {
     // If API_URL is set, prepend it
     if (url.startsWith('/')) {
       if (API_URL && API_URL.trim() !== '') {
-        return `${API_URL}${url}`;
+        return buildUrl(API_URL, url);
       }
       return url;
     }
     
     // If it doesn't start with / or http, it might need API_URL
     if (API_URL && API_URL.trim() !== '') {
-      return `${API_URL}/${url}`;
+      return buildUrl(API_URL, `/${url}`);
     }
     
     return url;

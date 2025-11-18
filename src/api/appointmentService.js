@@ -1,10 +1,10 @@
-import { API_URL } from './client';
+import { API_URL, buildUrl } from './client';
 
 const getToken = () => sessionStorage.getItem('access_token') || sessionStorage.getItem('accessToken');
 
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();
-    const url = `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+    const url = buildUrl(API_URL, path);
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 

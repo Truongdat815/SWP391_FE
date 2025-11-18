@@ -1,10 +1,10 @@
-import { API_URL } from './client';
+import { API_URL, buildUrl } from './client';
 
 const getToken = () => sessionStorage.getItem('access_token');
 
 async function request(path, { method = 'GET', body } = {}) {
     const token = getToken();
-    const url = `${API_URL}${path.startsWith('/') ? '' : '/'}${path}`;
+    const url = buildUrl(API_URL, path);
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -58,7 +58,7 @@ export async function createContractFromOrder(orderId) {
 // Get contract HTML with authentication and inline CSS (API: GET /api/contracts/{id})
 export async function getContractHtml(contractId) {
     const token = getToken();
-    const url = `${API_URL}/api/contracts/${contractId}`;
+    const url = buildUrl(API_URL, `/api/contracts/${contractId}`);
     
     const res = await fetch(url, {
         method: 'GET',
@@ -76,7 +76,7 @@ export async function getContractHtml(contractId) {
     
     // Fetch CSS from backend and inline it
     try {
-        const cssUrl = `${API_URL}/style.css`;
+        const cssUrl = buildUrl(API_URL, '/style.css');
         const cssRes = await fetch(cssUrl, {
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -122,7 +122,7 @@ export async function getAllContracts() {
 // Upload signed contract file (API: POST /api/contracts/{contractId}/upload-signed)
 export async function uploadSignedContract(contractId, file) {
     const token = getToken();
-    const url = `${API_URL}/api/contracts/${contractId}/upload-signed`;
+    const url = buildUrl(API_URL, `/api/contracts/${contractId}/upload-signed`);
     
     const formData = new FormData();
     formData.append('file', file);
