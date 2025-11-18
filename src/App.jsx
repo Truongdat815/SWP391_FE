@@ -61,12 +61,14 @@ import VehicleManagement from './pages/EvmStaff/VehicleManagement'
 import DealerOrderManagement from './pages/EvmStaff/DealerOrderManagement'
 import SalesReport from './pages/EvmStaff/SalesReport'
 import ColorManagementPage from './components/ColorManagement'
+import EVMStaffUserGuide from './pages/EvmStaff/UserGuide'
 
 // Admin Sub Pages
 import AdminDashboard from './pages/admin/AdminDashboard'
 import StoreManagement from './pages/admin/StoreManagement'
 import UserManagement from './pages/admin/UserManagement'
 import AdminSettings from './pages/admin/AdminSettings'
+import AdminUserGuide from './pages/admin/UserGuide'
 
 import { BrowserRouter, Route, Routes, useLocation, Navigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
@@ -131,6 +133,7 @@ function AnimatedRoutes() {
             <Route path="profile" element={<CommonProfile />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="help" element={<CommonHelp />} />
+            <Route path="user-guide" element={<AdminUserGuide />} />
           </Route>
 
           {/* Dealer Staff Routes - Protected */}
@@ -198,8 +201,8 @@ function AnimatedRoutes() {
             <Route path="color-management" element={<ColorManagementPage />} />
             <Route path="sales-report" element={<SalesReport />} />
             <Route path="profile" element={<CommonProfile />} />
-            <Route path="settings" element={<CommonSettings />} />
             <Route path="help" element={<CommonHelp />} />
+            <Route path="user-guide" element={<EVMStaffUserGuide />} />
           </Route>
           
           <Route path="*" element={
