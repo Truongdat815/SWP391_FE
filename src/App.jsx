@@ -31,6 +31,8 @@ import DealerManagerInventory from './pages/dealerManager/InventoryManagement'
 import DealerManagerSettings from './pages/dealerManager/DealerManagerSettings'
 import DealerManagerOrders from './pages/dealerManager/OrderManagement'
 import PromotionManagement from './pages/dealerManager/PromotionManagement'
+import DealerManagerUserGuide from './pages/dealerManager/UserGuide'
+import DealerManagerFAQ from './pages/dealerManager/FAQ'
 
 // Dealer Staff Sub Pages
 import DealerStaffDashboard from './pages/dealerStaff/DealerStaffDashboard'
@@ -178,6 +180,8 @@ function AnimatedRoutes() {
             <Route path="profile" element={<CommonProfile />} />
             <Route path="settings" element={<DealerManagerSettings />} />
             <Route path="help" element={<CommonHelp />} />
+            <Route path="user-guide" element={<DealerManagerUserGuide />} />
+            <Route path="faq" element={<DealerManagerFAQ />} />
           </Route>
 
           {/* EVM Staff Routes - Protected */}
