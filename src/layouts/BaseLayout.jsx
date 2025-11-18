@@ -836,8 +836,10 @@ const BaseLayout = ({
             </div>
             {/* Real-time Clock & User Profile */}
             <div className="flex items-center gap-3">
-              {/* Real-time Clock */}
-              <RealTimeClock roleKey={basePath.replace('/', '')} />
+              {/* Real-time Clock - Hidden for dealer-manager */}
+              {!basePath.includes('/dealer-manager') && (
+                <RealTimeClock roleKey={basePath.replace('/', '')} />
+              )}
               
               {/* Notification Bell */}
               <NotificationBell 

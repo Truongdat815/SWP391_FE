@@ -464,36 +464,56 @@ function PromotionManagement() {
         await Promise.all(updatePromises);
       } else {
         // Single promotion update
-        await dispatch(updatePromotionById({
+        const updateResult = await dispatch(updatePromotionById({
           promotionId: promotion.promotionId,
           promotionData: {
             ...promotion,
             active: newActiveStatus
           }
         })).unwrap();
+        
+        // Check if response has correct data
+        const updatedPromo = updateResult?.data || updateResult;
+        const responseHasCorrectData = updatedPromo && 
+          updatedPromo.promotionId && 
+          updatedPromo.active === newActiveStatus;
+        
+        if (responseHasCorrectData) {
+          // Response is correct, reducer should have updated state
+          // Clear optimistic update after a delay to let reducer update
+          setTimeout(() => {
+            setOptimisticUpdates(prev => {
+              const newUpdates = { ...prev };
+              promotionIdsToUpdate.forEach(id => {
+                delete newUpdates[id];
+              });
+              return newUpdates;
+            });
+          }, 200);
+          // Don't fetch - reducer has the correct state from response
+          return;
+        }
       }
       
-      // The reducer should have updated the state with the response
-      // Clear optimistic update after a short delay to let reducer update
-      // Only fetch if we need to refresh (e.g., for summary promotions)
-      setTimeout(() => {
-        // Clear optimistic update - reducer should have the correct state now
-        setOptimisticUpdates(prev => {
-          const newUpdates = { ...prev };
-          promotionIdsToUpdate.forEach(id => {
-            delete newUpdates[id];
+      // If we reach here, either it's a summary promotion or response didn't have correct data
+      // Fetch after a delay to sync with backend
+      setTimeout(async () => {
+        try {
+          await dispatch(fetchPromotions()).unwrap();
+          
+          // Clear optimistic update after fetch
+          setOptimisticUpdates(prev => {
+            const newUpdates = { ...prev };
+            promotionIdsToUpdate.forEach(id => {
+              delete newUpdates[id];
+            });
+            return newUpdates;
           });
-          return newUpdates;
-        });
-        
-        // Only fetch if it's a summary promotion to ensure all related promotions are synced
-        if ((promotion.modelId === 0 || promotion.modelId === null) && promotion.relatedPromotionIds && promotion.relatedPromotionIds.length > 0) {
-          // For summary promotions, fetch after a delay to ensure backend is synced
-          setTimeout(() => {
-            dispatch(fetchPromotions());
-          }, 300);
+        } catch (err) {
+          console.error('Failed to fetch promotions after update:', err);
+          // Keep optimistic update on error
         }
-      }, 100);
+      }, 3000); // Longer delay to ensure backend has fully processed
     } catch (error) {
       console.error('Failed to toggle promotion status:', error);
       showToastError('Không thể cập nhật trạng thái khuyến mãi');

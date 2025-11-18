@@ -36,6 +36,8 @@ function ProductManagement() {
   const [sortOrder, setSortOrder] = useState('asc');
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12; // 3 columns x 4 rows for cards, 12 rows for table
+  // Track selected color for each model: { modelId: colorId }
+  const [selectedColors, setSelectedColors] = useState({});
 
   const [formData, setFormData] = useState({
     modelId: '',
@@ -266,9 +268,24 @@ function ProductManagement() {
     return colors.find(c => c.colorId === colorId)?.colorCode || '#CCCCCC';
   };
 
-  // Enhanced filtering and sorting
-  const filteredAndSortedItems = useMemo(() => {
-    let filtered = modelColors.filter(item => {
+  // Group modelColors by modelId
+  const groupedByModel = useMemo(() => {
+    const grouped = {};
+    
+    modelColors.forEach(item => {
+      if (!grouped[item.modelId]) {
+        grouped[item.modelId] = [];
+      }
+      grouped[item.modelId].push(item);
+    });
+    
+    return grouped;
+  }, [modelColors]);
+
+  // Enhanced filtering and sorting - now returns grouped models
+  const filteredAndSortedModels = useMemo(() => {
+    // Get unique model IDs from filtered modelColors
+    let filteredModelColors = modelColors.filter(item => {
       const modelName = getModelName(item.modelId).toLowerCase();
       const colorName = getColorName(item.colorId).toLowerCase();
       const searchLower = searchTerm.toLowerCase();
@@ -284,22 +301,41 @@ function ProductManagement() {
       return matchesSearch && matchesModel && matchesColor;
     });
 
-    // Sort products
-    filtered.sort((a, b) => {
+    // Get unique model IDs
+    const uniqueModelIds = [...new Set(filteredModelColors.map(item => item.modelId))];
+    
+    // Create model groups with their colors
+    const modelGroups = uniqueModelIds.map(modelId => {
+      const modelColorsForModel = groupedByModel[modelId] || [];
+      return {
+        modelId,
+        modelName: getModelName(modelId),
+        modelDetails: getModelDetails(modelId),
+        colors: modelColorsForModel.map(mc => ({
+          ...mc,
+          colorName: getColorName(mc.colorId),
+          colorCode: getColorCode(mc.colorId)
+        }))
+      };
+    });
+
+    // Sort model groups
+    modelGroups.sort((a, b) => {
       let aVal, bVal;
       
       switch (sortBy) {
         case 'modelName':
-          aVal = getModelName(a.modelId).toLowerCase();
-          bVal = getModelName(b.modelId).toLowerCase();
+          aVal = a.modelName.toLowerCase();
+          bVal = b.modelName.toLowerCase();
           break;
         case 'colorName':
-          aVal = getColorName(a.colorId).toLowerCase();
-          bVal = getColorName(b.colorId).toLowerCase();
+          // Sort by first color name
+          aVal = a.colors[0]?.colorName?.toLowerCase() || '';
+          bVal = b.colors[0]?.colorName?.toLowerCase() || '';
           break;
         case 'hasImage':
-          aVal = a.imagePath ? 1 : 0;
-          bVal = b.imagePath ? 1 : 0;
+          aVal = a.colors.some(c => c.imagePath) ? 1 : 0;
+          bVal = b.colors.some(c => c.imagePath) ? 1 : 0;
           break;
         default:
           aVal = a[sortBy] || '';
@@ -312,16 +348,33 @@ function ProductManagement() {
       return aVal < bVal ? 1 : -1;
     });
 
-    return filtered;
-  }, [modelColors, searchTerm, filterModel, filterColor, sortBy, sortOrder, models, colors]);
+    return modelGroups;
+  }, [modelColors, searchTerm, filterModel, filterColor, sortBy, sortOrder, models, colors, groupedByModel]);
+
+  // Get selected color for a model, default to first color
+  const getSelectedColorForModel = (modelId, colors) => {
+    const selectedColorId = selectedColors[modelId];
+    if (selectedColorId && colors.find(c => c.colorId === selectedColorId)) {
+      return colors.find(c => c.colorId === selectedColorId);
+    }
+    return colors[0] || null;
+  };
+
+  // Handle color selection change
+  const handleColorChange = (modelId, colorId) => {
+    setSelectedColors(prev => ({
+      ...prev,
+      [modelId]: colorId
+    }));
+  };
 
   // Pagination
-  const totalPages = Math.ceil(filteredAndSortedItems.length / itemsPerPage);
-  const paginatedItems = useMemo(() => {
+  const totalPages = Math.ceil(filteredAndSortedModels.length / itemsPerPage);
+  const paginatedModels = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
-    return filteredAndSortedItems.slice(startIndex, endIndex);
-  }, [filteredAndSortedItems, currentPage, itemsPerPage]);
+    return filteredAndSortedModels.slice(startIndex, endIndex);
+  }, [filteredAndSortedModels, currentPage, itemsPerPage]);
 
   const handlePageChange = (page) => {
     setCurrentPage(page);
@@ -551,7 +604,7 @@ function ProductManagement() {
               </button>
             </div>
           </div>
-        ) : filteredAndSortedItems.length === 0 ? (
+        ) : filteredAndSortedModels.length === 0 ? (
           <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 p-4">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mb-4">
@@ -572,71 +625,93 @@ function ProductManagement() {
         ) : (
           <>
             {viewMode === 'cards' ? (
-              // Cards View
+              // Cards View - Grouped by Model
               <>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   <AnimatePresence>
-                    {paginatedItems.map((item, index) => (
-                    <motion.div
-                      key={item.modelColorId || `${item.modelId}-${item.colorId}-${index}`}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="group bg-white/90 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 hover:shadow-2xl transition-all duration-300 overflow-hidden"
-                    >
-                      {/* Card Image */}
-                      <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200">
-                        {item.imagePath ? (
-                          <img 
-                            src={item.imagePath} 
-                            alt={`${getModelName(item.modelId)} - ${getColorName(item.colorId)}`}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle"%3ENo Image%3C/text%3E%3C/svg%3E';
-                            }}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                            </svg>
-                          </div>
-                        )}
-                        
-                        {/* Color Badge */}
-                        <div className="absolute top-3 right-3">
-                          <div className="flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-3 py-1 shadow-md">
-                            <div 
-                              className="w-4 h-4 rounded-full border-2 border-white shadow"
-                              style={{ backgroundColor: getColorCode(item.colorId) }}
+                    {paginatedModels.map((modelGroup, index) => {
+                      const selectedColor = getSelectedColorForModel(modelGroup.modelId, modelGroup.colors);
+                      if (!selectedColor) return null;
+                      
+                      return (
+                      <motion.div
+                        key={modelGroup.modelId}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="group bg-white/90 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 hover:shadow-2xl transition-all duration-300 overflow-hidden"
+                      >
+                        {/* Card Image */}
+                        <div className="relative h-48 bg-gradient-to-br from-gray-100 to-gray-200">
+                          {selectedColor.imagePath ? (
+                            <img 
+                              src={selectedColor.imagePath} 
+                              alt={`${modelGroup.modelName} - ${selectedColor.colorName}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle"%3ENo Image%3C/text%3E%3C/svg%3E';
+                              }}
                             />
-                            <span className="text-sm font-medium text-gray-700">{getColorName(item.colorId)}</span>
+                          ) : (
+                            <div className="w-full h-full flex items-center justify-center">
+                              <svg className="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                              </svg>
+                            </div>
+                          )}
+                          
+                          {/* Color Selector Badge */}
+                          <div className="absolute top-3 right-3">
+                            <div className="bg-white/95 backdrop-blur-sm rounded-lg shadow-lg border border-gray-200 p-1.5">
+                              <select
+                                value={selectedColor.colorId}
+                                onChange={(e) => handleColorChange(modelGroup.modelId, parseInt(e.target.value))}
+                                className="text-xs font-semibold text-gray-800 bg-transparent border-none outline-none cursor-pointer pr-8 appearance-none"
+                                onClick={(e) => e.stopPropagation()}
+                                style={{ 
+                                  backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'/%3E%3C/svg%3E")`,
+                                  backgroundRepeat: 'no-repeat',
+                                  backgroundPosition: 'right 0.25rem center',
+                                  backgroundSize: '1rem'
+                                }}
+                              >
+                                {modelGroup.colors.map(color => (
+                                  <option key={color.colorId} value={color.colorId}>
+                                    {color.colorName}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Card Content */}
-                      <div className="p-4">
-                        <div className="mb-4">
-                          <h3 className="text-lg font-bold text-gray-900 mb-2">{getModelName(item.modelId)}</h3>
-                          <p className="text-sm text-gray-600">Màu {getColorName(item.colorId)}</p>
-                        </div>
+                        {/* Card Content */}
+                        <div className="p-4">
+                          <div className="mb-4">
+                            <h3 className="text-lg font-bold text-gray-900 mb-2">{modelGroup.modelName}</h3>
+                            <div className="flex items-center gap-2">
+                              <div 
+                                className="w-4 h-4 rounded-full border-2 border-gray-300 shadow-sm"
+                                style={{ backgroundColor: selectedColor.colorCode }}
+                              />
+                              <p className="text-sm text-gray-600">Màu {selectedColor.colorName}</p>
+                              <span className="text-xs text-gray-400">({modelGroup.colors.length} màu)</span>
+                            </div>
+                          </div>
 
-                        {/* Model Details */}
-                        {(() => {
-                          const modelDetails = getModelDetails(item.modelId);
-                          return modelDetails ? (
+                          {/* Model Details */}
+                          {modelGroup.modelDetails ? (
                             <div className="mb-4 space-y-3">
                               {/* Price & Year */}
                               <div className="flex items-center justify-between p-3 bg-gradient-to-r from-emerald-50 to-teal-50 rounded-lg">
                                 <div>
                                   <p className="text-xs text-gray-600">Giá bán</p>
-                                  <p className="text-lg font-bold text-emerald-600">{item.price?.toLocaleString('vi-VN') || 'N/A'} VNĐ</p>
+                                  <p className="text-lg font-bold text-emerald-600">{selectedColor.price?.toLocaleString('vi-VN') || 'N/A'} VNĐ</p>
                                 </div>
                                 <div className="text-right">
                                   <p className="text-xs text-gray-600">Năm</p>
-                                  <p className="text-lg font-bold text-gray-700">{modelDetails.modelYear}</p>
+                                  <p className="text-lg font-bold text-gray-700">{modelGroup.modelDetails.modelYear}</p>
                                 </div>
                               </div>
 
@@ -649,7 +724,7 @@ function ProductManagement() {
                                     </svg>
                                     <span>Pin</span>
                                   </div>
-                                  <p className="font-semibold text-gray-900">{modelDetails.batteryCapacity} kWh</p>
+                                  <p className="font-semibold text-gray-900">{modelGroup.modelDetails.batteryCapacity} kWh</p>
                                 </div>
                                 <div className="p-2 bg-gray-50 rounded-lg">
                                   <div className="flex items-center gap-1 text-gray-600 mb-1">
@@ -658,7 +733,7 @@ function ProductManagement() {
                                     </svg>
                                     <span>Tầm xa</span>
                                   </div>
-                                  <p className="font-semibold text-gray-900">{modelDetails.range} km</p>
+                                  <p className="font-semibold text-gray-900">{modelGroup.modelDetails.range} km</p>
                                 </div>
                                 <div className="p-2 bg-gray-50 rounded-lg">
                                   <div className="flex items-center gap-1 text-gray-600 mb-1">
@@ -667,7 +742,7 @@ function ProductManagement() {
                                     </svg>
                                     <span>Công suất</span>
                                   </div>
-                                  <p className="font-semibold text-gray-900">{modelDetails.powerHp} HP</p>
+                                  <p className="font-semibold text-gray-900">{modelGroup.modelDetails.powerHp} HP</p>
                                 </div>
                                 <div className="p-2 bg-gray-50 rounded-lg">
                                   <div className="flex items-center gap-1 text-gray-600 mb-1">
@@ -676,191 +751,211 @@ function ProductManagement() {
                                     </svg>
                                     <span>0-100</span>
                                   </div>
-                                  <p className="font-semibold text-gray-900">{modelDetails.acceleration}s</p>
+                                  <p className="font-semibold text-gray-900">{modelGroup.modelDetails.acceleration}s</p>
                                 </div>
                               </div>
 
                               {/* Body Type Badge */}
                               <div className="flex items-center gap-2">
                                 <span className="px-3 py-1 bg-blue-100 text-blue-700 text-xs font-medium rounded-full">
-                                  {modelDetails.bodyType}
+                                  {modelGroup.modelDetails.bodyType}
                                 </span>
                                 <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-medium rounded-full">
-                                  {modelDetails.seatingCapacity} chỗ
+                                  {modelGroup.modelDetails.seatingCapacity} chỗ
                                 </span>
                               </div>
                             </div>
-                          ) : null;
-                        })()}
+                          ) : null}
 
-                        {/* Actions */}
-                        <div className="flex gap-3">
-                          <button
-                            onClick={() => handleOpenEdit(item)}
-                            className="flex-1 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors flex items-center justify-center gap-2"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                            Sửa
-                          </button>
-                          <button
-                            onClick={() => handleDelete(item)}
-                            className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                          </button>
+                          {/* Actions */}
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => handleOpenEdit(selectedColor)}
+                              className="flex-1 px-4 py-2 bg-emerald-100 text-emerald-700 rounded-lg hover:bg-emerald-200 transition-colors flex items-center justify-center gap-2"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                              </svg>
+                              Sửa
+                            </button>
+                            <button
+                              onClick={() => handleDelete(selectedColor)}
+                              className="px-4 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 transition-colors"
+                            >
+                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
+                      </motion.div>
+                      );
+                    })}
+                  </AnimatePresence>
+                </div>
 
-              {/* Pagination for Cards View */}
-              <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={handlePageChange}
-                itemsPerPage={itemsPerPage}
-                totalItems={filteredAndSortedItems.length}
-                showInfo={true}
-              />
-            </>
+                {/* Pagination for Cards View */}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={handlePageChange}
+                  itemsPerPage={itemsPerPage}
+                  totalItems={filteredAndSortedModels.length}
+                  showInfo={true}
+                />
+              </>
             ) : (
-              // Table View
+              // Table View - Grouped by Model
               <>
                 <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50/80 border-b border-gray-200">
                       <tr>
-                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Xe & Màu sắc</th>
-                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Thông số</th>
-                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Giá & Năm</th>
-                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Hình ảnh</th>
-                        <th className="px-3 py-2.5 text-right text-sm font-semibold text-gray-700">Thao tác</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Xe</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Chọn màu</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Thông số</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Giá & Năm</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Hình ảnh</th>
+                        <th className="px-6 py-4 text-right text-sm font-bold text-gray-700 uppercase tracking-wider">Thao tác</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="divide-y divide-gray-200">
                       <AnimatePresence>
-                        {paginatedItems.map((item, index) => {
-                          const modelDetails = getModelDetails(item.modelId);
+                        {paginatedModels.map((modelGroup, index) => {
+                          const selectedColor = getSelectedColorForModel(modelGroup.modelId, modelGroup.colors);
+                          if (!selectedColor) return null;
+                          
                           return (
                             <motion.tr 
-                              key={item.modelColorId || `${item.modelId}-${item.colorId}-${index}`}
+                              key={modelGroup.modelId}
                               initial={{ opacity: 0 }}
                               animate={{ opacity: 1 }}
                               exit={{ opacity: 0 }}
                               className="hover:bg-emerald-50/50 transition-colors"
                             >
-                              <td className="px-3 py-2.5">
+                              <td className="px-6 py-4 whitespace-nowrap">
                                 <div className="space-y-2">
-                                  <div className="font-semibold text-gray-900">{getModelName(item.modelId)}</div>
-                                  <div className="flex items-center gap-3">
-                                    <div 
-                                      className="w-6 h-6 rounded-full border-2 border-gray-300 shadow-sm"
-                                      style={{ backgroundColor: getColorCode(item.colorId) }}
-                                    />
-                                    <span className="text-sm text-gray-600">{getColorName(item.colorId)}</span>
-                                  </div>
-                                  {modelDetails && (
-                                    <div className="flex items-center gap-2 mt-1">
+                                  <div className="font-semibold text-gray-900">{modelGroup.modelName}</div>
+                                  {modelGroup.modelDetails && (
+                                    <div className="flex items-center gap-2">
                                       <span className="px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
-                                        {modelDetails.bodyType}
+                                        {modelGroup.modelDetails.bodyType}
                                       </span>
                                       <span className="px-2 py-0.5 bg-gray-100 text-gray-700 text-xs font-medium rounded">
-                                        {modelDetails.seatingCapacity} chỗ
+                                        {modelGroup.modelDetails.seatingCapacity} chỗ
                                       </span>
                                     </div>
                                   )}
+                                  <div className="text-xs text-gray-500">
+                                    {modelGroup.colors.length} màu sắc
+                                  </div>
                                 </div>
                               </td>
-                              <td className="px-3 py-2.5">
-                                {modelDetails ? (
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <select
+                                  value={selectedColor.colorId}
+                                  onChange={(e) => handleColorChange(modelGroup.modelId, parseInt(e.target.value))}
+                                  className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 bg-white text-sm"
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  {modelGroup.colors.map(color => (
+                                    <option key={color.colorId} value={color.colorId}>
+                                      {color.colorName}
+                                    </option>
+                                  ))}
+                                </select>
+                                <div className="flex items-center gap-2 mt-2">
+                                  <div 
+                                    className="w-5 h-5 rounded-full border-2 border-gray-300 shadow-sm"
+                                    style={{ backgroundColor: selectedColor.colorCode }}
+                                  />
+                                  <span className="text-sm text-gray-600">{selectedColor.colorName}</span>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4">
+                                {modelGroup.modelDetails ? (
                                   <div className="space-y-1 text-sm">
                                     <div className="flex items-center gap-2">
                                       <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                       </svg>
                                       <span className="text-gray-600">Pin:</span>
-                                      <span className="font-medium text-gray-900">{modelDetails.batteryCapacity} kWh</span>
+                                      <span className="font-medium text-gray-900">{modelGroup.modelDetails.batteryCapacity} kWh</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                                       </svg>
                                       <span className="text-gray-600">Tầm:</span>
-                                      <span className="font-medium text-gray-900">{modelDetails.range} km</span>
+                                      <span className="font-medium text-gray-900">{modelGroup.modelDetails.range} km</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                                       </svg>
                                       <span className="text-gray-600">CS:</span>
-                                      <span className="font-medium text-gray-900">{modelDetails.powerHp} HP</span>
+                                      <span className="font-medium text-gray-900">{modelGroup.modelDetails.powerHp} HP</span>
                                     </div>
                                     <div className="flex items-center gap-2">
                                       <svg className="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                       </svg>
                                       <span className="text-gray-600">0-100:</span>
-                                      <span className="font-medium text-gray-900">{modelDetails.acceleration}s</span>
+                                      <span className="font-medium text-gray-900">{modelGroup.modelDetails.acceleration}s</span>
                                     </div>
                                   </div>
                                 ) : (
                                   <span className="text-gray-400 text-sm">Chưa có dữ liệu</span>
                                 )}
                               </td>
-                              <td className="px-3 py-2.5">
-                                {modelDetails ? (
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                {modelGroup.modelDetails ? (
                                   <div className="space-y-1">
                                     <div className="text-lg font-bold text-emerald-600">
-                                      {item.price?.toLocaleString('vi-VN') || 'N/A'} VNĐ
+                                      {selectedColor.price?.toLocaleString('vi-VN') || 'N/A'} VNĐ
                                     </div>
                                     <div className="text-sm text-gray-600">
-                                      Năm {modelDetails.modelYear}
+                                      Năm {modelGroup.modelDetails.modelYear}
                                     </div>
                                   </div>
                                 ) : (
                                   <span className="text-gray-400 text-sm">N/A</span>
                                 )}
                               </td>
-                              <td className="px-3 py-2.5">
-                                {item.imagePath ? (
-                                  <div className="flex items-center gap-3">
-                                    <div className="w-16 h-16 bg-gray-100 rounded-lg overflow-hidden">
-                                      <img 
-                                        src={item.imagePath} 
-                                        alt={`${getModelName(item.modelId)} - ${getColorName(item.colorId)}`}
-                                        className="w-full h-full object-cover"
-                                        onError={(e) => {
-                                          e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle"%3ENo Image%3C/text%3E%3C/svg%3E';
-                                        }}
-                                      />
-                                    </div>
+                              <td className="px-6 py-4">
+                                {selectedColor.imagePath ? (
+                                  <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
+                                    <img 
+                                      src={selectedColor.imagePath} 
+                                      alt={`${modelGroup.modelName} - ${selectedColor.colorName}`}
+                                      className="w-full h-full object-cover"
+                                      onError={(e) => {
+                                        e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="100" height="100"%3E%3Crect fill="%23ddd" width="100" height="100"/%3E%3Ctext fill="%23999" x="50%25" y="50%25" dominant-baseline="middle" text-anchor="middle"%3ENo Image%3C/text%3E%3C/svg%3E';
+                                      }}
+                                    />
                                   </div>
                                 ) : (
                                   <span className="text-gray-400 text-sm">Chưa có hình ảnh</span>
                                 )}
                               </td>
-                              <td className="px-3 py-2.5 text-right">
-                                <div className="flex items-center justify-end gap-3">
+                              <td className="px-6 py-4 whitespace-nowrap text-right">
+                                <div className="flex items-center justify-end gap-2">
                                   <button
-                                    onClick={() => handleOpenEdit(item)}
+                                    onClick={() => handleOpenEdit(selectedColor)}
                                     className="p-2 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
+                                    title="Chỉnh sửa"
                                   >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                     </svg>
                                   </button>
                                   <button
-                                    onClick={() => handleDelete(item)}
+                                    onClick={() => handleDelete(selectedColor)}
                                     className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                    title="Xóa"
                                   >
-                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                     </svg>
                                   </button>
@@ -881,7 +976,7 @@ function ProductManagement() {
                 totalPages={totalPages}
                 onPageChange={handlePageChange}
                 itemsPerPage={itemsPerPage}
-                totalItems={filteredAndSortedItems.length}
+                totalItems={filteredAndSortedModels.length}
                 showInfo={true}
               />
             </>
@@ -890,7 +985,7 @@ function ProductManagement() {
         )}
 
         {/* Results Summary */}
-        {filteredAndSortedItems.length > 0 && (
+        {filteredAndSortedModels.length > 0 && (
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -901,7 +996,7 @@ function ProductManagement() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
               <span className="text-sm text-gray-600">
-                Hiển thị <span className="font-semibold text-emerald-600">{filteredAndSortedItems.length}</span> trong tổng số <span className="font-semibold">{modelColors.length}</span> sản phẩm
+                Hiển thị <span className="font-semibold text-emerald-600">{filteredAndSortedModels.length}</span> mẫu xe trong tổng số <span className="font-semibold">{modelColors.length}</span> sản phẩm
               </span>
             </div>
           </motion.div>

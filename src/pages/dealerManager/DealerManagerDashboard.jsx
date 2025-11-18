@@ -274,15 +274,6 @@ const DealerManagerDashboard = () => {
     <div className="px-4 py-3 space-y-4">
       {/* Header */}
       <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">📊 Tổng quan đại lý</h2>
-          <p className="text-gray-600 mt-0.5 text-sm">
-            {selectedStaffId === 'all' 
-              ? 'Thống kê và phân tích dữ liệu đại lý (Tất cả nhân viên)'
-              : `Thống kê và phân tích dữ liệu của ${staffList.find(s => String(s.userId || s.id || s.user_id) === String(selectedStaffId))?.fullName || staffList.find(s => String(s.userId || s.id || s.user_id) === String(selectedStaffId))?.name || 'Nhân viên'}`
-            }
-          </p>
-        </div>
         <div className="flex items-center gap-3">
           {/* Staff Filter Dropdown */}
           <div className="relative">

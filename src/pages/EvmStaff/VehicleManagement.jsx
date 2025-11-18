@@ -40,7 +40,7 @@ function VehicleManagement() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingModel, setEditingModel] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState('cards'); // 'cards' or 'table'
+  const [viewMode, setViewMode] = useState('table'); // 'cards' or 'table'
   const [sortBy, setSortBy] = useState('modelName');
   const [sortOrder, setSortOrder] = useState('asc');
   const [filterBodyType, setFilterBodyType] = useState('');
@@ -518,22 +518,25 @@ function VehicleManagement() {
             ) : (
               // Table View
               <>
-                <div className="bg-white/80 backdrop-blur-lg rounded-2xl shadow-md border border-white/20 overflow-hidden">
+                <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
-                    <thead className="bg-gray-50/80 border-b border-gray-200">
+                    <thead className="bg-gradient-to-r from-emerald-50 to-teal-50 border-b-2 border-emerald-200">
                       <tr>
-                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Tên xe</th>
-                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Năm</th>
-                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Loại</th>
-                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Pin (kWh)</th>
-                        <th className="px-3 py-2.5 text-left text-sm font-semibold text-gray-700">Tầm xa (km)</th>
-                        <th className="px-3 py-2.5 text-right text-sm font-semibold text-gray-700">Thao tác</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Tên xe</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Năm</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Loại</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Pin (kWh)</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Tầm xa (km)</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Công suất (HP)</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Tăng tốc (s)</th>
+                        <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 uppercase tracking-wider">Chỗ ngồi</th>
+                        <th className="px-6 py-4 text-right text-sm font-bold text-gray-700 uppercase tracking-wider">Thao tác</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-100">
+                    <tbody className="bg-white divide-y divide-gray-200">
                       <AnimatePresence>
-                        {filteredAndSortedModels.map((model) => (
+                        {paginatedModels.map((model) => (
                           <motion.tr 
                             key={model.modelId}
                             initial={{ opacity: 0 }}
@@ -541,32 +544,37 @@ function VehicleManagement() {
                             exit={{ opacity: 0 }}
                             className="hover:bg-emerald-50/50 transition-colors"
                           >
-                            <td className="px-3 py-2.5">
-                              <div className="font-semibold text-gray-900">{model.modelName}</div>
+                            <td className="px-6 py-4 whitespace-nowrap">
+                              <div className="font-semibold text-gray-900">{model.modelName || 'N/A'}</div>
                             </td>
-                            <td className="px-3 py-2.5 text-gray-600">{model.modelYear}</td>
-                            <td className="px-3 py-2.5">
+                            <td className="px-6 py-4 whitespace-nowrap text-gray-600">{model.modelYear || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap">
                               <span className="px-3 py-1 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
-                                {BODY_TYPES.find(t => t.value === model.bodyType)?.label || model.bodyType}
+                                {BODY_TYPES.find(t => t.value === model.bodyType)?.label || model.bodyType || 'N/A'}
                               </span>
                             </td>
-                            <td className="px-3 py-2.5 text-gray-600">{model.batteryCapacity}</td>
-                            <td className="px-3 py-2.5 text-gray-600">{model.range}</td>
-                            <td className="px-3 py-2.5 text-right">
-                              <div className="flex items-center justify-end gap-3">
+                            <td className="px-6 py-4 whitespace-nowrap text-gray-600">{model.batteryCapacity || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-gray-600">{model.range || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-gray-600">{model.powerHp || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-gray-600">{model.acceleration || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-gray-600">{model.seatingCapacity || 'N/A'}</td>
+                            <td className="px-6 py-4 whitespace-nowrap text-right">
+                              <div className="flex items-center justify-end gap-2">
                                 <button
                                   onClick={() => handleOpenEdit(model)}
                                   className="p-2 text-emerald-600 hover:bg-emerald-100 rounded-lg transition-colors"
+                                  title="Chỉnh sửa"
                                 >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                   </svg>
                                 </button>
                                 <button
                                   onClick={() => handleDelete(model)}
                                   className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
+                                  title="Xóa"
                                 >
-                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                                   </svg>
                                 </button>
