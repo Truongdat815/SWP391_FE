@@ -322,9 +322,24 @@ function TestDriveSchedule({ onBack }) {
         }
       }
 
+      // Backend sử dụng LocalDateTime.now() để so sánh
+      // Khi gửi toISOString(), thời gian bị convert sang UTC, backend parse có thể sai
+      // Giải pháp: Gửi thời gian theo local time format (không có timezone) để backend parse đúng như local time
+      const formatDateTimeForBackend = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        // Format: "yyyy-MM-ddTHH:mm:ss" (local time, không có timezone)
+        // Backend sẽ parse như local server time và so sánh với LocalDateTime.now()
+        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+      };
+
       const payload = {
-        startTime: startDateTime.toISOString(),
-        endTime: endDateTime.toISOString(),
+        startTime: formatDateTimeForBackend(startDateTime),
+        endTime: formatDateTimeForBackend(endDateTime),
         status: 'IN_PROGRESS',
         modelId: selectedModel.modelId,
         customerId: selectedCustomer.customerId,
@@ -436,9 +451,20 @@ function TestDriveSchedule({ onBack }) {
         }
       }
 
+      // Sử dụng cùng format cho edit - gửi local time format
+      const formatDateTimeForBackend = (date) => {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+        const seconds = String(date.getSeconds()).padStart(2, '0');
+        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
+      };
+
       const payload = {
-        startTime: startDateTime.toISOString(),
-        endTime: endDateTime.toISOString(),
+        startTime: formatDateTimeForBackend(startDateTime),
+        endTime: formatDateTimeForBackend(endDateTime),
         status: selectedAppointment.status,
         modelId: selectedModel.modelId,
         customerId: selectedCustomer.customerId,
@@ -711,9 +737,9 @@ function TestDriveSchedule({ onBack }) {
 
         {/* Filters */}
         <div className="mb-4 space-y-3 sm:space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
             <div className="flex flex-col gap-1.5 sm:gap-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap min-w-[100px]">Lọc theo ngày:</label>
+              <label className="text-xs sm:text-sm font-medium text-gray-700">Lọc theo ngày:</label>
               <input
                 type="date"
                 value={selectedDate}
@@ -723,7 +749,7 @@ function TestDriveSchedule({ onBack }) {
             </div>
 
             <div className="flex flex-col gap-1.5 sm:gap-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap min-w-[100px]">Trạng thái:</label>
+              <label className="text-xs sm:text-sm font-medium text-gray-700">Trạng thái:</label>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
@@ -737,7 +763,7 @@ function TestDriveSchedule({ onBack }) {
             </div>
 
             <div className="flex flex-col gap-1.5 sm:gap-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap min-w-[100px]">Model ID:</label>
+              <label className="text-xs sm:text-sm font-medium text-gray-700">Model ID:</label>
               <input
                 type="number"
                 value={filterModelId}
@@ -748,7 +774,7 @@ function TestDriveSchedule({ onBack }) {
             </div>
 
             <div className="flex flex-col gap-1.5 sm:gap-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap min-w-[100px]">Customer ID:</label>
+              <label className="text-xs sm:text-sm font-medium text-gray-700">Customer ID:</label>
               <input
                 type="number"
                 value={filterCustomerId}
@@ -759,7 +785,7 @@ function TestDriveSchedule({ onBack }) {
             </div>
 
             {(selectedDate || filterStatus || filterModelId || filterCustomerId) && (
-              <div className="flex items-end sm:col-span-1 xl:col-span-1">
+              <div className="flex items-end sm:col-span-2 md:col-span-2 lg:col-span-1 xl:col-span-1">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -769,7 +795,7 @@ function TestDriveSchedule({ onBack }) {
                     setFilterModelId('');
                     setFilterCustomerId('');
                   }}
-                  className="w-full sm:w-auto text-xs sm:text-sm text-emerald-600 hover:text-emerald-700 font-medium px-3 py-1.5 sm:py-2 border border-emerald-300 rounded-lg hover:bg-emerald-50 transition-colors whitespace-nowrap"
+                  className="w-full text-xs sm:text-sm text-emerald-600 hover:text-emerald-700 font-medium px-3 py-1.5 sm:py-2 border border-emerald-300 rounded-lg hover:bg-emerald-50 transition-colors"
                 >
                   Xóa tất cả bộ lọc
                 </motion.button>
@@ -812,23 +838,24 @@ function TestDriveSchedule({ onBack }) {
         ) : (
           <>
             {/* Desktop Table View */}
-            <div className="hidden lg:block overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
+            <div className="hidden lg:block overflow-x-auto -mx-2 sm:mx-0">
+              <div className="inline-block min-w-full align-middle">
+                <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px] sm:min-w-[160px]">
                       Thời gian
                     </th>
-                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px] sm:min-w-[150px]">
                       Khách hàng
                     </th>
-                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px] sm:min-w-[150px]">
                       Xe
                     </th>
-                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px] sm:min-w-[120px]">
                       Trạng thái
                     </th>
-                    <th className="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[280px] sm:min-w-[320px]">
                       Thao tác
                     </th>
                   </tr>
@@ -842,27 +869,27 @@ function TestDriveSchedule({ onBack }) {
                       exit={{ opacity: 0 }}
                       whileHover={{ backgroundColor: '#f9fafb' }}
                     >
-                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm font-medium text-gray-900">
+                      <td className="px-3 sm:px-4 lg:px-6 py-4 min-w-[140px] sm:min-w-[160px]">
+                        <div className="text-sm font-medium text-gray-900 break-words">
                           {formatDateTime(appointment.startTime)}
                         </div>
                       </td>
-                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{getCustomerName(appointment.customerId)}</div>
+                      <td className="px-3 sm:px-4 lg:px-6 py-4 min-w-[120px] sm:min-w-[150px]">
+                        <div className="text-sm text-gray-900 break-words">{getCustomerName(appointment.customerId)}</div>
                       </td>
-                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{getModelName(appointment.modelId)}</div>
+                      <td className="px-3 sm:px-4 lg:px-6 py-4 min-w-[120px] sm:min-w-[150px]">
+                        <div className="text-sm text-gray-900 break-words">{getModelName(appointment.modelId)}</div>
                       </td>
-                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
-                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(appointment.status)}`}>
+                      <td className="px-3 sm:px-4 lg:px-6 py-4 min-w-[100px] sm:min-w-[120px]">
+                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(appointment.status)}`}>
                           {getStatusText(appointment.status)}
                         </span>
                       </td>
-                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end gap-2 flex-wrap items-center">
+                      <td className="px-4 lg:px-6 py-4 text-right text-sm font-medium">
+                        <div className="flex justify-end gap-1.5 sm:gap-2 flex-wrap items-center">
                           {/* Dropdown để chọn trạng thái mới */}
                           {appointment.status?.toUpperCase() !== 'COMPLETED' && (
-                            <div className="relative">
+                            <div className="relative min-w-[120px] sm:min-w-[140px]">
                               <select
                                 value={appointment.status || ''}
                                 onChange={(e) => {
@@ -870,7 +897,7 @@ function TestDriveSchedule({ onBack }) {
                                     handleUpdateStatus(appointment, e.target.value);
                                   }
                                 }}
-                                className="px-2 lg:px-3 py-1 lg:py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow hover:shadow-md transition-all text-xs whitespace-nowrap cursor-pointer border-0 focus:ring-2 focus:ring-emerald-500 appearance-none pr-8"
+                                className="w-full px-2 lg:px-3 py-1 lg:py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow hover:shadow-md transition-all text-xs cursor-pointer border-0 focus:ring-2 focus:ring-emerald-500 appearance-none pr-6 sm:pr-8"
                               >
                                 <option value={appointment.status || ''} disabled>
                                   Đổi trạng thái
@@ -883,8 +910,8 @@ function TestDriveSchedule({ onBack }) {
                                     </option>
                                   ))}
                               </select>
-                              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                                <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1.5 sm:pr-2">
+                                <svg className="h-3 w-3 sm:h-4 sm:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                                 </svg>
                               </div>
@@ -896,7 +923,7 @@ function TestDriveSchedule({ onBack }) {
                                 whileHover={{ scale: 1.05, y: -1 }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => openEditModal(appointment)}
-                                className="px-2 lg:px-3 py-1 lg:py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow hover:shadow-md transition-all text-xs whitespace-nowrap"
+                                className="px-2 lg:px-3 py-1 lg:py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow hover:shadow-md transition-all text-xs whitespace-nowrap flex-shrink-0"
                               >
                                 Sửa
                               </motion.button>
@@ -904,7 +931,7 @@ function TestDriveSchedule({ onBack }) {
                                 whileHover={{ scale: 1.05, y: -1 }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => openDeleteModal(appointment)}
-                                className="px-2 lg:px-3 py-1 lg:py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow hover:shadow-md transition-all text-xs whitespace-nowrap"
+                                className="px-2 lg:px-3 py-1 lg:py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow hover:shadow-md transition-all text-xs whitespace-nowrap flex-shrink-0"
                               >
                                 Xóa
                               </motion.button>
@@ -916,46 +943,47 @@ function TestDriveSchedule({ onBack }) {
                   ))}
                 </tbody>
               </table>
+              </div>
             </div>
 
             {/* Mobile Card View */}
-            <div className="lg:hidden space-y-3">
+            <div className="lg:hidden space-y-3 sm:space-y-4">
               {filteredAppointments.map((appointment) => (
                 <motion.div
                   key={appointment.appointmentId}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm"
+                  className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm"
                 >
                   <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="text-sm font-semibold text-gray-900 mb-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm sm:text-base font-semibold text-gray-900 mb-1.5 break-words">
                           {formatDateTime(appointment.startTime)}
                         </div>
-                        <div className="text-xs text-gray-500">
-                          <span className={`px-2 py-0.5 inline-flex text-xs leading-4 font-semibold rounded-full ${getStatusColor(appointment.status)}`}>
+                        <div className="text-xs sm:text-sm">
+                          <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${getStatusColor(appointment.status)}`}>
                             {getStatusText(appointment.status)}
                           </span>
                         </div>
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
-                      <div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+                      <div className="min-w-0">
                         <p className="text-xs text-gray-500 mb-1">Khách hàng</p>
-                        <p className="text-sm font-medium text-gray-900">{getCustomerName(appointment.customerId)}</p>
+                        <p className="text-sm font-medium text-gray-900 break-words">{getCustomerName(appointment.customerId)}</p>
                       </div>
-                      <div>
+                      <div className="min-w-0">
                         <p className="text-xs text-gray-500 mb-1">Xe</p>
-                        <p className="text-sm font-medium text-gray-900">{getModelName(appointment.modelId)}</p>
+                        <p className="text-sm font-medium text-gray-900 break-words">{getModelName(appointment.modelId)}</p>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+                    <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-gray-100">
                       {/* Dropdown để chọn trạng thái mới */}
                       {appointment.status?.toUpperCase() !== 'COMPLETED' && (
-                        <div className="relative w-full">
+                        <div className="relative w-full sm:flex-1">
                           <select
                             value={appointment.status || ''}
                             onChange={(e) => {
@@ -963,7 +991,7 @@ function TestDriveSchedule({ onBack }) {
                                 handleUpdateStatus(appointment, e.target.value);
                               }
                             }}
-                            className="w-full px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow transition-all text-xs font-medium cursor-pointer border-0 focus:ring-2 focus:ring-emerald-500 appearance-none pr-8"
+                            className="w-full px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow transition-all text-xs sm:text-sm font-medium cursor-pointer border-0 focus:ring-2 focus:ring-emerald-500 appearance-none pr-8"
                           >
                             <option value={appointment.status || ''} disabled>
                               Đổi trạng thái
@@ -984,12 +1012,12 @@ function TestDriveSchedule({ onBack }) {
                         </div>
                       )}
                       {appointment.status?.toUpperCase() !== 'COMPLETED' && (
-                        <>
+                        <div className="flex gap-2 sm:flex-shrink-0">
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => openEditModal(appointment)}
-                            className="flex-1 min-w-[80px] px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow transition-all text-xs font-medium"
+                            className="flex-1 sm:flex-none sm:min-w-[80px] px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow transition-all text-xs sm:text-sm font-medium"
                           >
                             Sửa
                           </motion.button>
@@ -997,11 +1025,11 @@ function TestDriveSchedule({ onBack }) {
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => openDeleteModal(appointment)}
-                            className="flex-1 min-w-[80px] px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow transition-all text-xs font-medium"
+                            className="flex-1 sm:flex-none sm:min-w-[80px] px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow transition-all text-xs sm:text-sm font-medium"
                           >
                             Xóa
                           </motion.button>
-                        </>
+                        </div>
                       )}
                     </div>
                   </div>

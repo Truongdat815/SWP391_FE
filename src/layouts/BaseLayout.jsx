@@ -824,21 +824,25 @@ const BaseLayout = ({
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar */}
-        <div className="bg-white shadow-sm border-b border-gray-200 px-6 py-4 w-full min-h-[73px] flex items-center">
-          <div className="flex items-center justify-between w-full">
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">
+        <div className="bg-white shadow-sm border-b border-gray-200 px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4 w-full min-h-[73px] flex items-center">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between w-full gap-3 sm:gap-4">
+            <div className="min-w-0 flex-1">
+              <h2 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 truncate">
                 {currentMenu?.name || pageTitles[location.pathname] || defaultTitle}
               </h2>
               {pageSubtitles[location.pathname] && (
-                <p className="text-gray-600 text-sm mt-1">{pageSubtitles[location.pathname]}</p>
+                <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-1 line-clamp-1 sm:line-clamp-none">
+                  {pageSubtitles[location.pathname]}
+                </p>
               )}
             </div>
             {/* Real-time Clock & User Profile */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
               {/* Real-time Clock - Hidden for dealer-manager */}
               {!basePath.includes('/dealer-manager') && (
-                <RealTimeClock roleKey={basePath.replace('/', '')} />
+                <div className="hidden sm:block">
+                  <RealTimeClock roleKey={basePath.replace('/', '')} />
+                </div>
               )}
               
               {/* Notification Bell */}
@@ -852,17 +856,17 @@ const BaseLayout = ({
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-                  className="flex items-center space-x-3 p-2 rounded-lg hover:bg-gray-100 transition-colors active:scale-[0.98]"
+                  className="flex items-center space-x-2 sm:space-x-3 p-1.5 sm:p-2 rounded-lg hover:bg-gray-100 transition-colors active:scale-[0.98]"
                 >
-                  <div className={`h-8 w-8 ${colorClasses.avatarGradient} rounded-full flex items-center justify-center shadow-md`}>
-                    <span className="text-white font-bold text-sm">{userInfo.initials}</span>
+                  <div className={`h-7 w-7 sm:h-8 sm:w-8 ${colorClasses.avatarGradient} rounded-full flex items-center justify-center shadow-md flex-shrink-0`}>
+                    <span className="text-white font-bold text-xs sm:text-sm">{userInfo.initials}</span>
                   </div>
-                   <div className="text-left hidden sm:block">
-                     <p className="text-sm font-medium text-gray-900">{userInfo.name}</p>
-                     <p className="text-xs text-gray-500">{userInfo.role}</p>
+                   <div className="text-left hidden lg:block">
+                     <p className="text-sm font-medium text-gray-900 truncate max-w-[120px]">{userInfo.name}</p>
+                     <p className="text-xs text-gray-500 truncate max-w-[120px]">{userInfo.role}</p>
                    </div>
                   <svg 
-                    className={`h-4 w-4 text-gray-400 transition-transform duration-200 ${
+                    className={`h-4 w-4 text-gray-400 transition-transform duration-200 flex-shrink-0 ${
                       isDropdownOpen ? 'rotate-180' : ''
                     }`} 
                     fill="none" 
@@ -960,8 +964,8 @@ const BaseLayout = ({
         </div>
 
         {/* Routed Content */}
-        <div className="flex-1 py-6 px-4 sm:px-6 lg:px-8 overflow-auto w-full">
-          <div className="max-w-7xl mx-auto">
+        <div className="flex-1 py-4 sm:py-5 md:py-6 px-2 sm:px-4 md:px-6 lg:px-8 overflow-auto w-full">
+          <div className="max-w-7xl mx-auto w-full">
             <div className="relative min-h-[500px]">
               <AnimatePresence initial={false}>
                 <motion.div
