@@ -180,12 +180,6 @@ function DealerOrderManagement() {
 
   // Handle accept transaction
   const handleAccept = async (order) => {
-    const confirmed = await showConfirm({
-      message: `Bạn có chắc chắn muốn chấp nhận đơn hàng #${order.inventoryId || order.id}?`,
-      type: 'info'
-    });
-    if (!confirmed) return;
-
     try {
       await dispatch(acceptTransactionThunk(order.inventoryId || order.id)).unwrap();
       dispatch(showSuccess({ message: '✅ Đã chấp nhận đơn hàng!' }));
@@ -214,11 +208,7 @@ function DealerOrderManagement() {
 
   // Handle start shipping
   const handleStartShipping = async (order) => {
-    const confirmed = await showConfirm({
-      message: `Xác nhận bắt đầu vận chuyển đơn hàng #${order.inventoryId || order.id}?`,
-      type: 'info'
-    });
-    if (!confirmed) return;
+   
 
     try {
       await dispatch(startShippingTransactionThunk(order.inventoryId || order.id)).unwrap();
@@ -231,13 +221,7 @@ function DealerOrderManagement() {
 
   // Handle confirm payment
   const handleConfirmPayment = async (transaction) => {
-    const confirmed = await showConfirm({
-      message: `Bạn có chắc chắn muốn xác nhận thanh toán cho đơn hàng #${transaction.inventoryId || transaction.id}?`,
-      type: 'info'
-    });
-    if (!confirmed) return;
-
-    try {
+ try {
       await dispatch(confirmPaymentTransactionThunk(transaction.inventoryId || transaction.id)).unwrap();
       dispatch(showSuccess({ message: '✅ Đã xác nhận thanh toán thành công!' }));
       // No manual refresh - polling will update automatically
@@ -793,14 +777,16 @@ function DealerOrderManagement() {
             >
               <div className="flex items-center justify-center gap-2">
                 <CreditCard className="w-5 h-5" />
-                <span>Xác nhận thanh toán</span>
-                {paymentReviewOrders.length > 0 && (
+                <span>Đang xử lí </span>
+                {processingOrders.length > 0 && (
                   <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                    activeTab === 'payment_review' ? 'bg-white/30' : 'bg-amber-100 text-amber-600'
+                    activeTab === 'processing' ? 'bg-white/30' : 'bg-teal-100 text-teal-600'
                   }`}>
-                    {paymentReviewOrders.length}
+                    {processingOrders.length}
                   </span>
                 )}
+
+                
               </div>
             </motion.button>
 
@@ -816,14 +802,15 @@ function DealerOrderManagement() {
             >
               <div className="flex items-center justify-center gap-2">
                 <CheckCircle className="w-5 h-5" />
-                <span>Đang xử lý</span>
-                {processingOrders.length > 0 && (
+                <span>Xác nhận thanh toán</span>
+                {paymentReviewOrders.length > 0 && (
                   <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                    activeTab === 'processing' ? 'bg-white/30' : 'bg-teal-100 text-teal-600'
+                    activeTab === 'payment_review' ? 'bg-white/30' : 'bg-amber-100 text-amber-600'
                   }`}>
-                    {processingOrders.length}
+                    {paymentReviewOrders.length}
                   </span>
                 )}
+                
               </div>
             </motion.button>
 

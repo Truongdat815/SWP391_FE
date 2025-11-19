@@ -237,10 +237,62 @@ const promotionSlice = createSlice({
             .addCase(updatePromotionById.fulfilled, (state, action) => {
                 state.loading = false;
                 const updatedPromotion = action.payload.data || action.payload;
-                const index = state.promotions.findIndex(p => p.promotionId === updatedPromotion.promotionId);
-                if (index !== -1) {
-                    state.promotions[index] = updatedPromotion;
+                
+                // If response doesn't have promotion data, just show success
+                if (!updatedPromotion || !updatedPromotion.promotionId) {
+                    state.success = 'Cập nhật khuyến mãi thành công!';
+                    return;
                 }
+                
+                // Normalize promotionId to number for comparison
+                const updatedId = Number(updatedPromotion.promotionId);
+                const newActiveStatus = updatedPromotion.active !== undefined ? updatedPromotion.active : null;
+                
+                // Find the promotion to update by promotionId
+                let index = state.promotions.findIndex(p => {
+                    const pId = Number(p.promotionId);
+                    return pId === updatedId;
+                });
+                
+                // If not found by promotionId, check if it's in relatedPromotionIds
+                if (index === -1) {
+                    index = state.promotions.findIndex(p => {
+                        if (p.relatedPromotionIds && Array.isArray(p.relatedPromotionIds)) {
+                            return p.relatedPromotionIds.some(id => Number(id) === updatedId);
+                        }
+                        return false;
+                    });
+                }
+                
+                // If still not found, try matching by other fields
+                if (index === -1) {
+                    index = state.promotions.findIndex(p => 
+                        p.promotionName === updatedPromotion.promotionName &&
+                        p.promotionType === updatedPromotion.promotionType &&
+                        Number(p.amount) === Number(updatedPromotion.amount) &&
+                        Number(p.modelId) === Number(updatedPromotion.modelId)
+                    );
+                }
+                
+                if (index !== -1) {
+                    // Update the promotion
+                    if (state.promotions[index].relatedPromotionIds && state.promotions[index].relatedPromotionIds.length > 0) {
+                        // Summary promotion - update active status
+                        state.promotions[index] = {
+                            ...state.promotions[index],
+                            active: newActiveStatus !== null ? newActiveStatus : state.promotions[index].active
+                        };
+                    } else {
+                        // Regular promotion - merge all data
+                        state.promotions[index] = {
+                            ...state.promotions[index],
+                            ...updatedPromotion,
+                            active: newActiveStatus !== null ? newActiveStatus : (updatedPromotion.active !== undefined ? updatedPromotion.active : state.promotions[index].active),
+                            promotionId: state.promotions[index].promotionId // Preserve existing ID
+                        };
+                    }
+                }
+                
                 state.success = 'Cập nhật khuyến mãi thành công!';
             })
             .addCase(updatePromotionById.rejected, (state, action) => {

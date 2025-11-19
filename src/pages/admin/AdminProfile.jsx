@@ -69,54 +69,54 @@ const AdminProfile = ({ onBack }) => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-4">
+    <div className="w-full max-w-4xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5">
       {onBack && (
         <button
           onClick={onBack}
-          className="mb-3 flex items-center text-gray-600 hover:text-gray-900 transition-colors text-sm"
+          className="mb-3 sm:mb-4 flex items-center text-xs sm:text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200 gap-1.5 sm:gap-2"
         >
-          <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Quay lại
+          <span>Quay lại</span>
         </button>
       )}
-      <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 rounded-lg p-4 shadow-sm mb-4">
-        <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center ring-4 ring-white shadow-md">
-            <span className="text-red-600 font-bold text-base">
+      <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-5 shadow-sm mb-3 sm:mb-4">
+        <div className="flex items-center gap-2 sm:gap-3">
+          <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-full bg-red-100 flex items-center justify-center ring-2 sm:ring-4 ring-white shadow-md flex-shrink-0">
+            <span className="text-red-600 font-bold text-sm sm:text-base">
               {adminUser ? 
                 (adminUser.fullName ? adminUser.fullName.split(' ').map(name => name.charAt(0)).join('').toUpperCase() : 'AD') 
                 : 'AD'
               }
             </span>
           </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Thông tin cá nhân</h1>
-            <p className="text-gray-600 text-sm">Quản lý hồ sơ quản trị viên hệ thống</p>
+          <div className="min-w-0 flex-1">
+            <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">Thông tin cá nhân</h1>
+            <p className="text-xs sm:text-sm text-gray-600 mt-0.5 sm:mt-1">Quản lý hồ sơ quản trị viên hệ thống</p>
           </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-lg shadow-md border border-gray-200 p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <div className="bg-white rounded-lg shadow-md border border-gray-200 p-3 sm:p-4 md:p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Họ và tên</label>
             <input 
               name="name"
               value={formData.name}
               onChange={handleInputChange}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition bg-white text-gray-900 text-sm" 
+              className="w-full border rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 bg-white text-gray-900" 
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-xs sm:text-sm font-medium text-gray-700 mb-1">Email</label>
             <input 
               name="email"
               type="email"
               value={formData.email}
               onChange={handleInputChange}
-              className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition bg-white text-gray-900 text-sm" 
+              className="w-full border rounded-lg px-3 sm:px-4 py-2 sm:py-2.5 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-200 bg-white text-gray-900" 
             />
           </div>
           <div>

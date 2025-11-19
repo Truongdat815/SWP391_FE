@@ -1633,7 +1633,7 @@ function InventoryManagement() {
                                         roleColor="blue"
                                         size="sm"
                                       >
-                                        Đẩy lên
+                                       Upload biên lai
                                       </ModernButton>
                                     )}
                                     {canConfirmDelivery && (

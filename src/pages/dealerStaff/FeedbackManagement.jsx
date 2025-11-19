@@ -1043,7 +1043,7 @@ function FeedbackManagement({ onBack }) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="w-full max-w-6xl mx-auto px-2 sm:px-3 md:px-4 lg:px-2 py-3 sm:py-4 md:py-5">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -1063,21 +1063,21 @@ function FeedbackManagement({ onBack }) {
         onConfirm={confirm.onConfirm}
         onCancel={confirm.onCancel}
       />
-      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-4">
-        <div className="flex items-center justify-between mb-3">
+      <div className="bg-white rounded-lg shadow-md border border-gray-100 p-3 sm:p-4 md:p-5">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
           <div></div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Sort Dropdown */}
-            <div className="relative" ref={sortDropdownRef}>
+            <div className="relative w-full sm:w-auto" ref={sortDropdownRef}>
               <button
                 onClick={() => setShowSortDropdown(!showSortDropdown)}
-                className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                className="flex items-center justify-center w-full sm:w-auto px-3 sm:px-4 py-2 text-xs sm:text-sm bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors duration-200 gap-1.5 sm:gap-2"
               >
-                <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4h13M3 8h9m-9 4h6m4 0l4-4m0 0l4 4m-4-4v12" />
                 </svg>
-                {getSortText()}
-                <svg className={`h-4 w-4 ml-2 transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <span className="truncate">{getSortText()}</span>
+                <svg className={`h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0 transition-transform duration-200 ${showSortDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>

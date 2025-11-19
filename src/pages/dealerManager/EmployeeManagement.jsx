@@ -211,14 +211,14 @@ function EmployeeManagement() {
         onCancel={confirm.onCancel}
       />
 
-      <div className="max-w-7xl mx-auto">
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 sm:p-4 md:p-5">
         {/* Header */}
-        <div className="mb-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-xl font-bold text-gray-900">Quản lý nhân viên</h1>
-              <p className="text-gray-600">
+        <div className="mb-3 sm:mb-4 md:mb-5">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">Quản lý nhân viên</h1>
+              <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-0.5 sm:mt-1">
                 Quản lý Dealer Staff tại {user?.storeName || 'cửa hàng của bạn'}
               </p>
             </div>
@@ -226,10 +226,10 @@ function EmployeeManagement() {
               onClick={() => setShowAddModal(true)}
               whileHover={{ scale: 1.03, y: -2 }}
               whileTap={{ scale: 0.97 }}
-              className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all flex items-center gap-2"
+              className="px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm md:text-base font-medium whitespace-nowrap flex-shrink-0"
             >
               <motion.svg 
-                className="h-5 w-5" 
+                className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" 
                 fill="none" 
                 viewBox="0 0 24 24" 
                 stroke="currentColor"
@@ -238,7 +238,7 @@ function EmployeeManagement() {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </motion.svg>
-              Thêm nhân viên
+              <span>Thêm nhân viên</span>
             </motion.button>
           </div>
         </div>

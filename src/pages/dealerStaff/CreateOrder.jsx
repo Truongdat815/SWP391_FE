@@ -1414,7 +1414,7 @@ function CreateOrder() {
       />
 
       {/* Page Container */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-2 py-3 sm:py-4 md:py-5">
         {/* Page Header with Breadcrumb */}
         <div className="mb-6">
           {/* Breadcrumb */}

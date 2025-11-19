@@ -106,31 +106,31 @@ const DealerManagerSettings = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-4">
-      <div className="max-w-7xl mx-auto">
+    <div className="min-h-screen bg-gray-50 p-2 sm:p-3 md:p-4">
+      <div className="w-full max-w-7xl mx-auto">
         {/* Header */}
-        <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 rounded-lg p-4 mb-4 shadow-sm">
-          <h1 className="text-2xl font-bold text-gray-900">{t.title}</h1>
-          <p className="text-gray-600 mt-2">{t.subtitle}</p>
+        <div className="bg-gradient-to-r from-red-50 to-white border border-red-100 rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-5 mb-3 sm:mb-4 shadow-sm">
+          <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">{t.title}</h1>
+          <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-1 sm:mt-2">{t.subtitle}</p>
         </div>
 
-        <div className="grid grid-cols-12 gap-4">
+        <div className="grid grid-cols-12 gap-3 sm:gap-4">
           {/* Sidebar Navigation */}
           <div className="col-span-12 lg:col-span-3">
-            <div className="bg-white rounded-lg border border-gray-200 shadow-sm sticky top-6">
-              <nav className="p-4 space-y-2">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-sm sticky top-4 sm:top-6">
+              <nav className="p-3 sm:p-4 space-y-1.5 sm:space-y-2">
                 {sections.map((section) => (
                   <button
                     key={section.id}
                     onClick={() => setActiveSection(section.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                    className={`w-full flex items-center gap-2 sm:gap-3 px-3 sm:px-4 py-2 sm:py-2.5 md:py-3 rounded-lg transition-all duration-200 text-xs sm:text-sm ${
                       activeSection === section.id
                         ? 'bg-red-100 text-red-700 border border-red-200'
                         : 'text-gray-700 hover:bg-gray-100'
                     }`}
                   >
-                    <span className="text-xl">{section.icon}</span>
-                    <span className="font-medium text-left">{section.name}</span>
+                    <span className="text-lg sm:text-xl flex-shrink-0">{section.icon}</span>
+                    <span className="font-medium text-left truncate">{section.name}</span>
                   </button>
                 ))}
               </nav>

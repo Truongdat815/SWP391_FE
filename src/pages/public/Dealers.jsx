@@ -148,19 +148,19 @@ const Dealers = () => {
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header Section */}
-      <div className="bg-gradient-to-br from-green-600 to-green-800 text-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="bg-gradient-to-br from-green-600 to-green-800 text-white py-12 sm:py-16 md:py-20">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
             className="text-center"
           >
-            <h1 className="text-4xl md:text-5xl font-bold mb-6">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold mb-4 sm:mb-5 md:mb-6">
               Mạng lưới đại lý{' '}
               <span className="text-green-200">Electra</span>
             </h1>
-            <p className="text-xl text-green-100 max-w-3xl mx-auto mb-8">
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-green-100 max-w-3xl mx-auto mb-6 sm:mb-7 md:mb-8 px-2">
               Khám phá các đại lý chính thức của Electra trên toàn quốc. 
               Tìm đại lý gần nhất để trải nghiệm và sở hữu xe điện Electra.
             </p>
@@ -172,28 +172,28 @@ const Dealers = () => {
               transition={{ duration: 0.6, delay: 0.2 }}
               className="max-w-4xl mx-auto"
             >
-              <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                <div className="flex flex-col md:flex-row gap-4">
-                  <div className="flex-1">
+              <div className="bg-white/10 backdrop-blur-sm rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 border border-white/20">
+                <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
+                  <div className="flex-1 min-w-0">
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <svg className="h-5 w-5 text-green-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="h-4 w-4 sm:h-5 sm:w-5 text-green-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                       </div>
                       <input
                         type="text"
                         placeholder="Tìm kiếm theo tên đại lý..."
-                        className="block w-full pl-10 pr-3 py-3 bg-white/20 border border-white/30 rounded-lg text-white placeholder-green-200 focus:ring-2 focus:ring-green-300 focus:border-transparent"
+                        className="block w-full pl-9 sm:pl-10 md:pl-12 pr-3 sm:pr-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base bg-white/20 border border-white/30 rounded-lg text-white placeholder-green-200 focus:ring-2 focus:ring-green-300 focus:border-transparent transition-all duration-200"
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                       />
                     </div>
                   </div>
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                     <select 
-                      className="px-4 py-3 bg-white/20 border border-white/30 rounded-lg text-white focus:ring-2 focus:ring-green-300 focus:border-transparent"
+                      className="px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 md:py-3 text-xs sm:text-sm md:text-base bg-white/20 border border-white/30 rounded-lg text-white focus:ring-2 focus:ring-green-300 focus:border-transparent transition-all duration-200"
                       value={selectedProvince}
                       onChange={(e) => handleProvinceFilter(e.target.value)}
                     >
@@ -204,18 +204,18 @@ const Dealers = () => {
                     </select>
                     <button
                       onClick={handleSearch}
-                      className="px-6 py-3 bg-green-500 hover:bg-green-400 text-white rounded-lg transition flex items-center font-medium"
+                      className="px-4 sm:px-5 md:px-6 py-2 sm:py-2.5 md:py-3 bg-green-500 hover:bg-green-400 text-white rounded-lg transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 font-medium text-xs sm:text-sm md:text-base whitespace-nowrap"
                     >
-                      <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                       </svg>
-                      Tìm kiếm
+                      <span>Tìm kiếm</span>
                     </button>
                     <button
                       onClick={clearFilters}
-                      className="px-4 py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg transition flex items-center"
+                      className="px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 md:py-3 bg-white/20 hover:bg-white/30 text-white rounded-lg transition-all duration-200 flex items-center justify-center"
                     >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </button>
@@ -243,7 +243,7 @@ const Dealers = () => {
       </div>
 
       {/* Dealers Grid */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 lg:px-10 py-12 sm:py-14 md:py-16">
         {/* Results Header */}
         {(searchTerm || selectedProvince) && allDealers.length > 0 && (
           <motion.div

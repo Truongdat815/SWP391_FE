@@ -24,7 +24,7 @@ const DealerManagerDashboard = () => {
   const [feedbacksWithDetails, setFeedbacksWithDetails] = useState([]);
   const [loadingFeedbacks, setLoadingFeedbacks] = useState(false);
   const [currentFeedbackPage, setCurrentFeedbackPage] = useState(1);
-  const [feedbacksPerPage] = useState(5);
+  const [feedbacksPerPage] = useState(3);
   const [activeTab, setActiveTab] = useState(1); // 1: Overview, 2: Status & Inventory, 3: Promotions & Feedback
 
   // Get list of staff (Dealer Staff role)
@@ -271,26 +271,17 @@ const DealerManagerDashboard = () => {
   const COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
 
   return (
-    <div className="px-4 py-3 space-y-4">
+    <div className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 space-y-3 sm:space-y-4 md:space-y-5">
       {/* Header */}
-      <div className="flex justify-between items-center">
-        <div>
-          <h2 className="text-xl font-bold text-gray-900">📊 Tổng quan đại lý</h2>
-          <p className="text-gray-600 mt-0.5 text-sm">
-            {selectedStaffId === 'all' 
-              ? 'Thống kê và phân tích dữ liệu đại lý (Tất cả nhân viên)'
-              : `Thống kê và phân tích dữ liệu của ${staffList.find(s => String(s.userId || s.id || s.user_id) === String(selectedStaffId))?.fullName || staffList.find(s => String(s.userId || s.id || s.user_id) === String(selectedStaffId))?.name || 'Nhân viên'}`
-            }
-          </p>
-        </div>
-        <div className="flex items-center gap-3">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           {/* Staff Filter Dropdown */}
-          <div className="relative">
-            <label className="text-xs text-gray-600 mr-2">Lọc theo nhân viên:</label>
+          <div className="relative w-full sm:w-auto">
+            <label className="text-xs sm:text-sm text-gray-600 mr-2 block sm:inline">Lọc theo nhân viên:</label>
             <select
               value={selectedStaffId}
               onChange={(e) => setSelectedStaffId(e.target.value)}
-              className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition text-sm min-w-[200px]"
+              className="w-full sm:min-w-[200px] px-3 sm:px-4 py-2 sm:py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 text-xs sm:text-sm"
               disabled={loadingOrders}
             >
               <option value="all">Tất cả nhân viên</option>
@@ -315,23 +306,23 @@ const DealerManagerDashboard = () => {
               dispatch(getAllStoreStocksThunk());
               dispatch(fetchPromotions());
             }}
-            className="px-3 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition flex items-center gap-2 text-sm"
+            className="px-3 sm:px-4 py-2 sm:py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center justify-center gap-2 text-xs sm:text-sm font-medium shadow-sm flex-shrink-0"
             disabled={loadingOrders}
           >
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            {loadingOrders ? 'Đang tải...' : 'Làm mới'}
+            <span className="whitespace-nowrap">{loadingOrders ? 'Đang tải...' : 'Làm mới'}</span>
           </button>
         </div>
       </div>
 
       {/* Tab Navigation */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-1">
-        <div className="flex gap-2">
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-1 sm:p-1.5">
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-2">
           <button
             onClick={() => setActiveTab(1)}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
               activeTab === 1
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'text-gray-600 hover:bg-gray-100'
@@ -341,7 +332,7 @@ const DealerManagerDashboard = () => {
           </button>
           <button
             onClick={() => setActiveTab(2)}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
               activeTab === 2
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'text-gray-600 hover:bg-gray-100'
@@ -351,7 +342,7 @@ const DealerManagerDashboard = () => {
           </button>
           <button
             onClick={() => setActiveTab(3)}
-            className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`flex-1 px-3 sm:px-4 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm font-medium transition-all duration-200 ${
               activeTab === 3
                 ? 'bg-blue-600 text-white shadow-md'
                 : 'text-gray-600 hover:bg-gray-100'
@@ -566,27 +557,23 @@ const DealerManagerDashboard = () => {
 
             {/* Feedback Stats */}
             <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-              <div className="mb-4">
+              <div className="mb-3">
                 <h3 className="text-base font-semibold text-gray-900">💬 Phản hồi khách hàng</h3>
                 <p className="text-xs text-gray-500 mt-0.5">Thống kê phản hồi</p>
               </div>
-              <div className="space-y-3">
-                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
+              <div className="grid grid-cols-3 gap-2">
+                <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 border border-blue-200">
                   <p className="text-xs text-gray-600">Tổng số</p>
-                  <p className="text-2xl font-bold text-blue-600 mt-1">{feedbackStats.total}</p>
+                  <p className="text-xl font-bold text-blue-600">{feedbackStats.total}</p>
                 </div>
-                <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-3 border border-yellow-200">
-                  <p className="text-xs text-gray-600">Đang chờ xử lý</p>
-                  <p className="text-2xl font-bold text-yellow-600 mt-1">{feedbackStats.pending}</p>
-                </div>
-                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 border border-green-200">
+                <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-2 border border-green-200">
                   <p className="text-xs text-gray-600">Đã xử lý</p>
-                  <p className="text-2xl font-bold text-green-600 mt-1">{feedbackStats.resolved}</p>
+                  <p className="text-xl font-bold text-green-600">{feedbackStats.resolved}</p>
                 </div>
-                <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-3 border border-amber-200">
-                  <p className="text-xs text-gray-600">Đánh giá trung bình</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <p className="text-2xl font-bold text-amber-600">{feedbackStats.averageRating || '0.0'}</p>
+                <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-2 border border-amber-200">
+                  <p className="text-xs text-gray-600">Đánh giá TB</p>
+                  <div className="flex items-center gap-1">
+                    <p className="text-xl font-bold text-amber-600">{feedbackStats.averageRating || '0.0'}</p>
                     <div className="flex items-center gap-0.5">
                       {Array.from({ length: 5 }, (_, i) => {
                         const starValue = i + 1;
@@ -594,7 +581,7 @@ const DealerManagerDashboard = () => {
                         return (
                           <svg
                             key={i}
-                            className={`h-5 w-5 ${isFilled ? 'text-amber-500' : 'text-gray-300'}`}
+                            className={`h-3 w-3 ${isFilled ? 'text-amber-500' : 'text-gray-300'}`}
                             fill="currentColor"
                             viewBox="0 0 20 20"
                           >
@@ -609,80 +596,70 @@ const DealerManagerDashboard = () => {
             </div>
           </div>
 
-          {/* Rating Distribution Chart */}
-          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-              <div className="mb-4">
-                <h3 className="text-base font-semibold text-gray-900">⭐ Phân bố đánh giá</h3>
+          {/* Rating Distribution Chart and Recent Feedbacks */}
+          <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+            <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4 flex flex-col h-full">
+              <div className="mb-3">
+                <h3 className="text-sm font-semibold text-gray-900">⭐ Phân bố đánh giá</h3>
                 <p className="text-xs text-gray-500 mt-0.5">Số lượng đánh giá theo sao</p>
               </div>
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart
-                  data={[
+              <div className="flex-1 min-h-0">
+                <ResponsiveContainer width="100%" height="100%">
+                {(() => {
+                  const ratingData = [
                     { name: '1 sao', value: feedbackStats.ratingDistribution[1] || 0, color: '#ef4444' },
                     { name: '2 sao', value: feedbackStats.ratingDistribution[2] || 0, color: '#f97316' },
                     { name: '3 sao', value: feedbackStats.ratingDistribution[3] || 0, color: '#eab308' },
                     { name: '4 sao', value: feedbackStats.ratingDistribution[4] || 0, color: '#84cc16' },
                     { name: '5 sao', value: feedbackStats.ratingDistribution[5] || 0, color: '#10b981' },
-                  ]}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                  <XAxis dataKey="name" stroke="#6b7280" />
-                  <YAxis stroke="#6b7280" />
-                  <Tooltip 
-                    formatter={(value) => [`${value} đánh giá`, 'Số lượng']}
-                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                  />
-                  <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                    {[
-                      { name: '1 sao', value: feedbackStats.ratingDistribution[1] || 0, color: '#ef4444' },
-                      { name: '2 sao', value: feedbackStats.ratingDistribution[2] || 0, color: '#f97316' },
-                      { name: '3 sao', value: feedbackStats.ratingDistribution[3] || 0, color: '#eab308' },
-                      { name: '4 sao', value: feedbackStats.ratingDistribution[4] || 0, color: '#84cc16' },
-                      { name: '5 sao', value: feedbackStats.ratingDistribution[5] || 0, color: '#10b981' },
-                    ].map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-              <div className="mb-4">
-                <h3 className="text-base font-semibold text-gray-900">⚡ Thao tác nhanh</h3>
-                <p className="text-xs text-gray-500 mt-0.5">Truy cập nhanh các chức năng</p>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <a href="/dealer-manager/inventory" className="bg-blue-50 hover:bg-blue-100 rounded-lg p-3 border border-blue-200 transition text-center">
-                  <p className="text-xs font-medium text-blue-700">Quản lý kho</p>
-                </a>
-                <a href="/dealer-manager/orders" className="bg-green-50 hover:bg-green-100 rounded-lg p-3 border border-green-200 transition text-center">
-                  <p className="text-xs font-medium text-green-700">Đơn hàng</p>
-                </a>
-                <a href="/dealer-manager/promotion-management" className="bg-purple-50 hover:bg-purple-100 rounded-lg p-3 border border-purple-200 transition text-center">
-                  <p className="text-xs font-medium text-purple-700">Khuyến mãi</p>
-                </a>
-                <a href="/dealer-manager/quan-ly-nhan-vien" className="bg-orange-50 hover:bg-orange-100 rounded-lg p-3 border border-orange-200 transition text-center">
-                  <p className="text-xs font-medium text-orange-700">Nhân viên</p>
-                </a>
+                  ];
+                  const maxValue = Math.max(...ratingData.map(d => d.value));
+                  const yAxisMax = maxValue === 0 ? 1 : Math.ceil(maxValue * 1.1);
+                  
+                  return (
+                    <BarChart
+                      data={ratingData}
+                      margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                      <XAxis 
+                        dataKey="name" 
+                        stroke="#6b7280"
+                        tick={{ fontSize: 12 }}
+                      />
+                      <YAxis 
+                        stroke="#6b7280"
+                        tick={{ fontSize: 12 }}
+                        allowDecimals={false}
+                        domain={[0, yAxisMax]}
+                      />
+                      <Tooltip 
+                        formatter={(value) => [`${value} đánh giá`, 'Số lượng']}
+                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
+                      />
+                      <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                        {ratingData.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  );
+                })()}
+                </ResponsiveContainer>
               </div>
             </div>
-          </div>
 
-          {/* Recent Feedbacks with Details */}
-          <div className="mt-4 bg-white rounded-lg border border-gray-200 shadow-md p-4">
-        <div className="mb-4 flex items-center justify-between">
+            {/* Recent Feedbacks with Details */}
+            <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3">
+        <div className="mb-3 flex items-center justify-between">
           <div>
-            <h3 className="text-base font-semibold text-gray-900">📝 Phản hồi gần đây</h3>
-            <p className="text-xs text-gray-500 mt-0.5">Xem chi tiết nội dung và đánh giá</p>
+            <h3 className="text-sm font-semibold text-gray-900">📝 Phản hồi gần đây</h3>
+            {feedbacksWithDetails.length > 0 && (
+              <span className="text-xs text-gray-500">
+                Tổng: {feedbacksWithDetails.length} phản hồi
+              </span>
+            )}
           </div>
-          {feedbacksWithDetails.length > 0 && (
-            <span className="text-xs text-gray-500">
-              Tổng: {feedbacksWithDetails.length} phản hồi
-            </span>
-          )}
         </div>
         {loadingFeedbacks ? (
           <div className="text-center py-8">
@@ -695,7 +672,7 @@ const DealerManagerDashboard = () => {
           </div>
         ) : (
           <>
-            <div className="space-y-3">
+            <div className="space-y-2">
               {feedbacksWithDetails
                 .slice((currentFeedbackPage - 1) * feedbacksPerPage, currentFeedbackPage * feedbacksPerPage)
                 .map((feedback, index) => {
@@ -706,21 +683,25 @@ const DealerManagerDashboard = () => {
                   const status = (feedback.status || '').toUpperCase();
                   
                   return (
-                    <div key={feedback.feedbackId || feedback.id || index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition">
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-2">
-                            <p className="text-sm font-semibold text-gray-900">{customerName}</p>
-                            <span className={`text-xs px-2 py-0.5 rounded ${
+                    <div key={feedback.feedbackId || feedback.id || index} className="border border-gray-200 rounded-lg p-2.5 hover:shadow-sm transition">
+                      <div className="flex items-start justify-between mb-1.5">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <p className="text-xs font-semibold text-gray-900 truncate">{customerName}</p>
+                            <span className={`text-xs px-1.5 py-0.5 rounded flex-shrink-0 ${
                               status === 'RESOLVED' ? 'bg-green-100 text-green-700' :
                               status === 'PENDING' || status === 'DRAFT' ? 'bg-yellow-100 text-yellow-700' :
                               'bg-gray-100 text-gray-700'
                             }`}>
                               {status === 'RESOLVED' ? 'Đã xử lý' : status === 'PENDING' || status === 'DRAFT' ? 'Đang chờ' : status}
                             </span>
+                            {feedbackDate && (
+                              <span className="text-xs text-gray-400 flex-shrink-0">
+                                {new Date(feedbackDate).toLocaleDateString('vi-VN')}
+                              </span>
+                            )}
                           </div>
-                          <div className="flex items-center gap-2 mb-2">
-                            <span className="text-xs text-gray-500">Đánh giá:</span>
+                          <div className="flex items-center gap-1.5 mb-1">
                             <div className="flex items-center gap-0.5">
                               {Array.from({ length: 5 }, (_, i) => {
                                 const starValue = i + 1;
@@ -728,7 +709,7 @@ const DealerManagerDashboard = () => {
                                 return (
                                   <svg
                                     key={i}
-                                    className={`h-4 w-4 ${isFilled ? 'text-yellow-400' : 'text-gray-300'}`}
+                                    className={`h-3 w-3 ${isFilled ? 'text-yellow-400' : 'text-gray-300'}`}
                                     fill="currentColor"
                                     viewBox="0 0 20 20"
                                   >
@@ -737,18 +718,12 @@ const DealerManagerDashboard = () => {
                                 );
                               })}
                             </div>
-                            <span className="text-xs text-gray-600">({rating}/5)</span>
+                            <span className="text-xs text-gray-500">({rating}/5)</span>
                           </div>
                         </div>
-                        {feedbackDate && (
-                          <span className="text-xs text-gray-500 whitespace-nowrap ml-2">
-                            {new Date(feedbackDate).toLocaleDateString('vi-VN')}
-                          </span>
-                        )}
                       </div>
-                      <div className="mt-2">
-                        <p className="text-xs text-gray-600 mb-1">Nội dung:</p>
-                        <p className="text-sm text-gray-800 bg-gray-50 rounded p-2 border border-gray-200">
+                      <div className="mt-1">
+                        <p className="text-xs text-gray-700 bg-gray-50 rounded p-1.5 border border-gray-200 line-clamp-2">
                           {content}
                         </p>
                       </div>
@@ -759,9 +734,9 @@ const DealerManagerDashboard = () => {
             
             {/* Pagination */}
             {feedbacksWithDetails.length > feedbacksPerPage && (
-              <div className="mt-4 flex items-center justify-between border-t border-gray-200 pt-4">
-                <div className="text-sm text-gray-600">
-                  Hiển thị {((currentFeedbackPage - 1) * feedbacksPerPage) + 1} - {Math.min(currentFeedbackPage * feedbacksPerPage, feedbacksWithDetails.length)} trong tổng số {feedbacksWithDetails.length} phản hồi
+              <div className="mt-3 flex items-center justify-between border-t border-gray-200 pt-3">
+                <div className="text-xs text-gray-500">
+                  Trang {currentFeedbackPage}/{Math.ceil(feedbacksWithDetails.length / feedbacksPerPage)}
                 </div>
                 <div className="flex items-center gap-2">
                   <button
@@ -827,6 +802,7 @@ const DealerManagerDashboard = () => {
             )}
           </>
         )}
+            </div>
           </div>
         </>
       )}

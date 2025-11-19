@@ -712,7 +712,7 @@ function TestDriveSchedule({ onBack }) {
               </select>
             </div>
 
-            <div className="flex flex-col gap-1.5 sm:gap-2">
+            {/* <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap min-w-[100px]">Model ID:</label>
               <input
                 type="number"
@@ -721,9 +721,9 @@ function TestDriveSchedule({ onBack }) {
                 placeholder="Nhập Model ID"
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
               />
-            </div>
+            </div> */}
 
-            <div className="flex flex-col gap-1.5 sm:gap-2">
+            {/* <div className="flex flex-col gap-1.5 sm:gap-2">
               <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap min-w-[100px]">Customer ID:</label>
               <input
                 type="number"
@@ -732,7 +732,7 @@ function TestDriveSchedule({ onBack }) {
                 placeholder="Nhập Customer ID"
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
               />
-            </div>
+            </div> */}
 
             {(selectedDate || filterStatus || filterModelId || filterCustomerId) && (
               <div className="flex items-end sm:col-span-1 xl:col-span-1">

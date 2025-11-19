@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const EVMStaffHelp = ({ onBack }) => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('faq');
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -91,31 +93,31 @@ const EVMStaffHelp = ({ onBack }) => {
   );
 
   return (
-    <div className="max-w-4xl mx-auto p-4 space-y-6">
+    <div className="w-full max-w-4xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5 space-y-4 sm:space-y-5 md:space-y-6">
       {onBack && (
         <button
           onClick={onBack}
-          className="mb-4 flex items-center text-gray-600 hover:text-gray-900 transition-colors"
+          className="mb-3 sm:mb-4 flex items-center text-xs sm:text-sm text-gray-600 hover:text-gray-900 transition-colors duration-200 gap-1.5 sm:gap-2"
         >
-          <svg className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
-          Quay lại
+          <span>Quay lại</span>
         </button>
       )}
-      <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-lg p-4 sm:p-8 shadow-sm">
-        <h1 className="text-2xl sm:text-2xl font-bold text-gray-900">Trợ giúp EVM</h1>
-        <p className="text-gray-600 mt-1">Hướng dẫn và hỗ trợ cho nhân viên EVM</p>
+      <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-lg sm:rounded-xl p-3 sm:p-4 md:p-5 lg:p-8 shadow-sm">
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Trợ giúp EVM</h1>
+        <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-0.5 sm:mt-1">Hướng dẫn và hỗ trợ cho nhân viên EVM</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <div className="lg:col-span-2 space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="lg:col-span-2 space-y-4 sm:space-y-5 md:space-y-6">
           {/* Tabs */}
-          <div className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm">
-            <div className="flex space-x-1 bg-gray-100 rounded-lg p-1 mb-4">
+          <div className="bg-white border border-gray-200 rounded-lg sm:rounded-xl p-3 sm:p-4 shadow-sm">
+            <div className="flex flex-col sm:flex-row gap-1 bg-gray-100 rounded-lg p-1 mb-3 sm:mb-4">
               <button
                 onClick={() => setActiveTab('faq')}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition ${
+                className={`flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 ${
                   activeTab === 'faq'
                     ? 'bg-white text-emerald-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
@@ -125,7 +127,7 @@ const EVMStaffHelp = ({ onBack }) => {
               </button>
               <button
                 onClick={() => setActiveTab('troubleshooting')}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition ${
+                className={`flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 ${
                   activeTab === 'troubleshooting'
                     ? 'bg-white text-emerald-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
@@ -135,7 +137,7 @@ const EVMStaffHelp = ({ onBack }) => {
               </button>
               <button
                 onClick={() => setActiveTab('guides')}
-                className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition ${
+                className={`flex-1 py-2 sm:py-2.5 px-3 sm:px-4 rounded-md text-xs sm:text-sm font-medium transition-all duration-200 ${
                   activeTab === 'guides'
                     ? 'bg-white text-emerald-600 shadow-sm'
                     : 'text-gray-600 hover:text-gray-900'
@@ -190,75 +192,26 @@ const EVMStaffHelp = ({ onBack }) => {
             {/* Guides Tab */}
             {activeTab === 'guides' && (
               <div className="space-y-4">
-                <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 bg-emerald-100 rounded-lg flex items-center justify-center">
-                      <svg className="h-5 w-5 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                      </svg>
+                <button
+                  onClick={() => navigate('/evm-staff/user-guide')}
+                  className="w-full border-2 border-emerald-200 rounded-lg p-6 hover:border-emerald-400 hover:shadow-lg transition-all duration-200 bg-gradient-to-r from-emerald-50 to-white text-left group"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="h-16 w-16 bg-emerald-100 rounded-lg flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
+                      <span className="text-3xl">📖</span>
                     </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900">Quản lý tồn kho</h4>
-                      <p className="text-sm text-gray-500">Hướng dẫn chi tiết quản lý kho xe</p>
+                    <div className="flex-1">
+                      <h4 className="font-bold text-lg text-gray-900 mb-1">Hướng dẫn sử dụng đầy đủ</h4>
+                      <p className="text-sm text-gray-600">Xem hướng dẫn chi tiết về tất cả các chức năng dành cho EVM Staff</p>
+                      <p className="text-xs text-emerald-600 mt-2 font-medium group-hover:text-emerald-700">
+                        Xem ngay →
+                      </p>
                     </div>
+                    <svg className="h-6 w-6 text-emerald-600 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
                   </div>
-                </div>
-
-                <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                      <svg className="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900">Quản lý sản phẩm</h4>
-                      <p className="text-sm text-gray-500">Cách thêm và cập nhật thông tin xe</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                      <svg className="h-5 w-5 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900">Quản lý đại lý</h4>
-                      <p className="text-sm text-gray-500">Hướng dẫn quản lý thông tin đại lý</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 bg-green-100 rounded-lg flex items-center justify-center">
-                      <svg className="h-5 w-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900">Quản lý hợp đồng</h4>
-                      <p className="text-sm text-gray-500">Xử lý đơn hàng và hợp đồng</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition cursor-pointer">
-                  <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-                      <svg className="h-5 w-5 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-gray-900">Báo cáo & phân tích</h4>
-                      <p className="text-sm text-gray-500">Tạo báo cáo và phân tích dữ liệu</p>
-                    </div>
-                  </div>
-                </div>
+                </button>
               </div>
             )}
           </div>

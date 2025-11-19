@@ -69,53 +69,53 @@ function BaoCaoDoanhSo() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-4">
+    <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5">
       {/* Header */}
-      <div className="mb-8">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center">
-            <div className="p-3 bg-red-100 rounded-lg mr-4">
-              <svg className="h-8 w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="mb-4 sm:mb-6 md:mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
+          <div className="flex items-center gap-2 sm:gap-3 md:gap-4 min-w-0 flex-1">
+            <div className="p-2 sm:p-2.5 md:p-3 bg-red-100 rounded-lg flex-shrink-0">
+              <svg className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">Báo cáo doanh số</h1>
-              <p className="text-gray-600">Phân tích chi tiết doanh số bán hàng</p>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">Báo cáo doanh số</h1>
+              <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-0.5 sm:mt-1">Phân tích chi tiết doanh số bán hàng</p>
             </div>
           </div>
-          <div className="flex space-x-3">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 flex-shrink-0">
             <button
               onClick={() => handleExport('pdf')}
-              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition flex items-center"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm md:text-base font-medium whitespace-nowrap"
             >
-              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Xuất PDF
+              <span>Xuất PDF</span>
             </button>
             <button
               onClick={() => handleExport('excel')}
-              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition flex items-center"
+              className="px-3 sm:px-4 py-2 sm:py-2.5 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-all duration-200 flex items-center justify-center gap-1.5 sm:gap-2 text-xs sm:text-sm md:text-base font-medium whitespace-nowrap"
             >
-              <svg className="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
-              Xuất Excel
+              <span>Xuất Excel</span>
             </button>
           </div>
         </div>
       </div>
 
       {/* Period Selection */}
-      <div className="bg-white rounded-lg shadow p-4 mb-4">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Chọn khoảng thời gian</h2>
-        <div className="flex flex-wrap gap-3">
+      <div className="bg-white rounded-lg shadow p-3 sm:p-4 md:p-5 mb-3 sm:mb-4">
+        <h2 className="text-base sm:text-lg font-semibold text-gray-900 mb-3 sm:mb-4">Chọn khoảng thời gian</h2>
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           {periods.map((period) => (
             <button
               key={period.id}
               onClick={() => setSelectedPeriod(period.id)}
-              className={`px-4 py-2 rounded-lg border transition ${
+              className={`px-3 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm md:text-base rounded-lg border transition-all duration-200 ${
                 selectedPeriod === period.id
                   ? 'bg-red-600 text-white border-red-600'
                   : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
