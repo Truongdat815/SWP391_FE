@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useSelector, useDispatch } from 'react-redux';
 import { getAllModelsThunk } from '../../store/slices/modelSlice';
@@ -79,15 +79,55 @@ const EVMStaffDashboard = () => {
     distributedStores: new Set(completedTransactions.map(t => t.storeId).filter(id => id != null)).size,
   };
 
-  // Mock data cho biểu đồ đơn hàng theo tháng
-  const orderData = [
-    { month: 'T1', orders: 45, completed: 42 },
-    { month: 'T2', orders: 52, completed: 48 },
-    { month: 'T3', orders: 48, completed: 45 },
-    { month: 'T4', orders: 61, completed: 58 },
-    { month: 'T5', orders: 55, completed: 52 },
-    { month: 'T6', orders: 67, completed: 63 },
-  ];
+  // Tính toán dữ liệu đơn hàng theo tháng từ transactions thực tế
+  const orderData = useMemo(() => {
+    const months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'];
+    const now = new Date();
+    
+    return months.map((monthLabel, index) => {
+      // Tính tháng từ hiện tại trở về trước (6 tháng gần nhất)
+      // index 0 = 5 tháng trước, index 5 = tháng hiện tại
+      const monthOffset = 5 - index;
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59, 999);
+      
+      // Lọc transactions trong tháng này
+      const monthTransactions = transactions.filter(transaction => {
+        // Thử nhiều field có thể chứa ngày
+        const transactionDate = transaction.transactionDate || 
+                               transaction.orderDate || 
+                               transaction.createdAt || 
+                               transaction.createdDate ||
+                               transaction.date;
+        
+        if (!transactionDate) return false;
+        
+        try {
+          const date = new Date(transactionDate);
+          if (isNaN(date.getTime())) return false;
+          
+          // So sánh ngày trong khoảng tháng
+          return date >= monthStart && date <= monthEnd;
+        } catch (e) {
+          return false;
+        }
+      });
+      
+      // Đếm tổng đơn và đơn đã hoàn thành
+      const orders = monthTransactions.length;
+      const completed = monthTransactions.filter(t => {
+        const status = (t.status || '').toUpperCase();
+        return status === 'COMPLETED' || status === 'FINISH' || status === 'DELIVERED';
+      }).length;
+      
+      return {
+        month: monthLabel,
+        orders: orders,
+        completed: completed
+      };
+    });
+  }, [transactions]);
 
   // Phân tích đơn hàng theo trạng thái - chỉ lấy các trạng thái có giá trị > 0
   const orderStatusData = [
