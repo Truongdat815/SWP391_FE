@@ -15,7 +15,6 @@ import {
   Trash2, 
   Loader2, 
   AlertCircle,
-  CheckCircle,
   X,
   Package,
   FileText,
@@ -314,6 +313,96 @@ function OrderManagement() {
     }, 0);
   };
 
+  const parseCurrencyValue = (value) => {
+    if (value === null || value === undefined) return null;
+    const number = Number(value);
+    return Number.isNaN(number) ? null : number;
+  };
+
+  const getOrderTotalAmount = (order = {}) => {
+    const candidates = [
+      order.totalPayment,
+      order.totalPrice,
+      order.total_amount,
+      order.totalAmount,
+      order.total
+    ];
+
+    for (const candidate of candidates) {
+      const parsed = parseCurrencyValue(candidate);
+      if (parsed !== null) {
+        return parsed;
+      }
+    }
+
+    return 0;
+  };
+
+  const formatCurrency = (value) => {
+    const number = parseCurrencyValue(value);
+    const safeNumber = number !== null ? number : 0;
+    return `${safeNumber.toLocaleString('vi-VN')} VNĐ`;
+  };
+
+  const getContractStatusInfo = (order = {}) => {
+    const rawStatus = order.contractStatus || order.contract?.status || '';
+    const normalizedStatus = rawStatus ? rawStatus.toString().toUpperCase() : '';
+    const hasContractFile = Boolean(
+      order.urlContractFile &&
+      order.urlContractFile !== 'null' &&
+      order.urlContractFile.trim() !== ''
+    );
+    const hasContractId = Boolean(
+      order.contractId ||
+      order.contractCode ||
+      order.contract?.contractId ||
+      order.contractNumber
+    );
+
+    const statusMap = {
+      'CONTRACT_PENDING': {
+        label: 'Chờ ký',
+        color: 'bg-amber-100 text-amber-800'
+      },
+      'PENDING': {
+        label: 'Chờ ký',
+        color: 'bg-amber-100 text-amber-800'
+      },
+      'CONTRACT_SIGNED': {
+        label: 'Đã ký',
+        color: 'bg-emerald-100 text-emerald-700'
+      },
+      'SIGNED': {
+        label: 'Đã ký',
+        color: 'bg-emerald-100 text-emerald-700'
+      },
+      'UPLOADED': {
+        label: 'Đã tải lên',
+        color: 'bg-blue-100 text-blue-700'
+      },
+      'COMPLETED': {
+        label: 'Đã hoàn tất',
+        color: 'bg-green-100 text-green-700'
+      }
+    };
+
+    if (normalizedStatus && statusMap[normalizedStatus]) {
+      return statusMap[normalizedStatus];
+    }
+
+    if (hasContractFile || hasContractId) {
+      return {
+        label: 'Đã có',
+        color: 'bg-emerald-100 text-emerald-700'
+      };
+    }
+
+    return {
+      label: 'Chưa có',
+      color: 'bg-gray-100 text-gray-600'
+    };
+  };
+
   return (
     <div>
       {/* Toast Notifications */}
@@ -336,49 +425,47 @@ function OrderManagement() {
         onCancel={confirm.onCancel}
       />
 
-<div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5">
+<div className="max-w-7xl mx-auto">
       {/* Page Header */}
-      <div className="mb-3 sm:mb-4 md:mb-5">
-        <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
-          <FileText className="h-6 w-6 sm:h-7 sm:w-7 md:h-8 md:w-8 text-emerald-600 flex-shrink-0" />
-          <span className="truncate">Quản lý đơn hàng</span>
+      <div className="mb-4">
+        <h1 className="text-xl font-bold text-gray-900 flex items-center">
+          <FileText className="h-8 w-8 mr-3 text-emerald-600" />
+          Quản lý đơn hàng
         </h1>
-        <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-1 sm:mt-2">
-          Quản lý và theo dõi tất cả đơn hàng của cửa hàng
-        </p>
+        <p className="text-gray-600 mt-2">Quản lý và theo dõi tất cả đơn hàng của cửa hàng</p>
       </div>
 
       
 
       {/* Error Message */}
       {error && (
-        <div className="mb-2 sm:mb-3 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 sm:gap-3">
-          <AlertCircle className="h-4 w-4 sm:h-5 sm:w-5 text-red-500 flex-shrink-0" />
-          <span className="text-xs sm:text-sm md:text-base text-red-700">{error}</span>
+        <div className="mb-2 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center">
+          <AlertCircle className="h-5 w-5 text-red-500 mr-3" />
+          <span className="text-red-700">{error}</span>
         </div>
       )}
 
-      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-3 sm:p-4 md:p-5">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
         {/* Filters and Bulk Actions */}
-        <div className="flex flex-col gap-3 sm:gap-4 mb-3 sm:mb-4 md:mb-5">
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4">
-            <div className="flex-1 min-w-0">
+        <div className="flex flex-col gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   type="text"
                   placeholder="Tìm kiếm theo tên khách hàng, mã đơn hàng..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-9 sm:pl-10 md:pl-12 pr-3 sm:pr-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                  className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                 />
               </div>
             </div>
-            <div className="w-full sm:w-48 flex-shrink-0">
+            <div className="sm:w-48">
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
               >
                 <option value="all">Tất cả trạng thái</option>
                 <option value="pending">Chờ duyệt</option>
@@ -456,6 +543,7 @@ function OrderManagement() {
             <table className="min-w-full divide-y divide-gray-200">
               <thead className="bg-gray-50">
                 <tr>
+                 
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Mã đơn hàng
                   </th>
@@ -469,6 +557,12 @@ function OrderManagement() {
                     Trạng thái
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Hợp đồng
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Tổng tiền
+                  </th>
+                  <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Thao tác
                   </th>
                 </tr>
@@ -477,10 +571,13 @@ function OrderManagement() {
                 {paginatedOrders.map((order) => (
                   <tr 
                     key={order.orderId} 
-                    className="hover:bg-gray-50 transition-colors"
+                    className={`hover:bg-gray-50 transition-colors ${
+                      selectedOrderIds.includes(order.orderId) ? 'bg-emerald-50' : ''
+                    }`}
                   >
+                    
                     <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium text-gray-900">
-                      {order.orderNumber || `ORD-${order.orderId}`}
+                      {order.orderCode || `#${order.orderId}`}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
@@ -497,6 +594,19 @@ function OrderManagement() {
                       <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status || order.orderStatus)}`}>
                         {getStatusText(order.status || order.orderStatus)}
                       </span>
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap">
+                      {(() => {
+                        const contractInfo = getContractStatusInfo(order);
+                        return (
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${contractInfo.color}`}>
+                            {contractInfo.label}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    <td className="px-3 py-2.5 whitespace-nowrap text-sm text-gray-900">
+                      {formatCurrency(getOrderTotalAmount(order))}
                     </td>
                     <td className="px-3 py-2.5 whitespace-nowrap text-sm font-medium">
                       <div className="flex space-x-3">
