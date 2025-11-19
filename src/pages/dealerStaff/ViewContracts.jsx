@@ -473,7 +473,7 @@ function ViewContracts() {
       />
 
       {/* Main Container */}
-      <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-2 pt-0 pb-3 sm:pb-4 md:pb-5">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 pt-0 pb-4">
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
           {/* Total Contracts */}
