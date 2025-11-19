@@ -9,6 +9,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import Pagination from '../../components/ui/Pagination';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
+import * as userService from '../../api/userService';
 
 function EmployeeManagement() {
   const dispatch = useDispatch();
@@ -25,11 +26,8 @@ function EmployeeManagement() {
   const [showAddModal, setShowAddModal] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [selectedEmployee, setSelectedEmployee] = useState(null);
 
   const [newEmployee, setNewEmployee] = useState({
-    username: '',
     password: '',
     fullName: '',
     email: '',
@@ -113,25 +111,42 @@ function EmployeeManagement() {
       return;
     }
 
+    // Validate password
+    if (!newEmployee.password || newEmployee.password.trim() === '') {
+      showError('Vui lòng nhập mật khẩu');
+      return;
+    }
+    
+    if (newEmployee.password.length < 6) {
+      showError('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+
     try {
-      const payload = {
-        userId: 0,
-        username: newEmployee.username,
-        password: newEmployee.password,
+      // Chuẩn bị dữ liệu submit giống như admin
+      const submitData = {
         fullName: newEmployee.fullName,
         email: newEmployee.email,
-        phone: newEmployee.phone,
+        password: newEmployee.password.trim(),
+        phone: newEmployee.phone || '',
         roleId: dealerStaffRole.roleId,
-        roleName: dealerStaffRole.roleName,
-        storeId: myStoreId,
-        storeName: user?.storeName || ''
+        storeId: myStoreId
       };
 
-      await dispatch(createUserThunk(payload)).unwrap();
+      // Debug log - ẩn password để bảo mật
+      const debugData = { ...submitData };
+      if (debugData.password) {
+        debugData.password = '***';
+      }
+      console.log('Submitting user data:', debugData);
+
+      await dispatch(createUserThunk(submitData)).unwrap();
+      
       success('Đã thêm nhân viên thành công!');
       setShowAddModal(false);
+      
+      // Reset form
       setNewEmployee({
-        username: '',
         password: '',
         fullName: '',
         email: '',
@@ -140,52 +155,47 @@ function EmployeeManagement() {
         storeId: user?.storeId || '',
         storeName: user?.storeName || ''
       });
-      dispatch(getAllUsersThunk());
-    } catch (error) {
-      showError(error?.message || 'Không thể thêm nhân viên');
-    }
-  };
-
-  const handleEditEmployee = (employee) => {
-    setSelectedEmployee(employee);
-    setShowEditModal(true);
-  };
-
-  const handleUpdateEmployee = async (e) => {
-    e.preventDefault();
-    
-    try {
-      await dispatch(updateUserThunk({
-        userId: selectedEmployee.userId,
-        fullName: selectedEmployee.fullName,
-        email: selectedEmployee.email,
-        phone: selectedEmployee.phone,
-        roleId: selectedEmployee.roleId,
-        storeId: selectedEmployee.storeId
-      })).unwrap();
       
-      success('Đã cập nhật nhân viên thành công!');
-      setShowEditModal(false);
-      setSelectedEmployee(null);
-      dispatch(getAllUsersThunk());
+      // Thêm delay nhỏ để đảm bảo backend đã xử lý xong
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
+      // Refresh danh sách users
+      await dispatch(getAllUsersThunk()).unwrap();
     } catch (error) {
-      showError(error?.message || 'Không thể cập nhật nhân viên');
+      console.error('Failed to create user:', error);
+      showError('Lỗi khi tạo người dùng: ' + (error?.message || 'Không thể thêm nhân viên'));
     }
   };
 
-  const handleDeleteEmployee = async (employee) => {
-    const confirmed = await showConfirm({
-      message: `Bạn có chắc chắn muốn xóa nhân viên "${employee.fullName}"?`,
-      type: 'warning'
-    });
-    if (!confirmed) return;
+  const getStatusColor = (status) => {
+    const upperStatus = String(status || '').toUpperCase();
+    switch (upperStatus) {
+      case 'ACTIVE': return 'bg-green-100 text-green-800 border-green-300';
+      case 'INACTIVE': return 'bg-gray-100 text-gray-800 border-gray-300';
+      case 'PENDING': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+      case 'DISABLED': return 'bg-red-100 text-red-800 border-red-300';
+      default: return 'bg-gray-100 text-gray-800 border-gray-300';
+    }
+  };
 
+  const getStatusText = (status) => {
+    const upperStatus = String(status || '').toUpperCase();
+    switch (upperStatus) {
+      case 'ACTIVE': return 'Hoạt động';
+      case 'INACTIVE': return 'Không hoạt động';
+      case 'PENDING': return 'Chờ duyệt';
+      case 'DISABLED': return 'Vô hiệu hóa';
+      default: return upperStatus || status || 'N/A';
+    }
+  };
+
+  const handleUpdateStatus = async (employee, newStatus) => {
     try {
-      await dispatch(deleteUserThunk(employee.userId)).unwrap();
-      success('Đã xóa nhân viên thành công!');
+      await userService.updateUserStatus(employee.userId, newStatus);
+      success(`Đã cập nhật trạng thái nhân viên "${employee.fullName}" thành công!`);
       dispatch(getAllUsersThunk());
     } catch (error) {
-      showError(error?.message || 'Không thể xóa nhân viên');
+      showError(error?.message || 'Không thể cập nhật trạng thái nhân viên');
     }
   };
 
@@ -219,7 +229,7 @@ function EmployeeManagement() {
             <div className="min-w-0 flex-1">
               <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">Quản lý nhân viên</h1>
               <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-0.5 sm:mt-1">
-                Quản lý Dealer Staff tại {user?.storeName || 'cửa hàng của bạn'}
+                Quản lý nhân viên tại {user?.storeName || 'cửa hàng của bạn'}
               </p>
             </div>
             <motion.button
@@ -301,34 +311,15 @@ function EmployeeManagement() {
                       {employee.storeName || `Store #${employee.storeId}`}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="inline-flex gap-2">
-                        <motion.button
-                          onClick={() => handleEditEmployee(employee)}
-                          whileHover={{ scale: 1.05, y: -1 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="px-3 py-1.5 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700 shadow hover:shadow-md transition-all"
-                        >
-                          <span className="flex items-center gap-1">
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                            </svg>
-                            Sửa
-                          </span>
-                        </motion.button>
-                        <motion.button
-                          onClick={() => handleDeleteEmployee(employee)}
-                          whileHover={{ scale: 1.05, y: -1 }}
-                          whileTap={{ scale: 0.95 }}
-                          className="px-3 py-1.5 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 shadow hover:shadow-md transition-all"
-                        >
-                          <span className="flex items-center gap-1">
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                            </svg>
-                            Xóa
-                          </span>
-                        </motion.button>
-                      </div>
+                      <select
+                        value={employee.status === 'INACTIVE' ? 'ACTIVE' : (employee.status || 'ACTIVE')}
+                        onChange={(e) => handleUpdateStatus(employee, e.target.value)}
+                        className={`px-3 py-1.5 text-sm font-medium rounded-lg border focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition-all ${getStatusColor(employee.status === 'INACTIVE' ? 'ACTIVE' : (employee.status || 'ACTIVE'))}`}
+                      >
+                        <option value="ACTIVE">Hoạt động</option>
+                        <option value="PENDING">Chờ duyệt</option>
+                        <option value="DISABLED">Vô hiệu hóa</option>
+                      </select>
                     </td>
                   </tr>
                 );
@@ -346,7 +337,7 @@ function EmployeeManagement() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+            className="fixed inset-0 bg-black/50 overflow-y-auto h-full w-full z-50 backdrop-blur-sm flex items-center justify-center p-4"
             onClick={() => setShowAddModal(false)}
           >
             <motion.div 
@@ -359,203 +350,143 @@ function EmployeeManagement() {
                 damping: 25
               }}
               onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-lg shadow-2xl p-4 w-full max-w-md max-h-[90vh] overflow-y-auto"
+              className="w-full max-w-2xl p-4 border shadow-lg rounded-lg bg-white max-h-[90vh] overflow-y-auto"
             >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Thêm nhân viên mới</h3>
-              <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+              <div className="mt-2">
+                <div className="flex justify-between items-center mb-3 pb-3 border-b border-gray-200">
+                  <h3 className="text-xl font-bold text-gray-900">Thêm nhân viên mới</h3>
+                  <button
+                    onClick={() => setShowAddModal(false)}
+                    className="text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full p-2 transition-all"
+                  >
+                    <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                <form onSubmit={handleAddEmployee} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Full Name */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Họ và tên <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={newEmployee.fullName}
+                        onChange={(e) => setNewEmployee({...newEmployee, fullName: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
+                        placeholder="Nhập họ và tên đầy đủ"
+                        required
+                      />
+                    </div>
 
-            <form onSubmit={handleAddEmployee} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Cửa hàng</label>
-                <input
-                  type="text"
-                  value={`${user?.storeName || ''} (#${myStoreId || ''})`}
-                  disabled
-                  className="w-full px-3 py-2 border rounded-lg bg-gray-50 text-gray-600"
-                />
-              </div>
+                    {/* Store Selection */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Cửa hàng <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={`${user?.storeName || ''} (#${myStoreId || ''})`}
+                        disabled
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 shadow-sm"
+                      />
+                    </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Username *</label>
-                <input
-                  type="text"
-                  value={newEmployee.username}
-                  onChange={(e) => setNewEmployee({...newEmployee, username: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
+                    {/* Role Selection - Disabled */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Vai trò <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value="Nhân viên cửa hàng"
+                        disabled
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-600 shadow-sm"
+                      />
+                    </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-                <input
-                  type="password"
-                  value={newEmployee.password}
-                  onChange={(e) => setNewEmployee({...newEmployee, password: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                  minLength={6}
-                />
-              </div>
+                    {/* Email */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Email <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        value={newEmployee.email}
+                        onChange={(e) => setNewEmployee({...newEmployee, email: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
+                        placeholder="Nhập địa chỉ email"
+                        required
+                      />
+                    </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Họ tên *</label>
-                <input
-                  type="text"
-                  value={newEmployee.fullName}
-                  onChange={(e) => setNewEmployee({...newEmployee, fullName: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
+                    {/* Password */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Mật khẩu <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        value={newEmployee.password}
+                        onChange={(e) => setNewEmployee({...newEmployee, password: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
+                        placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
+                        required
+                        minLength={6}
+                      />
+                    </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                <input
-                  type="email"
-                  value={newEmployee.email}
-                  onChange={(e) => setNewEmployee({...newEmployee, email: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                />
+                    {/* Phone */}
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        Số điện thoại
+                      </label>
+                      <input
+                        type="tel"
+                        value={newEmployee.phone}
+                        onChange={(e) => setNewEmployee({...newEmployee, phone: e.target.value})}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-red-500 focus:border-transparent shadow-sm transition-all bg-white text-gray-900"
+                        placeholder="Nhập số điện thoại"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="flex justify-end space-x-3 mt-6 pt-6 border-t border-gray-200">
+                    <motion.button
+                      type="button"
+                      onClick={() => setShowAddModal(false)}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-all shadow-sm text-sm"
+                    >
+                      ❌ Hủy
+                    </motion.button>
+                    <motion.button
+                      type="submit"
+                      disabled={usersStatus === 'loading'}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="px-4 py-2 bg-gradient-to-r from-red-500 to-red-600 text-white rounded-lg hover:from-red-600 hover:to-red-700 transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center text-sm"
+                    >
+                      {usersStatus === 'loading' && (
+                        <svg className="animate-spin -ml-1 mr-2 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      )}
+                      {usersStatus === 'loading' ? '⏳ Đang tạo...' : '✅ Tạo tài khoản'}
+                    </motion.button>
+                  </div>
+                </form>
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
-                <input
-                  type="tel"
-                  value={newEmployee.phone}
-                  onChange={(e) => setNewEmployee({...newEmployee, phone: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="text-sm text-blue-900">
-                  <strong>Lưu ý:</strong> Nhân viên mới sẽ được tạo với vai trò "Dealer Staff" và được gán vào cửa hàng của bạn.
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <motion.button
-                  type="button"
-                  onClick={() => setShowAddModal(false)}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Hủy
-                </motion.button>
-                <motion.button
-                  type="submit"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md transition-colors"
-                >
-                  Thêm nhân viên
-                </motion.button>
-              </div>
-            </form>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Edit Employee Modal */}
-      <AnimatePresence>
-        {showEditModal && selectedEmployee && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
-            onClick={() => setShowEditModal(false)}
-          >
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0, y: 10 }}
-              transition={{ 
-                type: "spring",
-                stiffness: 300,
-                damping: 25
-              }}
-              onClick={(e) => e.stopPropagation()}
-              className="bg-white rounded-lg shadow-2xl p-4 w-full max-w-md"
-            >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Chỉnh sửa nhân viên</h3>
-              <button onClick={() => setShowEditModal(false)} className="text-gray-400 hover:text-gray-600">
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
-
-            <form onSubmit={handleUpdateEmployee} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Họ tên *</label>
-                <input
-                  type="text"
-                  value={selectedEmployee.fullName}
-                  onChange={(e) => setSelectedEmployee({...selectedEmployee, fullName: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-                <input
-                  type="email"
-                  value={selectedEmployee.email}
-                  onChange={(e) => setSelectedEmployee({...selectedEmployee, email: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Số điện thoại</label>
-                <input
-                  type="tel"
-                  value={selectedEmployee.phone || ''}
-                  onChange={(e) => setSelectedEmployee({...selectedEmployee, phone: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-2">
-                <motion.button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="px-4 py-2 border rounded-lg hover:bg-gray-50 transition-colors"
-                >
-                  Hủy
-                </motion.button>
-                <motion.button
-                  type="submit"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-md transition-colors"
-                >
-                  Cập nhật
-                </motion.button>
-              </div>
-            </form>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
       </div>
     </div>
   );

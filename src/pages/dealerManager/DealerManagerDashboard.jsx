@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useSelector, useDispatch } from 'react-redux';
-import { fetchOrders, fetchOrdersByStaffId } from '../../store/slices/orderSlice';
+import { fetchOrders } from '../../store/slices/orderSlice';
 import { getAllStoreStocksThunk } from '../../store/slices/store-stockSlice';
 import { fetchPromotions } from '../../store/slices/promotionSlice';
 import { getAllUsersThunk } from '../../store/slices/userSlice';
@@ -17,8 +17,6 @@ const DealerManagerDashboard = () => {
   const promotions = useSelector((s) => s.promotions.promotions) || [];
   const users = useSelector((s) => s.users.items) || [];
   
-  // State for staff filter
-  const [selectedStaffId, setSelectedStaffId] = useState('all'); // 'all' means show all orders
   const [loadingOrders, setLoadingOrders] = useState(false);
   const [feedbacks, setFeedbacks] = useState([]);
   const [feedbacksWithDetails, setFeedbacksWithDetails] = useState([]);
@@ -27,33 +25,15 @@ const DealerManagerDashboard = () => {
   const [feedbacksPerPage] = useState(3);
   const [activeTab, setActiveTab] = useState(1); // 1: Overview, 2: Status & Inventory, 3: Promotions & Feedback
 
-  // Get list of staff (Dealer Staff role)
-  const staffList = useMemo(() => {
-    return users.filter(u => 
-      u.roleName === 'Dealer Staff' || 
-      u.roleName === 'Nhân viên cửa hàng' ||
-      u.roleId === 4 // Assuming roleId 4 is Dealer Staff
-    );
-  }, [users]);
-
   // Use ref to prevent duplicate API calls
-  const lastFetchedStaffIdRef = useRef(null);
   const hasFetchedFeedbacksRef = useRef(false);
   const hasFetchedOtherDataRef = useRef(false);
 
-  // Fetch orders based on selected staff
+  // Fetch orders on mount
   useEffect(() => {
-    // Only fetch if selectedStaffId changed or hasn't been fetched yet
-    if (lastFetchedStaffIdRef.current !== selectedStaffId) {
-      lastFetchedStaffIdRef.current = selectedStaffId;
-      setLoadingOrders(true);
-      if (selectedStaffId === 'all') {
-        dispatch(fetchOrders()).finally(() => setLoadingOrders(false));
-      } else {
-        dispatch(fetchOrdersByStaffId(selectedStaffId)).finally(() => setLoadingOrders(false));
-      }
-    }
-  }, [dispatch, selectedStaffId]);
+    setLoadingOrders(true);
+    dispatch(fetchOrders()).finally(() => setLoadingOrders(false));
+  }, [dispatch]);
 
   // Load feedbacks with details (rating and content)
   useEffect(() => {
@@ -148,17 +128,10 @@ const DealerManagerDashboard = () => {
     }
   }, [dispatch]);
 
-  // Filter orders based on selected staff (client-side filter as backup)
+  // Use all orders
   const orders = useMemo(() => {
-    if (selectedStaffId === 'all') {
-      return allOrders;
-    }
-    // Filter by staffId, userId, or staff_id
-    return allOrders.filter(order => {
-      const orderStaffId = order.staffId || order.userId || order.staff_id || order.user_id;
-      return String(orderStaffId) === String(selectedStaffId);
-    });
-  }, [allOrders, selectedStaffId]);
+    return allOrders;
+  }, [allOrders]);
 
   // Tính toán thống kê đơn hàng
   const orderStats = {
@@ -251,13 +224,6 @@ const DealerManagerDashboard = () => {
     return data;
   }, [orders]);
 
-  // Phân tích đơn hàng theo trạng thái
-  const orderStatusData = [
-    { name: 'Đã xác nhận', value: orderStats.confirmed, color: '#10b981' },
-    { name: 'Đang chờ', value: orderStats.pending, color: '#f59e0b' },
-    { name: 'Hoàn thành', value: orderStats.completed, color: '#3b82f6' },
-  ];
-
   // Phân tích kho theo số lượng
   const inventoryByQuantity = storeStocks
     .filter(s => (parseInt(s.quantity) || 0) > 0)
@@ -275,34 +241,9 @@ const DealerManagerDashboard = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 sm:gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
-          {/* Staff Filter Dropdown */}
-          <div className="relative w-full sm:w-auto">
-            <label className="text-xs sm:text-sm text-gray-600 mr-2 block sm:inline">Lọc theo nhân viên:</label>
-            <select
-              value={selectedStaffId}
-              onChange={(e) => setSelectedStaffId(e.target.value)}
-              className="w-full sm:min-w-[200px] px-3 sm:px-4 py-2 sm:py-2.5 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 text-xs sm:text-sm"
-              disabled={loadingOrders}
-            >
-              <option value="all">Tất cả nhân viên</option>
-              {staffList.map((staff) => {
-                const staffId = staff.userId || staff.id || staff.user_id;
-                const staffName = staff.fullName || staff.name || staff.username || `Staff ${staffId}`;
-                return (
-                  <option key={staffId} value={staffId}>
-                    {staffName}
-                  </option>
-                );
-              })}
-            </select>
-          </div>
           <button 
             onClick={() => {
-              if (selectedStaffId === 'all') {
-                dispatch(fetchOrders());
-              } else {
-                dispatch(fetchOrdersByStaffId(selectedStaffId));
-              }
+              dispatch(fetchOrders());
               dispatch(getAllStoreStocksThunk());
               dispatch(fetchPromotions());
             }}
@@ -480,39 +421,9 @@ const DealerManagerDashboard = () => {
 
       {/* Tab 2: Status & Inventory */}
       {activeTab === 2 && (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* Order Status Pie */}
-          <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-            <div className="mb-4">
-              <h3 className="text-base font-semibold text-gray-900">⚡ Trạng thái đơn hàng</h3>
-              <p className="text-xs text-gray-500 mt-0.5">Phân loại theo trạng thái</p>
-            </div>
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie
-                  data={orderStatusData}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={80}
-                  fill="#8884d8"
-                  dataKey="value"
-                >
-                  {orderStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value) => [`${value} đơn`, 'Số lượng']}
-                  contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-
+        <div className="grid grid-cols-1 gap-4">
           {/* Top Inventory Items */}
-          <div className="lg:col-span-2 bg-white rounded-lg border border-gray-200 shadow-md p-4">
+          <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
             <div className="mb-4">
               <h3 className="text-base font-semibold text-gray-900">📦 Top 5 sản phẩm tồn kho</h3>
               <p className="text-xs text-gray-500 mt-0.5">Sản phẩm có số lượng tồn kho cao nhất</p>

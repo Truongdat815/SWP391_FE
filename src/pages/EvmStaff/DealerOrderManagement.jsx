@@ -28,6 +28,7 @@ import {
 import { getAllStoreStocksThunk } from '../../store/slices/store-stockSlice';
 import { getAllModelsThunk } from '../../store/slices/modelSlice';
 import { getAllModelColorsThunk } from '../../store/slices/modelColorSlice';
+import { getAllStoresThunk } from '../../store/slices/storeSlice';
 import { showError, showSuccess, showWarning } from '../../store/slices/snackbarSlice';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -48,6 +49,7 @@ function DealerOrderManagement() {
   const transactionsStatus = useSelector((s) => s.inventoryTransactions.status);
   const transactionsError = useSelector((s) => s.inventoryTransactions.error);
   const storeStocks = useSelector((s) => s.storeStocks.items);
+  const stores = useSelector((s) => s.stores.items);
   const models = useSelector((s) => s.models.items);
   const modelColors = useSelector((s) => s.modelColors.items);
 
@@ -69,6 +71,7 @@ function DealerOrderManagement() {
     // Initial load only - no auto-refresh, no polling
     dispatch(getAllTransactionsThunk());
     dispatch(getAllStoreStocksThunk());
+    dispatch(getAllStoresThunk());
     dispatch(getAllModelsThunk());
     dispatch(getAllModelColorsThunk());
   }, [dispatch]);
@@ -96,6 +99,28 @@ function DealerOrderManagement() {
     });
   }, [transactions, sortOrder]);
 
+  const waitingReceiptOrders = useMemo(() => {
+    const filtered = transactions.filter(t => {
+      const statusUpper = (t.status || '').toUpperCase();
+      return statusUpper === 'CONFIRMED' || statusUpper === 'ACCEPTED' || statusUpper === 'APPROVED';
+    });
+    return [...filtered].sort((a, b) => {
+      if (sortOrder === 'updated') {
+        const dateA = new Date(a.updatedAt || a.createdAt || a.orderDate || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.updatedAt || b.createdAt || b.orderDate || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else if (sortOrder === 'newest') {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateB - dateA;
+      } else {
+        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
+        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
+        return dateA - dateB;
+      }
+    });
+  }, [transactions, sortOrder]);
+
   const paymentReviewOrders = useMemo(() => {
     const filtered = transactions.filter(t => (t.status || '').toUpperCase() === 'FILE_UPLOADED');
     return [...filtered].sort((a, b) => {
@@ -115,30 +140,11 @@ function DealerOrderManagement() {
     });
   }, [transactions, sortOrder]);
 
-  const processingOrders = useMemo(() => {
+  const inTransitOrders = useMemo(() => {
     const filtered = transactions.filter(t => {
       const statusUpper = (t.status || '').toUpperCase();
-      return statusUpper === 'CONFIRMED' || statusUpper === 'PAYMENT_CONFIRMED';
+      return statusUpper === 'IN_TRANSIT' || statusUpper === 'PAYMENT_CONFIRMED';
     });
-    return [...filtered].sort((a, b) => {
-      if (sortOrder === 'updated') {
-        const dateA = new Date(a.updatedAt || a.createdAt || a.orderDate || a.transactionDate || 0).getTime();
-        const dateB = new Date(b.updatedAt || b.createdAt || b.orderDate || b.transactionDate || 0).getTime();
-        return dateB - dateA;
-      } else if (sortOrder === 'newest') {
-        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
-        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
-        return dateB - dateA;
-      } else {
-        const dateA = new Date(a.orderDate || a.createdAt || a.transactionDate || 0).getTime();
-        const dateB = new Date(b.orderDate || b.createdAt || b.transactionDate || 0).getTime();
-        return dateA - dateB;
-      }
-    });
-  }, [transactions, sortOrder]);
-
-  const inTransitOrders = useMemo(() => {
-    const filtered = transactions.filter(t => (t.status || '').toUpperCase() === 'IN_TRANSIT');
     return [...filtered].sort((a, b) => {
       if (sortOrder === 'updated') {
         const dateA = new Date(a.updatedAt || a.createdAt || a.orderDate || a.transactionDate || 0).getTime();
@@ -159,7 +165,7 @@ function DealerOrderManagement() {
   const completedOrders = useMemo(() => {
     const filtered = transactions.filter(t => {
       const statusUpper = (t.status || '').toUpperCase();
-      return statusUpper === 'DELIVERED' || statusUpper === 'COMPLETED';
+      return statusUpper === 'DELIVERED' || statusUpper === 'COMPLETED' || statusUpper === 'FINISH';
     });
     return [...filtered].sort((a, b) => {
       if (sortOrder === 'updated') {
@@ -236,6 +242,34 @@ function DealerOrderManagement() {
     return storeStocks.find(s => s.stockId === transaction.storeStockId);
   };
 
+  // Get store info for transaction
+  const getStoreForTransaction = (transaction) => {
+    // Method 1: Check if transaction has store object directly
+    if (transaction.store) {
+      return transaction.store;
+    }
+    
+    // Method 2: Check if transaction has storeStock with store info
+    if (transaction.storeStock?.store) {
+      return transaction.storeStock.store;
+    }
+    
+    // Method 3: Find store by storeId from transaction
+    if (transaction.storeId) {
+      const store = stores.find(s => s.storeId === transaction.storeId);
+      if (store) return store;
+    }
+    
+    // Method 4: Find store from storeStock
+    const stock = getStockForTransaction(transaction);
+    if (stock?.storeId) {
+      const store = stores.find(s => s.storeId === stock.storeId);
+      if (store) return store;
+    }
+    
+    return null;
+  };
+
   // Format price
   const formatPrice = (price) => {
     if (!price && price !== 0) return '0';
@@ -271,6 +305,7 @@ function DealerOrderManagement() {
   // Render order card (compact version)
   const renderOrderCard = (order, index) => {
     const stock = getStockForTransaction(order);
+    const store = getStoreForTransaction(order);
     const statusUpper = (order.status || '').toUpperCase();
     
     // Get model and color names from transaction
@@ -281,6 +316,7 @@ function DealerOrderManagement() {
     );
     const modelName = transactionModel?.modelName || stock?.modelName || 'N/A';
     const colorName = transactionColor?.colorName || stock?.colorName || 'N/A';
+    const storeName = store?.storeName || store?.name || order.storeName || 'N/A';
     
     return (
       <motion.div
@@ -312,6 +348,19 @@ function DealerOrderManagement() {
           <div className="bg-gray-50 rounded-lg p-2.5 border border-gray-200">
             <OrderStatusStepper currentStatus={order.status} size="sm" />
           </div>
+
+          {/* Store Info */}
+          {storeName && storeName !== 'N/A' && (
+            <div className="bg-blue-50 rounded-lg p-2 border border-blue-200">
+              <div className="flex items-center gap-2">
+                <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-blue-600 font-medium">Cửa hàng</p>
+                  <p className="text-xs font-semibold text-blue-900 truncate">{storeName}</p>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Compact Order Details */}
           <div className="grid grid-cols-3 gap-2">
@@ -404,6 +453,7 @@ function DealerOrderManagement() {
     if (!selectedOrder) return null;
 
     const stock = getStockForTransaction(selectedOrder);
+    const store = getStoreForTransaction(selectedOrder);
     const statusUpper = (selectedOrder.status || '').toUpperCase();
     
     // Get model and color names
@@ -414,6 +464,7 @@ function DealerOrderManagement() {
     );
     const modelName = transactionModel?.modelName || stock?.modelName || 'N/A';
     const colorName = transactionColor?.colorName || stock?.colorName || 'N/A';
+    const storeName = store?.storeName || store?.name || selectedOrder.storeName || 'N/A';
 
     return (
       <AnimatePresence>
@@ -475,6 +526,24 @@ function DealerOrderManagement() {
                   </h4>
                   <OrderStatusStepper currentStatus={selectedOrder.status} size="sm" />
                 </div>
+
+                {/* Store Info */}
+                {storeName && storeName !== 'N/A' && (
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 border border-blue-200">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-100 rounded-lg">
+                        <Building2 className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-xs text-blue-600 font-medium mb-1">Cửa hàng</p>
+                        <p className="text-sm font-bold text-blue-900">{storeName}</p>
+                        {store?.address && (
+                          <p className="text-xs text-blue-700 mt-1">{store.address}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Order Details */}
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -661,84 +730,6 @@ function DealerOrderManagement() {
           </div>
         </motion.div>
 
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-gradient-to-br from-yellow-500 to-orange-500 text-white rounded-xl p-5 shadow-lg"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-yellow-100">Chờ xử lý</p>
-                <p className="text-3xl font-bold mt-1">{pendingOrders.length}</p>
-              </div>
-              <Clock className="w-10 h-10 text-white/80" />
-            </div>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-gradient-to-br from-amber-500 to-orange-500 text-white rounded-xl p-5 shadow-lg"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-amber-100">Xác nhận thanh toán</p>
-                <p className="text-3xl font-bold mt-1">{paymentReviewOrders.length}</p>
-              </div>
-              <CreditCard className="w-10 h-10 text-white/80" />
-            </div>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-gradient-to-br from-teal-500 to-cyan-500 text-white rounded-xl p-5 shadow-lg"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-teal-100">Đang xử lý</p>
-                <p className="text-3xl font-bold mt-1">{processingOrders.length}</p>
-              </div>
-              <CheckCircle className="w-10 h-10 text-white/80" />
-            </div>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="bg-gradient-to-br from-purple-500 to-indigo-500 text-white rounded-xl p-5 shadow-lg"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-purple-100">Vận chuyển</p>
-                <p className="text-3xl font-bold mt-1">{inTransitOrders.length}</p>
-              </div>
-              <Truck className="w-10 h-10 text-white/80" />
-            </div>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.5 }}
-            className="bg-gradient-to-br from-green-600 to-emerald-600 text-white rounded-xl p-5 shadow-lg"
-          >
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-100">Hoàn thành</p>
-                <p className="text-3xl font-bold mt-1">{completedOrders.length}</p>
-              </div>
-              <Package className="w-10 h-10 text-white/80" />
-            </div>
-          </motion.div>
-        </div>
-
         {/* Tabs */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-2">
           <div className="flex flex-wrap gap-2">
@@ -766,6 +757,29 @@ function DealerOrderManagement() {
             </motion.button>
 
             <motion.button
+              onClick={() => setActiveTab('waiting_receipt')}
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              className={`flex-1 min-w-[140px] px-4 py-3 rounded-xl font-semibold transition-all ${
+                activeTab === 'waiting_receipt'
+                  ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <Upload className="w-5 h-5" />
+                <span>Chờ upload biên lai</span>
+                {waitingReceiptOrders.length > 0 && (
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
+                    activeTab === 'waiting_receipt' ? 'bg-white/30' : 'bg-blue-100 text-blue-600'
+                  }`}>
+                    {waitingReceiptOrders.length}
+                  </span>
+                )}
+              </div>
+            </motion.button>
+
+            <motion.button
               onClick={() => setActiveTab('payment_review')}
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
@@ -777,31 +791,6 @@ function DealerOrderManagement() {
             >
               <div className="flex items-center justify-center gap-2">
                 <CreditCard className="w-5 h-5" />
-                <span>Đang xử lí </span>
-                {processingOrders.length > 0 && (
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                    activeTab === 'processing' ? 'bg-white/30' : 'bg-teal-100 text-teal-600'
-                  }`}>
-                    {processingOrders.length}
-                  </span>
-                )}
-
-                
-              </div>
-            </motion.button>
-
-            <motion.button
-              onClick={() => setActiveTab('processing')}
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className={`flex-1 min-w-[140px] px-4 py-3 rounded-xl font-semibold transition-all ${
-                activeTab === 'processing'
-                  ? 'bg-gradient-to-r from-teal-500 to-cyan-500 text-white shadow-lg'
-                  : 'text-gray-600 hover:bg-gray-100'
-              }`}
-            >
-              <div className="flex items-center justify-center gap-2">
-                <CheckCircle className="w-5 h-5" />
                 <span>Xác nhận thanh toán</span>
                 {paymentReviewOrders.length > 0 && (
                   <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
@@ -810,7 +799,6 @@ function DealerOrderManagement() {
                     {paymentReviewOrders.length}
                   </span>
                 )}
-                
               </div>
             </motion.button>
 
@@ -908,6 +896,32 @@ function DealerOrderManagement() {
             </motion.div>
           )}
 
+          {activeTab === 'waiting_receipt' && (
+            <motion.div
+              key="waiting_receipt"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="space-y-4"
+            >
+              {transactionsStatus === 'loading' ? (
+                <div className="text-center py-16">
+                  <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+                  <p className="mt-4 text-gray-600 font-medium">Đang tải dữ liệu...</p>
+                </div>
+              ) : waitingReceiptOrders.length === 0 ? (
+                <EmptyState
+                  title="Không có đơn hàng chờ upload biên lai"
+                  description="Các đơn hàng đã được chấp nhận và đang chờ dealer upload biên lai sẽ xuất hiện ở đây"
+                  icon="upload"
+                  roleColor="green"
+                />
+              ) : (
+                waitingReceiptOrders.map((order, index) => renderOrderCard(order, index))
+              )}
+            </motion.div>
+          )}
+
           {activeTab === 'payment_review' && (
             <motion.div
               key="payment_review"
@@ -934,32 +948,6 @@ function DealerOrderManagement() {
             </motion.div>
           )}
 
-          {activeTab === 'processing' && (
-            <motion.div
-              key="processing"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="space-y-4"
-            >
-              {transactionsStatus === 'loading' ? (
-                <div className="text-center py-16">
-                  <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-teal-500 border-t-transparent"></div>
-                  <p className="mt-4 text-gray-600 font-medium">Đang tải dữ liệu...</p>
-                </div>
-              ) : processingOrders.length === 0 ? (
-                <EmptyState
-                  title="Không có đơn hàng đang xử lý"
-                  description="Các đơn hàng đã xác nhận sẽ xuất hiện ở đây"
-                  icon="check"
-                  roleColor="green"
-                />
-              ) : (
-                processingOrders.map((order, index) => renderOrderCard(order, index))
-              )}
-            </motion.div>
-          )}
-
           {activeTab === 'in_transit' && (
             <motion.div
               key="in_transit"
@@ -975,8 +963,8 @@ function DealerOrderManagement() {
                 </div>
               ) : inTransitOrders.length === 0 ? (
                 <EmptyState
-                  title="Không có đơn hàng đang vận chuyển"
-                  description="Các đơn hàng đang giao sẽ xuất hiện ở đây"
+                  title="Không có đơn hàng đang xử lý/vận chuyển"
+                  description="Các đơn hàng đã xác nhận thanh toán và đang vận chuyển sẽ xuất hiện ở đây"
                   icon="truck"
                   roleColor="green"
                 />

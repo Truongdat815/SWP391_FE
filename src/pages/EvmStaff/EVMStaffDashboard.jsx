@@ -7,6 +7,21 @@ import { getAllTransactionsThunk } from '../../store/slices/inventoryTransaction
 import { getAllStoreStocksThunk } from '../../store/slices/store-stockSlice';
 import { useAuth } from '../../contexts/AuthContext';
 
+const COMPLETED_TRANSACTION_STATUSES = ['COMPLETED', 'FINISH', 'DELIVERED'];
+const PENDING_TRANSACTION_STATUSES = ['PENDING', 'REQUESTED'];
+const PROCESSING_TRANSACTION_STATUSES = [
+  'PROCESSING',
+  'ACCEPTED',
+  'APPROVED',
+  'CONFIRMED',
+  'CONTRACT_SIGNED',
+  'CONTRACT_PENDING',
+  'FILE_UPLOADED',
+  'PAYMENT_CONFIRMED',
+  'SHIPPING',
+  'IN_TRANSIT'
+];
+
 const EVMStaffDashboard = () => {
   const dispatch = useDispatch();
   const { user } = useAuth();
@@ -47,23 +62,15 @@ const EVMStaffDashboard = () => {
     total: transactions.length,
     pending: transactions.filter(t => {
       const status = (t.status || '').toUpperCase();
-      return status === 'PENDING' || status === 'REQUESTED';
+      return PENDING_TRANSACTION_STATUSES.includes(status);
     }).length,
     processing: transactions.filter(t => {
       const status = (t.status || '').toUpperCase();
-      return status === 'PROCESSING' || 
-             status === 'ACCEPTED' || 
-             status === 'APPROVED' || 
-             status === 'CONFIRMED' || 
-             status === 'CONTRACT_SIGNED' ||
-             status === 'FILE_UPLOADED' ||
-             status === 'PAYMENT_CONFIRMED' ||
-             status === 'SHIPPING' ||
-             status === 'IN_TRANSIT';
+      return PROCESSING_TRANSACTION_STATUSES.includes(status);
     }).length,
     completed: transactions.filter(t => {
       const status = (t.status || '').toUpperCase();
-      return status === 'COMPLETED' || status === 'FINISH' || status === 'DELIVERED';
+      return COMPLETED_TRANSACTION_STATUSES.includes(status);
     }).length,
   };
 

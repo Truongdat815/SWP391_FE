@@ -136,7 +136,7 @@ const aggregateOrderDetails = (details) => {
   return result;
 };
 
-function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWithContracts: parentOrdersWithContracts = {} }) {
+function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWithContracts: parentOrdersWithContracts = {}, readOnly = false }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -743,7 +743,7 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
   };
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-2 py-3 sm:py-4 md:py-5">
+    <div className="w-full">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -767,24 +767,24 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
       <div className="w-full">
         {/* Loading State - Only show on initial load */}
         {loading && (!reduxOrders || reduxOrders.length === 0) && (
-          <div className="flex items-center justify-center py-6 sm:py-8">
-            <Loader2 className="h-5 w-5 sm:h-6 sm:w-6 animate-spin text-emerald-600 mr-2" />
-            <span className="text-xs sm:text-sm text-gray-600">Đang tải danh sách đơn hàng...</span>
+          <div className="flex items-center justify-center py-6">
+            <Loader2 className="h-6 w-6 animate-spin text-emerald-600 mr-2" />
+            <span className="text-gray-600 text-sm">Đang tải danh sách đơn hàng...</span>
           </div>
         )}
 
         {/* Filters - Always show even when loading to prevent layout shift */}
-        <div className="space-y-2 sm:space-y-3 mb-2 sm:mb-3">
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
-              <div className="flex-1 min-w-0">
+        <div className="space-y-2 mb-2">
+            <div className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1">
                 <div className="relative">
-                  <Search className="absolute left-2.5 sm:left-3 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 sm:h-4 sm:w-4 text-gray-400" />
+                  <Search className="absolute left-2.5 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type="text"
                     placeholder="Tìm kiếm theo tên khách hàng, mã đơn hàng..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="w-full pl-8 sm:pl-9 md:pl-10 pr-3 sm:pr-4 py-2 sm:py-2.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all duration-200"
+                    className="w-full pl-9 pr-3 py-1.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
                   />
                 </div>
               </div>
@@ -1049,61 +1049,65 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
                           <Eye className="h-4 w-4" />
                         </motion.button>
                         
-                        {/* Nút Xác nhận đơn hàng - chỉ hiện khi đơn hàng DRAFT */}
-                        {order.status?.toUpperCase() === 'DRAFT' && (
-                          <motion.button
-                            onClick={() => handleConfirmOrder(order.orderId)}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-200"
-                            title="Xác nhận"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                          </motion.button>
-                        )}
-                        
-                        {/* Nút Tạo hợp đồng - chỉ hiện khi đơn hàng CONFIRMED và chưa có hợp đồng */}
-                        {order.status?.toUpperCase() === 'CONFIRMED' && !ordersWithContracts[order.orderId] && (
-                          <motion.button
-                            onClick={() => handleCreateContract(order)}
-                            disabled={creatingContract === order.orderId}
-                            whileHover={{ scale: creatingContract === order.orderId ? 1 : 1.1 }}
-                            whileTap={{ scale: creatingContract === order.orderId ? 1 : 0.9 }}
-                            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Tạo hợp đồng"
-                          >
-                            {creatingContract === order.orderId ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <FileText className="h-4 w-4" />
+                        {!readOnly && (
+                          <>
+                            {/* Nút Xác nhận đơn hàng - chỉ hiện khi đơn hàng DRAFT */}
+                            {order.status?.toUpperCase() === 'DRAFT' && (
+                              <motion.button
+                                onClick={() => handleConfirmOrder(order.orderId)}
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-200"
+                                title="Xác nhận"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </motion.button>
                             )}
-                          </motion.button>
-                        )}
-                        
-                        {/* Nút Xem hợp đồng - khi đã có hợp đồng */}
-                        {order.status?.toUpperCase() === 'CONFIRMED' && ordersWithContracts[order.orderId] && (
-                          <motion.button
-                            onClick={() => navigate('/dealer-staff/contract-management')}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-all border border-green-200"
-                            title="Xem hợp đồng"
-                          >
-                            <FileText className="h-4 w-4" />
-                          </motion.button>
-                        )}
-                        
-                        {/* Nút Xóa đơn hàng - chỉ hiện khi đơn hàng có trạng thái DRAFT (bản nháp) */}
-                        {order.status?.toUpperCase() === 'DRAFT' && (
-                          <motion.button
-                            onClick={() => handleDeleteOrder(order.orderId, order.status)}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all border border-red-200"
-                            title="Xóa"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </motion.button>
+                            
+                            {/* Nút Tạo hợp đồng - chỉ hiện khi đơn hàng CONFIRMED và chưa có hợp đồng */}
+                            {order.status?.toUpperCase() === 'CONFIRMED' && !ordersWithContracts[order.orderId] && (
+                              <motion.button
+                                onClick={() => handleCreateContract(order)}
+                                disabled={creatingContract === order.orderId}
+                                whileHover={{ scale: creatingContract === order.orderId ? 1 : 1.1 }}
+                                whileTap={{ scale: creatingContract === order.orderId ? 1 : 0.9 }}
+                                className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Tạo hợp đồng"
+                              >
+                                {creatingContract === order.orderId ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <FileText className="h-4 w-4" />
+                                )}
+                              </motion.button>
+                            )}
+                            
+                            {/* Nút Xem hợp đồng - khi đã có hợp đồng */}
+                            {order.status?.toUpperCase() === 'CONFIRMED' && ordersWithContracts[order.orderId] && (
+                              <motion.button
+                                onClick={() => navigate('/dealer-staff/contract-management')}
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-all border border-green-200"
+                                title="Xem hợp đồng"
+                              >
+                                <FileText className="h-4 w-4" />
+                              </motion.button>
+                            )}
+                            
+                            {/* Nút Xóa đơn hàng - chỉ hiện khi đơn hàng có trạng thái DRAFT (bản nháp) */}
+                            {order.status?.toUpperCase() === 'DRAFT' && (
+                              <motion.button
+                                onClick={() => handleDeleteOrder(order.orderId, order.status)}
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all border border-red-200"
+                                title="Xóa"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </motion.button>
+                            )}
+                          </>
                         )}
                       </div>
                     </td>

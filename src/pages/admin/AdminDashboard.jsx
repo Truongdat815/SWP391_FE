@@ -1,8 +1,45 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useSelector, useDispatch } from 'react-redux';
 import { getAllStoresThunk } from '@store/slices/storeSlice';
 import { getAllUsersThunk } from '@store/slices/userSlice';
+import { fetchOrders } from '@store/slices/orderSlice';
+
+const revenueFields = ['totalPayment', 'totalPrice', 'totalAmount', 'total_amount', 'total'];
+
+const parseCurrencyValue = (value) => {
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    const parsed = Number(value.replace(/[^\d.-]/g, ''));
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+  return 0;
+};
+
+const extractOrderRevenue = (order) => {
+  for (const field of revenueFields) {
+    if (order[field] !== undefined && order[field] !== null) {
+      const numericValue = parseCurrencyValue(order[field]);
+      if (numericValue > 0) return numericValue;
+    }
+  }
+  const details = order.getOrderDetailsResponses || order.orderDetails || [];
+  if (Array.isArray(details) && details.length) {
+    return details.reduce((sum, detail) => {
+      const total =
+        parseCurrencyValue(detail.totalPrice) ||
+        parseCurrencyValue(detail.totalAmount) ||
+        parseCurrencyValue(detail.price) * (detail.quantity || 1);
+      return sum + (Number.isFinite(total) ? total : 0);
+    }, 0);
+  }
+  return 0;
+};
+
+const formatCurrency = (value) => {
+  if (!Number.isFinite(value) || value <= 0) return '0 ₫';
+  return value.toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
+};
 
 const AdminDashboard = () => {
   const dispatch = useDispatch();
@@ -10,10 +47,17 @@ const AdminDashboard = () => {
   const users = useSelector((s) => s.users.items) || [];
   const storesStatus = useSelector((s) => s.stores.status);
   const usersStatus = useSelector((s) => s.users.status);
+  const { orders: rawOrders, loading: ordersLoading } = useSelector((s) => s.orders);
+  const orders = useMemo(() => {
+    if (Array.isArray(rawOrders)) return rawOrders;
+    if (Array.isArray(rawOrders?.data)) return rawOrders.data;
+    return [];
+  }, [rawOrders]);
 
   // Use ref for extra safety (already has status check)
   const hasFetchedStoresRef = useRef(false);
   const hasFetchedUsersRef = useRef(false);
+  const hasFetchedOrdersRef = useRef(false);
 
   useEffect(() => {
     if (storesStatus === 'idle' && !hasFetchedStoresRef.current) {
@@ -24,21 +68,11 @@ const AdminDashboard = () => {
       hasFetchedUsersRef.current = true;
       dispatch(getAllUsersThunk());
     }
-  }, [dispatch, storesStatus, usersStatus]);
-
-  // Mock data cho biểu đồ doanh thu
-  const revenueData = [
-    { month: 'T1', revenue: 45000000, orders: 120 },
-    { month: 'T2', revenue: 52000000, orders: 145 },
-    { month: 'T3', revenue: 48000000, orders: 130 },
-    { month: 'T4', revenue: 61000000, orders: 170 },
-    { month: 'T5', revenue: 55000000, orders: 150 },
-    { month: 'T6', revenue: 67000000, orders: 185 },
-    { month: 'T7', revenue: 73000000, orders: 200 },
-    { month: 'T8', revenue: 69000000, orders: 190 },
-    { month: 'T9', revenue: 78000000, orders: 215 },
-    { month: 'T10', revenue: 82000000, orders: 230 },
-  ];
+    if (!hasFetchedOrdersRef.current && !orders.length && !ordersLoading) {
+      hasFetchedOrdersRef.current = true;
+      dispatch(fetchOrders());
+    }
+  }, [dispatch, storesStatus, usersStatus, orders.length, ordersLoading]);
 
   // Phân tích cửa hàng theo tỉnh
   const storesByProvince = stores.reduce((acc, store) => {
@@ -76,10 +110,15 @@ const AdminDashboard = () => {
     value,
   }));
 
-  // Tổng quan metrics
-  const totalRevenue = revenueData.reduce((sum, item) => sum + item.revenue, 0);
-  const totalOrders = revenueData.reduce((sum, item) => sum + item.orders, 0);
-  const avgOrderValue = totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0;
+  const orderSummary = useMemo(() => {
+    const totalRevenue = orders.reduce((sum, order) => sum + extractOrderRevenue(order), 0);
+    const totalOrders = orders.length;
+    return {
+      totalOrders,
+      totalRevenue,
+      averageOrderValue: totalOrders > 0 ? totalRevenue / totalOrders : 0,
+    };
+  }, [orders]);
 
   const COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
@@ -94,7 +133,7 @@ const AdminDashboard = () => {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 md:gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-2.5 md:gap-3">
         {/* Total Stores */}
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5 sm:p-3 md:p-4 shadow-sm hover:shadow-md transition-all duration-200">
           <div className="flex items-center justify-between">
@@ -125,6 +164,23 @@ const AdminDashboard = () => {
               </svg>
             </div>
           </div>
+        </div>
+
+        {/* Orders & Revenue */}
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5 sm:p-3 md:p-4 shadow-sm hover:shadow-md transition-all duration-200">
+          <div className="flex items-center justify-between">
+            <div className="flex-1 min-w-0">
+              <p className="text-gray-600 text-xs sm:text-sm font-medium truncate">Đơn hàng hệ thống</p>
+              <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mt-0.5">{orderSummary.totalOrders}</h3>
+              <p className="text-gray-600 text-xs sm:text-sm mt-0.5 truncate">Doanh thu: {formatCurrency(orderSummary.totalRevenue)}</p>
+            </div>
+            <div className="h-8 w-8 sm:h-10 sm:w-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 ml-2">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+            </div>
+          </div>
+          <p className="text-[11px] sm:text-xs text-gray-500 mt-2">Giá trị trung bình: {formatCurrency(orderSummary.averageOrderValue)}</p>
         </div>
       </div>
 

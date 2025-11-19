@@ -114,3 +114,10 @@ export async function confirmOrder(orderId) {
         body: { orderId: orderId }
     });
 }
+
+// Deliver order (set status to DELIVERED)
+export async function deliverOrder(orderId) {
+    return request(`/api/orders/${orderId}/deliver`, {
+        method: 'PUT'
+    });
+}
