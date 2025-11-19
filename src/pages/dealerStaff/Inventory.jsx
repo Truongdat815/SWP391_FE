@@ -148,7 +148,7 @@ function Inventory() {
   // Loading state
   if (storeStocksStatus === 'loading') {
     return (
-      <div className="max-w-7xl mx-auto p-4">
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5">
         <Toast 
           show={toast.show} 
           type={toast.type} 
@@ -169,10 +169,12 @@ function Inventory() {
 
         <ModernCard>
           <ModernCardContent>
-            <div className="flex items-center justify-center py-12">
+            <div className="flex items-center justify-center py-8 sm:py-10 md:py-12">
               <div className="text-center">
                 <LoadingSpinner size="lg" color="emerald" />
-                <p className="mt-4 text-gray-600 font-medium">Đang tải dữ liệu kho hàng...</p>
+                <p className="mt-3 sm:mt-4 text-sm sm:text-base text-gray-600 font-medium">
+                  Đang tải dữ liệu kho hàng...
+                </p>
               </div>
             </div>
           </ModernCardContent>
@@ -184,7 +186,7 @@ function Inventory() {
   // Error state
   if (storeStocksStatus === 'failed') {
     return (
-      <div className="max-w-7xl mx-auto p-4">
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5">
         <Toast 
           show={toast.show} 
           type={toast.type} 
@@ -205,13 +207,17 @@ function Inventory() {
 
         <ModernCard>
           <ModernCardContent>
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <AlertCircle className="w-8 h-8 text-red-500" />
+            <div className="flex items-center justify-center py-8 sm:py-10 md:py-12">
+              <div className="text-center px-4">
+                <div className="w-12 h-12 sm:w-16 sm:h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                  <AlertCircle className="w-6 h-6 sm:w-8 sm:h-8 text-red-500" />
                 </div>
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">Lỗi tải dữ liệu</h3>
-                <p className="text-gray-600 mb-4">{storeStocksError || 'Không thể tải dữ liệu kho hàng'}</p>
+                <h3 className="text-base sm:text-lg md:text-xl font-semibold text-gray-900 mb-2">
+                  Lỗi tải dữ liệu
+                </h3>
+                <p className="text-sm sm:text-base text-gray-600 mb-4">
+                  {storeStocksError || 'Không thể tải dữ liệu kho hàng'}
+                </p>
                 <ModernButton
                   onClick={() => dispatch(getAllStoreStocksThunk())}
                   variant="primary"
@@ -227,7 +233,7 @@ function Inventory() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto p-4 space-y-6">
+    <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5 space-y-4 sm:space-y-5 md:space-y-6">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -253,58 +259,60 @@ function Inventory() {
         <ModernCardHeader
           title="Xem kho hàng"
           subtitle={user?.storeName ? `Cửa hàng: ${user.storeName}` : 'Tổng quan kho hàng'}
-          icon={<Warehouse className="w-5 h-5" />}
+          icon={<Warehouse className="w-4 h-4 sm:w-5 sm:h-5" />}
         />
         <ModernCardContent>
         {/* Search Bar */}
-          <div className="mb-6">
+          <div className="mb-4 sm:mb-5 md:mb-6">
           <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                <Search className="h-5 w-5 text-gray-400" />
+              <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
+                <Search className="h-4 w-4 sm:h-5 sm:w-5 text-gray-400" />
             </div>
             <input
               type="text"
                 placeholder="Tìm kiếm theo model, màu sắc..."
               value={searchTerm}
               onChange={handleSearchChange}
-                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white/80 backdrop-blur-sm transition-all"
+                className="w-full pl-9 sm:pl-10 md:pl-12 pr-3 sm:pr-4 py-2 sm:py-2.5 md:py-3 text-sm sm:text-base border border-gray-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-transparent bg-white/80 backdrop-blur-sm transition-all duration-200"
             />
           </div>
         </div>
 
           {/* Inventory Dropdowns */}
           {filteredGroupedInventory.length > 0 ? (
-            <div className="space-y-3">
+            <div className="space-y-2 sm:space-y-3 md:space-y-4">
               {filteredGroupedInventory.map((model) => {
                 const isExpanded = expandedModels.has(model.modelId);
                 
                 return (
                   <div
                     key={model.modelId}
-                    className="border border-gray-200 rounded-xl overflow-hidden bg-white/50 backdrop-blur-sm hover:shadow-md transition-all"
+                    className="border border-gray-200 rounded-xl overflow-hidden bg-white/50 backdrop-blur-sm hover:shadow-md transition-all duration-200"
                   >
                     {/* Model Header - Dropdown Trigger */}
                     <button
                       onClick={() => toggleModel(model.modelId)}
-                      className="w-full flex items-center justify-between p-4 hover:bg-gray-50/50 transition-colors"
+                      className="w-full flex items-center justify-between p-3 sm:p-4 md:p-5 hover:bg-gray-50/50 transition-colors duration-200"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg shadow-sm">
-                          <Package className="w-5 h-5 text-white" />
+                      <div className="flex items-center gap-2 sm:gap-3 md:gap-4 min-w-0 flex-1">
+                        <div className="p-1.5 sm:p-2 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg shadow-sm flex-shrink-0">
+                          <Package className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                         </div>
-                        <div className="text-left">
-                          <h3 className="text-base font-bold text-gray-900">{model.model}</h3>
-                          <p className="text-sm text-gray-600">Tổng tồn: <span className="font-semibold text-gray-900">{model.totalStock} xe</span></p>
+                        <div className="text-left min-w-0 flex-1">
+                          <h3 className="text-sm sm:text-base md:text-lg font-bold text-gray-900 truncate">{model.model}</h3>
+                          <p className="text-xs sm:text-sm text-gray-600">
+                            Tổng tồn: <span className="font-semibold text-gray-900">{model.totalStock} xe</span>
+                          </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs text-gray-500">
+                      <div className="flex items-center gap-2 flex-shrink-0 ml-2">
+                        <span className="text-xs text-gray-500 whitespace-nowrap">
                           {model.colors.length} màu
                         </span>
                         {isExpanded ? (
-                          <ChevronUp className="w-5 h-5 text-gray-400" />
+                          <ChevronUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                         ) : (
-                          <ChevronDown className="w-5 h-5 text-gray-400" />
+                          <ChevronDown className="w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                         )}
                       </div>
                     </button>

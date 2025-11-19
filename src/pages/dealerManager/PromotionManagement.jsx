@@ -26,7 +26,6 @@ import {
   CheckCircle,
   XCircle,
   Percent,
-  DollarSign,
   Filter
 } from 'lucide-react';
 
@@ -38,6 +37,7 @@ import StatusBadge from '../../components/ui/StatusBadge';
 import ModernButton from '../../components/ui/ModernButton';
 import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
 import EmptyState from '../../components/ui/EmptyState';
+import ToggleSwitch from '../../components/ui/ToggleSwitch';
 import { motion, AnimatePresence } from 'framer-motion';
 
 function PromotionManagement() {
@@ -55,6 +55,7 @@ function PromotionManagement() {
   const [statusFilter, setStatusFilter] = useState('all'); // all, active, inactive
   const [typeFilter, setTypeFilter] = useState('all'); // all, PERCENTAGE, FIXED_AMOUNT
   const [filteredPromotions, setFilteredPromotions] = useState([]);
+  const [optimisticUpdates, setOptimisticUpdates] = useState({}); // Track optimistic updates
   
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -418,6 +419,119 @@ function PromotionManagement() {
     setShowDetailModal(true);
   };
 
+  // Quick toggle active status
+  const handleToggleActive = async (promotion) => {
+    const newActiveStatus = !promotion.active;
+    const promotionId = promotion.promotionId;
+    
+    // Optimistic update - update UI immediately
+    const promotionIdsToUpdate = [];
+    if ((promotion.modelId === 0 || promotion.modelId === null) && promotion.relatedPromotionIds && promotion.relatedPromotionIds.length > 0) {
+      // For summary promotion, update all related promotion IDs
+      promotionIdsToUpdate.push(...promotion.relatedPromotionIds);
+    } else {
+      promotionIdsToUpdate.push(promotionId);
+    }
+    
+    // Set optimistic updates for all related promotions
+    setOptimisticUpdates(prev => {
+      const newUpdates = { ...prev };
+      promotionIdsToUpdate.forEach(id => {
+        newUpdates[id] = newActiveStatus;
+      });
+      return newUpdates;
+    });
+    
+    try {
+      // If it's a summary promotion (modelId = 0) with relatedPromotionIds, 
+      // we need to update all related promotions
+      if ((promotion.modelId === 0 || promotion.modelId === null) && promotion.relatedPromotionIds && promotion.relatedPromotionIds.length > 0) {
+        // Update all related promotions
+        const updatePromises = promotion.relatedPromotionIds.map(pId => {
+          // Find the actual promotion to get its full data
+          const actualPromo = promotions.find(p => p.promotionId === pId);
+          if (actualPromo) {
+            return dispatch(updatePromotionById({
+              promotionId: pId,
+              promotionData: {
+                ...actualPromo,
+                active: newActiveStatus
+              }
+            })).unwrap();
+          }
+          return Promise.resolve();
+        });
+        await Promise.all(updatePromises);
+      } else {
+        // Single promotion update
+        const updateResult = await dispatch(updatePromotionById({
+          promotionId: promotion.promotionId,
+          promotionData: {
+            ...promotion,
+            active: newActiveStatus
+          }
+        })).unwrap();
+        
+        // Check if response has correct data
+        const updatedPromo = updateResult?.data || updateResult;
+        const responseHasCorrectData = updatedPromo && 
+          updatedPromo.promotionId && 
+          updatedPromo.active === newActiveStatus;
+        
+        if (responseHasCorrectData) {
+          // Response is correct, reducer should have updated state
+          // Clear optimistic update after a delay to let reducer update
+          setTimeout(() => {
+            setOptimisticUpdates(prev => {
+              const newUpdates = { ...prev };
+              promotionIdsToUpdate.forEach(id => {
+                delete newUpdates[id];
+              });
+              return newUpdates;
+            });
+          }, 200);
+          // Don't fetch - reducer has the correct state from response
+          return;
+        }
+      }
+      
+      // If we reach here, either it's a summary promotion or response didn't have correct data
+      // Fetch after a delay to sync with backend
+      setTimeout(async () => {
+        try {
+          await dispatch(fetchPromotions()).unwrap();
+          
+          // Clear optimistic update after fetch
+          setOptimisticUpdates(prev => {
+            const newUpdates = { ...prev };
+            promotionIdsToUpdate.forEach(id => {
+              delete newUpdates[id];
+            });
+            return newUpdates;
+          });
+        } catch (err) {
+          console.error('Failed to fetch promotions after update:', err);
+          // Keep optimistic update on error
+        }
+      }, 3000); // Longer delay to ensure backend has fully processed
+    } catch (error) {
+      console.error('Failed to toggle promotion status:', error);
+      showToastError('Không thể cập nhật trạng thái khuyến mãi');
+      
+      // Revert optimistic updates on error
+      setOptimisticUpdates(prev => {
+        const newUpdates = { ...prev };
+        promotionIdsToUpdate.forEach(id => {
+          delete newUpdates[id];
+        });
+        return newUpdates;
+      });
+      
+      // Refresh on error to get correct state
+      dispatch(fetchPromotions());
+    }
+  };
+
   // Check if promotion is currently active
   const isPromotionActive = (promotion) => {
     if (!promotion.active) return false;
@@ -529,71 +643,71 @@ function PromotionManagement() {
         onCancel={confirm.onCancel}
       />
 
-      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-3">
-      <div className="max-w-7xl mx-auto">
+      <div className="h-screen bg-gradient-to-br from-emerald-50 via-white to-blue-50 p-2 sm:p-3 md:p-4 overflow-hidden">
+      <div className="w-full max-w-7xl mx-auto h-full flex flex-col space-y-2 sm:space-y-3 md:space-y-4">
         {/* Header */}
-        <div className="mb-3">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 flex items-center">
-                <Tag className="h-6 w-6 mr-2 text-emerald-600" />
-                Quản Lý Khuyến Mãi
+        <div className="mb-2 sm:mb-3 flex-shrink-0">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-2 sm:mb-3">
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 flex items-center gap-1.5 sm:gap-2">
+                <Tag className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-600 flex-shrink-0" />
+                <span className="truncate">Quản Lý Khuyến Mãi</span>
               </h1>
-              <p className="text-gray-600 mt-1 text-sm">
+              <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-0.5 sm:mt-1">
                 Tạo và quản lý các chương trình khuyến mãi cho sản phẩm
               </p>
             </div>
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center px-4 py-2 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-lg hover:from-emerald-700 hover:to-blue-700 transition-all shadow-md text-sm"
+              className="flex items-center justify-center px-3 sm:px-4 md:px-5 py-2 sm:py-2.5 bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-lg hover:from-emerald-700 hover:to-blue-700 transition-all duration-200 shadow-md text-xs sm:text-sm md:text-base font-medium whitespace-nowrap flex-shrink-0"
             >
-              <Plus className="h-4 w-4 mr-2" />
-              Tạo Khuyến Mãi
+              <Plus className="h-3 w-3 sm:h-4 sm:w-4 mr-1.5 sm:mr-2 flex-shrink-0" />
+              <span>Tạo Khuyến Mãi</span>
             </button>
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mt-3">
-            <div className="bg-white p-3 rounded-lg shadow-md border border-gray-100">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mt-2 sm:mt-3">
+            <div className="bg-white p-2.5 sm:p-3 md:p-4 rounded-lg shadow-md border border-gray-100">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600">Tổng khuyến mãi</p>
-                  <p className="text-xl font-bold text-gray-900">{promotions.length}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-gray-600">Tổng khuyến mãi</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900">{promotions.length}</p>
                 </div>
-                <Tag className="h-6 w-6 text-emerald-600" />
+                <Tag className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-600 flex-shrink-0 ml-2" />
               </div>
             </div>
-            <div className="bg-white p-3 rounded-lg shadow-md border border-gray-100">
+            <div className="bg-white p-2.5 sm:p-3 md:p-4 rounded-lg shadow-md border border-gray-100">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600">Đang áp dụng</p>
-                  <p className="text-xl font-bold text-green-600">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-gray-600">Đang áp dụng</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-green-600">
                     {promotions.filter(p => isPromotionActive(p)).length}
                   </p>
                 </div>
-                <CheckCircle className="h-6 w-6 text-green-600" />
+                <CheckCircle className="h-5 w-5 sm:h-6 sm:w-6 text-green-600 flex-shrink-0 ml-2" />
               </div>
             </div>
-            <div className="bg-white p-3 rounded-lg shadow-md border border-gray-100">
+            <div className="bg-white p-2.5 sm:p-3 md:p-4 rounded-lg shadow-md border border-gray-100">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600">Giảm giá %</p>
-                  <p className="text-xl font-bold text-blue-600">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-gray-600">Giảm giá %</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-blue-600">
                     {promotions.filter(p => p.promotionType === 'PERCENTAGE').length}
                   </p>
                 </div>
-                <Percent className="h-6 w-6 text-blue-600" />
+                <Percent className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 flex-shrink-0 ml-2" />
               </div>
             </div>
-            <div className="bg-white p-3 rounded-lg shadow-md border border-gray-100">
+            <div className="bg-white p-2.5 sm:p-3 md:p-4 rounded-lg shadow-md border border-gray-100">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-gray-600">Giảm cố định</p>
-                  <p className="text-xl font-bold text-purple-600">
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-gray-600">Giảm cố định</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold text-purple-600">
                     {promotions.filter(p => p.promotionType === 'FIXED_AMOUNT').length}
                   </p>
                 </div>
-                <DollarSign className="h-6 w-6 text-purple-600" />
+                <span className="text-xs sm:text-sm font-semibold text-purple-600 flex-shrink-0 ml-2">VND</span>
               </div>
             </div>
           </div>
@@ -627,7 +741,7 @@ function PromotionManagement() {
         </AnimatePresence>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 mb-2 flex-shrink-0">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {/* Search */}
             <div className="relative">
@@ -672,7 +786,7 @@ function PromotionManagement() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden flex-1 min-h-0 flex flex-col">
           {loading ? (
             <div className="flex items-center justify-center p-12">
               <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
@@ -683,7 +797,7 @@ function PromotionManagement() {
               <p className="text-gray-500">Không tìm thấy khuyến mãi nào</p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto flex-1 min-h-0">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
@@ -701,6 +815,9 @@ function PromotionManagement() {
                     </th>
                     <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Trạng thái
+                    </th>
+                    <th className="px-4 py-2 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      Kích hoạt
                     </th>
                     <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Thao tác
@@ -726,7 +843,7 @@ function PromotionManagement() {
                           {promotion.promotionType === 'PERCENTAGE' ? (
                             <Percent className="h-4 w-4 text-blue-600 mr-2" />
                           ) : (
-                            <DollarSign className="h-4 w-4 text-purple-600 mr-2" />
+                            <span className="text-xs font-semibold text-purple-600 mr-2">VND</span>
                           )}
                           <span className="text-sm font-semibold text-gray-900">
                             {formatAmount(promotion.amount, promotion.promotionType)}
@@ -753,6 +870,32 @@ function PromotionManagement() {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {getStatusBadge(promotion)}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <div className="flex items-center justify-center">
+                          <ToggleSwitch
+                            checked={(() => {
+                              // Check optimistic update first
+                              if (optimisticUpdates[promotion.promotionId] !== undefined) {
+                                return optimisticUpdates[promotion.promotionId];
+                              }
+                              // For summary promotions, check if any related promotion has optimistic update
+                              if (promotion.relatedPromotionIds && promotion.relatedPromotionIds.length > 0) {
+                                const relatedUpdate = promotion.relatedPromotionIds.find(id => 
+                                  optimisticUpdates[id] !== undefined
+                                );
+                                if (relatedUpdate !== undefined) {
+                                  return optimisticUpdates[relatedUpdate];
+                                }
+                              }
+                              // Fallback to actual promotion active status
+                              return promotion.active ?? false;
+                            })()}
+                            onChange={() => handleToggleActive(promotion)}
+                            disabled={loading}
+                            size="sm"
+                          />
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end gap-2">
@@ -789,10 +932,11 @@ function PromotionManagement() {
 
         {/* Results count */}
         {!loading && filteredPromotions.length > 0 && (
-          <div className="mt-4 text-sm text-gray-600 text-center">
+          <div className="mt-2 text-xs text-gray-600 text-center flex-shrink-0">
             Hiển thị {filteredPromotions.length} / {promotions.length} khuyến mãi
           </div>
         )}
+      </div>
       </div>
 
       {/* Add Modal */}
@@ -968,7 +1112,25 @@ function PromotionManagement() {
                       </option>
                     ))}
                   </select>
-                 
+                  <p className="text-xs text-gray-500 mt-1">
+                    Lưu ý: Chọn "Tất cả các model" sẽ tạo khuyến mãi cho tất cả các mẫu xe
+                  </p>
+                </div>
+
+                {/* Active Toggle */}
+                <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Trạng thái kích hoạt
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      {formData.active ? 'Khuyến mãi đang được kích hoạt' : 'Khuyến mãi chưa được kích hoạt'}
+                    </p>
+                  </div>
+                  <ToggleSwitch
+                    checked={formData.active}
+                    onChange={() => setFormData(prev => ({ ...prev, active: !prev.active }))}
+                  />
                 </div>
               </div>
 
@@ -1165,13 +1327,32 @@ function PromotionManagement() {
                     onChange={handleInputChange}
                     className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
                   >
-                    <option value="0">Tất cả</option>
+                    <option value="0">Tất cả các model</option>
                     {models.map(model => (
                       <option key={model.modelId} value={model.modelId}>
                         {model.modelName}
                       </option>
                     ))}
                   </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Lưu ý: Chọn "Tất cả các model" sẽ tạo khuyến mãi cho tất cả các mẫu xe
+                  </p>
+                </div>
+
+                {/* Active Toggle */}
+                <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-lg p-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Trạng thái kích hoạt
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      {formData.active ? 'Khuyến mãi đang được kích hoạt' : 'Khuyến mãi chưa được kích hoạt'}
+                    </p>
+                  </div>
+                  <ToggleSwitch
+                    checked={formData.active}
+                    onChange={() => setFormData(prev => ({ ...prev, active: !prev.active }))}
+                  />
                 </div>
               </div>
 
@@ -1294,7 +1475,7 @@ function PromotionManagement() {
                       {selectedPromotion.promotionType === 'PERCENTAGE' ? (
                         <Percent className="h-5 w-5 text-blue-600 mr-2" />
                       ) : (
-                        <DollarSign className="h-5 w-5 text-purple-600 mr-2" />
+                        <span className="text-sm font-semibold text-purple-600 mr-2">VND</span>
                       )}
                       <span className="text-sm font-medium text-gray-700">Loại khuyến mãi</span>
                     </div>
@@ -1391,7 +1572,6 @@ function PromotionManagement() {
           </motion.div>
         </div>
       )}
-      </div>
     </div>
   );
 }

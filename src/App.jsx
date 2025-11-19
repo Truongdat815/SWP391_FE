@@ -31,6 +31,8 @@ import DealerManagerInventory from './pages/dealerManager/InventoryManagement'
 import DealerManagerSettings from './pages/dealerManager/DealerManagerSettings'
 import DealerManagerOrders from './pages/dealerManager/OrderManagement'
 import PromotionManagement from './pages/dealerManager/PromotionManagement'
+import DealerManagerUserGuide from './pages/dealerManager/UserGuide'
+import DealerManagerFAQ from './pages/dealerManager/FAQ'
 
 // Dealer Staff Sub Pages
 import DealerStaffDashboard from './pages/dealerStaff/DealerStaffDashboard'
@@ -49,6 +51,8 @@ import TestDriveSchedule from './pages/dealerStaff/TestDriveSchedule'
 import PaymentManagement from './pages/dealerStaff/PaymentManagement'
 import CarComparison from './pages/dealerStaff/CarComparison'
 import FeedbackManagement from './pages/dealerStaff/FeedbackManagement'
+import UserGuide from './pages/dealerStaff/UserGuide'
+import FAQ from './pages/dealerStaff/FAQ'
 
 // EVM Staff Sub Pages
 import EVMStaffDashboard from './pages/EvmStaff/EVMStaffDashboard'
@@ -57,12 +61,14 @@ import VehicleManagement from './pages/EvmStaff/VehicleManagement'
 import DealerOrderManagement from './pages/EvmStaff/DealerOrderManagement'
 import SalesReport from './pages/EvmStaff/SalesReport'
 import ColorManagementPage from './components/ColorManagement'
+import EVMStaffUserGuide from './pages/EvmStaff/UserGuide'
 
 // Admin Sub Pages
 import AdminDashboard from './pages/admin/AdminDashboard'
 import StoreManagement from './pages/admin/StoreManagement'
 import UserManagement from './pages/admin/UserManagement'
 import AdminSettings from './pages/admin/AdminSettings'
+import AdminUserGuide from './pages/admin/UserGuide'
 
 import { BrowserRouter, Route, Routes, useLocation, Navigate } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
@@ -127,6 +133,7 @@ function AnimatedRoutes() {
             <Route path="profile" element={<CommonProfile />} />
             <Route path="settings" element={<AdminSettings />} />
             <Route path="help" element={<CommonHelp />} />
+            <Route path="user-guide" element={<AdminUserGuide />} />
           </Route>
 
           {/* Dealer Staff Routes - Protected */}
@@ -156,6 +163,8 @@ function AnimatedRoutes() {
             <Route path="profile" element={<CommonProfile />} />
             <Route path="settings" element={<CommonSettings />} />
             <Route path="help" element={<CommonHelp />} />
+            <Route path="user-guide" element={<UserGuide />} />
+            <Route path="faq" element={<FAQ />} />
           </Route>
 
           {/* Dealer Manager Routes - Protected */}
@@ -174,6 +183,8 @@ function AnimatedRoutes() {
             <Route path="profile" element={<CommonProfile />} />
             <Route path="settings" element={<DealerManagerSettings />} />
             <Route path="help" element={<CommonHelp />} />
+            <Route path="user-guide" element={<DealerManagerUserGuide />} />
+            <Route path="faq" element={<DealerManagerFAQ />} />
           </Route>
 
           {/* EVM Staff Routes - Protected */}
@@ -190,8 +201,8 @@ function AnimatedRoutes() {
             <Route path="color-management" element={<ColorManagementPage />} />
             <Route path="sales-report" element={<SalesReport />} />
             <Route path="profile" element={<CommonProfile />} />
-            <Route path="settings" element={<CommonSettings />} />
             <Route path="help" element={<CommonHelp />} />
+            <Route path="user-guide" element={<EVMStaffUserGuide />} />
           </Route>
           
           <Route path="*" element={

@@ -84,27 +84,27 @@ const AdminDashboard = () => {
   const COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
   return (
-    <div className="px-4 py-2 space-y-2.5">
+    <div className="px-2 sm:px-3 md:px-4 lg:px-6 py-2 sm:py-3 md:py-4 space-y-2 sm:space-y-2.5 md:space-y-3">
       {/* Header */}
-      <div className="mb-1">
+      <div className="mb-1 sm:mb-2">
         <div>
-          <h2 className="text-lg font-bold text-gray-900">📊 Tổng quan hệ thống</h2>
-          <p className="text-gray-600 text-xs">Thống kê và phân tích dữ liệu toàn hệ thống</p>
+          <h2 className="text-base sm:text-lg md:text-xl font-bold text-gray-900">📊 Tổng quan hệ thống</h2>
+          <p className="text-gray-600 text-xs sm:text-sm mt-0.5">Thống kê và phân tích dữ liệu toàn hệ thống</p>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-2.5 md:gap-3">
         {/* Total Stores */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5 shadow-sm hover:shadow-md transition">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5 sm:p-3 md:p-4 shadow-sm hover:shadow-md transition-all duration-200">
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
-              <p className="text-gray-600 text-[10px] font-medium truncate">Tổng cửa hàng</p>
-              <h3 className="text-lg font-bold text-gray-900 mt-0.5">{stores.length}</h3>
-              <p className="text-gray-600 text-[10px] mt-0.5 truncate">+{statusData[0]?.value || 0} đang hoạt động</p>
+              <p className="text-gray-600 text-xs sm:text-sm font-medium truncate">Tổng cửa hàng</p>
+              <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mt-0.5">{stores.length}</h3>
+              <p className="text-gray-600 text-xs sm:text-sm mt-0.5 truncate">+{statusData[0]?.value || 0} đang hoạt động</p>
             </div>
-            <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 ml-2">
-              <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="h-8 w-8 sm:h-10 sm:w-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 ml-2">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
               </svg>
             </div>
@@ -112,15 +112,15 @@ const AdminDashboard = () => {
         </div>
 
         {/* Total Users */}
-        <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5 shadow-sm hover:shadow-md transition">
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-2.5 sm:p-3 md:p-4 shadow-sm hover:shadow-md transition-all duration-200">
           <div className="flex items-center justify-between">
             <div className="flex-1 min-w-0">
-              <p className="text-gray-600 text-[10px] font-medium truncate">Người dùng</p>
-              <h3 className="text-lg font-bold text-gray-900 mt-0.5">{users.length}</h3>
-              <p className="text-gray-600 text-[10px] mt-0.5 truncate">{roleData.length} vai trò</p>
+              <p className="text-gray-600 text-xs sm:text-sm font-medium truncate">Người dùng</p>
+              <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-900 mt-0.5">{users.length}</h3>
+              <p className="text-gray-600 text-xs sm:text-sm mt-0.5 truncate">{roleData.length} vai trò</p>
             </div>
-            <div className="h-8 w-8 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 ml-2">
-              <svg className="w-4 h-4 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="h-8 w-8 sm:h-10 sm:w-10 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0 ml-2">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
               </svg>
             </div>
@@ -129,21 +129,21 @@ const AdminDashboard = () => {
       </div>
 
       {/* User Distribution Table */}
-      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3">
-        <div className="mb-2">
-          <h3 className="text-sm font-semibold text-gray-900">👥 Phân bố người dùng theo vai trò</h3>
-          <p className="text-[10px] text-gray-500">Thống kê chi tiết số lượng người dùng</p>
+      <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-3 sm:p-4 md:p-5">
+        <div className="mb-2 sm:mb-3">
+          <h3 className="text-xs sm:text-sm md:text-base font-semibold text-gray-900">👥 Phân bố người dùng theo vai trò</h3>
+          <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Thống kê chi tiết số lượng người dùng</p>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2 sm:gap-3">
           {roleData.map((role, index) => (
-            <div key={index} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-2 border border-gray-200">
-              <div className="flex items-center gap-1.5">
-                <div className={`h-8 w-8 rounded-full flex items-center justify-center text-white font-bold text-xs flex-shrink-0`} style={{ backgroundColor: COLORS[index % COLORS.length] }}>
+            <div key={index} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg p-2 sm:p-2.5 md:p-3 border border-gray-200">
+              <div className="flex items-center gap-1.5 sm:gap-2">
+                <div className={`h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center text-white font-bold text-xs sm:text-sm flex-shrink-0`} style={{ backgroundColor: COLORS[index % COLORS.length] }}>
                   {role.value}
                 </div>
-                <div className="min-w-0">
-                  <p className="text-[10px] text-gray-500">Vai trò</p>
-                  <p className="font-semibold text-gray-900 text-xs truncate">{role.name}</p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs sm:text-sm text-gray-500">Vai trò</p>
+                  <p className="font-semibold text-gray-900 text-xs sm:text-sm truncate">{role.name}</p>
                 </div>
               </div>
             </div>

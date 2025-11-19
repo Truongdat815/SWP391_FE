@@ -264,8 +264,8 @@ function CarDetail() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-emerald-50">
       {/* Modern Breadcrumb */}
       <div className="bg-white/70 backdrop-blur-md border-b border-gray-200/50 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <nav className="flex items-center space-x-2 text-sm">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-5 lg:px-6 py-3 sm:py-4">
+          <nav className="flex items-center space-x-1.5 sm:space-x-2 text-xs sm:text-sm">
             <Link to="/" className="text-gray-500 hover:text-emerald-600 transition-colors flex items-center">
               <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/>
@@ -292,8 +292,8 @@ function CarDetail() {
         <div className="absolute top-0 right-0 w-96 h-96 bg-gradient-to-bl from-emerald-200/20 to-transparent rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-gradient-to-tr from-blue-200/20 to-transparent rounded-full blur-3xl"></div>
         
-        <div className="relative max-w-7xl mx-auto px-6 py-16">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+        <div className="relative max-w-7xl mx-auto px-3 sm:px-4 md:px-5 lg:px-6 py-8 sm:py-12 md:py-16">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 sm:gap-12 md:gap-16 items-center">
             
             {/* Image Gallery */}
             <motion.div 
@@ -481,7 +481,7 @@ function CarDetail() {
       </div>
 
       {/* Tabs Section - CHỈ HIỂN THỊ THÔNG TIN THỰC */}
-      <div className="max-w-7xl mx-auto px-6 py-16">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-5 lg:px-6 py-8 sm:py-12 md:py-16">
         <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
           {/* Tab Navigation */}
           <div className="border-b border-gray-200">

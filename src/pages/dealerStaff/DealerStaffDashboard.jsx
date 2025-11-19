@@ -140,7 +140,7 @@ const DealerStaffDashboard = () => {
             
             return {
               ...feedback,
-              rating: feedbackDetail?.rating !== undefined ? parseInt(feedbackDetail.rating) : (feedback.rating ? parseInt(feedback.rating) : 0),
+              rating: feedbackDetail?.rating !== undefined ? parseFloat(feedbackDetail.rating) || 0 : (feedback.rating ? parseFloat(feedback.rating) || 0 : 0),
               content: feedbackDetail?.content || feedback.content || 'Không có nội dung',
               category: feedbackDetail?.category ? feedbackDetail.category.toLowerCase() : (feedback.category || 'service').toLowerCase(),
               feedbackDetail: feedbackDetail
@@ -266,10 +266,12 @@ const DealerStaffDashboard = () => {
     if (ratings.length > 0) {
       stats.averageRating = (ratings.reduce((sum, r) => sum + r, 0) / ratings.length).toFixed(1);
       
-      // Count rating distribution
+      // Count rating distribution - round to nearest integer (1-5)
       ratings.forEach(rating => {
-        if (rating >= 1 && rating <= 5) {
-          stats.ratingDistribution[rating] = (stats.ratingDistribution[rating] || 0) + 1;
+        // Round rating to nearest integer between 1 and 5
+        const roundedRating = Math.max(1, Math.min(5, Math.round(parseFloat(rating) || 0)));
+        if (roundedRating >= 1 && roundedRating <= 5) {
+          stats.ratingDistribution[roundedRating] = (stats.ratingDistribution[roundedRating] || 0) + 1;
         }
       });
     }
@@ -477,7 +479,7 @@ const DealerStaffDashboard = () => {
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {/* Total Orders */}
-        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
+        <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-lg p-3 sm:p-4 md:p-5 text-white shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-emerald-100 text-xs font-medium">Tổng đơn hàng</p>
@@ -490,8 +492,8 @@ const DealerStaffDashboard = () => {
               </h3>
              
             </div>
-            <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="h-8 w-8 sm:h-10 sm:w-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 ml-2">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
               </svg>
             </div>
@@ -499,7 +501,7 @@ const DealerStaffDashboard = () => {
         </div>
 
         {/* Total Revenue */}
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg p-3 sm:p-4 md:p-5 text-white shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-blue-100 text-xs font-medium">Tổng doanh thu</p>
@@ -512,8 +514,8 @@ const DealerStaffDashboard = () => {
               </h3>
               <p className="text-blue-100 text-xs mt-1.5">VNĐ (tháng này)</p>
             </div>
-            <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="h-8 w-8 sm:h-10 sm:w-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 ml-2">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
               </svg>
             </div>
@@ -521,15 +523,15 @@ const DealerStaffDashboard = () => {
         </div>
 
         {/* Appointments */}
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-4 text-white shadow-md hover:shadow-lg transition transform hover:-translate-y-0.5">
+        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg p-3 sm:p-4 md:p-5 text-white shadow-md hover:shadow-lg transition-all duration-200 transform hover:-translate-y-0.5">
           <div className="flex items-center justify-between">
-            <div>
-              <p className="text-orange-100 text-xs font-medium">Lịch lái thử</p>
-              <h3 className="text-2xl font-bold mt-1.5">{appointmentStats.upcoming}</h3>
-              <p className="text-orange-100 text-xs mt-1.5">{appointmentStats.today} hôm nay</p>
+            <div className="min-w-0 flex-1">
+              <p className="text-orange-100 text-xs sm:text-sm font-medium">Lịch lái thử</p>
+              <h3 className="text-lg sm:text-xl md:text-2xl font-bold mt-0.5">{appointmentStats.upcoming}</h3>
+              <p className="text-orange-100 text-xs mt-0.5">{appointmentStats.today} hôm nay</p>
             </div>
-            <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div className="h-8 w-8 sm:h-10 sm:w-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0 ml-2">
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
@@ -538,7 +540,7 @@ const DealerStaffDashboard = () => {
       </div>
 
       {/* Charts Row 1 */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3 md:gap-4 flex-1 min-h-0">
         {/* Revenue Chart */}
         <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
           <div className="flex items-center justify-between mb-4">
@@ -547,7 +549,8 @@ const DealerStaffDashboard = () => {
               <p className="text-xs text-gray-500 mt-0.5">Xu hướng doanh thu 3 tháng gần nhất</p>
             </div>
           </div>
-          <ResponsiveContainer width="100%" height={280}>
+          <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={revenueData}>
               <defs>
                 <linearGradient id="colorRevenueStaff" x1="0" y1="0" x2="0" y2="1">
@@ -565,31 +568,32 @@ const DealerStaffDashboard = () => {
               <Area type="monotone" dataKey="revenue" stroke="#10b981" fillOpacity={1} fill="url(#colorRevenueStaff)" />
             </AreaChart>
           </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Feedback Stats */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-          <div className="mb-4">
-            <h3 className="text-base font-semibold text-gray-900">💬 Phản hồi khách hàng</h3>
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3 flex flex-col min-h-0">
+          <div className="mb-2 flex-shrink-0">
+            <h3 className="text-sm font-semibold text-gray-900">💬 Phản hồi khách hàng</h3>
             <p className="text-xs text-gray-500 mt-0.5">Thống kê phản hồi</p>
           </div>
-          <div className="space-y-3">
-            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-3 border border-blue-200">
+          <div className="space-y-2 flex-1 overflow-y-auto">
+            <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-2 border border-blue-200">
               <p className="text-xs text-gray-600">Tổng số</p>
-              <p className="text-2xl font-bold text-blue-600 mt-1">{feedbackStats.total}</p>
+              <p className="text-lg font-bold text-blue-600 mt-0.5">{feedbackStats.total}</p>
             </div>
-            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-3 border border-yellow-200">
+            <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-lg p-2 border border-yellow-200">
               <p className="text-xs text-gray-600">Đang chờ xử lý</p>
-              <p className="text-2xl font-bold text-yellow-600 mt-1">{feedbackStats.pending}</p>
+              <p className="text-lg font-bold text-yellow-600 mt-0.5">{feedbackStats.pending}</p>
             </div>
-            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-3 border border-green-200">
+            <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-2 border border-green-200">
               <p className="text-xs text-gray-600">Đã xử lý</p>
-              <p className="text-2xl font-bold text-green-600 mt-1">{feedbackStats.resolved}</p>
+              <p className="text-lg font-bold text-green-600 mt-0.5">{feedbackStats.resolved}</p>
             </div>
-            <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-3 border border-amber-200">
+            <div className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-lg p-2 border border-amber-200">
               <p className="text-xs text-gray-600">Đánh giá trung bình</p>
-              <div className="flex items-center gap-2 mt-1">
-                <p className="text-2xl font-bold text-amber-600">{feedbackStats.averageRating || '0.0'}</p>
+              <div className="flex items-center gap-1.5 mt-0.5">
+                <p className="text-lg font-bold text-amber-600">{feedbackStats.averageRating || '0.0'}</p>
                 <div className="flex items-center gap-0.5">
                   {Array.from({ length: 5 }, (_, i) => {
                     const starValue = i + 1;
@@ -597,7 +601,7 @@ const DealerStaffDashboard = () => {
                     return (
                       <svg
                         key={i}
-                        className={`h-5 w-5 ${isFilled ? 'text-amber-500' : 'text-gray-300'}`}
+                        className={`h-3.5 w-3.5 ${isFilled ? 'text-amber-500' : 'text-gray-300'}`}
                         fill="currentColor"
                         viewBox="0 0 20 20"
                       >
@@ -615,12 +619,13 @@ const DealerStaffDashboard = () => {
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Rating Distribution Chart */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-          <div className="mb-4">
-            <h3 className="text-base font-semibold text-gray-900">⭐ Phân bố đánh giá</h3>
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3 flex flex-col min-h-0">
+          <div className="mb-2 flex-shrink-0">
+            <h3 className="text-sm font-semibold text-gray-900">⭐ Phân bố đánh giá</h3>
             <p className="text-xs text-gray-500 mt-0.5">Số lượng đánh giá theo sao</p>
           </div>
-          <ResponsiveContainer width="100%" height={280}>
+          <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={[
                 { name: '1 sao', value: feedbackStats.ratingDistribution[1] || 0, color: '#ef4444' },
@@ -632,9 +637,14 @@ const DealerStaffDashboard = () => {
             >
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
               <XAxis dataKey="name" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
+              <YAxis 
+                stroke="#6b7280" 
+                allowDecimals={false}
+                domain={[0, 'auto']}
+                tickFormatter={(value) => Math.round(value).toString()}
+              />
               <Tooltip 
-                formatter={(value) => [`${value} đánh giá`, 'Số lượng']}
+                formatter={(value) => [`${Math.round(value)} đánh giá`, 'Số lượng']}
                 contentStyle={{ backgroundColor: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px' }}
               />
               <Bar dataKey="value" radius={[8, 8, 0, 0]}>
@@ -650,6 +660,7 @@ const DealerStaffDashboard = () => {
               </Bar>
             </BarChart>
           </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Recent Feedbacks with Details */}

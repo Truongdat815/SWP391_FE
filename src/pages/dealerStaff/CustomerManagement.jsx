@@ -844,88 +844,31 @@ function CustomerManagement() {
       />
 
       {/* Main Container */}
-      <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-5 pt-0 pb-4">
-        {/* Statistics Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
-          {/* Total Customers */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Users className="h-5 w-5 text-blue-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-gray-600 mb-1">Tổng số khách hàng</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.total}</p>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* Today Customers */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-emerald-100 rounded-lg">
-                <Calendar className="h-5 w-5 text-emerald-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-gray-600 mb-1">Khách hàng hôm nay</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.today}</p>
-              </div>
-            </div>
-          </motion.div>
-
-          {/* This Month */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-white rounded-lg shadow-sm border border-gray-200 pt-3 pb-4 px-4 hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-purple-600" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-gray-600 mb-1">Khách hàng tháng này</p>
-                <p className="text-2xl font-bold text-gray-900">{stats.thisMonth}</p>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 pt-0 pb-3 sm:pb-4 md:pb-5">
         {/* Main Content Card */}
         <ModernCard className="overflow-hidden">
           <ModernCardHeader
             title="Danh sách khách hàng"
             subtitle={`${filteredCustomers.length} khách hàng`}
-            icon={<Users className="w-5 h-5" />}
+            icon={<Users className="w-4 h-4 sm:w-5 sm:h-5" />}
             actions={
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 w-full sm:w-auto">
                 {/* Sort Dropdown */}
-                <div className="relative" ref={sortDropdownRef}>
+                <div className="relative w-full sm:w-auto" ref={sortDropdownRef}>
                   <motion.button
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                     onClick={() => setShowSortDropdown(!showSortDropdown)}
-                    className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all shadow-sm"
+                    className="flex items-center justify-center sm:justify-start gap-2 w-full sm:w-auto px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium text-gray-700 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-all duration-200 shadow-sm"
                   >
-                    <Filter className="h-4 w-4" />
-                    <span>
+                    <Filter className="h-3 w-3 sm:h-4 sm:w-4 flex-shrink-0" />
+                    <span className="truncate">
                       {sortMode === 'newest' && 'Mới nhất'}
                       {sortMode === 'oldest' && 'Cũ nhất'}
                       {sortMode === 'name-asc' && 'Tên A → Z'}
                       {sortMode === 'name-desc' && 'Tên Z → A'}
                     </span>
-                    <ChevronDown className={`h-4 w-4 transition-transform ${showSortDropdown ? 'rotate-180' : ''}`} />
+                    <ChevronDown className={`h-3 w-3 sm:h-4 sm:w-4 transition-transform duration-200 flex-shrink-0 ${showSortDropdown ? 'rotate-180' : ''}`} />
                   </motion.button>
                   
                   <AnimatePresence>
