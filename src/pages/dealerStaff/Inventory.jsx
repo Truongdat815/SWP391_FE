@@ -148,7 +148,7 @@ function Inventory() {
   // Loading state
   if (storeStocksStatus === 'loading') {
     return (
-      <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5">
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-2 py-3 sm:py-4 md:py-5">
         <Toast 
           show={toast.show} 
           type={toast.type} 
@@ -186,7 +186,7 @@ function Inventory() {
   // Error state
   if (storeStocksStatus === 'failed') {
     return (
-      <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5">
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-2 py-3 sm:py-4 md:py-5">
         <Toast 
           show={toast.show} 
           type={toast.type} 
@@ -233,7 +233,7 @@ function Inventory() {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5 space-y-4 sm:space-y-5 md:space-y-6">
+    <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-2 py-3 sm:py-4 md:py-5 space-y-4 sm:space-y-5 md:space-y-6">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 

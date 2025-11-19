@@ -109,7 +109,7 @@ const UserGuide = () => {
   ];
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5 space-y-4 sm:space-y-5 md:space-y-6">
+    <div className="w-full max-w-5xl mx-auto px-2 sm:px-3 md:px-4 lg:px-2 py-3 sm:py-4 md:py-5 space-y-4 sm:space-y-5 md:space-y-6">
       {/* Header */}
       <div className="bg-gradient-to-r from-emerald-50 to-white border border-emerald-100 rounded-xl sm:rounded-2xl p-4 sm:p-5 md:p-6 shadow-sm">
         <div className="flex items-center justify-between">

@@ -90,7 +90,7 @@ function OrderFromManufacturer({ onBack }) {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5">
+    <div className="w-full max-w-6xl mx-auto px-2 sm:px-3 md:px-4 lg:px-2 py-3 sm:py-4 md:py-5">
       <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4 md:p-5">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4 mb-3 sm:mb-4 md:mb-5">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Đặt xe từ hãng sản xuất</h2>

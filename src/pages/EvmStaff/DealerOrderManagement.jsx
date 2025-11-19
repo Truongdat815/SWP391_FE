@@ -180,12 +180,6 @@ function DealerOrderManagement() {
 
   // Handle accept transaction
   const handleAccept = async (order) => {
-    const confirmed = await showConfirm({
-      message: `Bạn có chắc chắn muốn chấp nhận đơn hàng #${order.inventoryId || order.id}?`,
-      type: 'info'
-    });
-    if (!confirmed) return;
-
     try {
       await dispatch(acceptTransactionThunk(order.inventoryId || order.id)).unwrap();
       dispatch(showSuccess({ message: '✅ Đã chấp nhận đơn hàng!' }));
@@ -214,11 +208,7 @@ function DealerOrderManagement() {
 
   // Handle start shipping
   const handleStartShipping = async (order) => {
-    const confirmed = await showConfirm({
-      message: `Xác nhận bắt đầu vận chuyển đơn hàng #${order.inventoryId || order.id}?`,
-      type: 'info'
-    });
-    if (!confirmed) return;
+   
 
     try {
       await dispatch(startShippingTransactionThunk(order.inventoryId || order.id)).unwrap();
@@ -231,13 +221,7 @@ function DealerOrderManagement() {
 
   // Handle confirm payment
   const handleConfirmPayment = async (transaction) => {
-    const confirmed = await showConfirm({
-      message: `Bạn có chắc chắn muốn xác nhận thanh toán cho đơn hàng #${transaction.inventoryId || transaction.id}?`,
-      type: 'info'
-    });
-    if (!confirmed) return;
-
-    try {
+ try {
       await dispatch(confirmPaymentTransactionThunk(transaction.inventoryId || transaction.id)).unwrap();
       dispatch(showSuccess({ message: '✅ Đã xác nhận thanh toán thành công!' }));
       // No manual refresh - polling will update automatically
@@ -624,7 +608,7 @@ function DealerOrderManagement() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-50">
-      <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5 lg:py-6 space-y-4 sm:space-y-5 md:space-y-6">
+      <div className="max-w-7xl mx-auto p-6 space-y-6">
         <Toast 
           show={toast.show} 
           type={toast.type} 
@@ -648,28 +632,26 @@ function DealerOrderManagement() {
 
         {/* Header */}
         <motion.div 
-          className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-5 md:p-6"
+          className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
         >
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
-            <div className="min-w-0 flex-1">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
-                <div className="p-2 sm:p-2.5 md:p-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-lg sm:rounded-xl flex-shrink-0">
-                  <Package className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <div className="p-3 bg-gradient-to-r from-green-500 to-emerald-600 rounded-xl">
+                  <Package className="w-8 h-8 text-white" />
                 </div>
-                <span className="truncate">Quản lý đơn hàng từ đại lý</span>
+                Quản lý đơn hàng từ đại lý
               </h1>
-              <p className="text-xs sm:text-sm md:text-base text-gray-600 mt-1 sm:mt-2 ml-0 sm:ml-[60px]">
-                Xử lý yêu cầu nhập hàng từ Dealer Manager và Staff
-              </p>
+              <p className="text-gray-600 mt-2 ml-[60px]">Xử lý yêu cầu nhập hàng từ Dealer Manager và Staff</p>
             </div>
-            <div className="relative w-full sm:w-auto flex-shrink-0">
-              <ArrowUpDown className="absolute left-3 top-1/2 transform -translate-y-1/2 h-3 w-3 sm:h-4 sm:w-4 text-gray-400" />
+            <div className="relative">
+              <ArrowUpDown className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
               <select
                 value={sortOrder}
                 onChange={(e) => setSortOrder(e.target.value)}
-                className="w-full sm:min-w-[180px] pl-9 sm:pl-10 pr-3 sm:pr-4 py-2 sm:py-2.5 text-xs sm:text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white transition-all duration-200"
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent appearance-none bg-white text-sm min-w-[180px]"
               >
                 <option value="updated">Cập nhật mới nhất</option>
                 <option value="newest">Mới nhất</option>
@@ -795,14 +777,16 @@ function DealerOrderManagement() {
             >
               <div className="flex items-center justify-center gap-2">
                 <CreditCard className="w-5 h-5" />
-                <span>Xác nhận thanh toán</span>
-                {paymentReviewOrders.length > 0 && (
+                <span>Đang xử lí </span>
+                {processingOrders.length > 0 && (
                   <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                    activeTab === 'payment_review' ? 'bg-white/30' : 'bg-amber-100 text-amber-600'
+                    activeTab === 'processing' ? 'bg-white/30' : 'bg-teal-100 text-teal-600'
                   }`}>
-                    {paymentReviewOrders.length}
+                    {processingOrders.length}
                   </span>
                 )}
+
+                
               </div>
             </motion.button>
 
@@ -818,14 +802,15 @@ function DealerOrderManagement() {
             >
               <div className="flex items-center justify-center gap-2">
                 <CheckCircle className="w-5 h-5" />
-                <span>Đang xử lý</span>
-                {processingOrders.length > 0 && (
+                <span>Xác nhận thanh toán</span>
+                {paymentReviewOrders.length > 0 && (
                   <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${
-                    activeTab === 'processing' ? 'bg-white/30' : 'bg-teal-100 text-teal-600'
+                    activeTab === 'payment_review' ? 'bg-white/30' : 'bg-amber-100 text-amber-600'
                   }`}>
-                    {processingOrders.length}
+                    {paymentReviewOrders.length}
                   </span>
                 )}
+                
               </div>
             </motion.button>
 

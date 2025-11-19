@@ -1043,7 +1043,7 @@ function FeedbackManagement({ onBack }) {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5">
+    <div className="w-full max-w-6xl mx-auto px-2 sm:px-3 md:px-4 lg:px-2 py-3 sm:py-4 md:py-5">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 

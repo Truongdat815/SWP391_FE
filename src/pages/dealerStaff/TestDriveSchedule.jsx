@@ -60,7 +60,7 @@ function TestDriveSchedule({ onBack }) {
     time: ''
   });
 
-  const statusOptions = ['IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
+  const statusOptions = ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
 
   const timeSlots = [
     '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
@@ -87,15 +87,15 @@ function TestDriveSchedule({ onBack }) {
       return timeSlots;
     }
     
-    // Nếu chọn hôm nay, chỉ hiển thị các giờ sau giờ hiện tại + 15 phút
+    // Nếu chọn hôm nay, chỉ hiển thị các giờ sau giờ hiện tại + 10 phút
     const now = new Date();
-    const fifteenMinutesLater = new Date(now.getTime() + 15 * 60 * 1000); // Thêm 15 phút
+    const tenMinutesLater = new Date(now.getTime() + 10 * 60 * 1000); // Thêm 10 phút
     
-    // Lấy giờ và phút của thời gian sau 15 phút
-    const minHour = fifteenMinutesLater.getHours();
-    const minMinute = fifteenMinutesLater.getMinutes();
+    // Lấy giờ và phút của thời gian sau 10 phút
+    const minHour = tenMinutesLater.getHours();
+    const minMinute = tenMinutesLater.getMinutes();
     
-    // Filter time slots - so sánh với thời gian sau 15 phút
+    // Filter time slots - so sánh với thời gian sau 10 phút
     return timeSlots.filter(timeSlot => {
       const [slotHour, slotMinute] = timeSlot.split(':').map(Number);
       
@@ -187,20 +187,13 @@ function TestDriveSchedule({ onBack }) {
   });
 
   // Filter appointments by selected date (local filter)
-  const filteredAppointments = appointments
-    .filter(apt => {
-      if (selectedDate && apt.startTime) {
-        const aptDate = new Date(apt.startTime).toISOString().split('T')[0];
-        return aptDate === selectedDate;
-      }
-      return true;
-    })
-    // Sort: mới nhất ở trên, cũ nhất ở dưới (sort theo startTime giảm dần)
-    .sort((a, b) => {
-      const timeA = a.startTime ? new Date(a.startTime).getTime() : 0;
-      const timeB = b.startTime ? new Date(b.startTime).getTime() : 0;
-      return timeB - timeA; // Giảm dần: mới nhất trước
-    });
+  const filteredAppointments = appointments.filter(apt => {
+    if (selectedDate && apt.startTime) {
+      const aptDate = new Date(apt.startTime).toISOString().split('T')[0];
+      return aptDate === selectedDate;
+    }
+    return true;
+  });
 
   const getStatusColor = (status) => {
     const statusUpper = (status || '').toUpperCase();
@@ -228,35 +221,25 @@ function TestDriveSchedule({ onBack }) {
 
   const formatDateTime = (isoString) => {
     if (!isoString) return 'N/A';
-    // Parse ISO string (UTC) và hiển thị theo local timezone
     const date = new Date(isoString);
-    // Đảm bảo hiển thị đúng local time
-    const day = date.getDate().toString().padStart(2, '0');
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const year = date.getFullYear();
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${day}/${month}/${year} ${hours}:${minutes}`;
+    return date.toLocaleString('vi-VN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
   };
 
   const formatDate = (isoString) => {
     if (!isoString) return '';
-    // Parse ISO string và lấy ngày theo local timezone
-    const date = new Date(isoString);
-    const year = date.getFullYear();
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    const day = date.getDate().toString().padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return new Date(isoString).toISOString().split('T')[0];
   };
 
   const formatTime = (isoString) => {
     if (!isoString) return '';
-    // Parse ISO string và hiển thị theo local timezone
     const date = new Date(isoString);
-    // Sử dụng toLocaleString để đảm bảo hiển thị đúng local time
-    const hours = date.getHours().toString().padStart(2, '0');
-    const minutes = date.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
+    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
   // Helper functions
@@ -291,12 +274,22 @@ function TestDriveSchedule({ onBack }) {
     
     try {
       // Tạo datetime từ date và time (local timezone)
+      // Sử dụng local date string để tránh timezone issues
       const [year, month, day] = newAppointment.date.split('-').map(Number);
       const [hour, minute] = newAppointment.time.split(':').map(Number);
       
       // Tạo Date object với local timezone
       const startDateTime = new Date(year, month - 1, day, hour, minute, 0, 0);
       const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000); // 1 hour later
+
+      // Validate: Kiểm tra xem thời gian có trong quá khứ không (với buffer 10 phút)
+      const now = new Date();
+      const tenMinutesLater = new Date(now.getTime() + 10 * 60 * 1000);
+      
+      if (startDateTime < tenMinutesLater) {
+        dispatch(showError({ message: 'Thời gian hẹn phải sau thời gian hiện tại ít nhất 10 phút' }));
+        return;
+      }
 
       // Validate: Kiểm tra xem ngày có phải hôm nay hoặc tương lai không
       const today = new Date();
@@ -309,38 +302,10 @@ function TestDriveSchedule({ onBack }) {
         return;
       }
 
-      // Validate: Nếu chọn hôm nay, kiểm tra giờ phải sau giờ hiện tại + 15 phút
-      // Nếu chọn ngày tương lai, không cần kiểm tra giờ (cho phép đặt bất kỳ giờ nào)
-      const isToday = selectedDateOnly.getTime() === today.getTime();
-      if (isToday) {
-        const now = new Date();
-        const fifteenMinutesLater = new Date(now.getTime() + 15 * 60 * 1000); // 15 phút buffer để tránh lỗi timezone
-        
-        if (startDateTime < fifteenMinutesLater) {
-          dispatch(showError({ message: 'Thời gian hẹn phải sau thời gian hiện tại ít nhất 15 phút' }));
-          return;
-        }
-      }
-
-      // Backend sử dụng LocalDateTime.now() để so sánh
-      // Khi gửi toISOString(), thời gian bị convert sang UTC, backend parse có thể sai
-      // Giải pháp: Gửi thời gian theo local time format (không có timezone) để backend parse đúng như local time
-      const formatDateTimeForBackend = (date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
-        // Format: "yyyy-MM-ddTHH:mm:ss" (local time, không có timezone)
-        // Backend sẽ parse như local server time và so sánh với LocalDateTime.now()
-        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-      };
-
       const payload = {
-        startTime: formatDateTimeForBackend(startDateTime),
-        endTime: formatDateTimeForBackend(endDateTime),
-        status: 'IN_PROGRESS',
+        startTime: startDateTime.toISOString(),
+        endTime: endDateTime.toISOString(),
+        status: 'CONFIRMED',
         modelId: selectedModel.modelId,
         customerId: selectedCustomer.customerId,
         staffId: user?.userId || 1,
@@ -424,9 +389,18 @@ function TestDriveSchedule({ onBack }) {
       const startDateTime = new Date(year, month - 1, day, hour, minute, 0, 0);
       const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000); // 1 hour later
 
-      // Validate: Kiểm tra xem ngày có phải hôm nay hoặc tương lai không
+      // Validate: Kiểm tra xem thời gian có trong quá khứ không (với buffer 10 phút)
       // Chỉ validate nếu đang sửa lịch hẹn chưa hoàn thành
       if (selectedAppointment.status?.toUpperCase() !== 'COMPLETED') {
+        const now = new Date();
+        const tenMinutesLater = new Date(now.getTime() + 10 * 60 * 1000);
+        
+        if (startDateTime < tenMinutesLater) {
+          dispatch(showError({ message: 'Thời gian hẹn phải sau thời gian hiện tại ít nhất 10 phút' }));
+          return;
+        }
+
+        // Validate: Kiểm tra xem ngày có phải hôm nay hoặc tương lai không
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const selectedDateOnly = new Date(year, month - 1, day);
@@ -436,35 +410,11 @@ function TestDriveSchedule({ onBack }) {
           dispatch(showError({ message: 'Không thể đặt lịch hẹn trong quá khứ' }));
           return;
         }
-
-        // Validate: Nếu chọn hôm nay, kiểm tra giờ phải sau giờ hiện tại + 10 phút
-        // Nếu chọn ngày tương lai, không cần kiểm tra giờ
-        const isToday = selectedDateOnly.getTime() === today.getTime();
-        if (isToday) {
-          const now = new Date();
-          const tenMinutesLater = new Date(now.getTime() + 10 * 60 * 1000);
-          
-          if (startDateTime < tenMinutesLater) {
-            dispatch(showError({ message: 'Thời gian hẹn phải sau thời gian hiện tại ít nhất 10 phút' }));
-            return;
-          }
-        }
       }
 
-      // Sử dụng cùng format cho edit - gửi local time format
-      const formatDateTimeForBackend = (date) => {
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, '0');
-        const day = String(date.getDate()).padStart(2, '0');
-        const hours = String(date.getHours()).padStart(2, '0');
-        const minutes = String(date.getMinutes()).padStart(2, '0');
-        const seconds = String(date.getSeconds()).padStart(2, '0');
-        return `${year}-${month}-${day}T${hours}:${minutes}:${seconds}`;
-      };
-
       const payload = {
-        startTime: formatDateTimeForBackend(startDateTime),
-        endTime: formatDateTimeForBackend(endDateTime),
+        startTime: startDateTime.toISOString(),
+        endTime: endDateTime.toISOString(),
         status: selectedAppointment.status,
         modelId: selectedModel.modelId,
         customerId: selectedCustomer.customerId,
@@ -544,17 +494,16 @@ function TestDriveSchedule({ onBack }) {
       return;
     }
 
-    // Kiểm tra transition hợp lệ
+    // Kiểm tra transition hợp lệ: CONFIRMED -> COMPLETED
     const currentStatus = (appointment.status || '').toUpperCase();
     const targetStatus = newStatus.toUpperCase();
     
-    if (currentStatus === targetStatus) {
+    if (currentStatus === 'CONFIRMED' && targetStatus === 'COMPLETED') {
+      // Transition hợp lệ, cho phép
+    } else if (currentStatus === targetStatus) {
       dispatch(showError({ message: 'Lịch hẹn đã ở trạng thái này rồi' }));
       return;
-    }
-    
-    // Không cho phép thay đổi trạng thái nếu đã hoàn thành
-    if (currentStatus === 'COMPLETED') {
+    } else if (currentStatus === 'COMPLETED') {
       dispatch(showError({ message: 'Không thể thay đổi trạng thái của lịch hẹn đã hoàn thành' }));
       return;
     }
@@ -592,6 +541,7 @@ function TestDriveSchedule({ onBack }) {
       console.log('✅ Update status result:', result);
 
       const statusMessages = {
+        'CONFIRMED': 'xác nhận',
         'IN_PROGRESS': 'bắt đầu',
         'COMPLETED': 'hoàn thành',
         'CANCELLED': 'hủy',
@@ -672,7 +622,7 @@ function TestDriveSchedule({ onBack }) {
   const isLoading = appointmentsStatus === 'loading';
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6">
+    <div className="w-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6">
       {/* Toast Notifications */}
       <Toast 
         show={toast.show} 
@@ -737,9 +687,9 @@ function TestDriveSchedule({ onBack }) {
 
         {/* Filters */}
         <div className="mb-4 space-y-3 sm:space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
             <div className="flex flex-col gap-1.5 sm:gap-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-700">Lọc theo ngày:</label>
+              <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap min-w-[100px]">Lọc theo ngày:</label>
               <input
                 type="date"
                 value={selectedDate}
@@ -749,7 +699,7 @@ function TestDriveSchedule({ onBack }) {
             </div>
 
             <div className="flex flex-col gap-1.5 sm:gap-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-700">Trạng thái:</label>
+              <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap min-w-[100px]">Trạng thái:</label>
               <select
                 value={filterStatus}
                 onChange={(e) => setFilterStatus(e.target.value)}
@@ -762,8 +712,8 @@ function TestDriveSchedule({ onBack }) {
               </select>
             </div>
 
-            <div className="flex flex-col gap-1.5 sm:gap-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-700">Model ID:</label>
+            {/* <div className="flex flex-col gap-1.5 sm:gap-2">
+              <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap min-w-[100px]">Model ID:</label>
               <input
                 type="number"
                 value={filterModelId}
@@ -771,10 +721,10 @@ function TestDriveSchedule({ onBack }) {
                 placeholder="Nhập Model ID"
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
               />
-            </div>
+            </div> */}
 
-            <div className="flex flex-col gap-1.5 sm:gap-2">
-              <label className="text-xs sm:text-sm font-medium text-gray-700">Customer ID:</label>
+            {/* <div className="flex flex-col gap-1.5 sm:gap-2">
+              <label className="text-xs sm:text-sm font-medium text-gray-700 whitespace-nowrap min-w-[100px]">Customer ID:</label>
               <input
                 type="number"
                 value={filterCustomerId}
@@ -782,10 +732,10 @@ function TestDriveSchedule({ onBack }) {
                 placeholder="Nhập Customer ID"
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
               />
-            </div>
+            </div> */}
 
             {(selectedDate || filterStatus || filterModelId || filterCustomerId) && (
-              <div className="flex items-end sm:col-span-2 md:col-span-2 lg:col-span-1 xl:col-span-1">
+              <div className="flex items-end sm:col-span-1 xl:col-span-1">
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -795,7 +745,7 @@ function TestDriveSchedule({ onBack }) {
                     setFilterModelId('');
                     setFilterCustomerId('');
                   }}
-                  className="w-full text-xs sm:text-sm text-emerald-600 hover:text-emerald-700 font-medium px-3 py-1.5 sm:py-2 border border-emerald-300 rounded-lg hover:bg-emerald-50 transition-colors"
+                  className="w-full sm:w-auto text-xs sm:text-sm text-emerald-600 hover:text-emerald-700 font-medium px-3 py-1.5 sm:py-2 border border-emerald-300 rounded-lg hover:bg-emerald-50 transition-colors whitespace-nowrap"
                 >
                   Xóa tất cả bộ lọc
                 </motion.button>
@@ -838,24 +788,23 @@ function TestDriveSchedule({ onBack }) {
         ) : (
           <>
             {/* Desktop Table View */}
-            <div className="hidden lg:block overflow-x-auto -mx-2 sm:mx-0">
-              <div className="inline-block min-w-full align-middle">
-                <table className="min-w-full divide-y divide-gray-200">
+            <div className="hidden lg:block overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[140px] sm:min-w-[160px]">
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Thời gian
                     </th>
-                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px] sm:min-w-[150px]">
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Khách hàng
                     </th>
-                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[120px] sm:min-w-[150px]">
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Xe
                     </th>
-                    <th className="px-3 sm:px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[100px] sm:min-w-[120px]">
+                    <th className="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Trạng thái
                     </th>
-                    <th className="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider min-w-[280px] sm:min-w-[320px]">
+                    <th className="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                       Thao tác
                     </th>
                   </tr>
@@ -869,53 +818,35 @@ function TestDriveSchedule({ onBack }) {
                       exit={{ opacity: 0 }}
                       whileHover={{ backgroundColor: '#f9fafb' }}
                     >
-                      <td className="px-3 sm:px-4 lg:px-6 py-4 min-w-[140px] sm:min-w-[160px]">
-                        <div className="text-sm font-medium text-gray-900 break-words">
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm font-medium text-gray-900">
                           {formatDateTime(appointment.startTime)}
                         </div>
                       </td>
-                      <td className="px-3 sm:px-4 lg:px-6 py-4 min-w-[120px] sm:min-w-[150px]">
-                        <div className="text-sm text-gray-900 break-words">{getCustomerName(appointment.customerId)}</div>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{getCustomerName(appointment.customerId)}</div>
+                        <div className="text-xs text-gray-500">ID: {appointment.customerId}</div>
                       </td>
-                      <td className="px-3 sm:px-4 lg:px-6 py-4 min-w-[120px] sm:min-w-[150px]">
-                        <div className="text-sm text-gray-900 break-words">{getModelName(appointment.modelId)}</div>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                        <div className="text-sm text-gray-900">{getModelName(appointment.modelId)}</div>
+                        <div className="text-xs text-gray-500">ID: {appointment.modelId}</div>
                       </td>
-                      <td className="px-3 sm:px-4 lg:px-6 py-4 min-w-[100px] sm:min-w-[120px]">
-                        <span className={`px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(appointment.status)}`}>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap">
+                        <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusColor(appointment.status)}`}>
                           {getStatusText(appointment.status)}
                         </span>
                       </td>
-                      <td className="px-4 lg:px-6 py-4 text-right text-sm font-medium">
-                        <div className="flex justify-end gap-1.5 sm:gap-2 flex-wrap items-center">
-                          {/* Dropdown để chọn trạng thái mới */}
-                          {appointment.status?.toUpperCase() !== 'COMPLETED' && (
-                            <div className="relative min-w-[120px] sm:min-w-[140px]">
-                              <select
-                                value={appointment.status || ''}
-                                onChange={(e) => {
-                                  if (e.target.value && e.target.value !== appointment.status) {
-                                    handleUpdateStatus(appointment, e.target.value);
-                                  }
-                                }}
-                                className="w-full px-2 lg:px-3 py-1 lg:py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow hover:shadow-md transition-all text-xs cursor-pointer border-0 focus:ring-2 focus:ring-emerald-500 appearance-none pr-6 sm:pr-8"
-                              >
-                                <option value={appointment.status || ''} disabled>
-                                  Đổi trạng thái
-                                </option>
-                                {statusOptions
-                                  .filter(status => status !== appointment.status?.toUpperCase())
-                                  .map(status => (
-                                    <option key={status} value={status}>
-                                      {getStatusText(status)}
-                                    </option>
-                                  ))}
-                              </select>
-                              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-1.5 sm:pr-2">
-                                <svg className="h-3 w-3 sm:h-4 sm:w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                </svg>
-                              </div>
-                            </div>
+                      <td className="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex justify-end gap-2 flex-wrap">
+                          {appointment.status?.toUpperCase() === 'CONFIRMED' && (
+                            <motion.button
+                              whileHover={{ scale: 1.05, y: -1 }}
+                              whileTap={{ scale: 0.95 }}
+                              onClick={() => handleUpdateStatus(appointment, 'COMPLETED')}
+                              className="px-2 lg:px-3 py-1 lg:py-1.5 bg-purple-600 text-white rounded-lg hover:bg-purple-700 shadow hover:shadow-md transition-all text-xs whitespace-nowrap"
+                            >
+                              Hoàn thành
+                            </motion.button>
                           )}
                           {appointment.status?.toUpperCase() !== 'COMPLETED' && (
                             <>
@@ -923,7 +854,7 @@ function TestDriveSchedule({ onBack }) {
                                 whileHover={{ scale: 1.05, y: -1 }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => openEditModal(appointment)}
-                                className="px-2 lg:px-3 py-1 lg:py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow hover:shadow-md transition-all text-xs whitespace-nowrap flex-shrink-0"
+                                className="px-2 lg:px-3 py-1 lg:py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow hover:shadow-md transition-all text-xs whitespace-nowrap"
                               >
                                 Sửa
                               </motion.button>
@@ -931,7 +862,7 @@ function TestDriveSchedule({ onBack }) {
                                 whileHover={{ scale: 1.05, y: -1 }}
                                 whileTap={{ scale: 0.95 }}
                                 onClick={() => openDeleteModal(appointment)}
-                                className="px-2 lg:px-3 py-1 lg:py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow hover:shadow-md transition-all text-xs whitespace-nowrap flex-shrink-0"
+                                className="px-2 lg:px-3 py-1 lg:py-1.5 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow hover:shadow-md transition-all text-xs whitespace-nowrap"
                               >
                                 Xóa
                               </motion.button>
@@ -943,81 +874,62 @@ function TestDriveSchedule({ onBack }) {
                   ))}
                 </tbody>
               </table>
-              </div>
             </div>
 
             {/* Mobile Card View */}
-            <div className="lg:hidden space-y-3 sm:space-y-4">
+            <div className="lg:hidden space-y-3">
               {filteredAppointments.map((appointment) => (
                 <motion.div
                   key={appointment.appointmentId}
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4 shadow-sm"
+                  className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm"
                 >
                   <div className="space-y-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm sm:text-base font-semibold text-gray-900 mb-1.5 break-words">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <div className="text-sm font-semibold text-gray-900 mb-1">
                           {formatDateTime(appointment.startTime)}
                         </div>
-                        <div className="text-xs sm:text-sm">
-                          <span className={`px-2 py-1 inline-flex text-xs leading-4 font-semibold rounded-full ${getStatusColor(appointment.status)}`}>
+                        <div className="text-xs text-gray-500">
+                          <span className={`px-2 py-0.5 inline-flex text-xs leading-4 font-semibold rounded-full ${getStatusColor(appointment.status)}`}>
                             {getStatusText(appointment.status)}
                           </span>
                         </div>
                       </div>
                     </div>
                     
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-gray-100">
-                      <div className="min-w-0">
+                    <div className="grid grid-cols-2 gap-3 pt-2 border-t border-gray-100">
+                      <div>
                         <p className="text-xs text-gray-500 mb-1">Khách hàng</p>
-                        <p className="text-sm font-medium text-gray-900 break-words">{getCustomerName(appointment.customerId)}</p>
+                        <p className="text-sm font-medium text-gray-900">{getCustomerName(appointment.customerId)}</p>
+                        <p className="text-xs text-gray-500">ID: {appointment.customerId}</p>
                       </div>
-                      <div className="min-w-0">
+                      <div>
                         <p className="text-xs text-gray-500 mb-1">Xe</p>
-                        <p className="text-sm font-medium text-gray-900 break-words">{getModelName(appointment.modelId)}</p>
+                        <p className="text-sm font-medium text-gray-900">{getModelName(appointment.modelId)}</p>
+                        <p className="text-xs text-gray-500">ID: {appointment.modelId}</p>
                       </div>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-gray-100">
-                      {/* Dropdown để chọn trạng thái mới */}
-                      {appointment.status?.toUpperCase() !== 'COMPLETED' && (
-                        <div className="relative w-full sm:flex-1">
-                          <select
-                            value={appointment.status || ''}
-                            onChange={(e) => {
-                              if (e.target.value && e.target.value !== appointment.status) {
-                                handleUpdateStatus(appointment, e.target.value);
-                              }
-                            }}
-                            className="w-full px-3 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 shadow transition-all text-xs sm:text-sm font-medium cursor-pointer border-0 focus:ring-2 focus:ring-emerald-500 appearance-none pr-8"
-                          >
-                            <option value={appointment.status || ''} disabled>
-                              Đổi trạng thái
-                            </option>
-                            {statusOptions
-                              .filter(status => status !== appointment.status?.toUpperCase())
-                              .map(status => (
-                                <option key={status} value={status}>
-                                  {getStatusText(status)}
-                                </option>
-                              ))}
-                          </select>
-                          <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2">
-                            <svg className="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                            </svg>
-                          </div>
-                        </div>
+                    <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+                      {appointment.status?.toUpperCase() === 'CONFIRMED' && (
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleUpdateStatus(appointment, 'COMPLETED')}
+                          className="flex-1 min-w-[100px] px-3 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 shadow transition-all text-xs font-medium"
+                        >
+                          Hoàn thành
+                        </motion.button>
                       )}
                       {appointment.status?.toUpperCase() !== 'COMPLETED' && (
-                        <div className="flex gap-2 sm:flex-shrink-0">
+                        <>
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => openEditModal(appointment)}
-                            className="flex-1 sm:flex-none sm:min-w-[80px] px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow transition-all text-xs sm:text-sm font-medium"
+                            className="flex-1 min-w-[80px] px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow transition-all text-xs font-medium"
                           >
                             Sửa
                           </motion.button>
@@ -1025,11 +937,11 @@ function TestDriveSchedule({ onBack }) {
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                             onClick={() => openDeleteModal(appointment)}
-                            className="flex-1 sm:flex-none sm:min-w-[80px] px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow transition-all text-xs sm:text-sm font-medium"
+                            className="flex-1 min-w-[80px] px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 shadow transition-all text-xs font-medium"
                           >
                             Xóa
                           </motion.button>
-                        </div>
+                        </>
                       )}
                     </div>
                   </div>
@@ -1132,7 +1044,7 @@ function TestDriveSchedule({ onBack }) {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Mẫu xe *</label>
                   <AnimatedSelect
-                    value={selectedModel?.modelId ? selectedModel.modelId.toString() : ''}
+                    value={selectedModel?.modelId || ''}
                     onChange={(e) => {
                       const model = models?.find(m => m.modelId === parseInt(e.target.value));
                       setSelectedModel(model || null);
@@ -1143,14 +1055,11 @@ function TestDriveSchedule({ onBack }) {
                       { value: '', label: modelsLoading ? 'Đang tải...' : 'Chọn mẫu xe' },
                       ...(modelsLoading ? [] : models?.map(model => ({
                         value: model.modelId.toString(),
-                        label: `${model.modelName}`
+                        label: `${model.modelName} - ${model.modelId}`
                       })) || [])
                     ]}
                     className="w-full"
                   />
-                  {selectedModel && (
-                    <p className="text-xs text-emerald-600 mt-1">Đã chọn: {selectedModel.modelName}</p>
-                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1173,7 +1082,7 @@ function TestDriveSchedule({ onBack }) {
                       required
                     />
                     {newAppointment.date === getTodayDate() && (
-                      <p className="text-xs text-gray-500 mt-1">Lưu ý: Chọn giờ sau thời gian hiện tại ít nhất 15 phút</p>
+                      <p className="text-xs text-gray-500 mt-1">Lưu ý: Chọn giờ sau thời gian hiện tại ít nhất 10 phút</p>
                     )}
                   </div>
                   <div>
@@ -1182,9 +1091,9 @@ function TestDriveSchedule({ onBack }) {
                       name="time"
                       value={newAppointment.time}
                       onChange={handleInputChange}
-                      placeholder={newAppointment.date === getTodayDate() ? "Chọn giờ (sau giờ hiện tại + 15 phút)" : "Chọn giờ"}
+                      placeholder={newAppointment.date === getTodayDate() ? "Chọn giờ (sau giờ hiện tại + 10 phút)" : "Chọn giờ"}
                       options={[
-                        { value: '', label: newAppointment.date === getTodayDate() ? 'Chọn giờ (sau giờ hiện tại + 15 phút)' : 'Chọn giờ' },
+                        { value: '', label: newAppointment.date === getTodayDate() ? 'Chọn giờ (sau giờ hiện tại + 10 phút)' : 'Chọn giờ' },
                         ...getAvailableTimeSlots(newAppointment.date).map(time => ({
                           value: time,
                           label: time
@@ -1317,7 +1226,7 @@ function TestDriveSchedule({ onBack }) {
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Mẫu xe *</label>
                   <AnimatedSelect
-                    value={selectedModel?.modelId ? selectedModel.modelId.toString() : ''}
+                    value={selectedModel?.modelId || ''}
                     onChange={(e) => {
                       const model = models?.find(m => m.modelId === parseInt(e.target.value));
                       setSelectedModel(model || null);
@@ -1328,14 +1237,11 @@ function TestDriveSchedule({ onBack }) {
                       { value: '', label: modelsLoading ? 'Đang tải...' : 'Chọn mẫu xe' },
                       ...(modelsLoading ? [] : models?.map(model => ({
                         value: model.modelId.toString(),
-                        label: `${model.modelName}`
+                        label: `${model.modelName} - ${model.modelId}`
                       })) || [])
                     ]}
                     className="w-full"
                   />
-                  {selectedModel && (
-                    <p className="text-xs text-emerald-600 mt-1">Đã chọn: {selectedModel.modelName}</p>
-                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1359,7 +1265,7 @@ function TestDriveSchedule({ onBack }) {
                       disabled={selectedAppointment?.status?.toUpperCase() === 'COMPLETED'}
                     />
                     {newAppointment.date === getTodayDate() && selectedAppointment?.status?.toUpperCase() !== 'COMPLETED' && (
-                      <p className="text-xs text-gray-500 mt-1">Lưu ý: Chọn giờ sau thời gian hiện tại ít nhất 15 phút</p>
+                      <p className="text-xs text-gray-500 mt-1">Lưu ý: Chọn giờ sau thời gian hiện tại ít nhất 10 phút</p>
                     )}
                   </div>
                   <div>
@@ -1368,9 +1274,9 @@ function TestDriveSchedule({ onBack }) {
                       name="time"
                       value={newAppointment.time}
                       onChange={handleInputChange}
-                      placeholder={newAppointment.date === getTodayDate() ? "Chọn giờ (sau giờ hiện tại + 15 phút)" : "Chọn giờ"}
+                      placeholder={newAppointment.date === getTodayDate() ? "Chọn giờ (sau giờ hiện tại + 10 phút)" : "Chọn giờ"}
                       options={[
-                        { value: '', label: newAppointment.date === getTodayDate() ? 'Chọn giờ (sau giờ hiện tại + 15 phút)' : 'Chọn giờ' },
+                        { value: '', label: newAppointment.date === getTodayDate() ? 'Chọn giờ (sau giờ hiện tại + 10 phút)' : 'Chọn giờ' },
                         ...getAvailableTimeSlots(newAppointment.date).map(time => ({
                           value: time,
                           label: time

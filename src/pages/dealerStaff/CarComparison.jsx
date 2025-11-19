@@ -405,7 +405,7 @@ function CarComparison() {
   // Loading state
   if (modelsStatus === 'loading' || modelColorsStatus === 'loading') {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-2 sm:px-3 md:px-4 py-6">
         <ModernCard>
           <ModernCardContent className="py-12">
             <div className="text-center">
@@ -427,7 +427,7 @@ function CarComparison() {
   // Error state
   if (modelsStatus === 'failed') {
     return (
-      <div className="max-w-7xl mx-auto px-4 py-6">
+      <div className="max-w-7xl mx-auto px-2 sm:px-3 md:px-4 py-6">
         <ModernCard>
           <ModernCardContent className="py-12">
             <div className="text-center">
@@ -452,7 +452,7 @@ function CarComparison() {
   }
 
   return (
-    <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5 lg:py-6 space-y-4 sm:space-y-5 md:space-y-6">
+    <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-2 py-3 sm:py-4 md:py-5 lg:py-6 space-y-4 sm:space-y-5 md:space-y-6">
 
       {/* Vehicle Selection Section */}
       <ModernCard gradient roleColor="emerald">

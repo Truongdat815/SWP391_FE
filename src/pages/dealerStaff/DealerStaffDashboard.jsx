@@ -549,7 +549,7 @@ const DealerStaffDashboard = () => {
               <p className="text-xs text-gray-500 mt-0.5">Xu hướng doanh thu 3 tháng gần nhất</p>
             </div>
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="h-64 sm:h-72 md:h-80">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={revenueData}>
               <defs>
@@ -619,12 +619,12 @@ const DealerStaffDashboard = () => {
       {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Rating Distribution Chart */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3 flex flex-col min-h-0">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-3 flex flex-col">
           <div className="mb-2 flex-shrink-0">
             <h3 className="text-sm font-semibold text-gray-900">⭐ Phân bố đánh giá</h3>
             <p className="text-xs text-gray-500 mt-0.5">Số lượng đánh giá theo sao</p>
           </div>
-          <div className="flex-1 min-h-0">
+          <div className="h-64 sm:h-72 md:h-80">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart
               data={[
@@ -664,22 +664,23 @@ const DealerStaffDashboard = () => {
         </div>
 
         {/* Recent Feedbacks with Details */}
-        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4">
-          <div className="mb-4">
+        <div className="bg-white rounded-lg border border-gray-200 shadow-md p-4 flex flex-col">
+          <div className="mb-4 flex-shrink-0">
             <h3 className="text-base font-semibold text-gray-900">📝 Phản hồi gần đây</h3>
             <p className="text-xs text-gray-500 mt-0.5">Xem chi tiết nội dung và đánh giá</p>
           </div>
+          <div className="h-64 sm:h-72 md:h-80 overflow-hidden flex flex-col">
         {loadingFeedbacks ? (
-          <div className="text-center py-8">
+          <div className="h-full flex flex-col items-center justify-center py-8">
             <div className="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-600 mb-2"></div>
             <p className="text-sm text-gray-600">Đang tải phản hồi...</p>
           </div>
         ) : feedbacksWithDetails.length === 0 ? (
-          <div className="text-center py-8">
+          <div className="h-full flex flex-col items-center justify-center py-8">
             <p className="text-sm text-gray-500">Chưa có phản hồi nào</p>
           </div>
         ) : (
-          <div className="space-y-3 max-h-96 overflow-y-auto">
+          <div className="space-y-3 flex-1 overflow-y-auto pr-2">
             {feedbacksWithDetails.slice(0, 10).map((feedback, index) => {
               const rating = Math.max(0, Math.min(5, parseInt(feedback.rating) || 0));
               const content = feedback.content || 'Không có nội dung';
@@ -739,6 +740,7 @@ const DealerStaffDashboard = () => {
             })}
           </div>
         )}
+          </div>
         </div>
       </div>
     </div>

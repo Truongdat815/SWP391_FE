@@ -276,7 +276,7 @@ function QuoteOrderManagement() {
   const totals = calculateOrderTotals();
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 py-3 sm:py-4 md:py-5">
+    <div className="w-full max-w-6xl mx-auto px-2 sm:px-3 md:px-4 lg:px-2 py-3 sm:py-4 md:py-5">
       {/* Header */}
       <div className="mb-4 sm:mb-6 md:mb-8">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">

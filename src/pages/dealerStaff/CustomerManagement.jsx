@@ -844,7 +844,7 @@ function CustomerManagement() {
       />
 
       {/* Main Container */}
-      <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-6 pt-0 pb-3 sm:pb-4 md:pb-5">
+      <div className="w-full max-w-7xl mx-auto px-2 sm:px-3 md:px-4 lg:px-2 pt-0 pb-3 sm:pb-4 md:pb-5">
         {/* Main Content Card */}
         <ModernCard className="overflow-hidden">
           <ModernCardHeader
