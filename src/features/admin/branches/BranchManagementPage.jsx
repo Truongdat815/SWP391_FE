@@ -70,7 +70,9 @@ const BranchManagementPage = () => {
       });
     } catch (error) {
       alert(error?.data?.message || 'Có lỗi xảy ra khi tạo chi nhánh');
-      console.error(error);
+      if (import.meta.env.DEV) {
+        console.error(error);
+      }
     }
   };
 
@@ -95,7 +97,9 @@ const BranchManagementPage = () => {
       setSelectedStore(null);
     } catch (error) {
       alert(error?.data?.message || 'Có lỗi xảy ra khi cập nhật chi nhánh');
-      console.error(error);
+      if (import.meta.env.DEV) {
+        console.error(error);
+      }
     }
   };
 
@@ -105,7 +109,9 @@ const BranchManagementPage = () => {
         await deleteStore(storeId).unwrap();
       } catch (error) {
         alert(error?.data?.message || 'Có lỗi xảy ra khi xóa chi nhánh');
-        console.error(error);
+        if (import.meta.env.DEV) {
+          console.error(error);
+        }
       }
     }
     setOpenMenuId(null);

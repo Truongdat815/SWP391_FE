@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Car, Zap, Shield, ArrowRight } from 'lucide-react';
+import { ArrowRight, Facebook, Twitter, Instagram } from 'lucide-react';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Modal from '../../../components/ui/Modal';
@@ -43,83 +43,81 @@ const HomePage = () => {
     {
       id: 1,
       name: 'Electra Model S',
-      range: '600km',
-      speed: '250km/h',
-      image: 'https://via.placeholder.com/400x300?text=Model+S',
+      description: 'Quãng đường 600km - Tốc độ tối đa 250km/h',
+      image: 'https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop',
     },
     {
       id: 2,
       name: 'Electra Model X',
-      range: '550km',
-      seats: '7 chỗ ngồi linh hoạt',
-      image: 'https://via.placeholder.com/400x300?text=Model+X',
+      description: 'Quãng đường 550km - 7 chỗ ngồi linh hoạt',
+      image: 'https://images.unsplash.com/photo-1617788138017-8adcc8da66e3?w=800&h=600&fit=crop',
     },
     {
       id: 3,
       name: 'Electra Model R',
-      range: '500km',
-      acceleration: '0-100km/h trong 2.5s',
-      image: 'https://via.placeholder.com/400x300?text=Model+R',
+      description: 'Quãng đường 500km - Tăng tốc 0-100km/h trong 2.5s',
+      image: 'https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop',
     },
   ];
 
   const technologies = [
     {
-      icon: Zap,
       title: 'Công nghệ Pin Lượng tử',
       description: 'Tăng quãng đường di chuyển lên đến 30% và sạc đầy chỉ trong 15 phút.',
-      image: 'https://via.placeholder.com/300x200?text=Battery',
+      image: 'https://images.unsplash.com/photo-1605792657660-596af9009d82?w=600&h=400&fit=crop',
     },
     {
-      icon: Shield,
       title: 'Hệ thống Tự lái Thông minh',
       description: 'Bộ cảm biến và AI tiên tiến giúp bạn di chuyển an toàn trên mọi hành trình.',
-      image: 'https://via.placeholder.com/300x200?text=Autonomous',
+      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop',
     },
     {
-      icon: Car,
       title: 'Thiết kế Khí động học',
       description: 'Tối ưu hóa luồng không khí, giảm lực cản và tăng hiệu suất vận hành tối đa.',
-      image: 'https://via.placeholder.com/300x200?text=Aerodynamic',
+      image: 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=600&h=400&fit=crop',
     },
   ];
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-gray-900">
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+      <header className="bg-gray-900 border-b border-gray-800 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
+          <div className="flex items-center justify-between h-20">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-xl">E</span>
+              <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+                <span className="text-white font-bold text-2xl">E</span>
               </div>
-              <span className="text-xl font-bold text-gray-900">Electra</span>
+              <span className="text-2xl font-bold text-white">Electra</span>
             </div>
-            <nav className="hidden md:flex items-center gap-6">
-              <a href="#models" className="text-gray-700 hover:text-blue-600">
+            <nav className="hidden md:flex items-center gap-8">
+              <a href="#models" className="text-white hover:text-blue-400 transition-colors">
                 Các Dòng Xe
               </a>
-              <a href="#technology" className="text-gray-700 hover:text-blue-600">
+              <a href="#technology" className="text-white hover:text-blue-400 transition-colors">
                 Công Nghệ
               </a>
-              <a href="#news" className="text-gray-700 hover:text-blue-600">
+              <a href="#news" className="text-white hover:text-blue-400 transition-colors">
                 Tin Tức
               </a>
-              <a href="#about" className="text-gray-700 hover:text-blue-600">
+              <a href="#about" className="text-white hover:text-blue-400 transition-colors">
                 Về Chúng Tôi
               </a>
-              <Button variant="outline" onClick={() => navigate('/login')}>
+              <Button
+                variant="outline"
+                onClick={() => navigate('/login')}
+                className="border-white text-white hover:bg-white hover:text-gray-900"
+              >
                 Đăng nhập
               </Button>
-              <Button onClick={() => setIsModalOpen(true)}>
+              <Button onClick={() => setIsModalOpen(true)} className="bg-blue-600 hover:bg-blue-700">
                 Đăng ký Lái thử
               </Button>
             </nav>
             <Button
               variant="outline"
               onClick={() => navigate('/login')}
-              className="md:hidden"
+              className="md:hidden border-white text-white"
             >
               Đăng nhập
             </Button>
@@ -128,52 +126,64 @@ const HomePage = () => {
       </header>
 
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-blue-50 to-white py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-5xl font-bold text-gray-900 mb-6">
-              Tương Lai Của Sự Dịch Chuyển
-            </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              Trải nghiệm công nghệ xe điện đình cao, thiết kế sang trọng và hiệu suất vượt trội.
-              Electra định nghĩa lại hành trình của bạn.
-            </p>
-            <Button size="lg" onClick={() => setIsModalOpen(true)}>
-              Khám Phá Ngay
-              <ArrowRight className="ml-2" size={20} />
-            </Button>
-          </div>
+      <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
+        {/* Background Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{
+            backgroundImage:
+              'url(https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=1920&h=1080&fit=crop)',
+          }}
+        >
+          <div className="absolute inset-0 bg-gradient-to-b from-gray-900/80 via-gray-900/60 to-gray-900/90"></div>
+        </div>
+
+        {/* Content */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <h1 className="text-6xl md:text-7xl font-bold text-white mb-6 leading-tight">
+            Tương Lai Của Sự Dịch Chuyển
+          </h1>
+          <p className="text-xl md:text-2xl text-gray-200 mb-10 max-w-4xl mx-auto leading-relaxed">
+            Trải nghiệm công nghệ xe điện đình cao, thiết kế sang trọng và hiệu suất vượt trội.
+            Electra định nghĩa lại hành trình của bạn.
+          </p>
+          <Button
+            size="lg"
+            onClick={() => setIsModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-4 text-lg"
+          >
+            Khám Phá Ngay
+            <ArrowRight className="ml-2" size={24} />
+          </Button>
         </div>
       </section>
 
       {/* Models Section */}
-      <section id="models" className="py-20 bg-white">
+      <section id="models" className="py-24 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-12">
+          <h2 className="text-4xl md:text-5xl font-bold text-center text-white mb-16">
             Khám Phá Các Dòng Xe Electra
           </h2>
           <div className="grid md:grid-cols-3 gap-8">
             {models.map((model) => (
               <div
                 key={model.id}
-                className="bg-white rounded-lg shadow-lg overflow-hidden hover:shadow-xl transition-shadow"
+                className="bg-gray-800 rounded-xl overflow-hidden hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-700"
               >
-                <img
-                  src={model.image}
-                  alt={model.name}
-                  className="w-full h-48 object-cover"
-                />
+                <div className="relative h-64 overflow-hidden">
+                  <img
+                    src={model.image}
+                    alt={model.name}
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 to-transparent"></div>
+                </div>
                 <div className="p-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-4">{model.name}</h3>
-                  <div className="space-y-2 mb-4">
-                    <p className="text-gray-600">Quãng đường: {model.range}</p>
-                    {model.speed && <p className="text-gray-600">Tốc độ tối đa: {model.speed}</p>}
-                    {model.seats && <p className="text-gray-600">{model.seats}</p>}
-                    {model.acceleration && <p className="text-gray-600">{model.acceleration}</p>}
-                  </div>
+                  <h3 className="text-2xl font-bold text-white mb-3">{model.name}</h3>
+                  <p className="text-gray-300 mb-6 text-lg">{model.description}</p>
                   <Button
                     variant="outline"
-                    className="w-full"
+                    className="w-full border-blue-600 text-blue-400 hover:bg-blue-600 hover:text-white"
                     onClick={() => setIsModalOpen(true)}
                   >
                     Tìm hiểu thêm
@@ -186,111 +196,139 @@ const HomePage = () => {
       </section>
 
       {/* Technology Section */}
-      <section id="technology" className="py-20 bg-gray-50">
+      <section id="technology" className="py-24 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-center text-gray-900 mb-4">
+          <h2 className="text-4xl md:text-5xl font-bold text-center text-white mb-6">
             Công Nghệ Đột Phá
           </h2>
-          <p className="text-center text-gray-600 mb-12 max-w-3xl mx-auto">
+          <p className="text-center text-gray-300 text-lg mb-16 max-w-4xl mx-auto">
             Electra tiên phong trong việc ứng dụng những công nghệ tiên tiến nhất để mang lại
             trải nghiệm lái xe an toàn, thông minh và bền vững.
           </p>
           <div className="grid md:grid-cols-3 gap-8">
-            {technologies.map((tech, index) => {
-              const Icon = tech.icon;
-              return (
-                <div
-                  key={index}
-                  className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow"
-                >
+            {technologies.map((tech, index) => (
+              <div
+                key={index}
+                className="bg-gray-800 rounded-xl overflow-hidden hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-700"
+              >
+                <div className="relative h-48 overflow-hidden">
                   <img
                     src={tech.image}
                     alt={tech.title}
-                    className="w-full h-40 object-cover"
+                    className="w-full h-full object-cover"
                   />
-                  <div className="p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="p-3 bg-blue-100 rounded-lg">
-                        <Icon size={24} className="text-blue-600" />
-                      </div>
-                      <h3 className="text-xl font-bold text-gray-900">{tech.title}</h3>
-                    </div>
-                    <p className="text-gray-600">{tech.description}</p>
-                  </div>
+                  <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 to-transparent"></div>
                 </div>
-              );
-            })}
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-white mb-4">{tech.title}</h3>
+                  <p className="text-gray-300 leading-relaxed">{tech.description}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
+      <footer className="bg-gray-900 border-t border-gray-800 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div>
+          <div className="grid md:grid-cols-5 gap-12 mb-12">
+            {/* Logo & Tagline */}
+            <div className="md:col-span-2">
               <div className="flex items-center gap-3 mb-4">
-                <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
-                  <span className="text-white font-bold text-xl">E</span>
+                <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
+                  <span className="text-white font-bold text-2xl">E</span>
                 </div>
-                <span className="text-xl font-bold">Electra</span>
+                <span className="text-2xl font-bold text-white">Electra</span>
               </div>
-              <p className="text-gray-400">Dẫn đầu kỷ nguyên di chuyển bằng điện.</p>
+              <p className="text-gray-400 text-lg mb-6">
+                Dẫn đầu kỷ nguyên di chuyển bằng điện.
+              </p>
+              <div className="flex gap-4">
+                <a
+                  href="#"
+                  className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-white hover:bg-blue-600 transition-colors"
+                >
+                  <Facebook size={20} />
+                </a>
+                <a
+                  href="#"
+                  className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-white hover:bg-blue-600 transition-colors"
+                >
+                  <Twitter size={20} />
+                </a>
+                <a
+                  href="#"
+                  className="w-10 h-10 rounded-full bg-gray-800 flex items-center justify-center text-white hover:bg-blue-600 transition-colors"
+                >
+                  <Instagram size={20} />
+                </a>
+              </div>
             </div>
+
+            {/* Khám phá */}
             <div>
-              <h4 className="font-semibold mb-4">Khám phá</h4>
-              <ul className="space-y-2 text-gray-400">
+              <h4 className="font-semibold text-white mb-4 text-lg">Khám phá</h4>
+              <ul className="space-y-3">
                 <li>
-                  <a href="#models" className="hover:text-white">
+                  <a href="#models" className="text-gray-400 hover:text-white transition-colors">
                     Các Dòng Xe
                   </a>
                 </li>
                 <li>
-                  <a href="#technology" className="hover:text-white">
+                  <a href="#technology" className="text-gray-400 hover:text-white transition-colors">
                     Công Nghệ
                   </a>
                 </li>
                 <li>
-                  <a href="#news" className="hover:text-white">
+                  <a href="#news" className="text-gray-400 hover:text-white transition-colors">
                     Tin Tức
                   </a>
                 </li>
               </ul>
             </div>
+
+            {/* Về Electra */}
             <div>
-              <h4 className="font-semibold mb-4">Về Electra</h4>
-              <ul className="space-y-2 text-gray-400">
+              <h4 className="font-semibold text-white mb-4 text-lg">Về Electra</h4>
+              <ul className="space-y-3">
                 <li>
-                  <a href="#about" className="hover:text-white">
+                  <a href="#about" className="text-gray-400 hover:text-white transition-colors">
                     Về Chúng Tôi
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white">
+                  <a href="#" className="text-gray-400 hover:text-white transition-colors">
                     Chính sách
                   </a>
                 </li>
                 <li>
-                  <a href="#" className="hover:text-white">
+                  <a href="#" className="text-gray-400 hover:text-white transition-colors">
                     Liên hệ
                   </a>
                 </li>
               </ul>
             </div>
+
+            {/* Newsletter */}
             <div>
-              <h4 className="font-semibold mb-4">Đăng ký nhận tin</h4>
-              <div className="flex gap-2">
+              <h4 className="font-semibold text-white mb-4 text-lg">Đăng ký nhận tin</h4>
+              <div className="space-y-3">
                 <Input
                   type="email"
                   placeholder="Email của bạn"
-                  className="flex-1"
+                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-500"
                 />
-                <Button>Đăng ký</Button>
+                <Button className="w-full bg-blue-600 hover:bg-blue-700 text-white">
+                  Đăng ký
+                </Button>
               </div>
             </div>
           </div>
-          <div className="mt-8 pt-8 border-t border-gray-800 text-center text-gray-400">
-            <p>© 2024 Electra. All rights reserved.</p>
+
+          {/* Copyright */}
+          <div className="pt-8 border-t border-gray-800 text-center">
+            <p className="text-gray-400">© 2024 Electra. All rights reserved.</p>
           </div>
         </div>
       </footer>
@@ -363,4 +401,3 @@ const HomePage = () => {
 };
 
 export default HomePage;
-

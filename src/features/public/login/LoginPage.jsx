@@ -26,7 +26,9 @@ const LoginPage = () => {
     try {
       const res = await login({ email: formData.email, password: formData.password }).unwrap();
       
-      console.log('Login response:', res);
+      if (import.meta.env.DEV) {
+        console.log('Login response:', res);
+      }
       
       if (res.code !== 200) {
         setError(res.message || 'Sai tài khoản hoặc mật khẩu!');
@@ -78,13 +80,17 @@ const LoginPage = () => {
           redirectPath = '/evm-staff/dashboard';
         }
         
-        console.log('Redirecting to:', redirectPath);
+        if (import.meta.env.DEV) {
+          console.log('Redirecting to:', redirectPath);
+        }
         navigate(redirectPath);
         return; // Dừng ở đây nếu đã có user
       }
       
       // Nếu không có user trong response, BẮT BUỘC phải fetch /users/me
-      console.log('Fetching user info from /users/me...');
+      if (import.meta.env.DEV) {
+        console.log('Fetching user info from /users/me...');
+      }
       const apiUrl = import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api';
       
       try {
@@ -96,7 +102,9 @@ const LoginPage = () => {
         });
         
         const userData = await userRes.json();
-        console.log('User me response:', userData);
+        if (import.meta.env.DEV) {
+          console.log('User me response:', userData);
+        }
         
         if (userRes.ok && userData.code === 200 && userData.data) {
           const userInfo = userData.data;
@@ -124,19 +132,25 @@ const LoginPage = () => {
             redirectPath = '/evm-staff/dashboard';
           }
           
-          console.log('Redirecting to:', redirectPath);
+          if (import.meta.env.DEV) {
+            console.log('Redirecting to:', redirectPath);
+          }
           navigate(redirectPath);
         } else {
           setError(userData.message || 'Không thể lấy thông tin user. Vui lòng thử lại.');
           setIsLoading(false);
         }
       } catch (userError) {
-        console.error('Error fetching user info:', userError);
+        if (import.meta.env.DEV) {
+          console.error('Error fetching user info:', userError);
+        }
         setError('Lỗi khi lấy thông tin user. Vui lòng thử lại.');
         setIsLoading(false);
       }
     } catch (err) {
-      console.error('Login error:', err);
+      if (import.meta.env.DEV) {
+        console.error('Login error:', err);
+      }
       
       if (err?.status === 'FETCH_ERROR' || err?.error === 'FETCH_ERROR') {
         setError('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.');

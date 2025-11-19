@@ -1,3 +1,5 @@
+import { motion } from 'framer-motion';
+import { buttonHover, buttonTap, buttonDisabled } from '../../utils/animations';
 import { cn } from '../../utils/cn';
 
 const Button = ({
@@ -11,7 +13,7 @@ const Button = ({
   ...props
 }) => {
   const baseStyles =
-    'inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+    'inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2';
 
   const variants = {
     primary:
@@ -31,20 +33,23 @@ const Button = ({
   };
 
   return (
-    <button
+    <motion.button
       type={type}
       className={cn(
         baseStyles,
         variants[variant],
         sizes[size],
+        disabled && 'opacity-50 cursor-not-allowed',
         className
       )}
       disabled={disabled}
       onClick={onClick}
+      whileHover={disabled ? buttonDisabled : buttonHover}
+      whileTap={disabled ? buttonDisabled : buttonTap}
       {...props}
     >
       {children}
-    </button>
+    </motion.button>
   );
 };
 

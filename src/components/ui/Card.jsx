@@ -1,16 +1,21 @@
+import { motion } from 'framer-motion';
+import { cardHover, cardInitial, cardAnimate } from '../../utils/animations';
 import { cn } from '../../utils/cn';
 
 const Card = ({ children, className, ...props }) => {
   return (
-    <div
+    <motion.div
       className={cn(
         'bg-white rounded-lg shadow-sm border border-gray-200 p-6',
         className
       )}
+      initial={cardInitial}
+      animate={cardAnimate}
+      whileHover={cardHover}
       {...props}
     >
       {children}
-    </div>
+    </motion.div>
   );
 };
 

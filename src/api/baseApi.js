@@ -1,12 +1,35 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
 
+// Đảm bảo baseUrl luôn có /api ở cuối và không có trailing slash
+const getBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (envUrl) {
+    // Loại bỏ trailing slash nếu có
+    return envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
+  }
+  // Default URL
+  return 'https://tiembanhvuive.io.vn/api';
+};
+
 const baseQuery = fetchBaseQuery({
-  baseUrl: import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api',
-  prepareHeaders: (headers) => {
+  baseUrl: getBaseUrl(),
+  prepareHeaders: (headers, { getState }) => {
     const token = localStorage.getItem('accessToken');
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
+    } else {
+      // Development mode: Nếu không có token, thử dùng mock token hoặc bỏ qua
+      // Chỉ áp dụng cho development
+      // Trong môi trường dev, không log warning để tránh spam console
+      // Có thể thêm mock token nếu backend cho phép
+      // headers.set('Authorization', `Bearer mock-dev-token`);
     }
+    
+    // Set Content-Type for JSON requests (chỉ khi chưa có Content-Type)
+    if (!headers.get('Content-Type')) {
+      headers.set('Content-Type', 'application/json');
+    }
+    
     return headers;
   },
 });
@@ -26,11 +49,17 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
   }
 
   if (result?.error?.status === 403) {
-    console.error('Forbidden - insufficient permissions');
+    // Chỉ log trong development mode
+    if (import.meta.env.DEV) {
+      console.error('Forbidden - insufficient permissions');
+    }
   }
 
   if (result?.error?.status >= 500) {
-    console.error('Server error:', result.error);
+    // Chỉ log trong development mode
+    if (import.meta.env.DEV) {
+      console.error('Server error:', result.error);
+    }
   }
 
   return result;

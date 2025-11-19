@@ -4,7 +4,7 @@ const Table = ({ children, className, ...props }) => {
   return (
     <div className="overflow-x-auto">
       <table
-        className={cn('min-w-full divide-y divide-gray-200', className)}
+        className={cn('min-w-full border-collapse border border-gray-300', className)}
         {...props}
       >
         {children}
@@ -15,7 +15,7 @@ const Table = ({ children, className, ...props }) => {
 
 const TableHeader = ({ children, className, ...props }) => {
   return (
-    <thead className={cn('bg-gray-50', className)} {...props}>
+    <thead className={cn('bg-gray-100', className)} {...props}>
       {children}
     </thead>
   );
@@ -23,7 +23,7 @@ const TableHeader = ({ children, className, ...props }) => {
 
 const TableBody = ({ children, className, ...props }) => {
   return (
-    <tbody className={cn('bg-white divide-y divide-gray-200', className)} {...props}>
+    <tbody className={cn('bg-white', className)} {...props}>
       {children}
     </tbody>
   );
@@ -31,7 +31,7 @@ const TableBody = ({ children, className, ...props }) => {
 
 const TableRow = ({ children, className, ...props }) => {
   return (
-    <tr className={cn('hover:bg-gray-50 transition-colors', className)} {...props}>
+    <tr className={cn('border-b border-gray-300 hover:bg-gray-50 transition-colors', className)} {...props}>
       {children}
     </tr>
   );
@@ -41,7 +41,7 @@ const TableHead = ({ children, className, ...props }) => {
   return (
     <th
       className={cn(
-        'px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider',
+        'px-4 py-3 text-left text-sm font-semibold text-gray-700 border border-gray-300 bg-gray-100',
         className
       )}
       {...props}
@@ -53,7 +53,7 @@ const TableHead = ({ children, className, ...props }) => {
 
 const TableCell = ({ children, className, ...props }) => {
   return (
-    <td className={cn('px-6 py-4 whitespace-nowrap text-sm text-gray-900', className)} {...props}>
+    <td className={cn('px-4 py-3 text-sm text-gray-900 border border-gray-300', className)} {...props}>
       {children}
     </td>
   );
@@ -66,4 +66,3 @@ Table.Head = TableHead;
 Table.Cell = TableCell;
 
 export default Table;
-

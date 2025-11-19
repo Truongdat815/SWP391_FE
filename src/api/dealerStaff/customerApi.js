@@ -10,9 +10,19 @@ export const customerApi = baseApi.injectEndpoints({
       providesTags: ['Customer'],
     }),
 
+    getAllCustomers: builder.query({
+      query: () => '/customers/all',
+      providesTags: ['Customer'],
+    }),
+
     getCustomerById: builder.query({
-      query: (id) => `/customers/${id}`,
+      query: (id) => `/customers/id/${id}`,
       providesTags: (result, error, id) => [{ type: 'Customer', id }],
+    }),
+
+    getCustomerByPhone: builder.query({
+      query: (phone) => `/customers/phone/${phone}`,
+      providesTags: ['Customer'],
     }),
 
     searchCustomers: builder.query({
@@ -25,7 +35,7 @@ export const customerApi = baseApi.injectEndpoints({
 
     createCustomer: builder.mutation({
       query: (body) => ({
-        url: '/customers',
+        url: '/customers/create',
         method: 'POST',
         body,
       }),
@@ -34,7 +44,7 @@ export const customerApi = baseApi.injectEndpoints({
 
     updateCustomer: builder.mutation({
       query: ({ id, ...body }) => ({
-        url: `/customers/${id}`,
+        url: `/customers/update/${id}`,
         method: 'PUT',
         body,
       }),
@@ -46,7 +56,7 @@ export const customerApi = baseApi.injectEndpoints({
 
     deleteCustomer: builder.mutation({
       query: (id) => ({
-        url: `/customers/${id}`,
+        url: `/customers/delete/${id}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Customer'],
@@ -56,7 +66,9 @@ export const customerApi = baseApi.injectEndpoints({
 
 export const {
   useGetCustomersQuery,
+  useGetAllCustomersQuery,
   useGetCustomerByIdQuery,
+  useGetCustomerByPhoneQuery,
   useSearchCustomersQuery,
   useCreateCustomerMutation,
   useUpdateCustomerMutation,

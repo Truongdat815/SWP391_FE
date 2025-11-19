@@ -25,7 +25,9 @@ const Sidebar = () => {
     try {
       await logoutMutation().unwrap();
     } catch (error) {
-      console.error('Logout error:', error);
+      if (import.meta.env.DEV) {
+        console.error('Logout error:', error);
+      }
     } finally {
       dispatch(logout());
       window.location.href = '/login';
