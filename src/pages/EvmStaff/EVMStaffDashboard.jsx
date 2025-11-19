@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useSelector, useDispatch } from 'react-redux';
 import { getAllModelsThunk } from '../../store/slices/modelSlice';
@@ -30,21 +30,24 @@ const EVMStaffDashboard = () => {
   const transactions = useSelector((s) => s.inventoryTransactions.items) || [];
   const storeStocks = useSelector((s) => s.storeStocks.items) || [];
 
-  // Use ref to prevent duplicate API calls
-  const hasFetchedRef = useRef(false);
-
+  // Tự động làm mới dữ liệu mỗi 5 giây
   useEffect(() => {
-    // Only fetch once
-    if (hasFetchedRef.current) {
-      return;
-    }
-    
-    hasFetchedRef.current = true;
-    
+    // Fetch dữ liệu ngay lập tức
     dispatch(getAllModelsThunk());
     dispatch(getAllModelColorsThunk());
     dispatch(getAllTransactionsThunk());
     dispatch(getAllStoreStocksThunk());
+
+    // Thiết lập interval để tự động refresh mỗi 5 giây
+    const interval = setInterval(() => {
+      dispatch(getAllModelsThunk());
+      dispatch(getAllModelColorsThunk());
+      dispatch(getAllTransactionsThunk());
+      dispatch(getAllStoreStocksThunk());
+    }, 5000); // 5 giây = 5000ms
+
+    // Cleanup interval khi component unmount
+    return () => clearInterval(interval);
   }, [dispatch]);
 
   // Tính toán thống kê sản phẩm
@@ -71,48 +74,66 @@ const EVMStaffDashboard = () => {
     }).length,
   };
 
-  // Tính toán thống kê tồn kho
-  const inventoryStats = {
-    totalItems: storeStocks.length,
-    totalQuantity: storeStocks.reduce((sum, s) => sum + (parseInt(s.quantity) || 0), 0),
-    distributedStores: new Set(storeStocks.map(s => s.storeId)).size,
+  // Tính toán thống kê xe đã đưa cho đại lý
+  // Tính từ transactions đã completed/delivered thay vì storeStocks để đảm bảo chính xác
+  const completedTransactions = transactions.filter(t => {
+    const status = (t.status || '').toUpperCase();
+    return status === 'COMPLETED' || status === 'FINISH' || status === 'DELIVERED';
+  });
+  
+  const dealerDeliveryStats = {
+    totalDelivered: completedTransactions.reduce((sum, t) => sum + (parseInt(t.importQuantity) || 0), 0),
+    distributedStores: new Set(completedTransactions.map(t => t.storeId).filter(id => id != null)).size,
   };
 
+  // Tính toán dữ liệu đơn hàng theo tháng từ transactions thực tế
   const orderData = useMemo(() => {
-    const monthly = new Map();
-    transactions.forEach(transaction => {
-      const rawDate = transaction.orderDate || transaction.createdAt || transaction.transactionDate;
-      if (!rawDate) return;
-      const date = new Date(rawDate);
-      if (Number.isNaN(date.getTime())) return;
-      const key = `${date.getFullYear()}-${date.getMonth()}`;
-      if (!monthly.has(key)) {
-        monthly.set(key, {
-          month: date.getMonth(),
-          year: date.getFullYear(),
-          orders: 0,
-          completed: 0,
-        });
-      }
-      const entry = monthly.get(key);
-      entry.orders += 1;
-      const status = (transaction.status || '').toUpperCase();
-      if (COMPLETED_TRANSACTION_STATUSES.includes(status)) {
-        entry.completed += 1;
-      }
+    const months = ['T1', 'T2', 'T3', 'T4', 'T5', 'T6'];
+    const now = new Date();
+    
+    return months.map((monthLabel, index) => {
+      // Tính tháng từ hiện tại trở về trước (6 tháng gần nhất)
+      // index 0 = 5 tháng trước, index 5 = tháng hiện tại
+      const monthOffset = 5 - index;
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - monthOffset, 1);
+      const monthStart = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
+      const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0, 23, 59, 59, 999);
+      
+      // Lọc transactions trong tháng này
+      const monthTransactions = transactions.filter(transaction => {
+        // Thử nhiều field có thể chứa ngày
+        const transactionDate = transaction.transactionDate || 
+                               transaction.orderDate || 
+                               transaction.createdAt || 
+                               transaction.createdDate ||
+                               transaction.date;
+        
+        if (!transactionDate) return false;
+        
+        try {
+          const date = new Date(transactionDate);
+          if (isNaN(date.getTime())) return false;
+          
+          // So sánh ngày trong khoảng tháng
+          return date >= monthStart && date <= monthEnd;
+        } catch (e) {
+          return false;
+        }
+      });
+      
+      // Đếm tổng đơn và đơn đã hoàn thành
+      const orders = monthTransactions.length;
+      const completed = monthTransactions.filter(t => {
+        const status = (t.status || '').toUpperCase();
+        return status === 'COMPLETED' || status === 'FINISH' || status === 'DELIVERED';
+      }).length;
+      
+      return {
+        month: monthLabel,
+        orders: orders,
+        completed: completed
+      };
     });
-
-    return Array.from(monthly.values())
-      .sort((a, b) => {
-        if (a.year === b.year) return a.month - b.month;
-        return a.year - b.year;
-      })
-      .slice(-6)
-      .map(entry => ({
-        month: `T${entry.month + 1}/${entry.year.toString().slice(-2)}`,
-        orders: entry.orders,
-        completed: entry.completed,
-      }));
   }, [transactions]);
 
   // Phân tích đơn hàng theo trạng thái - chỉ lấy các trạng thái có giá trị > 0
@@ -132,54 +153,52 @@ const EVMStaffDashboard = () => {
     .sort((a, b) => b.variants - a.variants) // Sắp xếp theo số lượng kiểu xe giảm dần
     .slice(0, 5); // Lấy top 5
 
-  // Phân tích tồn kho theo cửa hàng
-  const stockByStore = Array.from(new Set(storeStocks.map(s => s.storeId)))
-    .map(storeId => {
-      const stocks = storeStocks.filter(s => s.storeId === storeId);
-      return {
-        name: stocks[0]?.storeName || `Cửa hàng ${storeId}`,
-        quantity: stocks.reduce((sum, s) => sum + (parseInt(s.quantity) || 0), 0),
+  // Top 5 đại lý nhận nhiều xe nhất
+  const dealerDeliveryTopStores = Array.from(
+    completedTransactions.reduce((map, transaction) => {
+      const storeId = transaction.storeId;
+      if (!storeId) {
+        return map;
+      }
+
+      const quantity = parseInt(transaction.importQuantity) || 0;
+      if (quantity <= 0) {
+        return map;
+      }
+
+      const existing = map.get(storeId) || {
+        storeId,
+        name:
+          transaction.storeName ||
+          transaction.store?.storeName ||
+          storeStocks.find((s) => s.storeId === storeId)?.storeName ||
+          `Đại lý ${storeId}`,
+        quantity: 0,
       };
-    })
+
+      existing.quantity += quantity;
+      map.set(storeId, existing);
+      return map;
+    }, new Map()).values()
+  )
     .sort((a, b) => b.quantity - a.quantity)
     .slice(0, 5);
 
   const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
-  const handleRefresh = () => {
-    hasFetchedRef.current = false;
-    dispatch(getAllModelsThunk());
-    dispatch(getAllModelColorsThunk());
-    dispatch(getAllTransactionsThunk());
-    dispatch(getAllStoreStocksThunk());
-  };
-
   return (
-    <div className="h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-2 sm:p-3 md:p-4 overflow-hidden">
-      <div className="max-w-7xl mx-auto h-full flex flex-col space-y-2 sm:space-y-3 md:space-y-4">
-        {/* Header Section */}
-        <div className="flex justify-end flex-shrink-0">
-          <button 
-            onClick={handleRefresh}
-            className="px-3 sm:px-4 md:px-5 py-1.5 sm:py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-all duration-200 flex items-center gap-2 text-xs sm:text-sm font-medium shadow-sm"
-          >
-            <svg className="w-3 h-3 sm:w-4 sm:h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-            <span className="whitespace-nowrap">Làm mới</span>
-          </button>
-        </div>
-
+    <div className="h-screen bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 p-0.5 sm:p-1 md:p-1.5 overflow-hidden">
+      <div className="max-w-7xl mx-auto h-full flex flex-col space-y-0.5 sm:space-y-1 md:space-y-1.5">
         {/* Stats Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4 flex-shrink-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-1 sm:gap-1.5 md:gap-2 flex-shrink-0">
           {/* Sản phẩm Card */}
           <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100">
-            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-3 sm:p-4 md:p-5">
+            <div className="bg-gradient-to-br from-emerald-500 to-emerald-600 p-1.5 sm:p-2 md:p-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-emerald-100 text-xs sm:text-sm font-medium mb-0.5">Tổng sản phẩm</p>
-                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-0.5">{productStats.totalModels}</h3>
-                  <p className="text-emerald-100 text-xs sm:text-sm">{productStats.totalVariants} kiểu xe</p>
+                  <p className="text-emerald-100 text-xs sm:text-sm font-medium">Tổng sản phẩm</p>
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white">{productStats.totalVariants}</h3>
+                  <p className="text-emerald-100 text-xs sm:text-sm">{productStats.totalModels} mẫu xe</p>
                 </div>
                 <div className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0 ml-2">
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -188,21 +207,15 @@ const EVMStaffDashboard = () => {
                 </div>
               </div>
             </div>
-            <div className="p-2 sm:p-2.5 md:p-3 bg-gray-50">
-              <div className="flex items-center justify-between text-xs sm:text-sm">
-                <span className="text-gray-600">Đang hoạt động</span>
-                <span className="font-semibold text-emerald-600">{productStats.activeModels}</span>
-              </div>
-            </div>
           </div>
 
           {/* Đơn đại lý Card */}
           <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100">
-            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-3 sm:p-4 md:p-5">
+            <div className="bg-gradient-to-br from-blue-500 to-blue-600 p-1.5 sm:p-2 md:p-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-blue-100 text-xs sm:text-sm font-medium mb-0.5">Tổng đơn hàng</p>
-                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-0.5">{orderStats.total}</h3>
+                  <p className="text-blue-100 text-xs sm:text-sm font-medium">Tổng đơn hàng</p>
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white">{orderStats.total}</h3>
                   <p className="text-blue-100 text-xs sm:text-sm">{orderStats.pending} đang chờ</p>
                 </div>
                 <div className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0 ml-2">
@@ -212,21 +225,15 @@ const EVMStaffDashboard = () => {
                 </div>
               </div>
             </div>
-            <div className="p-2 sm:p-2.5 md:p-3 bg-gray-50">
-              <div className="flex items-center justify-between text-xs sm:text-sm">
-                <span className="text-gray-600">Đang xử lý</span>
-                <span className="font-semibold text-blue-600">{orderStats.processing}</span>
-              </div>
-            </div>
           </div>
 
           {/* Hoàn thành Card */}
           <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100">
-            <div className="bg-gradient-to-br from-green-500 to-green-600 p-3 sm:p-4 md:p-5">
+            <div className="bg-gradient-to-br from-green-500 to-green-600 p-1.5 sm:p-2 md:p-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-green-100 text-xs sm:text-sm font-medium mb-0.5">Đã hoàn thành</p>
-                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-0.5">{orderStats.completed}</h3>
+                  <p className="text-green-100 text-xs sm:text-sm font-medium">Đã hoàn thành</p>
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white">{orderStats.completed}</h3>
                   <p className="text-green-100 text-xs sm:text-sm">
                     {orderStats.total > 0 ? Math.round((orderStats.completed / orderStats.total) * 100) : 0}% tổng đơn
                   </p>
@@ -238,52 +245,38 @@ const EVMStaffDashboard = () => {
                 </div>
               </div>
             </div>
-            <div className="p-2 sm:p-2.5 md:p-3 bg-gray-50">
-              <div className="flex items-center justify-between text-xs sm:text-sm">
-                <span className="text-gray-600">Tỷ lệ thành công</span>
-                <span className="font-semibold text-green-600">
-                  {orderStats.total > 0 ? Math.round((orderStats.completed / orderStats.total) * 100) : 0}%
-                </span>
-              </div>
-            </div>
           </div>
 
-          {/* Tồn kho Card */}
+          {/* Xe đã đưa cho đại lý Card */}
           <div className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden border border-gray-100">
-            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-3 sm:p-4 md:p-5">
+            <div className="bg-gradient-to-br from-purple-500 to-purple-600 p-1.5 sm:p-2 md:p-2.5">
               <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
-                  <p className="text-purple-100 text-xs sm:text-sm font-medium mb-0.5">Tổng tồn kho</p>
-                  <h3 className="text-xl sm:text-2xl md:text-3xl font-bold text-white mb-0.5">{inventoryStats.totalQuantity}</h3>
-                  <p className="text-purple-100 text-xs sm:text-sm">{inventoryStats.distributedStores} cửa hàng</p>
+                  <p className="text-purple-100 text-xs sm:text-sm font-medium">Xe đã đưa cho đại lý</p>
+                  <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-white">{dealerDeliveryStats.totalDelivered}</h3>
+                  <p className="text-purple-100 text-xs sm:text-sm">{dealerDeliveryStats.distributedStores} đại lý</p>
                 </div>
                 <div className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12 bg-white/20 rounded-lg flex items-center justify-center backdrop-blur-sm flex-shrink-0 ml-2">
                   <svg className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                   </svg>
                 </div>
-              </div>
-            </div>
-            <div className="p-2 sm:p-2.5 md:p-3 bg-gray-50">
-              <div className="flex items-center justify-between text-xs sm:text-sm">
-                <span className="text-gray-600">Số lượng items</span>
-                <span className="font-semibold text-purple-600">{inventoryStats.totalItems}</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 sm:gap-3 md:gap-4 flex-1 min-h-0">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-1 sm:gap-1.5 md:gap-2 flex-1 min-h-0">
           {/* Đơn hàng theo tháng */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-3 sm:p-4 md:p-5 flex flex-col min-h-0">
-            <div className="mb-2 sm:mb-3 flex-shrink-0">
-              <h3 className="text-xs sm:text-sm md:text-base font-bold text-gray-900">Đơn hàng theo tháng</h3>
-              <p className="text-xs sm:text-sm text-gray-500 mt-0.5">Xu hướng 6 tháng gần nhất</p>
+          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-0.5 sm:p-1 md:p-1.5 flex flex-col min-h-0">
+            <div className="mb-0.5 flex-shrink-0">
+              <h3 className="text-xs sm:text-sm font-bold text-gray-900">Đơn hàng theo tháng</h3>
+              <p className="text-xs text-gray-500">Xu hướng 6 tháng gần nhất</p>
             </div>
             <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={orderData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <AreaChart data={orderData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
                 <defs>
                   <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#10b981" stopOpacity={0.8}/>
@@ -337,22 +330,21 @@ const EVMStaffDashboard = () => {
           </div>
 
           {/* Phân bố kiểu xe */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-3 flex flex-col min-h-0">
-            <div className="mb-2 flex-shrink-0">
-              <h3 className="text-sm font-bold text-gray-900">Phân bố kiểu xe</h3>
+          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-0.5 sm:p-1 flex flex-col min-h-0">
+            <div className="mb-0.5 flex-shrink-0">
+              <h3 className="text-xs sm:text-sm font-bold text-gray-900">Phân bố kiểu xe</h3>
               <p className="text-xs text-gray-500">Top 5 mẫu xe có nhiều kiểu nhất</p>
             </div>
             <div className="flex-1 min-h-0">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={modelDistribution} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+              <BarChart data={modelDistribution} margin={{ top: 5, right: 10, left: 0, bottom: 10 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis 
                   dataKey="name" 
                   stroke="#6b7280" 
                   tick={{ fill: '#6b7280', fontSize: 11 }}
-                  angle={-45}
-                  textAnchor="end"
-                  height={80}
+                  textAnchor="middle"
+                  height={50}
                 />
                 <YAxis 
                   stroke="#6b7280" 
@@ -382,9 +374,9 @@ const EVMStaffDashboard = () => {
         </div>
 
         {/* Trạng thái đơn hàng */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 flex-1 min-h-0">
-          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-3 flex flex-col min-h-0">
-            <div className="mb-2 flex-shrink-0">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-1 sm:gap-1.5 md:gap-2 flex-1 min-h-0">
+          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-1 sm:p-1.5 flex flex-col min-h-0">
+            <div className="mb-0.5 sm:mb-1 flex-shrink-0">
               <h3 className="text-sm font-bold text-gray-900">Trạng thái đơn hàng</h3>
               <p className="text-xs text-gray-500">Phân loại theo trạng thái</p>
             </div>
@@ -398,7 +390,7 @@ const EVMStaffDashboard = () => {
                     cy="50%"
                     labelLine={false}
                     label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={60}
+                    outerRadius={108}
                     fill="#8884d8"
                     dataKey="value"
                   >
@@ -430,16 +422,16 @@ const EVMStaffDashboard = () => {
             )}
           </div>
 
-          {/* Tồn kho theo cửa hàng */}
-          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-3 flex flex-col min-h-0">
-            <div className="mb-2 flex-shrink-0">
-              <h3 className="text-sm font-bold text-gray-900">Tồn kho theo cửa hàng</h3>
-              <p className="text-xs text-gray-500">Top 5 cửa hàng có tồn kho cao nhất</p>
+          {/* Đại lý nhận nhiều xe nhất */}
+          <div className="bg-white rounded-xl shadow-md border border-gray-100 p-1 sm:p-1.5 flex flex-col min-h-0">
+            <div className="mb-0.5 sm:mb-1 flex-shrink-0">
+              <h3 className="text-sm font-bold text-gray-900">Top đại lý nhận xe</h3>
+              <p className="text-xs text-gray-500">Top 5 đại lý nhận nhiều xe nhất</p>
             </div>
-            {stockByStore.length > 0 ? (
+            {dealerDeliveryTopStores.length > 0 ? (
               <div className="flex-1 min-h-0">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stockByStore} layout="vertical" margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                <BarChart data={dealerDeliveryTopStores} layout="vertical" margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                   <XAxis 
                     type="number"
@@ -455,7 +447,7 @@ const EVMStaffDashboard = () => {
                     width={100}
                   />
                   <Tooltip 
-                    formatter={(value) => [`${value} sản phẩm`, 'Số lượng']}
+                    formatter={(value) => [`${value} xe`, 'Số lượng']}
                     contentStyle={{ 
                       backgroundColor: '#fff', 
                       border: '1px solid #e5e7eb', 
@@ -467,7 +459,7 @@ const EVMStaffDashboard = () => {
                     dataKey="quantity" 
                     fill="#10b981" 
                     radius={[0, 8, 8, 0]}
-                    name="Số lượng"
+                    name="Số lượng xe"
                   />
                 </BarChart>
               </ResponsiveContainer>

@@ -18,7 +18,14 @@ async function request(path, { method = 'GET', body } = {}) {
     const data = isJson ? await res.json() : await res.text();
     if (!res.ok) {
         const message = (isJson && data?.message) || res.statusText || 'Request failed';
-        throw new Error(message);
+        const error = new Error(message);
+        // Giữ lại response data để có thể log chi tiết
+        error.response = {
+            status: res.status,
+            statusText: res.statusText,
+            data: data
+        };
+        throw error;
     }
     
     // Handle wrapper format {code, message, data}
@@ -50,10 +57,8 @@ export async function deleteAppointment(appointmentId) {
     return request(`/api/appointments/${encodeURIComponent(appointmentId)}`, { method: 'DELETE' });
 }
 
-// Get appointments by store
-export async function getAppointmentsByStore(storeId) {
-    return request(`/api/appointments/store/${encodeURIComponent(storeId)}`, { method: 'GET' });
-}
+// Note: API /appointments/store/{id} không tồn tại trong swagger
+// Sử dụng getAppointmentsByStaff(staffId) thay thế
 
 // Get appointments by status
 export async function getAppointmentsByStatus(status) {

@@ -7,7 +7,6 @@ import {
   createAppointmentThunk,
   updateAppointmentThunk,
   deleteAppointmentThunk,
-  getAppointmentsByStoreThunk,
   getAppointmentsByStatusThunk,
   getAppointmentsByStaffThunk,
   getAppointmentsByModelThunk,
@@ -22,6 +21,7 @@ import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
+import { getCurrentTestDriveConfig } from '../../api/testDriveConfigService';
 
 function TestDriveSchedule({ onBack }) {
   const dispatch = useDispatch();
@@ -44,6 +44,8 @@ function TestDriveSchedule({ onBack }) {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [testDriveConfig, setTestDriveConfig] = useState(null);
+  const [configError, setConfigError] = useState(null);
   
   // Filter states
   const [filterStatus, setFilterStatus] = useState('');
@@ -75,6 +77,27 @@ function TestDriveSchedule({ onBack }) {
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const day = String(today.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  };
+
+  // Convert date từ format dd/MM/yyyy sang YYYY-MM-DD
+  // Nếu đã là YYYY-MM-DD thì trả về luôn
+  const convertToISO = (dateString) => {
+    if (!dateString) return '';
+    
+    // Nếu đã là format YYYY-MM-DD thì trả về luôn
+    if (dateString.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return dateString;
+    }
+    
+    // Convert từ dd/MM/yyyy sang YYYY-MM-DD
+    if (dateString.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+      const [day, month, year] = dateString.split('/');
+      return `${year}-${month}-${day}`;
+    }
+    
+    // Nếu không match format nào, trả về nguyên string (có thể gây lỗi nhưng để user biết)
+    console.warn('⚠️ Date format không nhận dạng được:', dateString);
+    return dateString;
   };
 
   // Helper function để filter time slots dựa trên ngày được chọn
@@ -112,6 +135,14 @@ function TestDriveSchedule({ onBack }) {
     });
   };
 
+  // Get current staff ID
+  const currentStaffId = user?.userId || user?.id || user?.user_id;
+  
+  // Check if user is manager (có quyền tạo/update config)
+  const isManager = user?.roleId === 3 || 
+                   user?.roleName?.toLowerCase().includes('quản lý cửa hàng') ||
+                   user?.roleName?.toLowerCase().includes('dealer manager');
+
   // Use ref to prevent duplicate API calls
   const hasFetchedInitialDataRef = useRef(false);
 
@@ -125,18 +156,54 @@ function TestDriveSchedule({ onBack }) {
     hasFetchedInitialDataRef.current = true;
     dispatch(getAllCustomersThunk());
     dispatch(getAllModelsThunk());
+    
+    // Load test drive config - dùng API /test-drive-configs/current
+    // API này trả về config của store tương ứng với user đang đăng nhập
+    try {
+      getCurrentTestDriveConfig()
+        .then(config => {
+          if (config && (config.configId || config.storeId)) {
+            setTestDriveConfig(config);
+            setConfigError(null);
+          } else {
+            // Config trả về nhưng rỗng
+            setConfigError('Chưa có cấu hình giờ làm việc cho cửa hàng này');
+            setTestDriveConfig(null);
+          }
+        })
+        .catch(err => {
+          // Nếu 404 nghĩa là chưa có config
+          const is404 = err?.response?.status === 404 || 
+                       err.message?.includes('404') || 
+                       err.message?.includes('Not Found');
+          
+          if (is404) {
+            setConfigError('Chưa có cấu hình giờ làm việc cho cửa hàng này');
+            setTestDriveConfig(null);
+          } else {
+            // Lỗi khác (403, 500, etc.) - không hiển thị warning
+            console.warn('Không thể tải test drive config:', err);
+            setConfigError(null);
+            setTestDriveConfig(null);
+          }
+        });
+    } catch (err) {
+      console.warn('Error loading test drive config:', err);
+      setConfigError(null);
+      setTestDriveConfig(null);
+    }
   }, [dispatch]);
 
   // Use ref to track last fetched filters to prevent duplicate calls
-  const lastFetchedFiltersRef = useRef({ filterStatus: null, filterModelId: null, filterCustomerId: null, storeId: null });
+  const lastFetchedFiltersRef = useRef({ filterStatus: null, filterModelId: null, filterCustomerId: null, staffId: null });
 
-  // Fetch appointments with filters
+  // Fetch appointments with filters - dùng API /appointments/staff/{staffId} theo swagger
   useEffect(() => {
     const currentFilters = {
       filterStatus,
       filterModelId,
       filterCustomerId,
-      storeId: user?.storeId
+      staffId: currentStaffId
     };
     
     // Skip if filters haven't changed
@@ -145,25 +212,28 @@ function TestDriveSchedule({ onBack }) {
       lastFilters.filterStatus === currentFilters.filterStatus &&
       lastFilters.filterModelId === currentFilters.filterModelId &&
       lastFilters.filterCustomerId === currentFilters.filterCustomerId &&
-      lastFilters.storeId === currentFilters.storeId
+      lastFilters.staffId === currentFilters.staffId
     ) {
       return;
     }
     
     lastFetchedFiltersRef.current = currentFilters;
     
+    // Load appointments theo đúng API swagger
     if (filterStatus) {
       dispatch(getAppointmentsByStatusThunk(filterStatus));
     } else if (filterModelId) {
       dispatch(getAppointmentsByModelThunk(filterModelId));
     } else if (filterCustomerId) {
       dispatch(getAppointmentsByCustomerThunk(filterCustomerId));
-    } else if (user?.storeId) {
-      dispatch(getAppointmentsByStoreThunk(user.storeId));
+    } else if (currentStaffId) {
+      // Dùng API /appointments/staff/{staffId} theo swagger
+      dispatch(getAppointmentsByStaffThunk(currentStaffId));
     } else {
+      // Fallback: dùng getAll nếu không có staffId
       dispatch(getAllAppointmentsThunk());
     }
-  }, [dispatch, filterStatus, filterModelId, filterCustomerId, user?.storeId]);
+  }, [dispatch, filterStatus, filterModelId, filterCustomerId, currentStaffId]);
 
   // Filter customers by store and search term
   const filteredCustomers = (customers || []).filter(customer => {
@@ -187,7 +257,9 @@ function TestDriveSchedule({ onBack }) {
   });
 
   // Filter appointments by selected date (local filter)
+  // Appointments đã được filter theo staffId từ API, không cần filter lại theo store
   const filteredAppointments = appointments.filter(apt => {
+    // Filter by selected date
     if (selectedDate && apt.startTime) {
       const aptDate = new Date(apt.startTime).toISOString().split('T')[0];
       return aptDate === selectedDate;
@@ -273,27 +345,13 @@ function TestDriveSchedule({ onBack }) {
     }
     
     try {
-      // Tạo datetime từ date và time (local timezone)
-      // Sử dụng local date string để tránh timezone issues
-      const [year, month, day] = newAppointment.date.split('-').map(Number);
-      const [hour, minute] = newAppointment.time.split(':').map(Number);
+      // Convert selectedDate sang format ISO (YYYY-MM-DD) nếu đang là dd/MM/yyyy
+      const selectedDateISO = convertToISO(newAppointment.date);
       
-      // Tạo Date object với local timezone
-      const startDateTime = new Date(year, month - 1, day, hour, minute, 0, 0);
-      const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000); // 1 hour later
-
-      // Validate: Kiểm tra xem thời gian có trong quá khứ không (với buffer 10 phút)
-      const now = new Date();
-      const tenMinutesLater = new Date(now.getTime() + 10 * 60 * 1000);
-      
-      if (startDateTime < tenMinutesLater) {
-        dispatch(showError({ message: 'Thời gian hẹn phải sau thời gian hiện tại ít nhất 10 phút' }));
-        return;
-      }
-
       // Validate: Kiểm tra xem ngày có phải hôm nay hoặc tương lai không
       const today = new Date();
       today.setHours(0, 0, 0, 0);
+      const [year, month, day] = selectedDateISO.split('-').map(Number);
       const selectedDateOnly = new Date(year, month - 1, day);
       selectedDateOnly.setHours(0, 0, 0, 0);
       
@@ -302,14 +360,31 @@ function TestDriveSchedule({ onBack }) {
         return;
       }
 
+      // Validate: Kiểm tra xem thời gian có trong quá khứ không (với buffer 10 phút)
+      // Chỉ validate nếu chọn ngày hôm nay
+      const todayDateStr = getTodayDate();
+      if (selectedDateISO === todayDateStr) {
+        const [hour, minute] = newAppointment.time.split(':').map(Number);
+        const now = new Date();
+        const tenMinutesLater = new Date(now.getTime() + 10 * 60 * 1000);
+        const selectedDateTime = new Date(year, month - 1, day, hour, minute, 0, 0);
+        
+        if (selectedDateTime < tenMinutesLater) {
+          dispatch(showError({ message: 'Thời gian hẹn phải sau thời gian hiện tại ít nhất 10 phút' }));
+          return;
+        }
+      }
+
+      // Tạo appointmentTime dạng local time string (không convert UTC)
+      // Format: "YYYY-MM-DDTHH:mm:00" (không có "Z" hoặc timezone offset)
+      const appointmentTime = `${selectedDateISO}T${newAppointment.time}:00`;
+
+      // Backend API cần: modelId, customerId, appointmentTime (local time format)
+      // Backend sẽ tự động tính endTime và set status, staffId, storeId từ user context
       const payload = {
-        startTime: startDateTime.toISOString(),
-        endTime: endDateTime.toISOString(),
-        status: 'CONFIRMED',
         modelId: selectedModel.modelId,
         customerId: selectedCustomer.customerId,
-        staffId: user?.userId || 1,
-        storeId: user?.storeId || 1
+        appointmentTime: appointmentTime
       };
 
       console.log('📤 Creating appointment with payload:', payload);
@@ -327,35 +402,50 @@ function TestDriveSchedule({ onBack }) {
       setCustomerSearchTerm('');
       setShowAddModal(false);
       
-      // Refresh data
-      if (user?.storeId) {
-        dispatch(getAppointmentsByStoreThunk(user.storeId));
+      // Refresh data - dùng API /appointments/staff/{staffId} theo swagger
+      if (currentStaffId) {
+        dispatch(getAppointmentsByStaffThunk(currentStaffId));
       } else {
         dispatch(getAllAppointmentsThunk());
       }
     } catch (error) {
       console.error('❌ Error creating appointment:', error);
+      console.error('❌ Error details:', {
+        error,
+        message: error?.message,
+        response: error?.response,
+        data: error?.response?.data,
+        status: error?.response?.status
+      });
       
       // Xử lý error message chi tiết hơn
       let errorMessage = 'Không thể thêm lịch hẹn';
       
       if (error) {
-        if (typeof error === 'string') {
-          errorMessage = error;
-        } else if (error.message) {
-          errorMessage = error.message;
-        } else if (error.response?.data?.message) {
+        // Ưu tiên lấy message từ response data
+        if (error?.response?.data?.message) {
           errorMessage = error.response.data.message;
-        } else if (error.toString) {
+        } else if (error?.response?.data) {
+          // Nếu data là string hoặc object
+          const data = error.response.data;
+          errorMessage = typeof data === 'string' ? data : JSON.stringify(data);
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        } else if (error?.message) {
+          errorMessage = error.message;
+        } else if (error?.toString) {
           errorMessage = error.toString();
         }
       }
 
-      // Thêm thông tin chi tiết cho lỗi 400
-      if (errorMessage.includes('400') || errorMessage.includes('Bad Request')) {
-        errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại thông tin đã nhập.';
+      // Kiểm tra nếu lỗi liên quan đến giờ làm việc hoặc config
+      if (errorMessage.includes('giờ làm việc') || errorMessage.includes('working hours')) {
+        if (!testDriveConfig && configError) {
+          errorMessage = `${errorMessage}. ${configError}. Vui lòng liên hệ quản lý cửa hàng để tạo cấu hình giờ làm việc.`;
+        }
       }
 
+      // Hiển thị error message chi tiết từ backend
       dispatch(showError({ message: errorMessage }));
     }
   };
@@ -381,25 +471,13 @@ function TestDriveSchedule({ onBack }) {
     }
 
     try {
-      // Tạo datetime từ date và time (local timezone)
-      const [year, month, day] = newAppointment.date.split('-').map(Number);
-      const [hour, minute] = newAppointment.time.split(':').map(Number);
+      // Convert selectedDate sang format ISO (YYYY-MM-DD) nếu đang là dd/MM/yyyy
+      const selectedDateISO = convertToISO(newAppointment.date);
+      const [year, month, day] = selectedDateISO.split('-').map(Number);
       
-      // Tạo Date object với local timezone
-      const startDateTime = new Date(year, month - 1, day, hour, minute, 0, 0);
-      const endDateTime = new Date(startDateTime.getTime() + 60 * 60 * 1000); // 1 hour later
-
       // Validate: Kiểm tra xem thời gian có trong quá khứ không (với buffer 10 phút)
       // Chỉ validate nếu đang sửa lịch hẹn chưa hoàn thành
       if (selectedAppointment.status?.toUpperCase() !== 'COMPLETED') {
-        const now = new Date();
-        const tenMinutesLater = new Date(now.getTime() + 10 * 60 * 1000);
-        
-        if (startDateTime < tenMinutesLater) {
-          dispatch(showError({ message: 'Thời gian hẹn phải sau thời gian hiện tại ít nhất 10 phút' }));
-          return;
-        }
-
         // Validate: Kiểm tra xem ngày có phải hôm nay hoặc tương lai không
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -410,16 +488,32 @@ function TestDriveSchedule({ onBack }) {
           dispatch(showError({ message: 'Không thể đặt lịch hẹn trong quá khứ' }));
           return;
         }
+
+        // Validate thời gian nếu chọn ngày hôm nay
+        const todayDateStr = getTodayDate();
+        if (selectedDateISO === todayDateStr) {
+          const [hour, minute] = newAppointment.time.split(':').map(Number);
+          const now = new Date();
+          const tenMinutesLater = new Date(now.getTime() + 10 * 60 * 1000);
+          const selectedDateTime = new Date(year, month - 1, day, hour, minute, 0, 0);
+          
+          if (selectedDateTime < tenMinutesLater) {
+            dispatch(showError({ message: 'Thời gian hẹn phải sau thời gian hiện tại ít nhất 10 phút' }));
+            return;
+          }
+        }
       }
 
+      // Tạo appointmentTime dạng local time string (không convert UTC)
+      // Format: "YYYY-MM-DDTHH:mm:00" (không có "Z" hoặc timezone offset)
+      const appointmentTime = `${selectedDateISO}T${newAppointment.time}:00`;
+
+      // Backend API cần: modelId, customerId, appointmentTime (local time format)
+      // Backend sẽ tự động tính endTime và set status, staffId, storeId từ user context
       const payload = {
-        startTime: startDateTime.toISOString(),
-        endTime: endDateTime.toISOString(),
-        status: selectedAppointment.status,
         modelId: selectedModel.modelId,
         customerId: selectedCustomer.customerId,
-        staffId: selectedAppointment.staffId,
-        storeId: selectedAppointment.storeId
+        appointmentTime: appointmentTime
       };
 
       console.log('📤 Updating appointment with payload:', payload);
@@ -436,9 +530,9 @@ function TestDriveSchedule({ onBack }) {
       setSelectedModel(null);
       setCustomerSearchTerm('');
       
-      // Refresh data
-      if (user?.storeId) {
-        dispatch(getAppointmentsByStoreThunk(user.storeId));
+      // Refresh data - dùng API /appointments/staff/{staffId} theo swagger
+      if (currentStaffId) {
+        dispatch(getAppointmentsByStaffThunk(currentStaffId));
       } else {
         dispatch(getAllAppointmentsThunk());
       }
@@ -550,9 +644,9 @@ function TestDriveSchedule({ onBack }) {
 
       dispatch(showSuccess({ message: `Đã ${statusMessages[formattedStatus] || 'cập nhật'} lịch hẹn!` }));
       
-      // Refresh data
-      if (user?.storeId) {
-        dispatch(getAppointmentsByStoreThunk(user.storeId));
+      // Refresh data - dùng API /appointments/staff/{staffId} theo swagger
+      if (currentStaffId) {
+        dispatch(getAppointmentsByStaffThunk(currentStaffId));
       } else {
         dispatch(getAllAppointmentsThunk());
       }
@@ -754,6 +848,25 @@ function TestDriveSchedule({ onBack }) {
           </div>
         </div>
 
+        {/* Warning: Chưa có test drive config - chỉ hiển thị cho staff, không hiển thị cho manager */}
+        {configError && !isManager && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
+          >
+            <div className="flex items-start gap-3">
+              <svg className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-1.964-1.333-2.732 0L3.732 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <div className="flex-1">
+                <p className="font-medium text-yellow-800 mb-1">Cảnh báo: {configError}</p>
+                <p className="text-sm text-yellow-700">Vui lòng liên hệ quản lý cửa hàng để tạo cấu hình giờ làm việc trước khi đặt lịch hẹn.</p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Error Message */}
         {appointmentsError && (
           <motion.div
@@ -778,6 +891,7 @@ function TestDriveSchedule({ onBack }) {
             </div>
           </div>
         ) : filteredAppointments.length === 0 ? (
+          // Hiển thị "Không có lịch hẹn nào" khi appointments rỗng
           <div className="text-center py-4">
             <svg className="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -1042,24 +1156,46 @@ function TestDriveSchedule({ onBack }) {
 
                 {/* Model Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mẫu xe *</label>
-                  <AnimatedSelect
-                    value={selectedModel?.modelId || ''}
-                    onChange={(e) => {
-                      const model = models?.find(m => m.modelId === parseInt(e.target.value));
-                      setSelectedModel(model || null);
-                    }}
-                    placeholder={modelsLoading ? 'Đang tải...' : 'Chọn mẫu xe'}
-                    disabled={modelsLoading}
-                    options={[
-                      { value: '', label: modelsLoading ? 'Đang tải...' : 'Chọn mẫu xe' },
-                      ...(modelsLoading ? [] : models?.map(model => ({
-                        value: model.modelId.toString(),
-                        label: `${model.modelName} - ${model.modelId}`
-                      })) || [])
-                    ]}
-                    className="w-full"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mẫu xe *</label>
+                  {selectedModel ? (
+                    <div className="flex items-center justify-between p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">{selectedModel.modelName}</p>
+                        <p className="text-sm text-gray-600">
+                          {selectedModel.modelYear && `Năm ${selectedModel.modelYear}`}
+                          {selectedModel.price && ` • ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedModel.price)}`}
+                          {selectedModel.bodyType && ` • ${selectedModel.bodyType}`}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedModel(null)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <AnimatedSelect
+                      value=""
+                      onChange={(e) => {
+                        const model = models?.find(m => m.modelId === parseInt(e.target.value));
+                        setSelectedModel(model || null);
+                      }}
+                      placeholder={modelsLoading ? 'Đang tải...' : 'Chọn mẫu xe'}
+                      disabled={modelsLoading}
+                      options={[
+                        { value: '', label: modelsLoading ? 'Đang tải...' : 'Chọn mẫu xe' },
+                        ...(modelsLoading ? [] : models?.map(model => ({
+                          value: model.modelId.toString(),
+                          label: `${model.modelName}${model.modelYear ? ` (${model.modelYear})` : ''} - ID: ${model.modelId}`
+                        })) || [])
+                      ]}
+                      className="w-full"
+                    />
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1224,24 +1360,46 @@ function TestDriveSchedule({ onBack }) {
 
                 {/* Model Selection */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Mẫu xe *</label>
-                  <AnimatedSelect
-                    value={selectedModel?.modelId || ''}
-                    onChange={(e) => {
-                      const model = models?.find(m => m.modelId === parseInt(e.target.value));
-                      setSelectedModel(model || null);
-                    }}
-                    placeholder={modelsLoading ? 'Đang tải...' : 'Chọn mẫu xe'}
-                    disabled={modelsLoading}
-                    options={[
-                      { value: '', label: modelsLoading ? 'Đang tải...' : 'Chọn mẫu xe' },
-                      ...(modelsLoading ? [] : models?.map(model => ({
-                        value: model.modelId.toString(),
-                        label: `${model.modelName} - ${model.modelId}`
-                      })) || [])
-                    ]}
-                    className="w-full"
-                  />
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Mẫu xe *</label>
+                  {selectedModel ? (
+                    <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div>
+                        <p className="font-medium text-gray-900">{selectedModel.modelName}</p>
+                        <p className="text-sm text-gray-600">
+                          {selectedModel.modelYear && `Năm ${selectedModel.modelYear}`}
+                          {selectedModel.price && ` • ${new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(selectedModel.price)}`}
+                          {selectedModel.bodyType && ` • ${selectedModel.bodyType}`}
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setSelectedModel(null)}
+                        className="text-red-600 hover:text-red-700"
+                      >
+                        <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <AnimatedSelect
+                      value=""
+                      onChange={(e) => {
+                        const model = models?.find(m => m.modelId === parseInt(e.target.value));
+                        setSelectedModel(model || null);
+                      }}
+                      placeholder={modelsLoading ? 'Đang tải...' : 'Chọn mẫu xe'}
+                      disabled={modelsLoading}
+                      options={[
+                        { value: '', label: modelsLoading ? 'Đang tải...' : 'Chọn mẫu xe' },
+                        ...(modelsLoading ? [] : models?.map(model => ({
+                          value: model.modelId.toString(),
+                          label: `${model.modelName}${model.modelYear ? ` (${model.modelYear})` : ''} - ID: ${model.modelId}`
+                        })) || [])
+                      ]}
+                      className="w-full"
+                    />
+                  )}
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

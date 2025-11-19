@@ -8,6 +8,7 @@ import { getAllFeedbacks } from '../../api/feedbackService';
 import { getFeedbackDetailsByFeedbackId } from '../../api/feedbackDetailService';
 import { getStaffOrderStats } from '../../api/orderService';
 import { useAuth } from '../../contexts/AuthContext';
+import { getAllStores } from '../../api/storeService';
 
 const DealerStaffDashboard = () => {
   const dispatch = useDispatch();
@@ -21,6 +22,7 @@ const DealerStaffDashboard = () => {
   const [loadingFeedbacks, setLoadingFeedbacks] = useState(false);
   const [staffStats, setStaffStats] = useState({ totalOrders: 0, monthlyRevenue: 0, orders: [] });
   const [loadingStats, setLoadingStats] = useState(false);
+  const [storeInfo, setStoreInfo] = useState(null);
 
   // Get current staff ID
   const currentStaffId = user?.userId || user?.id || user?.user_id;
@@ -166,7 +168,30 @@ const DealerStaffDashboard = () => {
       dispatch(getAllCustomersThunk());
       dispatch(getAllAppointmentsThunk());
     }
-  }, [dispatch]);
+
+    // Load store information
+    const loadStoreInfo = async () => {
+      try {
+        const currentStoreId = user?.storeId;
+        if (currentStoreId) {
+          const storesResponse = await getAllStores();
+          const stores = storesResponse?.data || storesResponse || [];
+          const store = Array.isArray(stores) ? stores.find(s => String(s.storeId) === String(currentStoreId)) : null;
+          if (store) {
+            setStoreInfo({
+              storeName: store.storeName || store.name,
+              address: store.address,
+              phone: store.phone
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Error loading store info:', error);
+      }
+    };
+    
+    loadStoreInfo();
+  }, [dispatch, user?.storeId]);
 
   // Filter orders to only show current staff's orders (client-side filter as backup)
   const orders = useMemo(() => {
@@ -368,6 +393,18 @@ const DealerStaffDashboard = () => {
             Thống kê và phân tích dữ liệu bán hàng của bạn
             {user?.fullName && ` - ${user.fullName}`}
           </p>
+          {storeInfo && (
+            <div className="mt-2 flex items-center gap-2 text-sm">
+              <svg className="h-4 w-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span className="font-medium text-emerald-700">Chi nhánh: {storeInfo.storeName}</span>
+              {storeInfo.address && (
+                <span className="text-gray-500">• {storeInfo.address}</span>
+              )}
+            </div>
+          )}
         </div>
         <button 
           onClick={() => {

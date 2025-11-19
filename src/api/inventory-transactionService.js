@@ -21,7 +21,7 @@ async function request(path, { method = 'GET', body } = {}) {
         const error = new Error(message);
         error.status = res.status;
         error.code = isJson && data?.code ? data.code : null;
-        error.response = data;
+        error.data = data;
         throw error;
     }
     return data;
@@ -32,9 +32,8 @@ export async function getAllTransactions(options = {}) {
     try {
         return await request('/api/inventory-transactions/all', { method: 'GET' });
     } catch (err) {
-        // Nếu lỗi 404, trả về empty array thay vì throw error
+        // Silently handle 404 errors - endpoint may not exist for admin users
         if (err.status === 404) {
-            console.warn('Inventory transactions endpoint not found, returning empty data');
             return { data: [] };
         }
         throw err;
