@@ -60,6 +60,11 @@ export async function deleteAppointment(appointmentId) {
 // Note: API /appointments/store/{id} không tồn tại trong swagger
 // Sử dụng getAppointmentsByStaff(staffId) thay thế
 
+// Get list of appointment statuses
+export async function getAppointmentStatuses() {
+    return request('/api/appointments/status', { method: 'GET' });
+}
+
 // Get appointments by status
 export async function getAppointmentsByStatus(status) {
     return request(`/api/appointments/status/${encodeURIComponent(status)}`, { method: 'GET' });
