@@ -22,6 +22,7 @@ import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { useToast } from '../../hooks/useToast';
 import { useConfirm } from '../../hooks/useConfirm';
 import { getCurrentTestDriveConfig } from '../../api/testDriveConfigService';
+import { getAppointmentStatuses } from '../../api/appointmentService';
 
 function TestDriveSchedule({ onBack }) {
   const dispatch = useDispatch();
@@ -62,7 +63,18 @@ function TestDriveSchedule({ onBack }) {
     time: ''
   });
 
-  const statusOptions = ['CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED', 'NO_SHOW'];
+  // Status list từ backend API
+  const [statusList, setStatusList] = useState([]);
+  
+  // Map status sang label tiếng Việt
+  const STATUS_LABELS = {
+    'CONFIRMED': 'Đã xác nhận',
+    'CANCELLED': 'Đã hủy',
+    'NO_SHOW': 'Không đến',
+    'IN_PROGRESS': 'Đang tiến hành',
+    'COMPLETED': 'Hoàn thành',
+    'PENDING': 'Chờ xử lý' // Nếu backend có thêm
+  };
 
   const timeSlots = [
     '08:00', '08:30', '09:00', '09:30', '10:00', '10:30',
@@ -156,6 +168,26 @@ function TestDriveSchedule({ onBack }) {
     hasFetchedInitialDataRef.current = true;
     dispatch(getAllCustomersThunk());
     dispatch(getAllModelsThunk());
+    
+    // Load appointment statuses từ backend API
+    getAppointmentStatuses()
+      .then(statuses => {
+        // statuses có thể là array hoặc object có data property
+        const statusArray = Array.isArray(statuses) ? statuses : 
+                           (Array.isArray(statuses?.data) ? statuses.data : []);
+        if (statusArray.length > 0) {
+          setStatusList(statusArray);
+        } else {
+          // Fallback nếu API trả về rỗng hoặc format khác
+          console.warn('Status list rỗng hoặc format không đúng, dùng fallback');
+          setStatusList(['CONFIRMED', 'CANCELLED', 'NO_SHOW', 'IN_PROGRESS', 'COMPLETED']);
+        }
+      })
+      .catch(err => {
+        console.warn('Không thể tải danh sách status từ API, dùng fallback:', err);
+        // Fallback nếu API lỗi
+        setStatusList(['CONFIRMED', 'CANCELLED', 'NO_SHOW', 'IN_PROGRESS', 'COMPLETED']);
+      });
     
     // Load test drive config - dùng API /test-drive-configs/current
     // API này trả về config của store tương ứng với user đang đăng nhập
@@ -280,15 +312,10 @@ function TestDriveSchedule({ onBack }) {
   };
 
   const getStatusText = (status) => {
+    if (!status) return '';
     const statusUpper = (status || '').toUpperCase();
-    switch (statusUpper) {
-      case 'CONFIRMED': return 'Đã xác nhận';
-      case 'IN_PROGRESS': return 'Đang tiến hành';
-      case 'COMPLETED': return 'Hoàn thành';
-      case 'CANCELLED': return 'Đã hủy';
-      case 'NO_SHOW': return 'Không đến';
-      default: return status;
-    }
+    // Dùng STATUS_LABELS mapping, fallback về status nếu không có trong mapping
+    return STATUS_LABELS[statusUpper] || status;
   };
 
   const formatDateTime = (isoString) => {
@@ -375,16 +402,16 @@ function TestDriveSchedule({ onBack }) {
         }
       }
 
-      // Tạo appointmentTime dạng local time string (không convert UTC)
+      // Tạo startTime dạng local time string (không convert UTC)
       // Format: "YYYY-MM-DDTHH:mm:00" (không có "Z" hoặc timezone offset)
-      const appointmentTime = `${selectedDateISO}T${newAppointment.time}:00`;
+      const startTime = `${selectedDateISO}T${newAppointment.time}:00`;
 
-      // Backend API cần: modelId, customerId, appointmentTime (local time format)
+      // Backend API cần: modelId, customerId, startTime (local time format)
       // Backend sẽ tự động tính endTime và set status, staffId, storeId từ user context
       const payload = {
         modelId: selectedModel.modelId,
         customerId: selectedCustomer.customerId,
-        appointmentTime: appointmentTime
+        startTime: startTime
       };
 
       console.log('📤 Creating appointment with payload:', payload);
@@ -504,16 +531,16 @@ function TestDriveSchedule({ onBack }) {
         }
       }
 
-      // Tạo appointmentTime dạng local time string (không convert UTC)
+      // Tạo startTime dạng local time string (không convert UTC)
       // Format: "YYYY-MM-DDTHH:mm:00" (không có "Z" hoặc timezone offset)
-      const appointmentTime = `${selectedDateISO}T${newAppointment.time}:00`;
+      const startTime = `${selectedDateISO}T${newAppointment.time}:00`;
 
-      // Backend API cần: modelId, customerId, appointmentTime (local time format)
+      // Backend API cần: modelId, customerId, startTime (local time format)
       // Backend sẽ tự động tính endTime và set status, staffId, storeId từ user context
       const payload = {
         modelId: selectedModel.modelId,
         customerId: selectedCustomer.customerId,
-        appointmentTime: appointmentTime
+        startTime: startTime
       };
 
       console.log('📤 Updating appointment with payload:', payload);
@@ -800,8 +827,10 @@ function TestDriveSchedule({ onBack }) {
                 className="w-full px-2 sm:px-3 py-1.5 sm:py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-transparent text-sm"
               >
                 <option value="">Tất cả</option>
-                {statusOptions.map(status => (
-                  <option key={status} value={status}>{getStatusText(status)}</option>
+                {statusList.map(status => (
+                  <option key={status} value={status}>
+                    {STATUS_LABELS[status] || status}
+                  </option>
                 ))}
               </select>
             </div>
