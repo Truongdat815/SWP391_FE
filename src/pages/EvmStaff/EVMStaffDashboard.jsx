@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useSelector, useDispatch } from 'react-redux';
 import { getAllModelsThunk } from '../../store/slices/modelSlice';
@@ -6,6 +6,21 @@ import { getAllModelColorsThunk } from '../../store/slices/modelColorSlice';
 import { getAllTransactionsThunk } from '../../store/slices/inventoryTransactionSlice';
 import { getAllStoreStocksThunk } from '../../store/slices/store-stockSlice';
 import { useAuth } from '../../contexts/AuthContext';
+
+const COMPLETED_TRANSACTION_STATUSES = ['COMPLETED', 'FINISH', 'DELIVERED'];
+const PENDING_TRANSACTION_STATUSES = ['PENDING', 'REQUESTED'];
+const PROCESSING_TRANSACTION_STATUSES = [
+  'PROCESSING',
+  'ACCEPTED',
+  'APPROVED',
+  'CONFIRMED',
+  'CONTRACT_SIGNED',
+  'CONTRACT_PENDING',
+  'FILE_UPLOADED',
+  'PAYMENT_CONFIRMED',
+  'SHIPPING',
+  'IN_TRANSIT'
+];
 
 const EVMStaffDashboard = () => {
   const dispatch = useDispatch();
@@ -44,23 +59,15 @@ const EVMStaffDashboard = () => {
     total: transactions.length,
     pending: transactions.filter(t => {
       const status = (t.status || '').toUpperCase();
-      return status === 'PENDING' || status === 'REQUESTED';
+      return PENDING_TRANSACTION_STATUSES.includes(status);
     }).length,
     processing: transactions.filter(t => {
       const status = (t.status || '').toUpperCase();
-      return status === 'PROCESSING' || 
-             status === 'ACCEPTED' || 
-             status === 'APPROVED' || 
-             status === 'CONFIRMED' || 
-             status === 'CONTRACT_SIGNED' ||
-             status === 'FILE_UPLOADED' ||
-             status === 'PAYMENT_CONFIRMED' ||
-             status === 'SHIPPING' ||
-             status === 'IN_TRANSIT';
+      return PROCESSING_TRANSACTION_STATUSES.includes(status);
     }).length,
     completed: transactions.filter(t => {
       const status = (t.status || '').toUpperCase();
-      return status === 'COMPLETED' || status === 'FINISH' || status === 'DELIVERED';
+      return COMPLETED_TRANSACTION_STATUSES.includes(status);
     }).length,
   };
 
@@ -71,15 +78,42 @@ const EVMStaffDashboard = () => {
     distributedStores: new Set(storeStocks.map(s => s.storeId)).size,
   };
 
-  // Mock data cho biểu đồ đơn hàng theo tháng
-  const orderData = [
-    { month: 'T1', orders: 45, completed: 42 },
-    { month: 'T2', orders: 52, completed: 48 },
-    { month: 'T3', orders: 48, completed: 45 },
-    { month: 'T4', orders: 61, completed: 58 },
-    { month: 'T5', orders: 55, completed: 52 },
-    { month: 'T6', orders: 67, completed: 63 },
-  ];
+  const orderData = useMemo(() => {
+    const monthly = new Map();
+    transactions.forEach(transaction => {
+      const rawDate = transaction.orderDate || transaction.createdAt || transaction.transactionDate;
+      if (!rawDate) return;
+      const date = new Date(rawDate);
+      if (Number.isNaN(date.getTime())) return;
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      if (!monthly.has(key)) {
+        monthly.set(key, {
+          month: date.getMonth(),
+          year: date.getFullYear(),
+          orders: 0,
+          completed: 0,
+        });
+      }
+      const entry = monthly.get(key);
+      entry.orders += 1;
+      const status = (transaction.status || '').toUpperCase();
+      if (COMPLETED_TRANSACTION_STATUSES.includes(status)) {
+        entry.completed += 1;
+      }
+    });
+
+    return Array.from(monthly.values())
+      .sort((a, b) => {
+        if (a.year === b.year) return a.month - b.month;
+        return a.year - b.year;
+      })
+      .slice(-6)
+      .map(entry => ({
+        month: `T${entry.month + 1}/${entry.year.toString().slice(-2)}`,
+        orders: entry.orders,
+        completed: entry.completed,
+      }));
+  }, [transactions]);
 
   // Phân tích đơn hàng theo trạng thái - chỉ lấy các trạng thái có giá trị > 0
   const orderStatusData = [

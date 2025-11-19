@@ -25,27 +25,6 @@ function SignIn() {
     // Clear previous errors
     dispatch(clearError());
     
-    // Mock login for testing - remove this when you have real credentials
-    if (formData.email === 'test@admin.com' && formData.password === '123456') {
-      const mockUser = {
-        userId: 1,
-        storeId: 1,
-        roleId: 1,
-        fullName: 'Test Admin',
-        roleName: 'admin',
-        email: 'test@admin.com'
-      };
-      
-      // Save to sessionStorage
-      sessionStorage.setItem('access_token', 'mock_token');
-      sessionStorage.setItem('refresh_token', 'mock_refresh_token');
-      sessionStorage.setItem('user_info', JSON.stringify(mockUser));
-      
-      console.log('Mock login successful, navigating to /admin');
-      navigate('/admin');
-      return;
-    }
-    
     try {
       const result = await dispatch(loginThunk(formData));
       

@@ -1,8 +1,9 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { motion, AnimatePresence } from 'framer-motion';
 import ViewOrders from './ViewOrders';
+import { getAllPayments, filterPaymentsByContract } from '../../api/paymentService';
 import { 
   TrendingUp,
   DollarSign,
@@ -33,6 +34,8 @@ function OrderManagement() {
   // Get orders from Redux store
   const orders = useSelector((state) => state.orders.orders) || [];
   const { contracts } = useSelector((state) => state.contracts) || { contracts: [] };
+  const [allPayments, setAllPayments] = useState([]);
+  const hasFetchedPaymentsRef = useRef(false);
 
   // Map contracts to orders for quick lookup
   const ordersWithContracts = useMemo(() => {
@@ -46,6 +49,55 @@ function OrderManagement() {
     }
     return contractMap;
   }, [contracts]);
+
+  // Fetch payments on mount
+  useEffect(() => {
+    if (hasFetchedPaymentsRef.current) {
+      return;
+    }
+    
+    hasFetchedPaymentsRef.current = true;
+    const fetchPayments = async () => {
+      try {
+        const response = await getAllPayments();
+        const paymentsData = Array.isArray(response) ? response : (response?.data || []);
+        setAllPayments(paymentsData);
+      } catch (error) {
+        console.error('Error fetching payments:', error);
+      }
+    };
+    fetchPayments();
+  }, []);
+
+  // Helper function to check if order has successful payment
+  const hasSuccessfulPayment = useCallback((order) => {
+    // Check if order has FULLY_PAID status
+    const orderStatus = (order.status || '').toUpperCase();
+    if (orderStatus === 'FULLY_PAID') {
+      return true;
+    }
+
+    // Check payment status through contract
+    const contract = ordersWithContracts[order.orderId];
+    if (!contract) {
+      return false; // No contract means no payment yet
+    }
+
+    // Calculate paid amount from payments
+    const contractPayments = filterPaymentsByContract(
+      allPayments,
+      contract.contractId,
+      contract.contractCode
+    );
+
+    // Sum only completed payments
+    const paidAmount = contractPayments
+      .filter(payment => payment.status === 'COMPLETED' || payment.status === 'SUCCESS' || payment.status === 'PAID')
+      .reduce((sum, payment) => sum + (payment.amount || 0), 0);
+
+    // Check if there's at least one successful payment
+    return paidAmount > 0;
+  }, [ordersWithContracts, allPayments]);
 
   // Calculate statistics by status
   const stats = useMemo(() => {
@@ -62,6 +114,7 @@ function OrderManagement() {
       approved: orders.filter(o => (o.status || '').toUpperCase() === 'APPROVED').length,
       confirmed: orders.filter(o => (o.status || '').toUpperCase() === 'CONFIRMED').length,
       processing: orders.filter(o => (o.status || '').toUpperCase() === 'PROCESSING').length,
+      delivered: orders.filter(o => (o.status || '').toUpperCase() === 'DELIVERED').length,
       completed: orders.filter(o => (o.status || '').toUpperCase() === 'COMPLETED').length,
       cancelled: orders.filter(o => (o.status || '').toUpperCase() === 'CANCELLED').length,
     };
@@ -74,12 +127,9 @@ function OrderManagement() {
       return orderDate.toDateString() === today.toDateString();
     });
     
-    // Today's revenue - only from orders that have been confirmed or completed
+    // Today's revenue - only from orders that have successful payment
     const todayRevenue = todayOrders
-      .filter(o => {
-        const status = (o.status || '').toUpperCase();
-        return status === 'CONFIRMED' || status === 'COMPLETED' || status === 'PROCESSING';
-      })
+      .filter(o => hasSuccessfulPayment(o))
       .reduce((sum, o) => {
         const payment = parseFloat(o.totalPayment) || parseFloat(o.totalPrice) || parseFloat(o.total_amount) || 0;
         return sum + payment;
@@ -113,7 +163,7 @@ function OrderManagement() {
       todayOrders: todayOrders.length, 
       totalRevenue 
     };
-  }, [orders, ordersWithContracts]);
+  }, [orders, ordersWithContracts, hasSuccessfulPayment]);
 
   // Tab configuration based on order statuses
   const statusTabs = [
@@ -148,11 +198,20 @@ function OrderManagement() {
     {
       id: 'completed',
       status: 'completed',
-      label: 'Đã hoàn thành',
+      label: 'Đã thanh toán xong',
       count: stats.completed,
       color: 'green',
       description: 'Đơn hàng đã hoàn thành',
       badgeColor: 'bg-green-500'
+    },
+    {
+      id: 'delivered',
+      status: 'delivered',
+      label: 'Đã giao hàng',
+      count: stats.delivered,
+      color: 'blue',
+      description: 'Đơn hàng đã được giao',
+      badgeColor: 'bg-blue-500'
     }
   ];
 
@@ -173,6 +232,7 @@ function OrderManagement() {
       all: isActive ? 'border-gray-500 bg-gray-50 text-gray-700' : 'text-gray-600 hover:border-gray-300',
       draft: isActive ? 'border-gray-500 bg-gray-50 text-gray-700' : 'text-gray-600 hover:border-gray-300',
       confirmed: isActive ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'text-emerald-600 hover:border-emerald-300',
+      delivered: isActive ? 'border-blue-500 bg-blue-50 text-blue-700' : 'text-blue-600 hover:border-blue-300',
       completed: isActive ? 'border-green-500 bg-green-50 text-green-700' : 'text-green-600 hover:border-green-300',
     };
     return colorMap[status] || colorMap.all;
@@ -183,6 +243,7 @@ function OrderManagement() {
       all: 'bg-gray-500 text-white',
       draft: 'bg-gray-500 text-white',
       confirmed: 'bg-emerald-500 text-white',
+      delivered: 'bg-blue-500 text-white',
       completed: 'bg-green-500 text-white',
     };
     return badgeMap[status] || badgeMap.all;

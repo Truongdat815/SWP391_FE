@@ -43,25 +43,8 @@ const AdminSettings = () => {
   // Get translations based on current language
   const t = adminTranslations[settings.language] || adminTranslations.vi;
 
-  // Mock login history
-  const [loginHistory] = useState([
-    {
-      id: 1,
-      device: 'Windows 11 - Chrome',
-      location: 'Hà Nội, Việt Nam',
-      ip: '117.2.143.56',
-      time: '2 giờ trước',
-      status: 'active'
-    },
-    {
-      id: 2,
-      device: 'iPhone 14 Pro - Safari',
-      location: 'Hồ Chí Minh, Việt Nam',
-      ip: '117.2.143.57',
-      time: '1 ngày trước',
-      status: 'inactive'
-    },
-  ]);
+  const LOGIN_HISTORY_KEY = 'admin-login-history';
+  const [loginHistory, setLoginHistory] = useState([]);
 
   const dropdownRef = useRef(null);
 
@@ -106,12 +89,15 @@ const AdminSettings = () => {
 
   const handleClearHistory = () => {
     if (confirm(t.alerts.clearHistoryConfirm)) {
+      setLoginHistory([]);
+      localStorage.removeItem(LOGIN_HISTORY_KEY);
       alert(t.alerts.historyCleared);
     }
   };
 
   const handleLogoutDevice = (deviceId) => {
     if (confirm(t.alerts.logoutDeviceConfirm)) {
+      setLoginHistory((prev) => prev.filter((session) => session.id !== deviceId));
       alert(`Logged out device ${deviceId}`);
     }
   };
@@ -147,6 +133,28 @@ const AdminSettings = () => {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
+
+  useEffect(() => {
+    try {
+      const storedHistory = localStorage.getItem(LOGIN_HISTORY_KEY);
+      if (storedHistory) {
+        const parsed = JSON.parse(storedHistory);
+        if (Array.isArray(parsed)) {
+          setLoginHistory(parsed);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading login history:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (loginHistory.length > 0) {
+      localStorage.setItem(LOGIN_HISTORY_KEY, JSON.stringify(loginHistory));
+    } else {
+      localStorage.removeItem(LOGIN_HISTORY_KEY);
+    }
+  }, [loginHistory]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-2 sm:p-3 md:p-4 lg:p-6">
@@ -525,41 +533,45 @@ const AdminSettings = () => {
                     {/* Lịch sử */}
                     <div className="border-t pt-6">
                       <h3 className="font-semibold text-gray-900 mb-4">{t.security.loggedInDevicesTitle} ({loginHistory.length})</h3>
-                      <div className="space-y-3">
-                        {loginHistory.map((session) => (
-                          <div key={session.id} className="flex items-start justify-between border rounded-xl p-4 hover:bg-gray-50 transition">
-                            <div className="flex items-start gap-3 flex-1">
-                              <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                                {session.device.includes('Windows') ? '💻' : 
-                                 session.device.includes('iPhone') ? '📱' : 
-                                 session.device.includes('MacOS') ? '🖥️' : '🌐'}
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <p className="font-medium text-gray-900">{session.device}</p>
-                                  {session.status === 'active' && (
-                                    <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
-                                      {t.security.activeStatus}
-                                    </span>
-                                  )}
+                      {loginHistory.length === 0 ? (
+                        <p className="text-sm text-gray-500">Chưa có dữ liệu đăng nhập gần đây.</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {loginHistory.map((session) => (
+                            <div key={session.id} className="flex items-start justify-between border rounded-xl p-4 hover:bg-gray-50 transition">
+                              <div className="flex items-start gap-3 flex-1">
+                                <div className="h-10 w-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                  {session.device?.includes('Windows') ? '💻' : 
+                                   session.device?.includes('iPhone') ? '📱' : 
+                                   session.device?.includes('MacOS') ? '🖥️' : '🌐'}
                                 </div>
-                                <p className="text-sm text-gray-600">{session.location}</p>
-                                <p className="text-xs text-gray-500 mt-1">
-                                  {session.ip} • {session.time}
-                                </p>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 mb-1">
+                                    <p className="font-medium text-gray-900">{session.device || 'Không xác định'}</p>
+                                    {session.status === 'active' && (
+                                      <span className="px-2 py-0.5 bg-green-100 text-green-700 text-xs font-medium rounded-full">
+                                        {t.security.activeStatus}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-gray-600">{session.location || 'Không rõ vị trí'}</p>
+                                  <p className="text-xs text-gray-500 mt-1">
+                                    {(session.ip || 'N/A')} • {(session.time || '')}
+                                  </p>
+                                </div>
                               </div>
+                              {session.status !== 'active' && (
+                                <button
+                                  onClick={() => handleLogoutDevice(session.id)}
+                                  className="text-sm text-red-600 hover:text-red-700 font-medium ml-4"
+                                >
+                                  {t.security.logoutButton}
+                                </button>
+                              )}
                             </div>
-                            {session.status !== 'active' && (
-                              <button
-                                onClick={() => handleLogoutDevice(session.id)}
-                                className="text-sm text-red-600 hover:text-red-700 font-medium ml-4"
-                              >
-                                {t.security.logoutButton}
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}

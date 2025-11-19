@@ -1637,15 +1637,7 @@ function CreateOrder() {
         {/* STEP 2: Add Order Details */}
         {currentStep === 2 && (
           <div>
-            <div className="flex items-center mb-3">
-              <ShoppingCart className="h-7 w-7 text-emerald-600 mr-2" />
-              <div>
-                <h2 className="text-xl font-bold text-gray-900">Thêm sản phẩm vào đơn hàng</h2>
-                <p className="text-sm text-gray-600 mt-1">
-                  Khách hàng: <span className="font-semibold">{selectedCustomer?.fullName}</span>
-                </p>
-              </div>
-            </div>
+            
 
             {/* Product Selection Form */}
             <div className="bg-gray-50 rounded-lg p-3 mb-3">

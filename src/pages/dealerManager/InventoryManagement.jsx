@@ -23,7 +23,9 @@ import {
   X,
   ChevronDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Eye,
+  CheckCircle
 } from 'lucide-react';
 import Toast from '../../components/ui/Toast';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
@@ -156,6 +158,9 @@ function InventoryManagement() {
   const [uploadReceiptModal, setUploadReceiptModal] = useState(false);
   const [selectedReceiptTransaction, setSelectedReceiptTransaction] = useState(null);
   const [receiptFile, setReceiptFile] = useState(null);
+  const [receiptPreviewUrl, setReceiptPreviewUrl] = useState(null);
+  const [isReceiptConfirmed, setIsReceiptConfirmed] = useState(false);
+  const [showReceiptPreviewZoom, setShowReceiptPreviewZoom] = useState(false);
 
   // Confirm delivery modal states
   const [confirmDeliveryModal, setConfirmDeliveryModal] = useState(false);
@@ -869,9 +874,15 @@ function InventoryManagement() {
 
   // Handle close upload receipt modal
   const handleCloseUploadReceipt = () => {
+    setShowReceiptPreviewZoom(false);
+    if (receiptPreviewUrl) {
+      URL.revokeObjectURL(receiptPreviewUrl);
+    }
     setUploadReceiptModal(false);
     setSelectedReceiptTransaction(null);
     setReceiptFile(null);
+    setReceiptPreviewUrl(null);
+    setIsReceiptConfirmed(false);
   };
 
   // Handle receipt file change
@@ -891,9 +902,53 @@ function InventoryManagement() {
         return;
       }
       
+      setShowReceiptPreviewZoom(false);
+      if (receiptPreviewUrl) {
+        URL.revokeObjectURL(receiptPreviewUrl);
+      }
+      
       setReceiptFile(file);
+      setIsReceiptConfirmed(false);
+      
+      if (file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        setReceiptPreviewUrl(url);
+      } else {
+        setReceiptPreviewUrl(null);
+      }
     }
   };
+
+  // Handle confirm receipt image
+  const handleConfirmReceiptImage = () => {
+    if (receiptFile) {
+      setIsReceiptConfirmed(true);
+      dispatch(showSuccess({ message: 'Đã xác nhận ảnh biên lai. Bạn có thể upload ngay bây giờ.' }));
+    }
+  };
+
+  // Handle cancel receipt selection
+  const handleCancelReceiptSelection = () => {
+    if (receiptPreviewUrl) {
+      URL.revokeObjectURL(receiptPreviewUrl);
+    }
+    setReceiptFile(null);
+    setReceiptPreviewUrl(null);
+    setIsReceiptConfirmed(false);
+    const fileInput = document.getElementById('receipt-file');
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  };
+
+  // Cleanup receipt preview URL on unmount
+  useEffect(() => {
+    return () => {
+      if (receiptPreviewUrl) {
+        URL.revokeObjectURL(receiptPreviewUrl);
+      }
+    };
+  }, [receiptPreviewUrl]);
 
   // Handle upload receipt
   const handleUploadReceipt = async () => {
@@ -901,6 +956,11 @@ function InventoryManagement() {
     
     if (!receiptFile) {
       dispatch(showWarning({ message: 'Vui lòng chọn file biên lai để upload' }));
+      return;
+    }
+
+    if (!isReceiptConfirmed) {
+      dispatch(showWarning({ message: 'Vui lòng xác nhận ảnh biên lai trước khi upload' }));
       return;
     }
 
@@ -1351,9 +1411,7 @@ function InventoryManagement() {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-2xl font-bold text-gray-900">Lịch sử yêu cầu đặt hàng</h2>
-                  <p className="text-sm text-gray-600 mt-1">
-                    {filteredTransactions.length} {filteredTransactions.length === 1 ? 'yêu cầu' : 'yêu cầu'} tìm thấy
-                  </p>
+                  
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="relative">
@@ -1977,11 +2035,7 @@ function InventoryManagement() {
                         </option>
                       ))}
                     </select>
-                    {!requestData.modelId ? (
-                      <p className="mt-1 text-xs text-gray-500">Vui lòng chọn model trước</p>
-                    ) : getAvailableColorsForRequest().length === 0 ? (
-                      <p className="mt-1 text-xs text-amber-600">⚠️ Model này chưa có màu sắc nào được cấu hình</p>
-                    ) : null}
+                   
                   </div>
 
                   <div>
@@ -2238,33 +2292,108 @@ function InventoryManagement() {
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Chọn file biên lai <span className="text-red-500">*</span>
                   </label>
-                  <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-400 transition-colors">
-                    <div className="space-y-1 text-center">
-                      <Upload className="mx-auto h-12 w-12 text-gray-400" />
-                      <div className="flex text-sm text-gray-600">
-                        <label htmlFor="receipt-file" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
-                          <span>Chọn file</span>
-                          <input
-                            id="receipt-file"
-                            name="receipt-file"
-                            type="file"
-                            className="sr-only"
-                            accept="image/*,.pdf"
-                            onChange={handleReceiptFileChange}
-                          />
-                        </label>
-                        <p className="pl-1">hoặc kéo thả vào đây</p>
-                      </div>
-                      <p className="text-xs text-gray-500">
-                        PNG, JPG, GIF, PDF tối đa 10MB
-                      </p>
-                      {receiptFile && (
-                        <p className="text-sm font-medium text-green-600 mt-2">
-                          ✓ Đã chọn: {receiptFile.name}
+                  {!receiptFile ? (
+                    <div className="mt-1 flex justify-center px-6 pt-5 pb-6 border-2 border-gray-300 border-dashed rounded-lg hover:border-blue-400 transition-colors">
+                      <div className="space-y-1 text-center">
+                        <Upload className="mx-auto h-12 w-12 text-gray-400" />
+                        <div className="flex text-sm text-gray-600">
+                          <label htmlFor="receipt-file" className="relative cursor-pointer bg-white rounded-md font-medium text-blue-600 hover:text-blue-500 focus-within:outline-none focus-within:ring-2 focus-within:ring-offset-2 focus-within:ring-blue-500">
+                            <span>Chọn file</span>
+                            <input
+                              id="receipt-file"
+                              name="receipt-file"
+                              type="file"
+                              className="sr-only"
+                              accept="image/*,.pdf"
+                              onChange={handleReceiptFileChange}
+                            />
+                          </label>
+                          <p className="pl-1">hoặc kéo thả vào đây</p>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          PNG, JPG, GIF, PDF tối đa 10MB
                         </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {/* File Info */}
+                      <div className="p-2.5 bg-gray-50 rounded-lg flex items-center justify-between">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <FileText className="h-4 w-4 text-gray-500 flex-shrink-0" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-medium text-gray-900 truncate">{receiptFile.name}</p>
+                            <p className="text-xs text-gray-500">
+                              {(receiptFile.size / 1024 / 1024).toFixed(2)} MB
+                            </p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={handleCancelReceiptSelection} 
+                          className="text-red-500 hover:text-red-700 transition-colors flex-shrink-0 ml-2" 
+                          title="Chọn lại file"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+
+                      {/* Image Preview */}
+                      {receiptPreviewUrl && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <p className="text-xs font-medium text-gray-700">Preview ảnh:</p>
+                            <button 
+                              onClick={() => setShowReceiptPreviewZoom(true)} 
+                              className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors" 
+                              title="Click để phóng to"
+                            >
+                              <Eye className="h-3 w-3" /> Phóng to
+                            </button>
+                          </div>
+                          <div 
+                            className="relative border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50 cursor-pointer hover:border-blue-400 transition-colors" 
+                            onClick={() => setShowReceiptPreviewZoom(true)} 
+                            title="Click để phóng to"
+                          >
+                            <img 
+                              src={receiptPreviewUrl} 
+                              alt="Preview biên lai" 
+                              className="w-full h-auto max-h-96 object-contain" 
+                            />
+                          </div>
+                          {!isReceiptConfirmed && (
+                            <div className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                              <AlertCircle className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                              <p className="text-xs text-blue-700 flex-1">
+                                Vui lòng xem lại ảnh và xác nhận đây là ảnh biên lai đúng trước khi upload.
+                              </p>
+                            </div>
+                          )}
+                          {isReceiptConfirmed && (
+                            <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                              <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                              <p className="text-xs text-green-700 flex-1">
+                                Đã xác nhận ảnh biên lai. Bạn có thể upload ngay bây giờ.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* PDF File Indicator */}
+                      {receiptFile && receiptFile.type === 'application/pdf' && (
+                        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                          <div className="flex items-center gap-2">
+                            <FileText className="h-5 w-5 text-blue-600" />
+                            <div>
+                              <p className="text-xs font-medium text-blue-900">File PDF đã chọn</p>
+                              <p className="text-xs text-blue-700">Vui lòng xác nhận để upload file PDF này.</p>
+                            </div>
+                          </div>
+                        </div>
                       )}
                     </div>
-                  </div>
+                  )}
                 </div>
 
                 {/* Action Buttons */}
@@ -2275,16 +2404,66 @@ function InventoryManagement() {
                   >
                     Hủy
                   </motion.button>
+                  {receiptFile && !isReceiptConfirmed && (
+                    <motion.button 
+                      onClick={handleConfirmReceiptImage}
+                      className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md font-medium"
+                    >
+                      <CheckCircle className="h-4 w-4 mr-1.5" />
+                      Xác nhận
+                    </motion.button>
+                  )}
                   <motion.button 
                     onClick={handleUploadReceipt}
-                    disabled={!receiptFile}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg shadow-md font-medium disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
+                    disabled={!receiptFile || !isReceiptConfirmed}
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-lg shadow-md font-medium disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center gap-2"
                   >
                     <Upload className="w-4 h-4" />
                     Upload biên lai
                   </motion.button>
                 </div>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Receipt Preview Zoom Modal */}
+      <AnimatePresence>
+        {showReceiptPreviewZoom && receiptPreviewUrl && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4"
+            onClick={() => setShowReceiptPreviewZoom(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative inline-block max-w-[95vw] max-h-[95vh]"
+            >
+              <button
+                onClick={() => setShowReceiptPreviewZoom(false)}
+                className="absolute -top-2 -right-2 z-10 bg-black/70 hover:bg-black/90 text-white rounded-full p-2 transition-all shadow-lg"
+                title="Đóng"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <img
+                src={receiptPreviewUrl}
+                alt="Preview biên lai phóng to"
+                className="max-w-full max-h-[95vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              />
             </motion.div>
           </motion.div>
         )}

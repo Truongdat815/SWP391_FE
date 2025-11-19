@@ -43,25 +43,8 @@ const EVMStaffSettings = () => {
   // Get translations based on current language
   const t = evmStaffTranslations[settings.language] || evmStaffTranslations.vi;
 
-  // Mock login history
-  const [loginHistory] = useState([
-    {
-      id: 1,
-      device: 'Windows 11 - Chrome',
-      location: 'Hà Nội, Việt Nam',
-      ip: '117.2.143.56',
-      time: '2 giờ trước',
-      status: 'active'
-    },
-    {
-      id: 2,
-      device: 'iPhone 14 Pro - Safari',
-      location: 'Hồ Chí Minh, Việt Nam',
-      ip: '117.2.143.57',
-      time: '1 ngày trước',
-      status: 'inactive'
-    },
-  ]);
+  const LOGIN_HISTORY_KEY = 'evm-staff-login-history';
+  const [loginHistory, setLoginHistory] = useState([]);
 
   const dropdownRef = useRef(null);
 
@@ -106,12 +89,15 @@ const EVMStaffSettings = () => {
 
   const handleClearHistory = () => {
     if (confirm(t.alerts.clearHistoryConfirm)) {
+      setLoginHistory([]);
+      localStorage.removeItem(LOGIN_HISTORY_KEY);
       alert(t.alerts.historyCleared);
     }
   };
 
   const handleLogoutDevice = (deviceId) => {
     if (confirm(t.alerts.logoutDeviceConfirm)) {
+      setLoginHistory((prev) => prev.filter((session) => session.id !== deviceId));
       alert(`Logged out device ${deviceId}`);
     }
   };
@@ -147,6 +133,28 @@ const EVMStaffSettings = () => {
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
+
+  useEffect(() => {
+    try {
+      const storedHistory = localStorage.getItem(LOGIN_HISTORY_KEY);
+      if (storedHistory) {
+        const parsed = JSON.parse(storedHistory);
+        if (Array.isArray(parsed)) {
+          setLoginHistory(parsed);
+        }
+      }
+    } catch (error) {
+      console.error('Error loading login history:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (loginHistory.length > 0) {
+      localStorage.setItem(LOGIN_HISTORY_KEY, JSON.stringify(loginHistory));
+    } else {
+      localStorage.removeItem(LOGIN_HISTORY_KEY);
+    }
+  }, [loginHistory]);
 
   return (
     <div className="min-h-screen bg-gray-50 p-2 sm:p-3 md:p-4">

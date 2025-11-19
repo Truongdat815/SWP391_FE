@@ -120,6 +120,9 @@ function ViewContracts() {
   const [contractImage, setContractImage] = useState(null);
   const [loadingContractImage, setLoadingContractImage] = useState(false);
   const [contractInfo, setContractInfo] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [showPreviewZoom, setShowPreviewZoom] = useState(false);
   
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -127,6 +130,8 @@ function ViewContracts() {
 
   // Use ref to prevent duplicate API calls
   const hasFetchedContractsRef = useRef(false);
+  // Ref to store previous preview URL for cleanup
+  const prevPreviewUrlRef = useRef(null);
 
   // Fetch contracts on component mount
   useEffect(() => {
@@ -148,6 +153,22 @@ function ViewContracts() {
       window.history.replaceState({}, document.title);
     }
   }, [location, success]);
+
+  // Cleanup preview URL when it changes or component unmounts
+  useEffect(() => {
+    // Cleanup previous URL when previewUrl changes
+    if (prevPreviewUrlRef.current) {
+      URL.revokeObjectURL(prevPreviewUrlRef.current);
+    }
+    prevPreviewUrlRef.current = previewUrl;
+    
+    // Cleanup on unmount
+    return () => {
+      if (prevPreviewUrlRef.current) {
+        URL.revokeObjectURL(prevPreviewUrlRef.current);
+      }
+    };
+  }, [previewUrl]);
 
 
   // Filter contracts by search
@@ -238,12 +259,22 @@ function ViewContracts() {
     setSelectedContract(contract);
     setShowUploadModal(true);
     setSelectedFile(null);
+    setPreviewUrl(null);
+    setIsConfirmed(false);
   };
 
   const handleCloseModal = () => {
+    // Close zoom modal if open
+    setShowPreviewZoom(false);
+    // Clean up preview URL before closing
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
     setShowUploadModal(false);
     setSelectedContract(null);
     setSelectedFile(null);
+    setPreviewUrl(null);
+    setIsConfirmed(false);
   };
 
   const handleViewOrder = async (contract) => {
@@ -292,7 +323,46 @@ function ViewContracts() {
         return;
       }
       
+      // Close zoom modal if open
+      setShowPreviewZoom(false);
+      // Clean up previous preview URL
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      
       setSelectedFile(file);
+      setIsConfirmed(false);
+      
+      // Create preview URL for images
+      if (file.type.startsWith('image/')) {
+        const url = URL.createObjectURL(file);
+        setPreviewUrl(url);
+      } else {
+        // For PDF, don't show preview
+        setPreviewUrl(null);
+      }
+    }
+  };
+
+  const handleConfirmImage = () => {
+    if (selectedFile) {
+      setIsConfirmed(true);
+      success('Đã xác nhận ảnh hợp đồng. Bạn có thể upload ngay bây giờ.');
+    }
+  };
+
+  const handleCancelSelection = () => {
+    // Clean up preview URL
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setIsConfirmed(false);
+    // Reset file input
+    const fileInput = document.querySelector('input[type="file"]');
+    if (fileInput) {
+      fileInput.value = '';
     }
   };
 
@@ -780,22 +850,83 @@ function ViewContracts() {
               </div>
 
               {selectedFile && (
-                <div className="p-2.5 bg-gray-50 rounded-lg flex items-center justify-between">
-                  <div className="flex items-center">
-                    <FileText className="h-4 w-4 text-gray-400 mr-2" />
-                    <div>
-                      <p className="text-xs font-medium text-gray-900">{selectedFile.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                      </p>
+                <div className="space-y-3">
+                  {/* File Info */}
+                  <div className="p-2.5 bg-gray-50 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center">
+                      <FileText className="h-4 w-4 text-gray-400 mr-2" />
+                      <div>
+                        <p className="text-xs font-medium text-gray-900">{selectedFile.name}</p>
+                        <p className="text-xs text-gray-500">
+                          {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                        </p>
+                      </div>
                     </div>
+                    <button
+                      onClick={handleCancelSelection}
+                      className="text-red-500 hover:text-red-700 transition-colors"
+                      title="Chọn lại file"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => setSelectedFile(null)}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+
+                  {/* Image Preview */}
+                  {previewUrl && (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-xs font-medium text-gray-700">Preview ảnh:</p>
+                        <button
+                          onClick={() => setShowPreviewZoom(true)}
+                          className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1 transition-colors"
+                          title="Click để phóng to"
+                        >
+                          <Eye className="h-3 w-3" />
+                          Phóng to
+                        </button>
+                      </div>
+                      <div 
+                        className="relative border-2 border-gray-200 rounded-lg overflow-hidden bg-gray-50 cursor-pointer hover:border-blue-400 transition-colors"
+                        onClick={() => setShowPreviewZoom(true)}
+                        title="Click để phóng to"
+                      >
+                        <img 
+                          src={previewUrl} 
+                          alt="Preview hợp đồng"
+                          className="w-full h-auto max-h-96 object-contain"
+                        />
+                      </div>
+                      {!isConfirmed && (
+                        <div className="flex items-center gap-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                          <AlertCircle className="h-4 w-4 text-blue-600 flex-shrink-0" />
+                          <p className="text-xs text-blue-700 flex-1">
+                            Vui lòng xem lại ảnh và xác nhận đây là ảnh hợp đồng đúng trước khi upload.
+                          </p>
+                        </div>
+                      )}
+                      {isConfirmed && (
+                        <div className="flex items-center gap-2 p-2 bg-green-50 border border-green-200 rounded-lg">
+                          <CheckCircle className="h-4 w-4 text-green-600 flex-shrink-0" />
+                          <p className="text-xs text-green-700 flex-1">
+                            Đã xác nhận ảnh hợp đồng. Bạn có thể upload ngay bây giờ.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* PDF File Indicator */}
+                  {selectedFile && selectedFile.type === 'application/pdf' && (
+                    <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-blue-600" />
+                        <div>
+                          <p className="text-xs font-medium text-blue-900">File PDF đã chọn</p>
+                          <p className="text-xs text-blue-700">Vui lòng xác nhận để upload file PDF này.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -807,9 +938,18 @@ function ViewContracts() {
                 >
                   Hủy
                 </button>
+                {selectedFile && !isConfirmed && (
+                  <button
+                    onClick={handleConfirmImage}
+                    className="flex items-center px-4 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md text-sm"
+                  >
+                    <CheckCircle className="h-3 w-3 mr-1.5" />
+                    Xác nhận
+                  </button>
+                )}
                 <button
                   onClick={handleUpload}
-                  disabled={!selectedFile || uploadingContract === selectedContract.contractId}
+                  disabled={!selectedFile || !isConfirmed || uploadingContract === selectedContract.contractId}
                   className="flex items-center px-4 py-1.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed text-sm"
                 >
                   {uploadingContract === selectedContract.contractId ? (
@@ -1522,6 +1662,50 @@ function ViewContracts() {
                 </p>
               </motion.div>
             )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Preview Zoom Modal */}
+      <AnimatePresence>
+        {showPreviewZoom && previewUrl && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/70 z-[60] flex items-center justify-center p-4"
+            onClick={() => setShowPreviewZoom(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ 
+                type: "spring",
+                stiffness: 300,
+                damping: 25
+              }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative inline-block max-w-[95vw] max-h-[95vh]"
+            >
+              {/* Close Button */}
+              <button
+                onClick={() => setShowPreviewZoom(false)}
+                className="absolute -top-2 -right-2 z-10 bg-black/70 hover:bg-black/90 text-white rounded-full p-2 transition-all shadow-lg"
+                title="Đóng"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              
+              {/* Zoomed Image */}
+              <img 
+                src={previewUrl} 
+                alt="Preview hợp đồng phóng to"
+                className="max-w-full max-h-[95vh] w-auto h-auto object-contain rounded-lg shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              />
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>

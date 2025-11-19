@@ -8,6 +8,7 @@ import {
   getAllPayments,
   filterPaymentsByContract
 } from '../../api/paymentService';
+import { deliverOrder, getOrderById } from '../../api/orderService';
 import { 
   CheckCircle, 
   Loader2,
@@ -20,7 +21,8 @@ import {
   TrendingUp,
   FileText,
   Receipt,
-  Calendar
+  Calendar,
+  Truck
 } from 'lucide-react';
 
 import Toast from '../../components/ui/Toast';
@@ -33,6 +35,91 @@ import ModernButton from '../../components/ui/ModernButton';
 import StatusBadge from '../../components/ui/StatusBadge';
 import EmptyState from '../../components/ui/EmptyState';
 import { TableSkeleton } from '../../components/ui/LoadingSkeleton';
+
+// DeliverButton component to handle order delivery
+const DeliverButton = ({ contract, deliveringOrder, setDeliveringOrder, showConfirm, showError, success, fetchContracts }) => {
+  const [orderStatus, setOrderStatus] = useState(null);
+  const [loadingStatus, setLoadingStatus] = useState(true);
+
+  useEffect(() => {
+    const checkOrderStatus = async () => {
+      try {
+        setLoadingStatus(true);
+        const orderResponse = await getOrderById(contract.orderId);
+        const orderData = orderResponse?.data || orderResponse;
+        if (orderData) {
+          setOrderStatus((orderData.status || '').toUpperCase());
+        }
+      } catch (error) {
+        console.error('Error fetching order status:', error);
+      } finally {
+        setLoadingStatus(false);
+      }
+    };
+    
+    if (contract.orderId) {
+      checkOrderStatus();
+    }
+  }, [contract.orderId]);
+
+  // Don't show button if order is already delivered or completed
+  if (loadingStatus || orderStatus === 'DELIVERED' || orderStatus === 'COMPLETED') {
+    return null;
+  }
+
+  return (
+    <ModernButton
+      onClick={async () => {
+        try {
+          setDeliveringOrder(contract.orderId);
+          // Fetch order to check status again
+          const orderResponse = await getOrderById(contract.orderId);
+          const orderData = orderResponse?.data || orderResponse;
+          
+          if (orderData) {
+            const currentStatus = (orderData.status || '').toUpperCase();
+            if (currentStatus === 'DELIVERED' || currentStatus === 'COMPLETED') {
+              showError('Đơn hàng này đã được giao rồi!');
+              setDeliveringOrder(null);
+              setOrderStatus(currentStatus);
+              return;
+            }
+            
+            const confirmed = await showConfirm({
+              title: 'Xác nhận giao hàng',
+              message: `Bạn có chắc chắn muốn chuyển đơn hàng ${orderData.orderCode || orderData.orderId} sang trạng thái "Đã giao hàng"?`,
+              type: 'warning',
+              confirmText: 'Xác nhận',
+              cancelText: 'Hủy'
+            });
+            
+            if (confirmed) {
+              await deliverOrder(contract.orderId);
+              success('Đơn hàng đã được chuyển sang trạng thái "Đã giao hàng" thành công!');
+              await fetchContracts();
+              // Update order status to hide button
+              setOrderStatus('DELIVERED');
+            }
+          }
+        } catch (error) {
+          console.error('Error delivering order:', error);
+          showError('Không thể giao hàng: ' + (error.message || error));
+        } finally {
+          setDeliveringOrder(null);
+        }
+      }}
+      disabled={deliveringOrder === contract.orderId}
+      variant="primary"
+      size="sm"
+      loading={deliveringOrder === contract.orderId}
+      roleColor="blue"
+      icon={<Truck className="w-3 h-3" />}
+      className="text-xs"
+    >
+      Giao hàng
+    </ModernButton>
+  );
+};
 
 function PaymentManagement() {
   // Modern UI hooks
@@ -59,6 +146,8 @@ function PaymentManagement() {
   const [showPaymentDetailModal, setShowPaymentDetailModal] = useState(false);
   const [selectedPaymentDetail, setSelectedPaymentDetail] = useState(null);
   const [loadingPaymentDetail, setLoadingPaymentDetail] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [deliveringOrder, setDeliveringOrder] = useState(null);
 
   // Calculate paidAmount for a contract by summing completed payments
   const calculatePaidAmount = useCallback((contract, payments) => {
@@ -110,6 +199,24 @@ function PaymentManagement() {
       }
   }, []);
 
+  // Fetch order by contractId
+  const fetchOrderByContractId = useCallback(async (contractId) => {
+    try {
+      // Find contract to get orderId
+      const contract = contracts.find(c => c.contractId === contractId);
+      if (contract && contract.orderId) {
+        const orderResponse = await getOrderById(contract.orderId);
+        const orderData = orderResponse?.data || orderResponse;
+        setSelectedOrder(orderData);
+      } else {
+        setSelectedOrder(null);
+      }
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      setSelectedOrder(null);
+    }
+  }, [contracts]);
+
   // Handle payment callback
   const handlePaymentCallback = useCallback(async (paymentId, status, vnpResponseCode) => {
     try {
@@ -123,6 +230,11 @@ function PaymentManagement() {
         if (paymentData) {
           setSelectedPaymentDetail(paymentData);
           setShowPaymentDetailModal(true);
+          
+          // Fetch order if contractId exists
+          if (paymentData.contractId) {
+            await fetchOrderByContractId(paymentData.contractId);
+          }
           
           // Refresh contracts and payments
           await fetchContracts();
@@ -148,13 +260,35 @@ function PaymentManagement() {
     } finally {
       setLoadingPaymentDetail(false);
     }
-  }, [fetchContracts, fetchAllPayments, success]);
+  }, [fetchContracts, fetchAllPayments, success, fetchOrderByContractId]);
 
   // Fetch data on mount
   useEffect(() => {
     fetchContracts();
     fetchAllPayments();
   }, [fetchContracts, fetchAllPayments]);
+
+  // Determine payment type based on contract payment history
+  const determinePaymentType = useCallback((contract, payments) => {
+    if (!contract || !payments || payments.length === 0) {
+      return 'DEPOSIT'; // Default to deposit if no payments
+    }
+    
+    const contractPayments = filterPaymentsByContract(
+      payments, 
+      contract.contractId, 
+      contract.contractCode
+    );
+    
+    // Check if there's any completed DEPOSIT payment
+    const hasDeposit = contractPayments.some(
+      payment => payment.paymentType === 'DEPOSIT' && 
+      (payment.status === 'COMPLETED' || payment.status === 'SUCCESS' || payment.status === 'PAID')
+    );
+    
+    // If deposit exists, next payment should be balance
+    return hasDeposit ? 'BALANCE' : 'DEPOSIT';
+  }, []);
 
   // Handle payment callback from VNPay
   useEffect(() => {
@@ -182,7 +316,7 @@ function PaymentManagement() {
 
   // Handle contractId from navigation state - auto open payment modal
   useEffect(() => {
-    if (location.state?.contractId && !loading && contracts.length > 0) {
+    if (location.state?.contractId && !loading && contracts.length > 0 && allPayments.length >= 0) {
       const contractId = location.state.contractId;
       
       // Find the contract in all contracts
@@ -194,9 +328,10 @@ function PaymentManagement() {
         
         // Auto-open payment modal for this contract
         setSelectedContract(contract);
+        const autoPaymentType = determinePaymentType(contract, allPayments);
         setShowPaymentModal(true);
         setPaymentForm({
-          paymentType: 'DEPOSIT',
+          paymentType: autoPaymentType,
           paymentMethod: 'VNPAY'
         });
         
@@ -212,7 +347,7 @@ function PaymentManagement() {
       // Clear the state after handling
       window.history.replaceState({}, document.title);
     }
-  }, [location, contracts, loading]);
+  }, [location, contracts, loading, allPayments, determinePaymentType]);
 
   // Filter contracts that have signed contract file uploaded and sort from newest to oldest
   const contractsWithSignedImage = (contracts || [])
@@ -236,9 +371,10 @@ function PaymentManagement() {
 
   const handlePaymentClick = (contract) => {
     setSelectedContract(contract);
+    const autoPaymentType = determinePaymentType(contract, allPayments);
     setShowPaymentModal(true);
     setPaymentForm({
-      paymentType: 'DEPOSIT',
+      paymentType: autoPaymentType,
       paymentMethod: 'VNPAY'
     });
   };
@@ -305,6 +441,11 @@ function PaymentManagement() {
               if (paymentData) {
                 setSelectedPaymentDetail(paymentData);
                 setShowPaymentDetailModal(true);
+                
+                // Fetch order if contractId exists
+                if (paymentData.contractId) {
+                  await fetchOrderByContractId(paymentData.contractId);
+                }
               }
             } catch (error) {
               console.error('Error fetching payment details:', error);
@@ -412,6 +553,53 @@ function PaymentManagement() {
       case 'CASH': return 'Tiền mặt';
       default: return method;
     }
+  };
+
+  // Handle deliver order
+  const handleDeliverOrder = async () => {
+    if (!selectedOrder || !selectedPaymentDetail) return;
+
+    const confirmed = await showConfirm({
+      title: 'Xác nhận giao hàng',
+      message: `Bạn có chắc chắn muốn chuyển đơn hàng ${selectedOrder.orderCode || selectedOrder.orderId} sang trạng thái "Đã giao hàng"?`,
+      type: 'warning',
+      confirmText: 'Xác nhận',
+      cancelText: 'Hủy'
+    });
+
+    if (!confirmed) return;
+
+    try {
+      setDeliveringOrder(selectedOrder.orderId);
+      await deliverOrder(selectedOrder.orderId);
+      success('Đơn hàng đã được chuyển sang trạng thái "Đã giao hàng" thành công!');
+      
+      // Refresh order data
+      if (selectedPaymentDetail.contractId) {
+        await fetchOrderByContractId(selectedPaymentDetail.contractId);
+      }
+      
+      // Refresh contracts
+      await fetchContracts();
+    } catch (error) {
+      console.error('Error delivering order:', error);
+      showError('Không thể giao hàng: ' + (error.message || error));
+    } finally {
+      setDeliveringOrder(null);
+    }
+  };
+
+  // Check if payment is completed and order is not delivered
+  const canDeliverOrder = () => {
+    if (!selectedPaymentDetail || !selectedOrder) return false;
+    
+    const paymentStatus = (selectedPaymentDetail.status || '').toUpperCase();
+    const isPaymentCompleted = paymentStatus === 'COMPLETED' || paymentStatus === 'SUCCESS' || paymentStatus === 'PAID';
+    
+    const orderStatus = (selectedOrder.status || '').toUpperCase();
+    const isNotDelivered = orderStatus !== 'DELIVERED' && orderStatus !== 'COMPLETED';
+    
+    return isPaymentCompleted && isNotDelivered;
   };
 
   return (
@@ -606,6 +794,17 @@ function PaymentManagement() {
                               >
                                 Thanh toán
                               </ModernButton>
+                              {remaining <= 0 && contract.orderId && (
+                                <DeliverButton
+                                  contract={contract}
+                                  deliveringOrder={deliveringOrder}
+                                  setDeliveringOrder={setDeliveringOrder}
+                                  showConfirm={showConfirm}
+                                  showError={showError}
+                                  success={success}
+                                  fetchContracts={fetchContracts}
+                                />
+                              )}
                               <ModernButton
                                 onClick={() => togglePaymentHistory(contract.contractId)}
                                 variant="secondary"
@@ -890,11 +1089,27 @@ function PaymentManagement() {
               </div>
               
               {/* Footer */}
-              <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-end">
+              <div className="px-6 py-4 border-t border-gray-100 bg-gray-50/50 flex justify-between items-center">
+                <div>
+                  {canDeliverOrder() && selectedOrder && (
+                    <ModernButton
+                      onClick={handleDeliverOrder}
+                      disabled={deliveringOrder === selectedOrder.orderId}
+                      variant="primary"
+                      size="md"
+                      loading={deliveringOrder === selectedOrder.orderId}
+                      roleColor="blue"
+                      icon={<Truck className="w-4 h-4" />}
+                    >
+                      Giao hàng
+                    </ModernButton>
+                  )}
+                </div>
                 <ModernButton
                   onClick={() => {
                     setShowPaymentDetailModal(false);
                     setSelectedPaymentDetail(null);
+                    setSelectedOrder(null);
                   }}
                   variant="primary"
                   size="md"
@@ -1006,14 +1221,18 @@ function PaymentManagement() {
 
                     <div>
                       <label className="block text-xs font-medium text-gray-700 mb-2">Loại thanh toán *</label>
-                      <select
-                        value={paymentForm.paymentType}
-                        onChange={(e) => setPaymentForm(prev => ({ ...prev, paymentType: e.target.value }))}
-                        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 text-sm transition-colors"
-                      >
-                        <option value="DEPOSIT">Đặt cọc</option>
-                        <option value="BALANCE">Thanh toán số dư</option>
-                      </select>
+                      <ModernCard hover={false} className="bg-emerald-50 border-emerald-200">
+                        <ModernCardContent>
+                          <p className="text-sm font-semibold text-emerald-700">
+                            {getPaymentTypeText(paymentForm.paymentType)}
+                          </p>
+                          <p className="text-xs text-emerald-600 mt-1">
+                            {paymentForm.paymentType === 'DEPOSIT' 
+                              ? 'Thanh toán đặt cọc cho hợp đồng này'
+                              : 'Thanh toán số tiền còn lại của hợp đồng'}
+                          </p>
+                        </ModernCardContent>
+                      </ModernCard>
                     </div>
 
                     <div>

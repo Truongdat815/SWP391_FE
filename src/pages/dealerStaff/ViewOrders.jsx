@@ -136,7 +136,7 @@ const aggregateOrderDetails = (details) => {
   return result;
 };
 
-function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWithContracts: parentOrdersWithContracts = {} }) {
+function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWithContracts: parentOrdersWithContracts = {}, readOnly = false }) {
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const location = useLocation();
@@ -1049,61 +1049,65 @@ function ViewOrders({ defaultStatusFilter = 'all', activeTab = 'all', ordersWith
                           <Eye className="h-4 w-4" />
                         </motion.button>
                         
-                        {/* Nút Xác nhận đơn hàng - chỉ hiện khi đơn hàng DRAFT */}
-                        {order.status?.toUpperCase() === 'DRAFT' && (
-                          <motion.button
-                            onClick={() => handleConfirmOrder(order.orderId)}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-200"
-                            title="Xác nhận"
-                          >
-                            <CheckCircle className="h-4 w-4" />
-                          </motion.button>
-                        )}
-                        
-                        {/* Nút Tạo hợp đồng - chỉ hiện khi đơn hàng CONFIRMED và chưa có hợp đồng */}
-                        {order.status?.toUpperCase() === 'CONFIRMED' && !ordersWithContracts[order.orderId] && (
-                          <motion.button
-                            onClick={() => handleCreateContract(order)}
-                            disabled={creatingContract === order.orderId}
-                            whileHover={{ scale: creatingContract === order.orderId ? 1 : 1.1 }}
-                            whileTap={{ scale: creatingContract === order.orderId ? 1 : 0.9 }}
-                            className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                            title="Tạo hợp đồng"
-                          >
-                            {creatingContract === order.orderId ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <FileText className="h-4 w-4" />
+                        {!readOnly && (
+                          <>
+                            {/* Nút Xác nhận đơn hàng - chỉ hiện khi đơn hàng DRAFT */}
+                            {order.status?.toUpperCase() === 'DRAFT' && (
+                              <motion.button
+                                onClick={() => handleConfirmOrder(order.orderId)}
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-200"
+                                title="Xác nhận"
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </motion.button>
                             )}
-                          </motion.button>
-                        )}
-                        
-                        {/* Nút Xem hợp đồng - khi đã có hợp đồng */}
-                        {order.status?.toUpperCase() === 'CONFIRMED' && ordersWithContracts[order.orderId] && (
-                          <motion.button
-                            onClick={() => navigate('/dealer-staff/contract-management')}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-all border border-green-200"
-                            title="Xem hợp đồng"
-                          >
-                            <FileText className="h-4 w-4" />
-                          </motion.button>
-                        )}
-                        
-                        {/* Nút Xóa đơn hàng - chỉ hiện khi đơn hàng có trạng thái DRAFT (bản nháp) */}
-                        {order.status?.toUpperCase() === 'DRAFT' && (
-                          <motion.button
-                            onClick={() => handleDeleteOrder(order.orderId, order.status)}
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all border border-red-200"
-                            title="Xóa"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </motion.button>
+                            
+                            {/* Nút Tạo hợp đồng - chỉ hiện khi đơn hàng CONFIRMED và chưa có hợp đồng */}
+                            {order.status?.toUpperCase() === 'CONFIRMED' && !ordersWithContracts[order.orderId] && (
+                              <motion.button
+                                onClick={() => handleCreateContract(order)}
+                                disabled={creatingContract === order.orderId}
+                                whileHover={{ scale: creatingContract === order.orderId ? 1 : 1.1 }}
+                                whileTap={{ scale: creatingContract === order.orderId ? 1 : 0.9 }}
+                                className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-all border border-blue-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Tạo hợp đồng"
+                              >
+                                {creatingContract === order.orderId ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <FileText className="h-4 w-4" />
+                                )}
+                              </motion.button>
+                            )}
+                            
+                            {/* Nút Xem hợp đồng - khi đã có hợp đồng */}
+                            {order.status?.toUpperCase() === 'CONFIRMED' && ordersWithContracts[order.orderId] && (
+                              <motion.button
+                                onClick={() => navigate('/dealer-staff/contract-management')}
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="p-1.5 rounded-lg bg-green-50 text-green-600 hover:bg-green-100 transition-all border border-green-200"
+                                title="Xem hợp đồng"
+                              >
+                                <FileText className="h-4 w-4" />
+                              </motion.button>
+                            )}
+                            
+                            {/* Nút Xóa đơn hàng - chỉ hiện khi đơn hàng có trạng thái DRAFT (bản nháp) */}
+                            {order.status?.toUpperCase() === 'DRAFT' && (
+                              <motion.button
+                                onClick={() => handleDeleteOrder(order.orderId, order.status)}
+                                whileHover={{ scale: 1.1 }}
+                                whileTap={{ scale: 0.9 }}
+                                className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-all border border-red-200"
+                                title="Xóa"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </motion.button>
+                            )}
+                          </>
                         )}
                       </div>
                     </td>

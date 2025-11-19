@@ -59,7 +59,6 @@ import EVMStaffDashboard from './pages/EvmStaff/EVMStaffDashboard'
 import ProductManagement from './pages/EvmStaff/ProductManagement'
 import VehicleManagement from './pages/EvmStaff/VehicleManagement'
 import DealerOrderManagement from './pages/EvmStaff/DealerOrderManagement'
-import SalesReport from './pages/EvmStaff/SalesReport'
 import ColorManagementPage from './components/ColorManagement'
 import EVMStaffUserGuide from './pages/EvmStaff/UserGuide'
 
@@ -199,7 +198,6 @@ function AnimatedRoutes() {
             <Route path="vehicle-management" element={<VehicleManagement />} />
             <Route path="dealer-orders" element={<DealerOrderManagement />} />
             <Route path="color-management" element={<ColorManagementPage />} />
-            <Route path="sales-report" element={<SalesReport />} />
             <Route path="profile" element={<CommonProfile />} />
             <Route path="help" element={<CommonHelp />} />
             <Route path="user-guide" element={<EVMStaffUserGuide />} />
