@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 import HomePage from '../features/public/home/HomePage';
 import LoginPage from '../features/public/login/LoginPage';
+import ChangePasswordPage from '../features/public/change-password/ChangePasswordPage';
 import ProtectedRoute from './ProtectedRoute';
 import RoleRoute from './RoleRoute';
 
@@ -13,6 +14,9 @@ import BranchManagement from '../features/admin/branches/BranchManagementPage';
 // Dealer Staff routes
 import DealerStaffDashboard from '../features/dealerStaff/dashboard/DashboardPage';
 import DealerStaffOrderManagementPage from '../features/dealerStaff/orders/OrderManagementPage';
+import CreateOrderPage from '../features/dealerStaff/orders/CreateOrderPage';
+import ContractManagementPage from '../features/dealerStaff/contracts/ContractManagementPage';
+import PaymentManagementPage from '../features/dealerStaff/payments/PaymentManagementPage';
 import CustomerManagementPage from '../features/dealerStaff/customers/CustomerManagementPage';
 import AppointmentsPage from '../features/dealerStaff/appointments/AppointmentsPage';
 import QuotationPage from '../features/dealerStaff/quotation/QuotationPage';
@@ -43,6 +47,14 @@ function AppRouter() {
       {/* Public routes */}
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/change-password"
+        element={
+          <ProtectedRoute>
+            <ChangePasswordPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Admin routes - Protected by authentication and role */}
       <Route
@@ -70,6 +82,9 @@ function AppRouter() {
               <Routes>
                 <Route path="dashboard" element={<DealerStaffDashboard />} />
                 <Route path="orders" element={<DealerStaffOrderManagementPage />} />
+                <Route path="orders/create" element={<CreateOrderPage />} />
+                <Route path="contracts" element={<ContractManagementPage />} />
+                <Route path="payments" element={<PaymentManagementPage />} />
                 <Route path="customers" element={<CustomerManagementPage />} />
                 <Route path="appointments" element={<AppointmentsPage />} />
                 <Route path="quotation" element={<QuotationPage />} />

@@ -1,8 +1,9 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGetAllUsersQuery } from '../../../api/admin/userApi';
-import { useGetAllStoresQuery, useGetMonthlyRevenueQuery } from '../../../api/admin/storeApi';
+import { useGetAllStoresQuery, useGetMonthlyRevenueQuery, useGetTotalMonthlyRevenueQuery } from '../../../api/admin/storeApi';
 import { useGetAllModelsQuery } from '../../../api/admin/modelApi';
+import { normalizeRole } from '../../../utils/roleUtils';
 import AdminLayout from '../../../components/layout/AdminLayout';
 import { TrendingUp } from 'lucide-react';
 
@@ -13,19 +14,22 @@ const AdminDashboard = () => {
   const { data: usersData, isLoading: isLoadingUsers, error: usersError } = useGetAllUsersQuery();
   const { data: storesData, isLoading: isLoadingStores, error: storesError } = useGetAllStoresQuery();
   const { data: revenueData, isLoading: isLoadingRevenue, error: revenueError } = useGetMonthlyRevenueQuery();
+  const { data: totalMonthlyRevenueData, isLoading: isLoadingTotalRevenue, error: totalRevenueError } = useGetTotalMonthlyRevenueQuery();
   const { data: modelsData, isLoading: isLoadingModels, error: modelsError } = useGetAllModelsQuery();
 
   const users = usersData?.data || [];
   const stores = storesData?.data || [];
   const monthlyRevenues = revenueData?.data || [];
+  const totalMonthlyRevenue = totalMonthlyRevenueData?.data || {};
   const models = modelsData?.data || [];
 
-  const isLoading = isLoadingUsers || isLoadingStores || isLoadingRevenue || isLoadingModels;
+  const isLoading = isLoadingUsers || isLoadingStores || isLoadingRevenue || isLoadingTotalRevenue || isLoadingModels;
   
   const isUnauthorized = 
     usersError?.status === 401 || 
     storesError?.status === 401 || 
     revenueError?.status === 401 ||
+    totalRevenueError?.status === 401 ||
     modelsError?.status === 401;
   
   const hasError = (usersError && usersError.status !== 401) || 
@@ -35,76 +39,107 @@ const AdminDashboard = () => {
   const totalStores = stores.length;
   const activeStores = stores.filter(s => s.status === 'ACTIVE').length;
   const totalUsers = users.length;
+  const activeUsers = users.filter(u => u.status === 'ACTIVE').length;
   
-  // Tính tổng doanh thu
+  // Tính tổng doanh thu theo tháng từ API /stores/revenue/monthly
   const totalRevenue = useMemo(() => {
     if (monthlyRevenues?.length > 0) {
-      const total = monthlyRevenues.reduce((sum, rev) => {
-        return sum + (parseFloat(rev.totalRevenue) || 0);
+      // Tính tổng monthlyRevenue từ tất cả các store
+      const total = monthlyRevenues.reduce((sum, store) => {
+        return sum + (parseFloat(store.monthlyRevenue) || 0);
       }, 0);
       
+      // Format số tiền
       if (total >= 1000000000000) {
         return `${(total / 1000000000000).toFixed(1)} Tỷ`;
       } else if (total >= 1000000000) {
         return `${(total / 1000000000).toFixed(1)} Tỷ`;
       } else if (total >= 1000000) {
         return `${(total / 1000000).toFixed(1)}M VND`;
-      }
+      } else if (total >= 1000) {
       return `${(total / 1000).toFixed(1)}K VND`;
+      }
+      return `${total.toLocaleString('vi-VN')} VND`;
     }
     return '0 VND';
   }, [monthlyRevenues]);
 
-  // Phân bố cửa hàng theo tỉnh
+  // Phân bố cửa hàng theo tỉnh (hiển thị tất cả các tỉnh có dữ liệu)
   const storesByProvince = useMemo(() => {
     const provinceMap = {};
     stores.forEach(store => {
       const province = store.provinceName || store.province || 'Khác';
+      if (province && province !== '') {
       provinceMap[province] = (provinceMap[province] || 0) + 1;
+      }
     });
     
-    const topProvinces = ['Hà Nội', 'TP. HCM', 'Đà Nẵng', 'Hải Phòng', 'Cần Thơ'];
-    const result = topProvinces.map(name => ({
+    // Sắp xếp theo số lượng cửa hàng giảm dần
+    const sortedProvinces = Object.entries(provinceMap)
+      .map(([name, count]) => ({
       name,
-      count: provinceMap[name] || 0,
-      percentage: totalStores > 0 ? ((provinceMap[name] || 0) / totalStores) * 100 : 0
-    }));
+        count,
+        percentage: totalStores > 0 ? (count / totalStores) * 100 : 0
+      }))
+      .sort((a, b) => b.count - a.count);
     
-    const others = Object.entries(provinceMap)
-      .filter(([name]) => !topProvinces.includes(name))
-      .reduce((sum, [, count]) => sum + count, 0);
+    return sortedProvinces;
+  }, [stores, totalStores]);
+
+  // Phân bố người dùng theo role (không gồm admin)
+  const usersByRole = useMemo(() => {
+    // Lọc bỏ admin và phân loại các role còn lại
+    let dealerManagerCount = 0;  // DEALER_MANAGER
+    let dealerStaffCount = 0;    // DEALER_STAFF
+    let evmStaffCount = 0;       // EVM_STAFF
     
-    if (others > 0) {
-      result.push({
-        name: 'Khác',
-        count: others,
-        percentage: totalStores > 0 ? (others / totalStores) * 100 : 0
+    users.forEach(user => {
+      const roleName = user.roleName || '';
+      const normalizedRole = normalizeRole(roleName);
+      
+      // Bỏ qua admin
+      if (normalizedRole === 'ADMIN') {
+        return;
+      }
+      
+      // Phân loại các role còn lại - ưu tiên kiểm tra theo thứ tự
+      if (normalizedRole === 'DEALER_MANAGER') {
+        dealerManagerCount++;
+      } else if (normalizedRole === 'DEALER_STAFF') {
+        dealerStaffCount++;
+      } else if (normalizedRole === 'EVM_STAFF') {
+        evmStaffCount++;
+      }
+      // Nếu không match với role nào đã biết, bỏ qua (không đếm vào)
+      else if (import.meta.env.DEV && normalizedRole && normalizedRole !== 'ADMIN') {
+        console.warn('Unknown role detected:', roleName, '-> normalized:', normalizedRole);
+      }
+    });
+    
+    const total = dealerManagerCount + dealerStaffCount + evmStaffCount;
+    
+    if (import.meta.env.DEV && total > 0) {
+      console.log('User role distribution:', {
+        DEALER_MANAGER: dealerManagerCount,
+        DEALER_STAFF: dealerStaffCount,
+        EVM_STAFF: evmStaffCount,
+        total
       });
     }
     
-    return result;
-  }, [stores, totalStores]);
-
-  // Phân bố người dùng theo role
-  const usersByRole = useMemo(() => {
-    const roleMap = {};
-    users.forEach(user => {
-      const role = user.roleName || 'Khác';
-      roleMap[role] = (roleMap[role] || 0) + 1;
-    });
-    
-    const total = users.length;
-    const adminCount = roleMap['Admin'] || roleMap['ADMIN'] || 0;
-    const managerCount = (roleMap['Dealer Manager'] || roleMap['DEALER_MANAGER'] || 0) + 
-                         (roleMap['Quản lý đại lý'] || 0);
-    const staffCount = (roleMap['Dealer Staff'] || roleMap['DEALER_STAFF'] || 0) + 
-                       (roleMap['Nhân viên bán hàng'] || 0) +
-                       (roleMap['EVM Staff'] || roleMap['EVM_STAFF'] || 0);
-    
     return {
-      admin: { count: adminCount, percentage: total > 0 ? (adminCount / total) * 100 : 0 },
-      manager: { count: managerCount, percentage: total > 0 ? (managerCount / total) * 100 : 0 },
-      staff: { count: staffCount, percentage: total > 0 ? (staffCount / total) * 100 : 0 }
+      manager: { 
+        count: dealerManagerCount, 
+        percentage: total > 0 ? (dealerManagerCount / total) * 100 : 0 
+      },
+      dealerStaff: { 
+        count: dealerStaffCount, 
+        percentage: total > 0 ? (dealerStaffCount / total) * 100 : 0 
+      },
+      evmStaff: { 
+        count: evmStaffCount, 
+        percentage: total > 0 ? (evmStaffCount / total) * 100 : 0 
+      }
     };
   }, [users]);
 
@@ -126,7 +161,8 @@ const AdminDashboard = () => {
   // Internal Components
   const StatCard = ({ title, value, subtitle, trend, trendText }) => (
     <div className="flex flex-col gap-2 rounded-xl p-6 bg-white border border-gray-200">
-      <p className="text-base font-medium text-gray-600">{title}</p>
+      <div className="text-base font-medium text-gray-600">{title}</div>
+      {value && (
       <p className="text-3xl font-bold tracking-tight text-gray-900">
         {value}
         {subtitle && (
@@ -135,6 +171,7 @@ const AdminDashboard = () => {
           </span>
         )}
       </p>
+      )}
       {trend && trendText && (
         <div className="flex items-center gap-1 text-green-600">
           <TrendingUp className="w-4 h-4" />
@@ -145,44 +182,60 @@ const AdminDashboard = () => {
   );
 
   const ProvinceChart = () => {
-    const maxHeight = Math.max(...storesByProvince.map(p => p.count), 1);
+    if (storesByProvince.length === 0) {
+      return (
+        <div className="h-80 flex items-center justify-center">
+          <p className="text-gray-500">Chưa có dữ liệu cửa hàng</p>
+        </div>
+      );
+    }
+    
+    const maxCount = Math.max(...storesByProvince.map(p => p.count), 1);
+    const displayedProvinces = storesByProvince.slice(0, 10); // Hiển thị tối đa 10 tỉnh
     
     return (
-      <div className="h-80 flex flex-col-reverse justify-between">
-        <div className="grid grid-cols-6 gap-4 text-center">
-          {storesByProvince.map((province) => (
-            <p 
-              key={province.name}
-              className="text-xs font-medium text-gray-600 truncate"
-            >
+      <div className="space-y-3">
+        {displayedProvinces.map((province) => {
+          const width = maxCount > 0 ? (province.count / maxCount) * 100 : 0;
+          return (
+            <div key={province.name} className="flex items-center gap-4">
+              <div className="w-32 text-sm font-medium text-gray-700 truncate" title={province.name}>
               {province.name}
-            </p>
-          ))}
         </div>
-        <div className="grid grid-cols-6 gap-4 items-end h-full mt-4">
-          {storesByProvince.map((province) => {
-            const height = maxHeight > 0 ? (province.count / maxHeight) * 100 : 0;
-            return (
-              <div
-                key={province.name}
-                className="bg-blue-400 hover:bg-blue-500 rounded-t-lg transition-colors cursor-pointer"
-                style={{ height: `${height}%` }}
-                title={`${province.name}: ${province.count} cửa hàng`}
-              />
+              <div className="flex-1 relative">
+                <div className="h-8 bg-gray-200 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full transition-all duration-300 flex items-center justify-end pr-2"
+                    style={{ width: `${width}%` }}
+                  >
+                    <span className="text-xs font-medium text-white">
+                      {province.count}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div className="w-16 text-sm text-gray-600 text-right">
+                {province.percentage.toFixed(1)}%
+              </div>
+            </div>
             );
           })}
+        {storesByProvince.length > 10 && (
+          <div className="text-center text-sm text-gray-500 pt-2">
+            Và {storesByProvince.length - 10} khu vực khác
         </div>
+        )}
       </div>
     );
   };
 
   const UserRoleChart = () => {
-    const { admin, manager, staff } = usersByRole;
-    const total = admin.percentage + manager.percentage + staff.percentage;
+    const { manager, dealerStaff, evmStaff } = usersByRole;
+    const total = manager.percentage + dealerStaff.percentage + evmStaff.percentage;
     
-    // Màu sắc khớp với ảnh: Admin (blue), Manager (green), Staff (orange)
+    // Màu sắc: Manager (green), Dealer Staff (blue), EVM Staff (orange)
     const gradient = total > 0 
-      ? `conic-gradient(from 0deg, #3B82F6 0% ${admin.percentage}%, #10B981 ${admin.percentage}% ${admin.percentage + manager.percentage}%, #F97316 ${admin.percentage + manager.percentage}% 100%)`
+      ? `conic-gradient(from 0deg, #10B981 0% ${manager.percentage}%, #3B82F6 ${manager.percentage}% ${manager.percentage + dealerStaff.percentage}%, #F97316 ${manager.percentage + dealerStaff.percentage}% 100%)`
       : 'conic-gradient(from 0deg, #e5e7eb 0% 100%)';
     
     return (
@@ -193,35 +246,51 @@ const AdminDashboard = () => {
               className="absolute inset-0 rounded-full"
               style={{ backgroundImage: gradient }}
             />
-            <div className="absolute inset-2 bg-white rounded-full" />
+            <div className="absolute inset-2 bg-white rounded-full flex items-center justify-center">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-gray-900">
+                  {manager.count + dealerStaff.count + evmStaff.count}
+                </p>
+                <p className="text-xs text-gray-600">Người dùng</p>
+              </div>
+            </div>
           </div>
         </div>
-        <div className="grid grid-cols-3 gap-2 text-center">
+        <div className="grid grid-cols-3 gap-4 text-center">
           <div className="flex flex-col items-center">
             <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-blue-500" />
-              <p className="text-sm font-medium text-gray-600">Admin</p>
+              <span className="size-3 rounded-full bg-green-500" />
+              <p className="text-sm font-medium text-gray-600">Quản lý</p>
             </div>
-            <p className="text-base font-bold text-gray-900">
-              {admin.percentage.toFixed(0)}%
+            <p className="text-lg font-bold text-gray-900">
+              {manager.count}
+            </p>
+            <p className="text-xs text-gray-500">
+              {manager.percentage.toFixed(1)}%
             </p>
           </div>
           <div className="flex flex-col items-center">
             <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-green-500" />
-              <p className="text-sm font-medium text-gray-600">Manager</p>
+              <span className="size-3 rounded-full bg-blue-500" />
+              <p className="text-sm font-medium text-gray-600">Nhân viên</p>
             </div>
-            <p className="text-base font-bold text-gray-900">
-              {manager.percentage.toFixed(0)}%
+            <p className="text-lg font-bold text-gray-900">
+              {dealerStaff.count}
+            </p>
+            <p className="text-xs text-gray-500">
+              {dealerStaff.percentage.toFixed(1)}%
             </p>
           </div>
           <div className="flex flex-col items-center">
             <div className="flex items-center gap-2">
-              <span className="size-2 rounded-full bg-orange-500" />
-              <p className="text-sm font-medium text-gray-600">Staff</p>
+              <span className="size-3 rounded-full bg-orange-500" />
+              <p className="text-sm font-medium text-gray-600">EVM Staff</p>
             </div>
-            <p className="text-base font-bold text-gray-900">
-              {staff.percentage.toFixed(0)}%
+            <p className="text-lg font-bold text-gray-900">
+              {evmStaff.count}
+            </p>
+            <p className="text-xs text-gray-500">
+              {evmStaff.percentage.toFixed(1)}%
             </p>
           </div>
         </div>
@@ -317,38 +386,53 @@ const AdminDashboard = () => {
 
   return (
     <AdminLayout>
-      <div className="p-8 space-y-6">
+      <div className="p-4 space-y-4">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <StatCard
             title="Tổng Số Cửa Hàng"
             value={activeStores}
-            subtitle={`/${totalStores}`}
+            subtitle={`/${totalStores} đang hoạt động`}
             trend={true}
             trendText="+5% so với tháng trước"
           />
           <StatCard
             title="Tổng Số Người Dùng"
-            value={totalUsers}
+            value={activeUsers}
+            subtitle={`/${totalUsers} đang hoạt động`}
             trend={true}
             trendText="+12% so với tháng trước"
           />
           <StatCard
-            title="Tổng Số Đơn Hàng"
-            value="1,230"
+            title={
+              <div>
+                <div>Tổng Số Đơn Hàng</div>
+                <div className="text-lg font-normal text-gray-700 mt-1">
+                  <span className="font-bold text-gray-900">{totalMonthlyRevenue?.totalOrders?.toLocaleString('vi-VN') || '0'} đơn</span> tháng {totalMonthlyRevenue?.month || ''}/{totalMonthlyRevenue?.year || ''}
+                </div>
+              </div>
+            }
+            value=""
             trend={true}
             trendText="+8.5% so với tháng trước"
           />
           <StatCard
-            title="Tổng Doanh Thu"
-            value={totalRevenue}
+            title={
+              <div>
+                <div>Tổng Doanh Thu Tháng</div>
+                <div className="text-lg font-normal text-gray-700 mt-1">
+                  <span className="font-bold text-gray-900">{totalRevenue}</span> tháng {totalMonthlyRevenue?.month || ''}/{totalMonthlyRevenue?.year || ''}
+                </div>
+              </div>
+            }
+            value=""
             trend={true}
             trendText="+15.2% so với tháng trước"
           />
         </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-5">
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
           {/* Province Distribution Chart */}
           <div className="lg:col-span-3 flex flex-col gap-4 rounded-xl border border-gray-200 p-6 bg-white">
             <p className="text-lg font-semibold text-gray-900">
@@ -364,14 +448,6 @@ const AdminDashboard = () => {
             </p>
             <UserRoleChart />
           </div>
-        </div>
-
-        {/* Store Status Chart */}
-        <div className="flex flex-col gap-4 rounded-xl border border-gray-200 p-6 bg-white">
-          <p className="text-lg font-semibold text-gray-900">
-            Trạng Thái Hoạt Động Của Cửa Hàng
-          </p>
-          <StoreStatusChart />
         </div>
       </div>
     </AdminLayout>

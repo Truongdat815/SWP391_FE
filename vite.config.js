@@ -11,6 +11,7 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    strictPort: true, // Bắt buộc dùng port 5173, không tự động chuyển port
     open: true,
   },
 });

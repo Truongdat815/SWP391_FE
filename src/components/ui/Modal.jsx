@@ -58,7 +58,11 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md', className }) => 
               "flex items-center justify-between border-b border-gray-200",
               isFullscreen ? "p-4" : "p-6"
             )}>
-              <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+              {typeof title === 'string' ? (
+                <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+              ) : (
+                <div className="text-xl font-semibold text-gray-900">{title}</div>
+              )}
               <motion.button
                 onClick={onClose}
                 className="text-gray-400 hover:text-gray-600 transition-colors"

@@ -20,7 +20,7 @@ const CustomerManagementPage = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [staffFilter, setStaffFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(4);
+  const [itemsPerPage] = useState(10);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -38,6 +38,18 @@ const CustomerManagementPage = () => {
   const [deleteCustomer] = useDeleteCustomerMutation();
 
   const customers = Array.isArray(customersData?.data) ? customersData.data : [];
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const total = customers.length;
+    const thisMonth = customers.filter((c) => {
+      if (!c?.createdAt) return false;
+      const created = new Date(c.createdAt);
+      const now = new Date();
+      return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+    }).length;
+    return { total, thisMonth };
+  }, [customers]);
 
   // Filter customers
   const filteredCustomers = useMemo(() => {
@@ -153,149 +165,169 @@ const CustomerManagementPage = () => {
     <DealerStaffLayout>
       <div className="p-6 space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Danh sách Khách hàng</h1>
-            <p className="text-gray-600 mt-1">Quản lý, tìm kiếm và thêm mới khách hàng.</p>
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="flex flex-col gap-1">
+            <p className="text-slate-900 text-3xl font-bold tracking-tight">Quản lý Khách hàng</p>
+            <p className="text-slate-500 text-base font-normal leading-normal">
+              Xem, tạo, chỉnh sửa và quản lý tất cả khách hàng tại đây.
+            </p>
           </div>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus size={20} className="mr-2" />
-            Thêm Khách Hàng
-          </Button>
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="flex items-center justify-center gap-2 h-10 px-4 text-sm font-medium text-white bg-primary rounded-lg shadow-sm hover:bg-primary/90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            <Plus size={16} />
+            <span>Thêm khách hàng</span>
+          </button>
         </div>
 
-        {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <SearchBar
-                placeholder="Tìm kiếm theo tên, SĐT, email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200">
+            <p className="text-slate-600 text-sm font-medium">Tổng số khách hàng</p>
+            <div className="flex items-center gap-2">
+              <p className="text-slate-900 text-3xl font-bold leading-tight">{stats.total.toLocaleString()}</p>
+              <p className="text-green-600 text-sm font-medium">+15.3%</p>
             </div>
-            <Dropdown
-              options={[
-                { value: 'all', label: 'Tất cả trạng thái' },
-                { value: 'NEW', label: 'Mới' },
-                { value: 'POTENTIAL', label: 'Tiềm năng' },
-                { value: 'PURCHASED', label: 'Đã mua hàng' },
-                { value: 'COMPLAINT', label: 'Khiếu nại' },
-              ]}
-              value={statusFilter}
-              onChange={setStatusFilter}
-            />
-            <Dropdown
-              options={[
-                { value: 'all', label: 'Tất cả nhân viên' },
-                { value: '1', label: 'Trần Thị Bích' },
-                { value: '2', label: 'Phạm Văn Dũng' },
-              ]}
-              value={staffFilter}
-              onChange={setStaffFilter}
-            />
+          </div>
+          <div className="flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200">
+            <p className="text-slate-600 text-sm font-medium">Khách hàng mới (Tháng này)</p>
+            <div className="flex items-center gap-2">
+              <p className="text-slate-900 text-3xl font-bold leading-tight">{stats.thisMonth}</p>
+              <p className="text-green-600 text-sm font-medium">+5.8%</p>
+            </div>
           </div>
         </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        {/* Toolbar + Table */}
+        <div className="flex flex-col gap-4 bg-white border border-slate-200 rounded-xl">
+          {/* Toolbar and Search */}
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 border-b border-slate-200">
+            {/* SearchBar */}
+            <div className="flex-1 min-w-[280px]">
+              <label className="flex flex-col h-10 w-full">
+                <div className="flex w-full flex-1 items-stretch rounded-lg h-full">
+                  <div className="text-slate-500 flex bg-slate-100 items-center justify-center pl-3 rounded-l-lg border border-r-0 border-slate-300">
+                    <Search size={20} />
+                  </div>
+                  <input
+                    className="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-slate-900 focus:outline-0 focus:ring-2 focus:ring-primary/50 border border-slate-300 bg-white h-full placeholder:text-slate-500 px-3 rounded-l-none border-l-0 text-sm font-normal"
+                    placeholder="Tìm kiếm theo tên, SĐT..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </label>
+            </div>
+            {/* ToolBar */}
+            <div className="flex gap-2">
+              <button className="flex items-center justify-center gap-2 h-10 px-4 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg shadow-sm hover:bg-slate-50">
+                <span>↕</span>
+                <span>Sắp xếp theo: Mới nhất</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Data Table */}
           {paginatedCustomers.length === 0 ? (
             <div className="p-8 text-center text-gray-500">Không có dữ liệu</div>
           ) : (
             <>
               <div className="overflow-x-auto">
-                <Table>
-                  <Table.Header>
-                    <Table.Row>
-                      <Table.Head className="w-12">
-                        <input type="checkbox" className="rounded" />
-                      </Table.Head>
-                      <Table.Head>TÊN KHÁCH HÀNG</Table.Head>
-                      <Table.Head>SỐ ĐIỆN THOẠI</Table.Head>
-                      <Table.Head>EMAIL</Table.Head>
-                      <Table.Head>LỊCH SỬ MUA</Table.Head>
-                      <Table.Head>TRẠNG THÁI</Table.Head>
-                      <Table.Head>NHÂN VIÊN PHỤ TRÁCH</Table.Head>
-                      <Table.Head className="text-center">HÀNH ĐỘNG</Table.Head>
-                    </Table.Row>
-                  </Table.Header>
-                  <Table.Body>
+                <table className="w-full text-sm text-left text-slate-500">
+                  <thead className="text-xs text-slate-700 uppercase bg-slate-50">
+                    <tr>
+                      <th className="px-6 py-3" scope="col">Tên khách hàng</th>
+                      <th className="px-6 py-3" scope="col">Số điện thoại</th>
+                      <th className="px-6 py-3" scope="col">Email</th>
+                      <th className="px-6 py-3" scope="col">Địa chỉ</th>
+                      <th className="px-6 py-3" scope="col">Ngày tham gia</th>
+                      <th className="px-6 py-3" scope="col"><span className="sr-only">Hành động</span></th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {paginatedCustomers.map((customer) => (
-                      <Table.Row key={customer.customerId}>
-                        <Table.Cell>
-                          <input type="checkbox" className="rounded" />
-                        </Table.Cell>
-                        <Table.Cell className="font-medium">{customer.fullName || 'N/A'}</Table.Cell>
-                        <Table.Cell>{customer.phone || 'N/A'}</Table.Cell>
-                        <Table.Cell>{customer.email || 'N/A'}</Table.Cell>
-                        <Table.Cell>{customer.purchaseHistory || 0} xe</Table.Cell>
-                        <Table.Cell>
-                          {getStatusBadge(customer.status, customer.purchaseHistory || 0)}
-                        </Table.Cell>
-                        <Table.Cell>{customer.responsibleStaff || 'N/A'}</Table.Cell>
-                        <Table.Cell>
-                          <div className="flex items-center justify-center gap-2">
-                            <button className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors">
+                      <tr key={customer.customerId} className="bg-white border-b hover:bg-slate-50">
+                        <th className="px-6 py-4 font-medium text-slate-900 whitespace-nowrap" scope="row">
+                          {customer.fullName || 'N/A'}
+                        </th>
+                        <td className="px-6 py-4">{customer.phone || 'N/A'}</td>
+                        <td className="px-6 py-4">{customer.email || 'N/A'}</td>
+                        <td className="px-6 py-4">{customer.address || 'N/A'}</td>
+                        <td className="px-6 py-4">
+                          {customer.createdAt ? new Date(customer.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              aria-label="Xem chi tiết"
+                              className="p-2 rounded-md hover:bg-slate-200 text-slate-600"
+                            >
                               <Eye size={16} />
                             </button>
                             <button
+                              aria-label="Chỉnh sửa"
                               onClick={() => handleEdit(customer)}
-                              className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                              className="p-2 rounded-md hover:bg-slate-200 text-slate-600"
                             >
                               <Edit size={16} />
                             </button>
                             <button
+                              aria-label="Xóa"
                               onClick={() => handleDelete(customer.customerId)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                              className="p-2 rounded-md hover:bg-red-100 text-red-600"
                             >
                               <Trash2 size={16} />
                             </button>
                           </div>
-                        </Table.Cell>
-                      </Table.Row>
+                        </td>
+                      </tr>
                     ))}
-                  </Table.Body>
-                </Table>
+                  </tbody>
+                </table>
               </div>
 
-              {/* Pagination */}
-              <div className="flex items-center justify-between p-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600">
-                  Hiển thị {startIndex + 1}-{Math.min(endIndex, filteredCustomers.length)} của{' '}
-                  {filteredCustomers.length}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                    disabled={currentPage === 1}
-                  >
-                    Trước
-                  </Button>
-                  {Array.from({ length: Math.min(totalPages, 25) }, (_, i) => i + 1)
-                    .filter((page) => page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1))
-                    .map((page) => (
-                      <Button
-                        key={page}
-                        variant={currentPage === page ? 'primary' : 'outline'}
-                        size="sm"
-                        onClick={() => setCurrentPage(page)}
+              {/* Pagination Component */}
+              <nav aria-label="Table navigation" className="flex items-center justify-between p-4">
+                <span className="text-sm font-normal text-slate-500">
+                  Hiển thị <span className="font-semibold text-slate-900">{startIndex + 1}-{Math.min(endIndex, filteredCustomers.length)}</span> trên{' '}
+                  <span className="font-semibold text-slate-900">{filteredCustomers.length}</span>
+                </span>
+                <ul className="inline-flex items-center -space-x-px">
+                  <li>
+                    <button
+                      onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                      disabled={currentPage === 1}
+                      className="flex items-center justify-center h-8 px-3 ml-0 leading-tight text-slate-500 bg-white border border-slate-300 rounded-l-lg hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+                    >
+                      ←
+                    </button>
+                  </li>
+                  {[...Array(Math.min(3, totalPages))].map((_, idx) => (
+                    <li key={idx}>
+                      <button
+                        onClick={() => setCurrentPage(idx + 1)}
+                        className={`flex items-center justify-center h-8 px-3 leading-tight ${
+                          currentPage === idx + 1
+                            ? 'text-primary border border-slate-300 bg-primary/10 hover:bg-primary/20'
+                            : 'text-slate-500 bg-white border border-slate-300 hover:bg-slate-100 hover:text-slate-700'
+                        }`}
                       >
-                        {page}
-                      </Button>
-                    ))}
-                  {totalPages > 3 && <span className="px-2">...</span>}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                  >
-                    Sau
-                  </Button>
-                </div>
-              </div>
+                        {idx + 1}
+                      </button>
+                    </li>
+                  ))}
+                  <li>
+                    <button
+                      onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                      disabled={currentPage === totalPages}
+                      className="flex items-center justify-center h-8 px-3 leading-tight text-slate-500 bg-white border border-slate-300 rounded-r-lg hover:bg-slate-100 hover:text-slate-700 disabled:opacity-50"
+                    >
+                      →
+                    </button>
+                  </li>
+                </ul>
+              </nav>
             </>
           )}
         </div>
@@ -425,4 +457,3 @@ const CustomerManagementPage = () => {
 };
 
 export default CustomerManagementPage;
-

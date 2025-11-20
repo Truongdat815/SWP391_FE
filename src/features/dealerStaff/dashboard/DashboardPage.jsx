@@ -1,29 +1,29 @@
 import { useMemo } from 'react';
-import { DollarSign, Car, UserPlus, Plus, FileText, Calendar } from 'lucide-react';
+import { DollarSign, Car, UserPlus, Plus, FileText, Calendar, TrendingUp, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DealerStaffLayout from '../../../components/layout/DealerStaffLayout';
-import MetricCard from '../../../components/shared/MetricCard';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import LineChart from '../../../components/charts/LineChart';
-import DonutChart from '../../../components/charts/DonutChart';
 import { useGetMyOrdersQuery } from '../../../api/dealerStaff/orderApi';
 import { useGetAllCustomersQuery } from '../../../api/dealerStaff/customerApi';
 import { useGetAllAppointmentsQuery } from '../../../api/public/appointmentApi';
+import { useGetAllFeedbacksQuery } from '../../../api/dealerStaff/feedbackApi';
 
 const DealerStaffDashboard = () => {
   const navigate = useNavigate();
   const { data: ordersData, isLoading: isLoadingOrders } = useGetMyOrdersQuery();
   const { data: customersData, isLoading: isLoadingCustomers } = useGetAllCustomersQuery();
-  // Lấy tất cả appointments, sau đó filter theo staff hiện tại (hoặc dùng useGetAppointmentsByStaffQuery với staffId nếu có)
   const { data: appointmentsData, isLoading: isLoadingAppointments } = useGetAllAppointmentsQuery();
+  const { data: feedbackData, isLoading: isLoadingFeedback } = useGetAllFeedbacksQuery();
 
   // Đảm bảo orders, customers, appointments luôn là array
   const orders = Array.isArray(ordersData?.data) ? ordersData.data : [];
   const customers = Array.isArray(customersData?.data) ? customersData.data : [];
   const appointments = Array.isArray(appointmentsData?.data) ? appointmentsData.data : [];
+  const feedbacks = Array.isArray(feedbackData?.data) ? feedbackData.data : [];
 
-  const isLoading = isLoadingOrders || isLoadingCustomers || isLoadingAppointments;
+  const isLoading = isLoadingOrders || isLoadingCustomers || isLoadingAppointments || isLoadingFeedback;
 
   // Tính toán metrics
   const totalRevenue = useMemo(() => {
@@ -196,6 +196,33 @@ const DealerStaffDashboard = () => {
     return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
   };
 
+  // Tính toán feedback stats - PHẢI ĐẶT TRƯỚC EARLY RETURN
+  const feedbackStats = useMemo(() => {
+    const total = feedbacks.length;
+    const pending = feedbacks.filter(f => f.status === 'PENDING' || !f.status).length;
+    const resolved = feedbacks.filter(f => f.status === 'RESOLVED' || f.status === 'COMPLETED').length;
+    const avgRating = feedbacks.reduce((sum, f) => sum + (f.rating || 0), 0) / (total || 1);
+    return { total, pending, resolved, avgRating: avgRating.toFixed(1) };
+  }, [feedbacks]);
+
+  // Recent feedbacks - PHẢI ĐẶT TRƯỚC EARLY RETURN
+  const recentFeedbacks = useMemo(() => {
+    return feedbacks
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 3);
+  }, [feedbacks]);
+
+  // Phân bố rating - PHẢI ĐẶT TRƯỚC EARLY RETURN
+  const ratingDistribution = useMemo(() => {
+    const distribution = [0, 0, 0, 0, 0]; // 1-5 stars
+    feedbacks.forEach(f => {
+      if (f.rating >= 1 && f.rating <= 5) {
+        distribution[f.rating - 1]++;
+      }
+    });
+    return distribution;
+  }, [feedbacks]);
+
   const getGreeting = () => {
     const hour = new Date().getHours();
     if (hour < 12) return 'Chào buổi sáng';
@@ -216,199 +243,161 @@ const DealerStaffDashboard = () => {
   return (
     <DealerStaffLayout>
       <div className="p-6 space-y-6">
-        {/* Greeting */}
-        <div>
-          <h2 className="text-3xl font-bold text-gray-900">
-            {getGreeting()}, Anh A!
-          </h2>
-          <p className="text-gray-600 mt-1">
-            Đây là tổng quan công việc của bạn hôm nay.
-          </p>
+        {/* Greeting & Actions */}
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h2 className="text-slate-900 text-3xl font-bold tracking-tight">
+              Dashboard - Tổng quan hiệu suất
+            </h2>
+            <p className="text-slate-500 text-base font-normal mt-1">
+              Chào mừng trở lại, cùng xem hiệu suất của bạn hôm nay.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button className="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white border border-slate-200 shadow-sm pl-4 pr-3 text-slate-700 hover:bg-slate-50">
+              <p className="text-sm font-medium leading-normal">Tháng này</p>
+              <span className="text-lg">▼</span>
+            </button>
+            <button className="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white border border-slate-200 shadow-sm pl-4 pr-3 text-slate-700 hover:bg-slate-50">
+              <p className="text-sm font-medium leading-normal">3 tháng qua</p>
+              <span className="text-lg">▼</span>
+            </button>
+          </div>
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <MetricCard
-            title="Tổng doanh số"
-            value={totalRevenue}
-            change=""
-            changeType="neutral"
-            icon={DollarSign}
-          />
-          <MetricCard
-            title="Số xe đã bán"
-            value={carsSold}
-            change=""
-            changeType="neutral"
-            icon={Car}
-          />
-          <MetricCard
-            title="Khách hàng mới"
-            value={newCustomers}
-            change=""
-            changeType="neutral"
-            icon={UserPlus}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Card className="flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
+            <p className="text-slate-600 text-base font-medium">Tổng Đơn Hàng</p>
+            <p className="text-slate-900 text-3xl font-bold tracking-tight">{orders.length}</p>
+            <div className="flex items-center gap-1 text-green-600">
+              <TrendingUp size={16} />
+              <p className="text-sm font-medium">+15% so với tháng trước</p>
+            </div>
+          </Card>
+          <Card className="flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
+            <p className="text-slate-600 text-base font-medium">Tổng Doanh Thu (Tháng này)</p>
+            <p className="text-slate-900 text-3xl font-bold tracking-tight">{totalRevenue} VNĐ</p>
+            <div className="flex items-center gap-1 text-green-600">
+              <TrendingUp size={16} />
+              <p className="text-sm font-medium">+8.5% so với tháng trước</p>
+            </div>
+          </Card>
+          <Card className="flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
+            <p className="text-slate-600 text-base font-medium">Lịch Lái Thử (Sắp tới)</p>
+            <p className="text-slate-900 text-3xl font-bold tracking-tight">{upcomingAppointments.length}</p>
+            <div className="flex items-center gap-1 text-green-600">
+              <TrendingUp size={16} />
+              <p className="text-sm font-medium">+3 so với tuần trước</p>
+            </div>
+          </Card>
         </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card>
-            <Card.Header>
-              <Card.Title>Doanh số theo tháng</Card.Title>
-              <p className="text-sm text-gray-500 mt-1">6 tháng gần nhất</p>
-            </Card.Header>
-            <Card.Content>
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+          <Card className="lg:col-span-3 flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
+            <p className="text-slate-800 text-lg font-semibold">Doanh thu theo tháng</p>
+            <p className="text-slate-900 text-3xl font-bold tracking-tight truncate">{totalRevenue} VNĐ</p>
+            <div className="flex gap-2">
+              <p className="text-slate-500 text-sm font-normal">3 tháng gần nhất</p>
+              <p className="text-green-600 text-sm font-medium">+12.5%</p>
+            </div>
+            <div className="flex min-h-[220px] flex-1 flex-col pt-4">
               <LineChart
                 data={monthlyRevenueData}
                 dataKey="value"
                 name="Doanh số (triệu VND)"
-                color="#3B82F6"
+                color="#1392ec"
               />
-            </Card.Content>
+            </div>
           </Card>
 
-          <Card>
-            <Card.Header>
-              <Card.Title>Phân bố Đơn hàng</Card.Title>
-              <p className="text-sm text-gray-500 mt-1">Theo trạng thái</p>
-            </Card.Header>
-            <Card.Content>
-              {orderStatusData.length > 0 ? (
-                <DonutChart data={orderStatusData} dataKey="value" nameKey="name" />
-              ) : (
-                <div className="text-center py-8 text-gray-500">Chưa có dữ liệu</div>
-              )}
-            </Card.Content>
+          <Card className="lg:col-span-2 flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
+            <p className="text-slate-800 text-lg font-semibold">Phân bố đánh giá</p>
+            <p className="text-slate-900 text-3xl font-bold tracking-tight truncate">{feedbackStats.avgRating} sao</p>
+            <div className="flex gap-2">
+              <p className="text-slate-500 text-sm font-normal">Tháng này</p>
+              <p className="text-green-600 text-sm font-medium">+0.2</p>
+            </div>
+            <div className="grid min-h-[220px] grid-flow-col gap-6 grid-rows-[1fr_auto] items-end justify-items-center px-3 pt-4">
+              {ratingDistribution.map((count, index) => {
+                const maxCount = Math.max(...ratingDistribution) || 1;
+                const height = (count / maxCount) * 90;
+                return (
+                  <div key={index} className="contents">
+                    <div 
+                      className={`w-full rounded-t ${index === 4 ? 'bg-primary' : 'bg-primary/20'}`}
+                      style={{ height: `${height}%` }}
+                    />
+                    <p className="text-slate-500 text-xs font-medium">{index + 1} Sao</p>
+                  </div>
+                );
+              })}
+            </div>
           </Card>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Order Status */}
-          <div className="lg:col-span-2 space-y-4">
-            <h3 className="text-xl font-semibold text-gray-900">Trạng thái đơn hàng</h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Card>
-                <Card.Content className="p-4">
-                  <p className="text-sm text-gray-600 mb-1">Chờ xác nhận</p>
-                  <p className="text-3xl font-bold text-blue-600">{pendingConfirmation}</p>
-                </Card.Content>
-              </Card>
-              <Card>
-                <Card.Content className="p-4">
-                  <p className="text-sm text-gray-600 mb-1">Đang xử lý</p>
-                  <p className="text-3xl font-bold text-orange-600">{inProgress}</p>
-                </Card.Content>
-              </Card>
-              <Card>
-                <Card.Content className="p-4">
-                  <p className="text-sm text-gray-600 mb-1">Chờ giao</p>
-                  <p className="text-3xl font-bold text-purple-600">{pendingDelivery}</p>
-                </Card.Content>
-              </Card>
-              <Card>
-                <Card.Content className="p-4">
-                  <p className="text-sm text-gray-600 mb-1">Hoàn thành</p>
-                  <p className="text-3xl font-bold text-green-600">{completed}</p>
-                </Card.Content>
-              </Card>
+        {/* Customer Feedback Section */}
+        <Card className="rounded-xl bg-white border border-slate-200 shadow-sm">
+          <div className="p-6">
+            <h3 className="text-slate-800 text-lg font-semibold">Phản Hồi Khách Hàng</h3>
+          </div>
+          {/* Feedback Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 border-y border-slate-200">
+            <div className="p-6 text-center border-r border-slate-200">
+              <p className="text-slate-900 text-2xl font-bold">{feedbackStats.total}</p>
+              <p className="text-slate-500 text-sm">Tổng số</p>
             </div>
-
-            {/* Recent Activities */}
-            <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Hoạt động gần đây</h3>
-              <Card>
-                <Card.Content className="p-4 space-y-4">
-                  {recentActivities.length > 0 ? (
-                    recentActivities.map((activity, index) => (
-                      <div key={index} className="flex items-start gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          activity.icon === 'check' ? 'bg-green-100' :
-                          activity.icon === 'file' ? 'bg-blue-100' :
-                          'bg-orange-100'
-                        }`}>
-                          {activity.icon === 'check' && <span className="text-green-600">✓</span>}
-                          {activity.icon === 'file' && <FileText size={16} className="text-blue-600" />}
-                          {activity.icon === 'user' && <UserPlus size={16} className="text-orange-600" />}
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm text-gray-900">{activity.message}</p>
-                          <p className="text-xs text-gray-500 mt-1">{activity.time}</p>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-500 text-center py-4">Chưa có hoạt động nào</p>
-                  )}
-                </Card.Content>
-              </Card>
+            <div className="p-6 text-center md:border-r border-slate-200">
+              <p className="text-amber-500 text-2xl font-bold">{feedbackStats.pending}</p>
+              <p className="text-slate-500 text-sm">Đang chờ</p>
+            </div>
+            <div className="p-6 text-center border-r border-slate-200">
+              <p className="text-green-600 text-2xl font-bold">{feedbackStats.resolved}</p>
+              <p className="text-slate-500 text-sm">Đã xử lý</p>
+            </div>
+            <div className="p-6 text-center">
+              <p className="text-slate-900 text-2xl font-bold">{feedbackStats.avgRating}/5</p>
+              <p className="text-slate-500 text-sm">Đánh giá TB</p>
             </div>
           </div>
-
-          {/* Quick Actions & Appointments */}
-          <div className="space-y-4">
-            {/* Quick Actions */}
-            <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Hành động nhanh</h3>
-              <Card>
-                <Card.Content className="p-4 space-y-3">
-                  <Button
-                    className="w-full"
-                    onClick={() => navigate('/dealer-staff/quotation')}
-                  >
-                    <Plus size={20} className="mr-2" />
-                    Tạo Báo Giá
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => navigate('/dealer-staff/customers')}
-                  >
-                    <UserPlus size={20} className="mr-2" />
-                    Thêm Khách Hàng
-                  </Button>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => navigate('/dealer-staff/appointments')}
-                  >
-                    <Calendar size={20} className="mr-2" />
-                    Tạo Lịch Lái Thử
-                  </Button>
-                </Card.Content>
-              </Card>
-            </div>
-
-            {/* Upcoming Appointments */}
-            <div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">Lịch hẹn sắp tới</h3>
-              <Card>
-                <Card.Content className="p-4 space-y-4">
-                  {upcomingAppointments.length === 0 ? (
-                    <p className="text-sm text-gray-500 text-center py-4">Không có lịch hẹn sắp tới</p>
-                  ) : (
-                    upcomingAppointments.map((apt, index) => (
-                      <div key={index} className="border-b border-gray-200 last:border-0 pb-4 last:pb-0">
-                        <div className="flex items-start gap-3">
-                          <Calendar size={20} className="text-blue-600 mt-1" />
-                          <div className="flex-1">
-                            <p className="text-sm font-medium text-gray-900">
-                              {apt.modelName || 'Lái thử xe'} - {apt.customerName || 'Khách hàng'}
-                            </p>
-                            <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                              <span>{formatDate(apt.appointmentDate)}</span>
-                              <span>{formatTime(apt.appointmentDate)}</span>
-                            </div>
+          {/* Recent Feedback List */}
+          <div className="p-6">
+            <h4 className="text-slate-800 text-base font-medium mb-4">Phản hồi gần đây</h4>
+            <div className="flow-root">
+              {recentFeedbacks.length > 0 ? (
+                <ul className="divide-y divide-slate-200">
+                  {recentFeedbacks.map((feedback, index) => (
+                    <li key={index} className="py-4">
+                      <div className="flex items-start space-x-4">
+                        <div className="flex-shrink-0">
+                          <div className="h-10 w-10 rounded-full bg-slate-300 flex items-center justify-center">
+                            <span className="text-sm font-medium text-slate-700">
+                              {feedback.customerName?.charAt(0) || 'U'}
+                            </span>
                           </div>
                         </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-slate-900 truncate">
+                            {feedback.customerName || 'Khách hàng'}
+                          </p>
+                          <p className="text-sm text-slate-500 mt-1">
+                            "{feedback.comment || feedback.feedbackText || 'Không có nhận xét'}"
+                          </p>
+                        </div>
+                        <div className="inline-flex items-center text-sm font-semibold text-amber-500">
+                          {feedback.rating || 5} <Star size={16} className="ml-1 text-amber-400 fill-amber-400" />
+                        </div>
                       </div>
-                    ))
-                  )}
-                </Card.Content>
-              </Card>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-sm text-slate-500 text-center py-4">Chưa có phản hồi nào</p>
+              )}
             </div>
           </div>
-        </div>
+        </Card>
       </div>
     </DealerStaffLayout>
   );

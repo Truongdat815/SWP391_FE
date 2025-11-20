@@ -1,10 +1,49 @@
-import { Bell, User } from 'lucide-react';
-import { useLocation } from 'react-router-dom';
+import { Bell, User, LogOut, Settings } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useState, useRef, useEffect } from 'react';
 import { useAppSelector } from '../../hooks/useAppSelector';
+import { useAppDispatch } from '../../hooks/useAppDispatch';
+import { logout } from '../../store/slices/authSlice';
+import { useLogoutMutation } from '../../api/auth/authApi';
 
 const Header = () => {
   const user = useAppSelector((state) => state.auth.user);
+  const role = useAppSelector((state) => state.auth.role);
   const location = useLocation();
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const [logoutApi] = useLogoutMutation();
+  const [showDropdown, setShowDropdown] = useState(false);
+  const dropdownRef = useRef(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      // Call logout API
+      await logoutApi().unwrap();
+    } catch (error) {
+      // Even if API call fails, logout locally
+      console.error('Logout API error:', error);
+    } finally {
+      // Clear auth state
+      dispatch(logout());
+      // Redirect to login
+      navigate('/login', { replace: true });
+    }
+  };
 
   // Mapping route paths to titles
   const getPageTitle = () => {
@@ -73,18 +112,50 @@ const Header = () => {
             <Bell size={20} />
             <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
           </button>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
-              <User size={20} className="text-green-600" />
-            </div>
-            <div>
-              <p className="text-sm font-medium text-gray-900">
-                {user?.fullName || 'Admin User'}
-              </p>
-              <p className="text-xs text-gray-500">
-                {user?.roleName || 'Administrator'}
-              </p>
-            </div>
+          <div className="flex items-center gap-3 relative" ref={dropdownRef}>
+            <button
+              onClick={() => setShowDropdown(!showDropdown)}
+              className="flex items-center gap-3 hover:bg-gray-50 rounded-lg px-2 py-1.5 transition-colors"
+            >
+              <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center">
+                <User size={20} className="text-green-600" />
+              </div>
+              <div className="text-left">
+                <p className="text-sm font-medium text-gray-900">
+                  {user?.fullName || 'Admin User'}
+                </p>
+                <p className="text-xs text-gray-500">
+                  {user?.roleName || 'Administrator'}
+                </p>
+              </div>
+            </button>
+
+            {/* Dropdown Menu */}
+            {showDropdown && (
+              <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <div className="px-4 py-2 border-b border-gray-100">
+                  <p className="text-sm font-medium text-gray-900">{user?.fullName || 'User'}</p>
+                  <p className="text-xs text-gray-500">{user?.email || ''}</p>
+                </div>
+                <button
+                  onClick={() => {
+                    setShowDropdown(false);
+                    // Navigate to change password if needed
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  <Settings size={16} />
+                  Cài đặt
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                >
+                  <LogOut size={16} />
+                  Đăng xuất
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

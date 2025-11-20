@@ -1,4 +1,5 @@
 import { createApi, fetchBaseQuery } from '@reduxjs/toolkit/query/react';
+import { getAuthFromStorage, getRoleFromPath, removeAuthFromStorage } from '../utils/roleUtils';
 
 // Đảm bảo baseUrl luôn có /api ở cuối và không có trailing slash
 const getBaseUrl = () => {
@@ -14,15 +15,42 @@ const getBaseUrl = () => {
 const baseQuery = fetchBaseQuery({
   baseUrl: getBaseUrl(),
   prepareHeaders: (headers, { getState }) => {
-    const token = localStorage.getItem('accessToken');
+    // Try to get token from Redux state first
+    const state = getState();
+    let token = state?.auth?.token;
+    let role = state?.auth?.role;
+    
+    // If no token in state, try to get from sessionStorage based on current path
+    if (!token) {
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+      const roleFromPath = getRoleFromPath(currentPath);
+      
+      if (roleFromPath) {
+        const authData = getAuthFromStorage(roleFromPath);
+        if (authData && authData.token) {
+          token = authData.token;
+          role = authData.role;
+        }
+      }
+    }
+    
+    // Fallback: try to get from any role in sessionStorage
+    if (!token && typeof window !== 'undefined') {
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const key = sessionStorage.key(i);
+        if (key && key.startsWith('auth_')) {
+          const authData = getAuthFromStorage(key.replace('auth_', ''));
+          if (authData && authData.token) {
+            token = authData.token;
+            role = authData.role;
+            break;
+          }
+        }
+      }
+    }
+    
     if (token) {
       headers.set('Authorization', `Bearer ${token}`);
-    } else {
-      // Development mode: Nếu không có token, thử dùng mock token hoặc bỏ qua
-      // Chỉ áp dụng cho development
-      // Trong môi trường dev, không log warning để tránh spam console
-      // Có thể thêm mock token nếu backend cho phép
-      // headers.set('Authorization', `Bearer mock-dev-token`);
     }
     
     // Set Content-Type for JSON requests (chỉ khi chưa có Content-Type)
@@ -55,14 +83,20 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
   }
 
   if (result?.error?.status === 401) {
-    const token = localStorage.getItem('accessToken');
-
-    if (token) {
-      // Clear token và dispatch logout
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      api.dispatch({ type: 'auth/logout' });
+    const state = api.getState();
+    const role = state?.auth?.role;
+    
+    // Clear token from sessionStorage
+    if (role) {
+      removeAuthFromStorage(role);
     }
+    
+    // Also clear localStorage for backward compatibility
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    
+    // Dispatch logout
+    api.dispatch({ type: 'auth/logout' });
   }
 
   if (result?.error?.status === 403) {
