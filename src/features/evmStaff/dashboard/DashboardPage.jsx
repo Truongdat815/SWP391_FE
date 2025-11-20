@@ -7,24 +7,29 @@ import LineChart from '../../../components/charts/LineChart';
 import { useGetAllModelsQuery } from '../../../api/admin/modelApi';
 import { useGetAllDealerOrdersQuery } from '../../../api/evmStaff/dealerOrdersApi';
 import { useGetAllModelColorsQuery } from '../../../api/evmStaff/productApi';
+import { useGetAllInventoryTransactionsQuery } from '../../../api/evmStaff/inventoryApi';
 
 const EVMStaffDashboard = () => {
   const { data: modelsData, isLoading: isLoadingModels, error: modelsError } = useGetAllModelsQuery();
   const { data: ordersData, isLoading: isLoadingOrders, error: ordersError } = useGetAllDealerOrdersQuery();
   const { data: modelColorsData, isLoading: isLoadingColors, error: colorsError } = useGetAllModelColorsQuery();
+  const { data: transactionsData, isLoading: isLoadingTransactions, error: transactionsError } = useGetAllInventoryTransactionsQuery();
 
   const models = modelsData?.data || [];
   // Xử lý orders: nếu có lỗi 404 (store not found), vẫn hiển thị mảng rỗng
   const orders = ordersError?.status === 404 ? [] : (ordersData?.data || []);
   const modelColors = modelColorsData?.data || [];
+  // Xử lý inventory transactions: nếu có lỗi 404, vẫn hiển thị mảng rỗng
+  const transactions = transactionsError?.status === 404 ? [] : (transactionsData?.data || []);
 
-  const isLoading = isLoadingModels || isLoadingOrders || isLoadingColors;
+  const isLoading = isLoadingModels || isLoadingOrders || isLoadingColors || isLoadingTransactions;
   
   // Kiểm tra lỗi 401 (Unauthorized)
   const isUnauthorized = 
     modelsError?.status === 401 || 
     ordersError?.status === 401 || 
-    colorsError?.status === 401;
+    colorsError?.status === 401 ||
+    transactionsError?.status === 401;
   
   // Kiểm tra xem lỗi có phải là "Không tìm thấy store" (404) không
   // EVM Staff có thể không có storeId, nên lỗi này có thể bỏ qua
@@ -35,12 +40,13 @@ const EVMStaffDashboard = () => {
             error?.data?.code === 1004);
   };
   
-  // Kiểm tra tất cả các lỗi (trừ 401 và lỗi "Không tìm thấy store" cho orders)
-  // Lỗi "Không tìm thấy store" chỉ bỏ qua cho orders vì EVM Staff có thể không có storeId
+  // Kiểm tra tất cả các lỗi (trừ 401 và lỗi "Không tìm thấy store" cho orders và transactions)
+  // Lỗi "Không tìm thấy store" chỉ bỏ qua cho orders và transactions vì EVM Staff có thể không có storeId
   const hasError = 
     (modelsError && modelsError.status !== 401 && modelsError.status !== undefined) || 
     (ordersError && ordersError.status !== 401 && ordersError.status !== undefined && !isStoreNotFoundError(ordersError)) ||
-    (colorsError && colorsError.status !== 401 && colorsError.status !== undefined);
+    (colorsError && colorsError.status !== 401 && colorsError.status !== undefined) ||
+    (transactionsError && transactionsError.status !== 401 && transactionsError.status !== undefined && !isStoreNotFoundError(transactionsError));
 
   // Tính toán metrics
   const totalModels = models.length;
@@ -49,11 +55,14 @@ const EVMStaffDashboard = () => {
   const pendingOrders = orders.filter(
     (order) => order.status === 'PENDING' || order.status === 'DRAFT'
   ).length;
-  const completedOrders = orders.filter((order) => order.status === 'DELIVERED').length;
+  const completedOrders = orders.filter((order) => order.status === 'DELIVERED' || order.status === 'COMPLETED').length;
   const completionRate = totalOrders > 0 ? Math.round((completedOrders / totalOrders) * 100) : 0;
-  // Không dùng store-stocks nữa, dùng inventory-transactions thay thế
-  const deliveredVehicles = 0; // Sẽ được tính từ inventory-transactions nếu cần
-  const uniqueDealers = 0; // Sẽ được tính từ inventory-transactions nếu cần
+  // Tính toán từ inventory-transactions
+  const deliveredTransactions = transactions.filter(
+    (t) => t.status === 'DELIVERED' || t.status === 'COMPLETED'
+  );
+  const deliveredVehicles = deliveredTransactions.reduce((sum, t) => sum + (t.importQuantity || 0), 0);
+  const uniqueDealers = new Set(deliveredTransactions.map((t) => t.storeId).filter(Boolean)).size;
 
   // Order trend chart data (6 tháng gần nhất)
   const orderTrendData = useMemo(() => {
@@ -87,6 +96,15 @@ const EVMStaffDashboard = () => {
           { name: 'Tháng 6', value: 0 },
         ];
   }, [orders]);
+
+  // Tính % tăng trưởng đơn hàng (so sánh tháng hiện tại với tháng trước)
+  const orderGrowthRate = useMemo(() => {
+    if (orderTrendData.length < 2) return 0;
+    const currentMonth = orderTrendData[orderTrendData.length - 1]?.value || 0;
+    const previousMonth = orderTrendData[orderTrendData.length - 2]?.value || 0;
+    if (previousMonth === 0) return currentMonth > 0 ? 100 : 0;
+    return Math.round(((currentMonth - previousMonth) / previousMonth) * 100 * 10) / 10;
+  }, [orderTrendData]);
 
   if (isLoading) {
     return (
@@ -152,7 +170,7 @@ const EVMStaffDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <MetricCard
             title="Tổng sản phẩm"
-            value={`${totalModels} mẫu, ${totalVariants} variants`}
+            value={`${totalModels} kiểu dáng xe, ${totalVariants} phân loại`}
             change=""
             changeType="neutral"
             icon={Package}
@@ -189,7 +207,11 @@ const EVMStaffDashboard = () => {
                   <Card.Title>Xu Hướng Đơn Hàng</Card.Title>
                   <p className="text-sm text-gray-500 mt-1">6 tháng gần nhất</p>
                 </div>
-                <span className="text-green-600 font-medium">+5.2%</span>
+                {orderGrowthRate !== 0 && (
+                  <span className={`font-medium ${orderGrowthRate > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {orderGrowthRate > 0 ? '+' : ''}{orderGrowthRate}%
+                  </span>
+                )}
               </div>
             </Card.Header>
             <Card.Content>
@@ -205,7 +227,7 @@ const EVMStaffDashboard = () => {
           <Card>
             <Card.Header>
               <Card.Title>Top 5 Mẫu Xe Phổ Biến</Card.Title>
-              <p className="text-sm text-gray-500 mt-1">Dựa trên số lượng biến thể</p>
+              <p className="text-sm text-gray-500 mt-1">Dựa trên số lượng phân loại</p>
             </Card.Header>
             <Card.Content>
               <div className="space-y-4">
@@ -219,7 +241,7 @@ const EVMStaffDashboard = () => {
                         <span className="text-2xl font-bold text-gray-400">#{index + 1}</span>
                         <span className="font-medium text-gray-900">{model.modelName}</span>
                       </div>
-                      <span className="text-blue-600 font-semibold">{variantCount} variants</span>
+                      <span className="text-blue-600 font-semibold">{variantCount} phân loại</span>
                     </div>
                   );
                 })}

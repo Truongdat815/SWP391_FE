@@ -33,6 +33,7 @@ import DealerOrdersPage from '../features/evmStaff/orders/DealerOrdersPage';
 import ColorManagementPage from '../features/evmStaff/colors/ColorManagementPage';
 import DealersPage from '../features/evmStaff/dealers/DealersPage';
 import EvmStaffReportsPage from '../features/evmStaff/reports/ReportsPage';
+import SettingsPage from '../features/evmStaff/settings/SettingsPage';
 
 function AppRouter() {
   return (
@@ -111,6 +112,7 @@ function AppRouter() {
                 <Route path="colors" element={<ColorManagementPage />} />
                 <Route path="dealers" element={<DealersPage />} />
                 <Route path="reports" element={<EvmStaffReportsPage />} />
+                <Route path="settings" element={<SettingsPage />} />
                 <Route path="" element={<Navigate to="/evm-staff/dashboard" replace />} />
               </Routes>
             </RoleRoute>

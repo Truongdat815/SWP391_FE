@@ -22,6 +22,9 @@ const ColorManagementPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [colorToDelete, setColorToDelete] = useState(null);
+  const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
   const [formData, setFormData] = useState({
     colorName: '',
     colorCode: '',
@@ -101,15 +104,32 @@ const ColorManagementPage = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa color này?')) {
-      try {
-        await deleteColor(id).unwrap();
-      } catch (error) {
-        alert('Có lỗi xảy ra khi xóa color');
-        console.error(error);
-      }
+  const handleDeleteClick = (color) => {
+    setColorToDelete(color);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!colorToDelete) return;
+    
+    try {
+      await deleteColor(colorToDelete.colorId).unwrap();
+      setIsDeleteModalOpen(false);
+      setColorToDelete(null);
+      showNotification('Xóa màu thành công!', 'success');
+    } catch (error) {
+      setIsDeleteModalOpen(false);
+      setColorToDelete(null);
+      showNotification('Có lỗi xảy ra khi xóa màu', 'error');
+      console.error(error);
     }
+  };
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => {
+      setNotification({ show: false, message: '', type: 'success' });
+    }, 3000);
   };
 
   if (isLoading) {
@@ -259,7 +279,7 @@ const ColorManagementPage = () => {
                               <Edit size={16} />
                             </button>
                             <button
-                              onClick={() => handleDelete(color.colorId)}
+                              onClick={() => handleDeleteClick(color)}
                               className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
                             >
                               <Trash2 size={16} />
@@ -465,6 +485,84 @@ const ColorManagementPage = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setColorToDelete(null);
+        }}
+        title="Xác nhận xóa"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            Bạn có chắc chắn muốn xóa màu <strong>{colorToDelete?.colorName}</strong>?
+          </p>
+          <p className="text-sm text-gray-500">
+            Hành động này không thể hoàn tác.
+          </p>
+          <div className="flex gap-4 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setColorToDelete(null);
+              }}
+              className="flex-1"
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={handleDeleteConfirm}
+              className="flex-1"
+            >
+              Xóa
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Notification Toast */}
+      {notification.show && (
+        <div
+          className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 transform transition-all duration-300 ${
+            notification.type === 'success'
+              ? 'bg-green-500 text-white'
+              : 'bg-red-500 text-white'
+          }`}
+          style={{
+            animation: 'slideInRight 0.3s ease-out',
+          }}
+        >
+          <div className="flex-1">
+            {notification.message}
+          </div>
+          <button
+            onClick={() => setNotification({ show: false, message: '', type: 'success' })}
+            className="text-white hover:text-gray-200 font-bold text-lg"
+          >
+            ×
+          </button>
+        </div>
+      )}
+      
+      <style>{`
+        @keyframes slideInRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </EVMStaffLayout>
   );
 };
