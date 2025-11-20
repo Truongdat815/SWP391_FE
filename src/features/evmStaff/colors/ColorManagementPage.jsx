@@ -26,6 +26,7 @@ const ColorManagementPage = () => {
     colorName: '',
     colorCode: '',
   });
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   const { data: colorsData, isLoading, error } = useGetAllColorsQuery();
   const { data: modelColorsData } = useGetAllModelColorsQuery();
@@ -71,6 +72,7 @@ const ColorManagementPage = () => {
       await createColor(formData).unwrap();
       setIsCreateModalOpen(false);
       setFormData({ colorName: '', colorCode: '' });
+      setShowColorPicker(false);
     } catch (error) {
       alert('Có lỗi xảy ra khi tạo color');
       console.error(error);
@@ -83,6 +85,7 @@ const ColorManagementPage = () => {
       colorName: color.colorName || '',
       colorCode: color.colorCode || '',
     });
+    setShowColorPicker(false);
     setIsEditModalOpen(true);
   };
 
@@ -276,7 +279,11 @@ const ColorManagementPage = () => {
       {/* Create Modal */}
       <Modal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setFormData({ colorName: '', colorCode: '' });
+          setShowColorPicker(false);
+        }}
         title="Add New Color"
         size="md"
       >
@@ -287,13 +294,64 @@ const ColorManagementPage = () => {
             onChange={(e) => setFormData({ ...formData, colorName: e.target.value })}
             required
           />
-          <Input
-            label="Hex Code"
-            placeholder="#000000"
-            value={formData.colorCode}
-            onChange={(e) => setFormData({ ...formData, colorCode: e.target.value })}
-            required
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Hex Code
+            </label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 relative">
+                <Input
+                  placeholder="#000000"
+                  value={formData.colorCode}
+                  onChange={(e) => setFormData({ ...formData, colorCode: e.target.value })}
+                  required
+                />
+                {formData.colorCode && (
+                  <div
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded border border-gray-300"
+                    style={{ backgroundColor: formData.colorCode }}
+                  />
+                )}
+              </div>
+              <input
+                type="color"
+                value={formData.colorCode || '#000000'}
+                onChange={(e) => setFormData({ ...formData, colorCode: e.target.value.toUpperCase() })}
+                className="w-12 h-12 rounded border border-gray-300 cursor-pointer"
+                title="Chọn màu"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+            >
+              {showColorPicker ? 'Ẩn bảng màu' : 'Hiển thị bảng màu'}
+            </button>
+            {showColorPicker && (
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="grid grid-cols-8 gap-2">
+                  {[
+                    '#FF0000', '#FF4500', '#FFA500', '#FFD700', '#FFFF00', '#ADFF2F', '#00FF00', '#00CED1',
+                    '#0000FF', '#4B0082', '#9400D3', '#FF1493', '#FF69B4', '#FFB6C1', '#000000', '#808080',
+                    '#FFFFFF', '#C0C0C0', '#800000', '#8B0000', '#FF6347', '#FF7F50', '#FFA07A', '#FFDAB9',
+                    '#F0E68C', '#98FB98', '#90EE90', '#00FA9A', '#48D1CC', '#87CEEB', '#87CEFA', '#4169E1',
+                    '#000080', '#191970', '#6A5ACD', '#9370DB', '#BA55D3', '#DA70D6', '#FF00FF', '#FF1493',
+                    '#DC143C', '#B22222', '#A52A2A', '#8B4513', '#D2691E', '#CD853F', '#DEB887', '#F5DEB3',
+                  ].map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, colorCode: color })}
+                      className="w-8 h-8 rounded border-2 border-gray-300 hover:border-blue-500 hover:scale-110 transition-all"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <div className="flex gap-4 pt-4">
             <Button
               type="button"
@@ -317,6 +375,8 @@ const ColorManagementPage = () => {
         onClose={() => {
           setIsEditModalOpen(false);
           setSelectedColor(null);
+          setFormData({ colorName: '', colorCode: '' });
+          setShowColorPicker(false);
         }}
         title="Edit Color"
         size="md"
@@ -328,13 +388,64 @@ const ColorManagementPage = () => {
             onChange={(e) => setFormData({ ...formData, colorName: e.target.value })}
             required
           />
-          <Input
-            label="Hex Code"
-            placeholder="#000000"
-            value={formData.colorCode}
-            onChange={(e) => setFormData({ ...formData, colorCode: e.target.value })}
-            required
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Hex Code
+            </label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 relative">
+                <Input
+                  placeholder="#000000"
+                  value={formData.colorCode}
+                  onChange={(e) => setFormData({ ...formData, colorCode: e.target.value })}
+                  required
+                />
+                {formData.colorCode && (
+                  <div
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded border border-gray-300"
+                    style={{ backgroundColor: formData.colorCode }}
+                  />
+                )}
+              </div>
+              <input
+                type="color"
+                value={formData.colorCode || '#000000'}
+                onChange={(e) => setFormData({ ...formData, colorCode: e.target.value.toUpperCase() })}
+                className="w-12 h-12 rounded border border-gray-300 cursor-pointer"
+                title="Chọn màu"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+            >
+              {showColorPicker ? 'Ẩn bảng màu' : 'Hiển thị bảng màu'}
+            </button>
+            {showColorPicker && (
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="grid grid-cols-8 gap-2">
+                  {[
+                    '#FF0000', '#FF4500', '#FFA500', '#FFD700', '#FFFF00', '#ADFF2F', '#00FF00', '#00CED1',
+                    '#0000FF', '#4B0082', '#9400D3', '#FF1493', '#FF69B4', '#FFB6C1', '#000000', '#808080',
+                    '#FFFFFF', '#C0C0C0', '#800000', '#8B0000', '#FF6347', '#FF7F50', '#FFA07A', '#FFDAB9',
+                    '#F0E68C', '#98FB98', '#90EE90', '#00FA9A', '#48D1CC', '#87CEEB', '#87CEFA', '#4169E1',
+                    '#000080', '#191970', '#6A5ACD', '#9370DB', '#BA55D3', '#DA70D6', '#FF00FF', '#FF1493',
+                    '#DC143C', '#B22222', '#A52A2A', '#8B4513', '#D2691E', '#CD853F', '#DEB887', '#F5DEB3',
+                  ].map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, colorCode: color })}
+                      className="w-8 h-8 rounded border-2 border-gray-300 hover:border-blue-500 hover:scale-110 transition-all"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <div className="flex gap-4 pt-4">
             <Button
               type="button"

@@ -13,8 +13,10 @@ import {
   useCreateModelMutation,
   useUpdateModelMutation,
   useDeleteModelMutation,
+  useGetBodyTypesQuery,
 } from '../../../api/admin/modelApi';
 import {
+  useGetAllModelColorsQuery,
   useGetModelColorsByModelQuery,
   useCreateModelColorMutation,
   useUpdateModelColorMutation,
@@ -58,13 +60,21 @@ const ProductManagementPage = () => {
     price: '',
   });
 
-  const { data: modelsData, isLoading: isLoadingModels } = useGetAllModelsQuery();
-  const { data: colorsData } = useGetAllColorsQuery();
-  const { data: modelColorsData } = useGetModelColorsByModelQuery(selectedModel?.modelId, {
+  const { data: modelsData, isLoading: isLoadingModels, error: modelsError } = useGetAllModelsQuery();
+  const { data: colorsData, error: colorsError } = useGetAllColorsQuery();
+  const { data: bodyTypesData } = useGetBodyTypesQuery();
+  // Load tất cả model colors để hiển thị giá trong bảng
+  const { data: allModelColorsData } = useGetAllModelColorsQuery();
+  const { data: modelColorsData, error: modelColorsError } = useGetModelColorsByModelQuery(selectedModel?.modelId, {
     skip: !selectedModel,
   });
-  const { data: transactionsData, isLoading: isLoadingTransactions } = useGetAllInventoryTransactionsQuery();
-  const { data: statusesData } = useGetInventoryTransactionStatusesQuery();
+  // Chỉ call API inventory transactions khi đang ở chế độ quản lý inventory transactions
+  const { data: transactionsData, isLoading: isLoadingTransactions, error: transactionsError } = useGetAllInventoryTransactionsQuery(undefined, {
+    skip: !showInventoryTransactions,
+  });
+  const { data: statusesData, error: statusesError } = useGetInventoryTransactionStatusesQuery(undefined, {
+    skip: !showInventoryTransactions,
+  });
   
   const [createTransaction] = useCreateInventoryTransactionMutation();
   const [acceptRequest] = useAcceptInventoryRequestMutation();
@@ -81,9 +91,22 @@ const ProductManagementPage = () => {
 
   const models = modelsData?.data || [];
   const colors = colorsData?.data || [];
-  const modelColors = modelColorsData?.data || [];
+  const bodyTypes = bodyTypesData?.data || [];
+  const allModelColors = allModelColorsData?.data || []; // Tất cả model colors để hiển thị giá
+  const modelColors = modelColorsData?.data || []; // Model colors của model được chọn
   const transactions = transactionsData?.data || [];
   const statuses = statusesData?.data || [];
+
+  // Tạo map để tìm giá nhanh: modelId -> price (lấy giá đầu tiên hoặc giá thấp nhất)
+  const modelPriceMap = useMemo(() => {
+    const map = new Map();
+    allModelColors.forEach((mc) => {
+      if (!map.has(mc.modelId) || (map.get(mc.modelId) > mc.price)) {
+        map.set(mc.modelId, mc.price);
+      }
+    });
+    return map;
+  }, [allModelColors]);
 
   // Filter models
   const filteredModels = useMemo(() => {
@@ -317,11 +340,59 @@ const ProductManagementPage = () => {
     }
   };
 
-  if (isLoadingModels) {
+  // Kiểm tra lỗi 401 (Unauthorized)
+  const isUnauthorized = 
+    modelsError?.status === 401 || 
+    colorsError?.status === 401 ||
+    modelColorsError?.status === 401 ||
+    (showInventoryTransactions && (transactionsError?.status === 401 || statusesError?.status === 401));
+
+  if (isUnauthorized) {
+    return (
+      <EVMStaffLayout>
+        <div className="flex flex-col items-center justify-center h-64 space-y-4">
+          <div className="text-yellow-600 text-lg font-medium">
+            ⚠️ Bạn chưa đăng nhập hoặc token đã hết hạn
+          </div>
+          <div className="text-gray-600 text-sm">
+            Vui lòng đăng nhập để truy cập các tính năng này.
+          </div>
+          <a
+            href="/login"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Đi đến trang đăng nhập
+          </a>
+        </div>
+      </EVMStaffLayout>
+    );
+  }
+
+  const isLoading = isLoadingModels || (showInventoryTransactions && isLoadingTransactions);
+
+  if (isLoading) {
     return (
       <EVMStaffLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-gray-500">Đang tải dữ liệu...</div>
+        </div>
+      </EVMStaffLayout>
+    );
+  }
+
+  // Kiểm tra lỗi khác
+  const hasError = 
+    (modelsError && modelsError.status !== 401) ||
+    (colorsError && colorsError.status !== 401) ||
+    (modelColorsError && modelColorsError.status !== 401) ||
+    (showInventoryTransactions && transactionsError && transactionsError.status !== 401) ||
+    (showInventoryTransactions && statusesError && statusesError.status !== 401);
+
+  if (hasError) {
+    return (
+      <EVMStaffLayout>
+        <div className="flex items-center justify-center h-64">
+          <div className="text-red-500">Có lỗi xảy ra khi tải dữ liệu. Vui lòng thử lại.</div>
         </div>
       </EVMStaffLayout>
     );
@@ -530,7 +601,7 @@ const ProductManagementPage = () => {
                     <Table.Cell className="font-medium">{model.modelName}</Table.Cell>
                     <Table.Cell>Electra</Table.Cell>
                     <Table.Cell>
-                      {formatCurrency(model.basePrice || modelColors.find(mc => mc.modelId === model.modelId)?.price)}
+                      {formatCurrency(model.basePrice || modelPriceMap.get(model.modelId) || 0)}
                     </Table.Cell>
                     <Table.Cell>{getStatusBadge(model.status)}</Table.Cell>
                     <Table.Cell>
@@ -721,15 +792,39 @@ const ProductManagementPage = () => {
               required
             />
           </div>
-          <Input
-            label="Seating Capacity"
-            type="number"
-            value={modelFormData.seatingCapacity}
-            onChange={(e) =>
-              setModelFormData({ ...modelFormData, seatingCapacity: e.target.value })
-            }
-            required
-          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Seating Capacity"
+              type="number"
+              value={modelFormData.seatingCapacity}
+              onChange={(e) =>
+                setModelFormData({ ...modelFormData, seatingCapacity: e.target.value })
+              }
+              required
+            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Body Type *</label>
+              <Dropdown
+                options={bodyTypes.map((type) => ({
+                  value: type,
+                  label: type,
+                }))}
+                value={modelFormData.bodyType}
+                onChange={(value) => setModelFormData({ ...modelFormData, bodyType: value })}
+                placeholder="Select body type"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              value={modelFormData.description}
+              onChange={(e) => setModelFormData({ ...modelFormData, description: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={3}
+              placeholder="Enter model description..."
+            />
+          </div>
           <div className="flex gap-4 pt-4">
             <Button
               type="button"
@@ -742,6 +837,156 @@ const ProductManagementPage = () => {
             </Button>
             <Button type="submit" className="flex-1" disabled={isCreatingModel}>
               {isCreatingModel ? 'Creating...' : 'Create'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Edit Model Modal */}
+      <Modal
+        isOpen={isEditModelModalOpen}
+        onClose={() => {
+          setIsEditModelModalOpen(false);
+          setSelectedModel(null);
+          setModelFormData({
+            modelName: '',
+            modelYear: '',
+            batteryCapacity: '',
+            range: '',
+            powerHp: '',
+            torqueNm: '',
+            acceleration: '',
+            seatingCapacity: '',
+            bodyType: '',
+            description: '',
+          });
+        }}
+        title="Edit Model"
+        size="lg"
+      >
+        <form onSubmit={handleUpdateModel} className="space-y-4">
+          <Input
+            label="Model Name"
+            value={modelFormData.modelName}
+            onChange={(e) => setModelFormData({ ...modelFormData, modelName: e.target.value })}
+            required
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Model Year"
+              type="number"
+              value={modelFormData.modelYear}
+              onChange={(e) => setModelFormData({ ...modelFormData, modelYear: e.target.value })}
+              required
+            />
+            <Input
+              label="Battery Capacity (kWh)"
+              type="number"
+              step="0.1"
+              value={modelFormData.batteryCapacity}
+              onChange={(e) =>
+                setModelFormData({ ...modelFormData, batteryCapacity: e.target.value })
+              }
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Range (km)"
+              type="number"
+              value={modelFormData.range}
+              onChange={(e) => setModelFormData({ ...modelFormData, range: e.target.value })}
+              required
+            />
+            <Input
+              label="Power (HP)"
+              type="number"
+              step="0.1"
+              value={modelFormData.powerHp}
+              onChange={(e) => setModelFormData({ ...modelFormData, powerHp: e.target.value })}
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Torque (Nm)"
+              type="number"
+              step="0.1"
+              value={modelFormData.torqueNm}
+              onChange={(e) => setModelFormData({ ...modelFormData, torqueNm: e.target.value })}
+              required
+            />
+            <Input
+              label="Acceleration (0-100km/h)"
+              type="number"
+              step="0.1"
+              value={modelFormData.acceleration}
+              onChange={(e) =>
+                setModelFormData({ ...modelFormData, acceleration: e.target.value })
+              }
+              required
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Seating Capacity"
+              type="number"
+              value={modelFormData.seatingCapacity}
+              onChange={(e) =>
+                setModelFormData({ ...modelFormData, seatingCapacity: e.target.value })
+              }
+              required
+            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Body Type *</label>
+              <Dropdown
+                options={bodyTypes.map((type) => ({
+                  value: type,
+                  label: type,
+                }))}
+                value={modelFormData.bodyType}
+                onChange={(value) => setModelFormData({ ...modelFormData, bodyType: value })}
+                placeholder="Select body type"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+            <textarea
+              value={modelFormData.description}
+              onChange={(e) => setModelFormData({ ...modelFormData, description: e.target.value })}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              rows={3}
+              placeholder="Enter model description..."
+            />
+          </div>
+          <div className="flex gap-4 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsEditModelModalOpen(false);
+                setSelectedModel(null);
+                setModelFormData({
+                  modelName: '',
+                  modelYear: '',
+                  batteryCapacity: '',
+                  range: '',
+                  powerHp: '',
+                  torqueNm: '',
+                  acceleration: '',
+                  seatingCapacity: '',
+                  bodyType: '',
+                  description: '',
+                });
+              }}
+              className="flex-1"
+              disabled={isUpdatingModel}
+            >
+              Cancel
+            </Button>
+            <Button type="submit" className="flex-1" disabled={isUpdatingModel}>
+              {isUpdatingModel ? 'Updating...' : 'Update'}
             </Button>
           </div>
         </form>
