@@ -41,11 +41,10 @@ const EVMStaffLayout = ({ children }) => {
   };
 
   const menuItems = [
-    { icon: LayoutDashboard, label: 'Dashboard', path: '/evm-staff/dashboard' },
+    { icon: LayoutDashboard, label: 'Trang tổng quan', path: '/evm-staff/dashboard' },
     { icon: ShoppingCart, label: 'Quản lý Đơn hàng', path: '/evm-staff/orders' },
     { icon: Package, label: 'Quản lý Sản phẩm', path: '/evm-staff/products' },
     { icon: Palette, label: 'Quản lý Màu sắc', path: '/evm-staff/colors' },
-    { icon: Factory, label: 'Quản lý Kho xe', path: '/evm-staff/inventory' },
     { icon: Building2, label: 'Quản lý Đại lý', path: '/evm-staff/dealers' },
     { icon: BarChart3, label: 'Báo Cáo', path: '/evm-staff/reports' },
   ];
@@ -116,13 +115,17 @@ const EVMStaffLayout = ({ children }) => {
 
         {/* Settings & Logout */}
         <div className="p-4 border-t border-gray-200 space-y-2">
-          <a
-            href="#"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
+          <Link
+            to="/evm-staff/settings"
+            className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
+              location.pathname === '/evm-staff/settings'
+                ? 'bg-blue-50 text-blue-600 font-medium'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
           >
             <Settings size={20} />
             <span>Cài Đặt</span>
-          </a>
+          </Link>
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"

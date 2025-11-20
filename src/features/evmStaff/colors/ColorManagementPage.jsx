@@ -22,10 +22,14 @@ const ColorManagementPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedColor, setSelectedColor] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [colorToDelete, setColorToDelete] = useState(null);
+  const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
   const [formData, setFormData] = useState({
     colorName: '',
     colorCode: '',
   });
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   const { data: colorsData, isLoading, error } = useGetAllColorsQuery();
   const { data: modelColorsData } = useGetAllModelColorsQuery();
@@ -71,6 +75,7 @@ const ColorManagementPage = () => {
       await createColor(formData).unwrap();
       setIsCreateModalOpen(false);
       setFormData({ colorName: '', colorCode: '' });
+      setShowColorPicker(false);
     } catch (error) {
       alert('Có lỗi xảy ra khi tạo color');
       console.error(error);
@@ -83,6 +88,7 @@ const ColorManagementPage = () => {
       colorName: color.colorName || '',
       colorCode: color.colorCode || '',
     });
+    setShowColorPicker(false);
     setIsEditModalOpen(true);
   };
 
@@ -98,15 +104,32 @@ const ColorManagementPage = () => {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa color này?')) {
-      try {
-        await deleteColor(id).unwrap();
-      } catch (error) {
-        alert('Có lỗi xảy ra khi xóa color');
-        console.error(error);
-      }
+  const handleDeleteClick = (color) => {
+    setColorToDelete(color);
+    setIsDeleteModalOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!colorToDelete) return;
+    
+    try {
+      await deleteColor(colorToDelete.colorId).unwrap();
+      setIsDeleteModalOpen(false);
+      setColorToDelete(null);
+      showNotification('Xóa màu thành công!', 'success');
+    } catch (error) {
+      setIsDeleteModalOpen(false);
+      setColorToDelete(null);
+      showNotification('Có lỗi xảy ra khi xóa màu', 'error');
+      console.error(error);
     }
+  };
+
+  const showNotification = (message, type = 'success') => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => {
+      setNotification({ show: false, message: '', type: 'success' });
+    }, 3000);
   };
 
   if (isLoading) {
@@ -256,7 +279,7 @@ const ColorManagementPage = () => {
                               <Edit size={16} />
                             </button>
                             <button
-                              onClick={() => handleDelete(color.colorId)}
+                              onClick={() => handleDeleteClick(color)}
                               className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
                             >
                               <Trash2 size={16} />
@@ -276,7 +299,11 @@ const ColorManagementPage = () => {
       {/* Create Modal */}
       <Modal
         isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
+        onClose={() => {
+          setIsCreateModalOpen(false);
+          setFormData({ colorName: '', colorCode: '' });
+          setShowColorPicker(false);
+        }}
         title="Add New Color"
         size="md"
       >
@@ -287,13 +314,64 @@ const ColorManagementPage = () => {
             onChange={(e) => setFormData({ ...formData, colorName: e.target.value })}
             required
           />
-          <Input
-            label="Hex Code"
-            placeholder="#000000"
-            value={formData.colorCode}
-            onChange={(e) => setFormData({ ...formData, colorCode: e.target.value })}
-            required
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Hex Code
+            </label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 relative">
+                <Input
+                  placeholder="#000000"
+                  value={formData.colorCode}
+                  onChange={(e) => setFormData({ ...formData, colorCode: e.target.value })}
+                  required
+                />
+                {formData.colorCode && (
+                  <div
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded border border-gray-300"
+                    style={{ backgroundColor: formData.colorCode }}
+                  />
+                )}
+              </div>
+              <input
+                type="color"
+                value={formData.colorCode || '#000000'}
+                onChange={(e) => setFormData({ ...formData, colorCode: e.target.value.toUpperCase() })}
+                className="w-12 h-12 rounded border border-gray-300 cursor-pointer"
+                title="Chọn màu"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+            >
+              {showColorPicker ? 'Ẩn bảng màu' : 'Hiển thị bảng màu'}
+            </button>
+            {showColorPicker && (
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="grid grid-cols-8 gap-2">
+                  {[
+                    '#FF0000', '#FF4500', '#FFA500', '#FFD700', '#FFFF00', '#ADFF2F', '#00FF00', '#00CED1',
+                    '#0000FF', '#4B0082', '#9400D3', '#FF1493', '#FF69B4', '#FFB6C1', '#000000', '#808080',
+                    '#FFFFFF', '#C0C0C0', '#800000', '#8B0000', '#FF6347', '#FF7F50', '#FFA07A', '#FFDAB9',
+                    '#F0E68C', '#98FB98', '#90EE90', '#00FA9A', '#48D1CC', '#87CEEB', '#87CEFA', '#4169E1',
+                    '#000080', '#191970', '#6A5ACD', '#9370DB', '#BA55D3', '#DA70D6', '#FF00FF', '#FF1493',
+                    '#DC143C', '#B22222', '#A52A2A', '#8B4513', '#D2691E', '#CD853F', '#DEB887', '#F5DEB3',
+                  ].map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, colorCode: color })}
+                      className="w-8 h-8 rounded border-2 border-gray-300 hover:border-blue-500 hover:scale-110 transition-all"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <div className="flex gap-4 pt-4">
             <Button
               type="button"
@@ -317,6 +395,8 @@ const ColorManagementPage = () => {
         onClose={() => {
           setIsEditModalOpen(false);
           setSelectedColor(null);
+          setFormData({ colorName: '', colorCode: '' });
+          setShowColorPicker(false);
         }}
         title="Edit Color"
         size="md"
@@ -328,13 +408,64 @@ const ColorManagementPage = () => {
             onChange={(e) => setFormData({ ...formData, colorName: e.target.value })}
             required
           />
-          <Input
-            label="Hex Code"
-            placeholder="#000000"
-            value={formData.colorCode}
-            onChange={(e) => setFormData({ ...formData, colorCode: e.target.value })}
-            required
-          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Hex Code
+            </label>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 relative">
+                <Input
+                  placeholder="#000000"
+                  value={formData.colorCode}
+                  onChange={(e) => setFormData({ ...formData, colorCode: e.target.value })}
+                  required
+                />
+                {formData.colorCode && (
+                  <div
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-8 h-8 rounded border border-gray-300"
+                    style={{ backgroundColor: formData.colorCode }}
+                  />
+                )}
+              </div>
+              <input
+                type="color"
+                value={formData.colorCode || '#000000'}
+                onChange={(e) => setFormData({ ...formData, colorCode: e.target.value.toUpperCase() })}
+                className="w-12 h-12 rounded border border-gray-300 cursor-pointer"
+                title="Chọn màu"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowColorPicker(!showColorPicker)}
+              className="mt-2 text-sm text-blue-600 hover:text-blue-800"
+            >
+              {showColorPicker ? 'Ẩn bảng màu' : 'Hiển thị bảng màu'}
+            </button>
+            {showColorPicker && (
+              <div className="mt-3 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                <div className="grid grid-cols-8 gap-2">
+                  {[
+                    '#FF0000', '#FF4500', '#FFA500', '#FFD700', '#FFFF00', '#ADFF2F', '#00FF00', '#00CED1',
+                    '#0000FF', '#4B0082', '#9400D3', '#FF1493', '#FF69B4', '#FFB6C1', '#000000', '#808080',
+                    '#FFFFFF', '#C0C0C0', '#800000', '#8B0000', '#FF6347', '#FF7F50', '#FFA07A', '#FFDAB9',
+                    '#F0E68C', '#98FB98', '#90EE90', '#00FA9A', '#48D1CC', '#87CEEB', '#87CEFA', '#4169E1',
+                    '#000080', '#191970', '#6A5ACD', '#9370DB', '#BA55D3', '#DA70D6', '#FF00FF', '#FF1493',
+                    '#DC143C', '#B22222', '#A52A2A', '#8B4513', '#D2691E', '#CD853F', '#DEB887', '#F5DEB3',
+                  ].map((color) => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => setFormData({ ...formData, colorCode: color })}
+                      className="w-8 h-8 rounded border-2 border-gray-300 hover:border-blue-500 hover:scale-110 transition-all"
+                      style={{ backgroundColor: color }}
+                      title={color}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
           <div className="flex gap-4 pt-4">
             <Button
               type="button"
@@ -354,6 +485,84 @@ const ColorManagementPage = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => {
+          setIsDeleteModalOpen(false);
+          setColorToDelete(null);
+        }}
+        title="Xác nhận xóa"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <p className="text-gray-700">
+            Bạn có chắc chắn muốn xóa màu <strong>{colorToDelete?.colorName}</strong>?
+          </p>
+          <p className="text-sm text-gray-500">
+            Hành động này không thể hoàn tác.
+          </p>
+          <div className="flex gap-4 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsDeleteModalOpen(false);
+                setColorToDelete(null);
+              }}
+              className="flex-1"
+            >
+              Hủy
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              onClick={handleDeleteConfirm}
+              className="flex-1"
+            >
+              Xóa
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Notification Toast */}
+      {notification.show && (
+        <div
+          className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg flex items-center gap-3 transform transition-all duration-300 ${
+            notification.type === 'success'
+              ? 'bg-green-500 text-white'
+              : 'bg-red-500 text-white'
+          }`}
+          style={{
+            animation: 'slideInRight 0.3s ease-out',
+          }}
+        >
+          <div className="flex-1">
+            {notification.message}
+          </div>
+          <button
+            onClick={() => setNotification({ show: false, message: '', type: 'success' })}
+            className="text-white hover:text-gray-200 font-bold text-lg"
+          >
+            ×
+          </button>
+        </div>
+      )}
+      
+      <style>{`
+        @keyframes slideInRight {
+          from {
+            transform: translateX(100%);
+            opacity: 0;
+          }
+          to {
+            transform: translateX(0);
+            opacity: 1;
+          }
+        }
+      `}</style>
     </EVMStaffLayout>
   );
 };

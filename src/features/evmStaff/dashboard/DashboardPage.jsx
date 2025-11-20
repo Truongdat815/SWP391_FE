@@ -5,46 +5,65 @@ import MetricCard from '../../../components/shared/MetricCard';
 import Card from '../../../components/ui/Card';
 import LineChart from '../../../components/charts/LineChart';
 import { useGetAllModelsQuery } from '../../../api/admin/modelApi';
-import { useGetAllDealerOrdersQuery } from '../../../api/evmStaff/dealerOrdersApi';
-import { useGetAllStoreStocksQuery } from '../../../api/evmStaff/inventoryApi';
 import { useGetAllModelColorsQuery } from '../../../api/evmStaff/productApi';
+import { useGetAllInventoryTransactionsQuery } from '../../../api/evmStaff/inventoryApi';
 
 const EVMStaffDashboard = () => {
   const { data: modelsData, isLoading: isLoadingModels, error: modelsError } = useGetAllModelsQuery();
-  const { data: ordersData, isLoading: isLoadingOrders, error: ordersError } = useGetAllDealerOrdersQuery();
-  const { data: stocksData, isLoading: isLoadingStocks, error: stocksError } = useGetAllStoreStocksQuery();
   const { data: modelColorsData, isLoading: isLoadingColors, error: colorsError } = useGetAllModelColorsQuery();
+  const { data: transactionsData, isLoading: isLoadingTransactions, error: transactionsError } = useGetAllInventoryTransactionsQuery();
 
   const models = modelsData?.data || [];
-  const orders = ordersData?.data || [];
-  const stocks = stocksData?.data || [];
   const modelColors = modelColorsData?.data || [];
+  // Xử lý inventory transactions: nếu có lỗi 404 hoặc không có data, vẫn hiển thị mảng rỗng
+  const transactions = (transactionsError?.status === 404 || !transactionsData?.data) ? [] : (transactionsData?.data || []);
 
-  const isLoading = isLoadingModels || isLoadingOrders || isLoadingStocks || isLoadingColors;
+  const isLoading = isLoadingModels || isLoadingColors || isLoadingTransactions;
   
   // Kiểm tra lỗi 401 (Unauthorized)
   const isUnauthorized = 
     modelsError?.status === 401 || 
-    ordersError?.status === 401 || 
-    stocksError?.status === 401 ||
-    colorsError?.status === 401;
+    colorsError?.status === 401 ||
+    transactionsError?.status === 401;
   
-  const hasError = (modelsError && modelsError.status !== 401) || 
-                   (ordersError && ordersError.status !== 401);
+  // Kiểm tra xem lỗi có phải là "Không tìm thấy store" (404) không
+  // EVM Staff có thể không có storeId, nên lỗi này có thể bỏ qua
+  const isStoreNotFoundError = (error) => {
+    return error?.status === 404 && 
+           (error?.data?.message?.includes('Không tìm thấy store') ||
+            error?.data?.message?.includes('store') ||
+            error?.data?.code === 1004);
+  };
+  
+  // Kiểm tra tất cả các lỗi (trừ 401 và lỗi "Không tìm thấy store" cho transactions)
+  // Lỗi "Không tìm thấy store" chỉ bỏ qua cho transactions vì EVM Staff có thể không có storeId
+  const hasError = 
+    (modelsError && modelsError.status !== 401 && modelsError.status !== undefined) || 
+    (colorsError && colorsError.status !== 401 && colorsError.status !== undefined) ||
+    (transactionsError && transactionsError.status !== 401 && transactionsError.status !== undefined && !isStoreNotFoundError(transactionsError));
 
-  // Tính toán metrics
+  // Tính toán metrics từ inventory-transactions
   const totalModels = models.length;
   const totalVariants = modelColors.length;
-  const totalOrders = orders.length;
-  const pendingOrders = orders.filter(
-    (order) => order.status === 'PENDING' || order.status === 'DRAFT'
+  // Tổng đơn hàng = tổng số inventory transactions
+  const totalOrders = transactions.length;
+  // Đơn hàng chờ xử lý = PENDING
+  const pendingOrders = transactions.filter(
+    (t) => t.status === 'PENDING' || t.status === 'DRAFT'
   ).length;
-  const completedOrders = orders.filter((order) => order.status === 'DELIVERED').length;
+  // Đơn hàng đã hoàn thành = DELIVERED hoặc COMPLETED
+  const completedOrders = transactions.filter(
+    (t) => t.status === 'DELIVERED' || t.status === 'COMPLETED'
+  ).length;
   const completionRate = totalOrders > 0 ? Math.round((completedOrders / totalOrders) * 100) : 0;
-  const deliveredVehicles = stocks.filter((stock) => stock.status === 'DELIVERED').length;
-  const uniqueDealers = new Set(stocks.map((stock) => stock.storeId).filter(Boolean)).size;
+  // Tính toán từ inventory-transactions
+  const deliveredTransactions = transactions.filter(
+    (t) => t.status === 'DELIVERED' || t.status === 'COMPLETED'
+  );
+  const deliveredVehicles = deliveredTransactions.reduce((sum, t) => sum + (t.importQuantity || 0), 0);
+  const uniqueDealers = new Set(deliveredTransactions.map((t) => t.storeId).filter(Boolean)).size;
 
-  // Order trend chart data (6 tháng gần nhất)
+  // Order trend chart data (6 tháng gần nhất) - dùng inventory transactions
   const orderTrendData = useMemo(() => {
     const months = [];
     const now = new Date();
@@ -52,8 +71,8 @@ const EVMStaffDashboard = () => {
       const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthName = monthDate.toLocaleDateString('vi-VN', { month: 'short' });
       
-      const monthOrders = orders.filter((order) => {
-        const orderDate = new Date(order.createdAt || order.orderDate);
+      const monthTransactions = transactions.filter((t) => {
+        const orderDate = new Date(t.orderDate);
         return (
           orderDate.getMonth() === monthDate.getMonth() &&
           orderDate.getFullYear() === monthDate.getFullYear()
@@ -62,7 +81,7 @@ const EVMStaffDashboard = () => {
       
       months.push({
         name: monthName,
-        value: monthOrders.length,
+        value: monthTransactions.length,
       });
     }
     return months.length > 0
@@ -75,7 +94,16 @@ const EVMStaffDashboard = () => {
           { name: 'Tháng 5', value: 0 },
           { name: 'Tháng 6', value: 0 },
         ];
-  }, [orders]);
+  }, [transactions]);
+
+  // Tính % tăng trưởng đơn hàng (so sánh tháng hiện tại với tháng trước)
+  const orderGrowthRate = useMemo(() => {
+    if (orderTrendData.length < 2) return 0;
+    const currentMonth = orderTrendData[orderTrendData.length - 1]?.value || 0;
+    const previousMonth = orderTrendData[orderTrendData.length - 2]?.value || 0;
+    if (previousMonth === 0) return currentMonth > 0 ? 100 : 0;
+    return Math.round(((currentMonth - previousMonth) / previousMonth) * 100 * 10) / 10;
+  }, [orderTrendData]);
 
   if (isLoading) {
     return (
@@ -141,7 +169,7 @@ const EVMStaffDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <MetricCard
             title="Tổng sản phẩm"
-            value={`${totalModels} mẫu, ${totalVariants} variants`}
+            value={`${totalModels} kiểu dáng xe, ${totalVariants} phân loại`}
             change=""
             changeType="neutral"
             icon={Package}
@@ -178,7 +206,11 @@ const EVMStaffDashboard = () => {
                   <Card.Title>Xu Hướng Đơn Hàng</Card.Title>
                   <p className="text-sm text-gray-500 mt-1">6 tháng gần nhất</p>
                 </div>
-                <span className="text-green-600 font-medium">+5.2%</span>
+                {orderGrowthRate !== 0 && (
+                  <span className={`font-medium ${orderGrowthRate > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    {orderGrowthRate > 0 ? '+' : ''}{orderGrowthRate}%
+                  </span>
+                )}
               </div>
             </Card.Header>
             <Card.Content>
@@ -194,7 +226,7 @@ const EVMStaffDashboard = () => {
           <Card>
             <Card.Header>
               <Card.Title>Top 5 Mẫu Xe Phổ Biến</Card.Title>
-              <p className="text-sm text-gray-500 mt-1">Dựa trên số lượng biến thể</p>
+              <p className="text-sm text-gray-500 mt-1">Dựa trên số lượng phân loại</p>
             </Card.Header>
             <Card.Content>
               <div className="space-y-4">
@@ -208,7 +240,7 @@ const EVMStaffDashboard = () => {
                         <span className="text-2xl font-bold text-gray-400">#{index + 1}</span>
                         <span className="font-medium text-gray-900">{model.modelName}</span>
                       </div>
-                      <span className="text-blue-600 font-semibold">{variantCount} variants</span>
+                      <span className="text-blue-600 font-semibold">{variantCount} phân loại</span>
                     </div>
                   );
                 })}
@@ -224,32 +256,59 @@ const EVMStaffDashboard = () => {
             <p className="text-sm text-gray-500 mt-1">Dựa trên tổng số đơn hàng</p>
           </Card.Header>
           <Card.Content>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-gray-600">Chờ xử lý</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {orders.filter((o) => o.status === 'PENDING').length}
-                </p>
+            {isLoadingTransactions ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-gray-500">Đang tải dữ liệu...</div>
               </div>
-              <div className="p-4 bg-yellow-50 rounded-lg">
-                <p className="text-sm text-gray-600">Đang xử lý</p>
-                <p className="text-2xl font-bold text-yellow-600">
-                  {orders.filter((o) => o.status === 'PROCESSING' || o.status === 'CONFIRMED').length}
-                </p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Chờ xử lý</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {transactions.filter((t) => 
+                      t.status === 'PENDING' || 
+                      t.status === 'DRAFT' ||
+                      t.status?.toUpperCase() === 'PENDING'
+                    ).length}
+                  </p>
+                </div>
+                <div className="p-4 bg-yellow-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Đang xử lý</p>
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {transactions.filter((t) => 
+                      t.status === 'PROCESSING' || 
+                      t.status === 'CONFIRMED' ||
+                      t.status === 'ACCEPTED' ||
+                      t.status === 'SHIPPING' ||
+                      t.status?.toUpperCase() === 'PROCESSING' ||
+                      t.status?.toUpperCase() === 'CONFIRMED'
+                    ).length}
+                  </p>
+                </div>
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Hoàn thành</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {transactions.filter((t) => 
+                      t.status === 'DELIVERED' || 
+                      t.status === 'COMPLETED' ||
+                      t.status?.toUpperCase() === 'DELIVERED' ||
+                      t.status?.toUpperCase() === 'COMPLETED'
+                    ).length}
+                  </p>
+                </div>
+                <div className="p-4 bg-red-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Đã hủy</p>
+                  <p className="text-2xl font-bold text-red-600">
+                    {transactions.filter((t) => 
+                      t.status === 'CANCELLED' || 
+                      t.status === 'REJECTED' ||
+                      t.status?.toUpperCase() === 'CANCELLED' ||
+                      t.status?.toUpperCase() === 'REJECTED'
+                    ).length}
+                  </p>
+                </div>
               </div>
-              <div className="p-4 bg-green-50 rounded-lg">
-                <p className="text-sm text-gray-600">Hoàn thành</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {orders.filter((o) => o.status === 'DELIVERED').length}
-                </p>
-              </div>
-              <div className="p-4 bg-red-50 rounded-lg">
-                <p className="text-sm text-gray-600">Đã hủy</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {orders.filter((o) => o.status === 'CANCELLED').length}
-                </p>
-              </div>
-            </div>
+            )}
           </Card.Content>
         </Card>
       </div>

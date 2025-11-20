@@ -14,6 +14,9 @@ import BranchManagement from '../features/admin/branches/BranchManagementPage';
 // Dealer Staff routes
 import DealerStaffDashboard from '../features/dealerStaff/dashboard/DashboardPage';
 import DealerStaffOrderManagementPage from '../features/dealerStaff/orders/OrderManagementPage';
+import CreateOrderPage from '../features/dealerStaff/orders/CreateOrderPage';
+import ContractManagementPage from '../features/dealerStaff/contracts/ContractManagementPage';
+import PaymentManagementPage from '../features/dealerStaff/payments/PaymentManagementPage';
 import CustomerManagementPage from '../features/dealerStaff/customers/CustomerManagementPage';
 import AppointmentsPage from '../features/dealerStaff/appointments/AppointmentsPage';
 import QuotationPage from '../features/dealerStaff/quotation/QuotationPage';
@@ -30,9 +33,11 @@ import StaffPage from '../features/dealerManager/staff/StaffPage';
 // EVM Staff routes
 import EvmStaffDashboard from '../features/evmStaff/dashboard/DashboardPage';
 import ProductManagementPage from '../features/evmStaff/products/ProductManagementPage';
-import EvmStaffInventoryPage from '../features/evmStaff/inventory/InventoryPage';
 import DealerOrdersPage from '../features/evmStaff/orders/DealerOrdersPage';
 import ColorManagementPage from '../features/evmStaff/colors/ColorManagementPage';
+import DealersPage from '../features/evmStaff/dealers/DealersPage';
+import EvmStaffReportsPage from '../features/evmStaff/reports/ReportsPage';
+import SettingsPage from '../features/evmStaff/settings/SettingsPage';
 
 function AppRouter() {
   return (
@@ -75,6 +80,9 @@ function AppRouter() {
               <Routes>
                 <Route path="dashboard" element={<DealerStaffDashboard />} />
                 <Route path="orders" element={<DealerStaffOrderManagementPage />} />
+                <Route path="orders/create" element={<CreateOrderPage />} />
+                <Route path="contracts" element={<ContractManagementPage />} />
+                <Route path="payments" element={<PaymentManagementPage />} />
                 <Route path="customers" element={<CustomerManagementPage />} />
                 <Route path="appointments" element={<AppointmentsPage />} />
                 <Route path="quotation" element={<QuotationPage />} />
@@ -115,9 +123,11 @@ function AppRouter() {
               <Routes>
                 <Route path="dashboard" element={<EvmStaffDashboard />} />
                 <Route path="products" element={<ProductManagementPage />} />
-                <Route path="inventory" element={<EvmStaffInventoryPage />} />
                 <Route path="orders" element={<DealerOrdersPage />} />
                 <Route path="colors" element={<ColorManagementPage />} />
+                <Route path="dealers" element={<DealersPage />} />
+                <Route path="reports" element={<EvmStaffReportsPage />} />
+                <Route path="settings" element={<SettingsPage />} />
                 <Route path="" element={<Navigate to="/evm-staff/dashboard" replace />} />
               </Routes>
             </RoleRoute>
