@@ -288,10 +288,8 @@ const UserManagementPage = () => {
       <div className="space-y-6">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Quản lý Người dùng</h1>
-            <p className="text-gray-600 mt-1">
-              Xem, tìm kiếm, và quản lý tất cả người dùng trong hệ thống
-            </p>
+            
+            
           </div>
           <Button onClick={() => setIsCreateModalOpen(true)}>
             <Plus size={20} className="mr-2" />

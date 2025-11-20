@@ -2,9 +2,11 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 import HomePage from '../features/public/home/HomePage';
 import LoginPage from '../features/public/login/LoginPage';
+import ProtectedRoute from './ProtectedRoute';
+import RoleRoute from './RoleRoute';
 
 // Admin routes
-import AdminDashboard from '../features/admin/dashboard/DashboardPage';
+import AdminDashboard from '../features/admin/dashboard/AdminDashboard';
 import UserManagement from '../features/admin/accounts/UserManagementPage';
 import BranchManagement from '../features/admin/branches/BranchManagementPage';
 
@@ -38,63 +40,79 @@ function AppRouter() {
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
 
-      {/* Admin routes - Truy cập trực tiếp không cần login */}
+      {/* Admin routes - Protected by authentication and role */}
       <Route
         path="/admin/*"
         element={
-          <Routes>
-            <Route path="dashboard" element={<AdminDashboard />} />
-            <Route path="accounts" element={<UserManagement />} />
-            <Route path="branches" element={<BranchManagement />} />
-            <Route path="" element={<Navigate to="/admin/dashboard" replace />} />
-          </Routes>
+          <ProtectedRoute>
+            <RoleRoute allowedRoles={['ADMIN']}>
+              <Routes>
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="accounts" element={<UserManagement />} />
+                <Route path="branches" element={<BranchManagement />} />
+                <Route path="" element={<Navigate to="/admin/dashboard" replace />} />
+              </Routes>
+            </RoleRoute>
+          </ProtectedRoute>
         }
       />
 
-      {/* Dealer Staff routes - Truy cập trực tiếp */}
+      {/* Dealer Staff routes - Protected by authentication and role */}
       <Route
         path="/dealer-staff/*"
         element={
-          <Routes>
-            <Route path="dashboard" element={<DealerStaffDashboard />} />
-            <Route path="orders" element={<DealerStaffOrderManagementPage />} />
-            <Route path="customers" element={<CustomerManagementPage />} />
-            <Route path="appointments" element={<AppointmentsPage />} />
-            <Route path="quotation" element={<QuotationPage />} />
-            <Route path="products" element={<ProductsPage />} />
-            <Route path="reports" element={<ReportsPage />} />
-            <Route path="" element={<Navigate to="/dealer-staff/dashboard" replace />} />
-          </Routes>
+          <ProtectedRoute>
+            <RoleRoute allowedRoles={['DEALER_STAFF']}>
+              <Routes>
+                <Route path="dashboard" element={<DealerStaffDashboard />} />
+                <Route path="orders" element={<DealerStaffOrderManagementPage />} />
+                <Route path="customers" element={<CustomerManagementPage />} />
+                <Route path="appointments" element={<AppointmentsPage />} />
+                <Route path="quotation" element={<QuotationPage />} />
+                <Route path="products" element={<ProductsPage />} />
+                <Route path="reports" element={<ReportsPage />} />
+                <Route path="" element={<Navigate to="/dealer-staff/dashboard" replace />} />
+              </Routes>
+            </RoleRoute>
+          </ProtectedRoute>
         }
       />
 
-      {/* Dealer Manager routes - Truy cập trực tiếp */}
+      {/* Dealer Manager routes - Protected by authentication and role */}
       <Route
         path="/dealer-manager/*"
         element={
-          <Routes>
-            <Route path="dashboard" element={<DealerManagerDashboard />} />
-            <Route path="inventory" element={<DealerManagerInventoryPage />} />
-            <Route path="orders" element={<DealerManagerOrderManagementPage />} />
-            <Route path="promotions" element={<PromotionPage />} />
-            <Route path="staff" element={<StaffPage />} />
-            <Route path="" element={<Navigate to="/dealer-manager/dashboard" replace />} />
-          </Routes>
+          <ProtectedRoute>
+            <RoleRoute allowedRoles={['DEALER_MANAGER']}>
+              <Routes>
+                <Route path="dashboard" element={<DealerManagerDashboard />} />
+                <Route path="inventory" element={<DealerManagerInventoryPage />} />
+                <Route path="orders" element={<DealerManagerOrderManagementPage />} />
+                <Route path="promotions" element={<PromotionPage />} />
+                <Route path="staff" element={<StaffPage />} />
+                <Route path="" element={<Navigate to="/dealer-manager/dashboard" replace />} />
+              </Routes>
+            </RoleRoute>
+          </ProtectedRoute>
         }
       />
 
-      {/* EVM Staff routes - Truy cập trực tiếp */}
+      {/* EVM Staff routes - Protected by authentication and role */}
       <Route
         path="/evm-staff/*"
         element={
-          <Routes>
-            <Route path="dashboard" element={<EvmStaffDashboard />} />
-            <Route path="products" element={<ProductManagementPage />} />
-            <Route path="inventory" element={<EvmStaffInventoryPage />} />
-            <Route path="orders" element={<DealerOrdersPage />} />
-            <Route path="colors" element={<ColorManagementPage />} />
-            <Route path="" element={<Navigate to="/evm-staff/dashboard" replace />} />
-          </Routes>
+          <ProtectedRoute>
+            <RoleRoute allowedRoles={['EVM_STAFF']}>
+              <Routes>
+                <Route path="dashboard" element={<EvmStaffDashboard />} />
+                <Route path="products" element={<ProductManagementPage />} />
+                <Route path="inventory" element={<EvmStaffInventoryPage />} />
+                <Route path="orders" element={<DealerOrdersPage />} />
+                <Route path="colors" element={<ColorManagementPage />} />
+                <Route path="" element={<Navigate to="/evm-staff/dashboard" replace />} />
+              </Routes>
+            </RoleRoute>
+          </ProtectedRoute>
         }
       />
 

@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../../../hooks/useAppDispatch';
+import { useAppSelector } from '../../../hooks/useAppSelector';
 import { setCredentials } from '../../../store/slices/authSlice';
 import { useLoginMutation } from '../../../api/auth/authApi';
+import { normalizeRole, getRoleDashboardRoute } from '../../../utils/roleUtils';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
 import Card from '../../../components/ui/Card';
@@ -11,6 +13,16 @@ const LoginPage = () => {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const [login] = useLoginMutation();
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+  const userRole = useAppSelector((state) => state.auth.role);
+  
+  // Redirect if already logged in
+  useEffect(() => {
+    if (isAuthenticated && userRole) {
+      const dashboardRoute = getRoleDashboardRoute(userRole);
+      navigate(dashboardRoute, { replace: true });
+    }
+  }, [isAuthenticated, userRole, navigate]);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -57,32 +69,27 @@ const LoginPage = () => {
       }
       
       // Nếu có user trong response, dùng luôn
-      if (user && user.roleName) {
+      if (user && (user.roleName || user.role?.name)) {
         const roleName = user.roleName || user.role?.name || '';
+        const normalizedRole = normalizeRole(roleName);
+        
         dispatch(
           setCredentials({
             token: accessToken,
             refreshToken,
             user,
-            role: roleName,
+            role: normalizedRole,
           })
         );
         
-        // Redirect theo role
-        let redirectPath = '/';
-        if (roleName === 'ADMIN' || roleName === 'Admin' || roleName === 'admin') {
-          redirectPath = '/admin/dashboard';
-        } else if (roleName === 'DEALER_STAFF' || roleName === 'Dealer Staff') {
-          redirectPath = '/dealer-staff/dashboard';
-        } else if (roleName === 'DEALER_MANAGER' || roleName === 'Dealer Manager') {
-          redirectPath = '/dealer-manager/dashboard';
-        } else if (roleName === 'EVM_STAFF' || roleName === 'EVM Staff') {
-          redirectPath = '/evm-staff/dashboard';
-        }
+        // Redirect theo role sử dụng utility function
+        const redirectPath = getRoleDashboardRoute(roleName);
         
         if (import.meta.env.DEV) {
+          console.log('User role:', roleName, '→ Normalized:', normalizedRole);
           console.log('Redirecting to:', redirectPath);
         }
+        
         navigate(redirectPath);
         return; // Dừng ở đây nếu đã có user
       }
@@ -109,6 +116,7 @@ const LoginPage = () => {
         if (userRes.ok && userData.code === 200 && userData.data) {
           const userInfo = userData.data;
           const roleName = userInfo.roleName || userInfo.role?.name || '';
+          const normalizedRole = normalizeRole(roleName);
           
           // Lưu user info vào Redux
           dispatch(
@@ -116,25 +124,18 @@ const LoginPage = () => {
               token: accessToken,
               refreshToken,
               user: userInfo,
-              role: roleName,
+              role: normalizedRole,
             })
           );
           
-          // Redirect theo role
-          let redirectPath = '/';
-          if (roleName === 'ADMIN' || roleName === 'Admin' || roleName === 'admin') {
-            redirectPath = '/admin/dashboard';
-          } else if (roleName === 'DEALER_STAFF' || roleName === 'Dealer Staff') {
-            redirectPath = '/dealer-staff/dashboard';
-          } else if (roleName === 'DEALER_MANAGER' || roleName === 'Dealer Manager') {
-            redirectPath = '/dealer-manager/dashboard';
-          } else if (roleName === 'EVM_STAFF' || roleName === 'EVM Staff') {
-            redirectPath = '/evm-staff/dashboard';
-          }
+          // Redirect theo role sử dụng utility function
+          const redirectPath = getRoleDashboardRoute(roleName);
           
           if (import.meta.env.DEV) {
+            console.log('User role:', roleName, '→ Normalized:', normalizedRole);
             console.log('Redirecting to:', redirectPath);
           }
+          
           navigate(redirectPath);
         } else {
           setError(userData.message || 'Không thể lấy thông tin user. Vui lòng thử lại.');
