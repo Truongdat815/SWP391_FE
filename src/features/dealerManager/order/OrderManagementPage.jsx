@@ -14,7 +14,7 @@ import EmptyState from '../../../components/shared/EmptyState';
 import Toast from '../../../components/shared/Toast';
 import { useDebounce } from '../../../hooks/useDebounce';
 import { useToast } from '../../../hooks/useToast';
-import { useGetAllOrdersQuery, useGetMonthlyRevenueQuery, useGetOrderByIdQuery, useCreateDraftOrderMutation, useConfirmOrderMutation, useRejectOrderMutation, useLazyExportOrdersQuery } from '../../../api/dealerManager/dmOrderApi';
+import { useGetAllOrdersQuery, useGetMonthlyRevenueQuery, useGetOrderByIdQuery, useCreateDraftOrderMutation, useConfirmOrderMutation, useRejectOrderMutation } from '../../../api/dealerManager/dmOrderApi';
 import { useGetAllModelsQuery } from '../../../api/admin/modelApi';
 import { useGetModelColorsByModelQuery } from '../../../api/dealerStaff/vehicleApi';
 
@@ -59,7 +59,6 @@ const OrderManagementPage = () => {
   const [createDraftOrder, { isLoading: isCreating }] = useCreateDraftOrderMutation();
   const [confirmOrder, { isLoading: isConfirming }] = useConfirmOrderMutation();
   const [rejectOrder, { isLoading: isRejecting }] = useRejectOrderMutation();
-  const [exportOrders] = useLazyExportOrdersQuery();
 
   const orders = ordersData?.data || [];
   const monthlyRevenue = revenueData?.data || [];
@@ -286,25 +285,55 @@ const OrderManagementPage = () => {
   const handleExportReport = async () => {
     try {
       showToast('Đang xuất báo cáo...', 'info');
-      const result = await exportOrders({
-        statusFilter: statusFilter !== 'all' ? statusFilter : undefined,
-        modelFilter: modelFilter !== 'all' ? modelFilter : undefined,
-      }).unwrap();
+      
+      // Dùng fetch trực tiếp vì RTK Query không hỗ trợ download file tốt
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api';
+      const token = localStorage.getItem('accessToken');
+      
+      // Build query params
+      const params = new URLSearchParams();
+      if (statusFilter !== 'all') {
+        params.append('status', statusFilter);
+      }
+      if (modelFilter !== 'all') {
+        params.append('model', modelFilter);
+      }
+      
+      const queryString = params.toString();
+      const url = `${baseUrl}/orders/export${queryString ? `?${queryString}` : ''}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Không thể xuất báo cáo');
+      }
+      
+      // Lấy blob từ response
+      const blob = await response.blob();
       
       // Tạo download link
-      const url = window.URL.createObjectURL(result);
+      const downloadUrl = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
-      a.href = url;
+      a.href = downloadUrl;
       a.download = `bao-cao-don-hang-${new Date().toISOString().split('T')[0]}.xlsx`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
+      window.URL.revokeObjectURL(downloadUrl);
       document.body.removeChild(a);
       
       showToast('Xuất báo cáo thành công!', 'success');
     } catch (error) {
-      const errorMessage = error?.data?.message || error?.message || 'Có lỗi xảy ra khi xuất báo cáo';
+      const errorMessage = error?.message || 'Có lỗi xảy ra khi xuất báo cáo';
       showToast(errorMessage, 'error');
+      if (import.meta.env.DEV) {
+        console.error('Export error:', error);
+      }
     }
   };
 

@@ -130,6 +130,40 @@ export const evmInventoryApi = baseApi.injectEndpoints({
       query: () => '/inventory-transactions/status',
       providesTags: ['Inventory'],
     }),
+    // Tạo contract cho inventory transaction
+    createContract: builder.mutation({
+      query: (inventoryId) => ({
+        url: `/inventory-transactions/${inventoryId}/create-contract`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Inventory'],
+    }),
+    // Upload signature image
+    uploadSignatureImage: builder.mutation({
+      query: (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: '/upload/signature',
+          method: 'POST',
+          body: formData,
+        };
+      },
+    }),
+    // EVM ký hợp đồng (upload signature image)
+    signContract: builder.mutation({
+      query: ({ inventoryId, evmSignatureImageUrl }) => ({
+        url: `/inventory-transactions/${inventoryId}/sign-contract`,
+        method: 'POST',
+        body: { evmSignatureImageUrl },
+      }),
+      invalidatesTags: ['Inventory'],
+    }),
+    // Lấy thông tin contract
+    getContract: builder.query({
+      query: (inventoryId) => `/inventory-transactions/${inventoryId}/contract`,
+      providesTags: ['Inventory'],
+    }),
   }),
 });
 
@@ -151,5 +185,9 @@ export const {
   useCancelInventoryRequestMutation,
   useDeleteInventoryTransactionMutation,
   useGetInventoryTransactionStatusesQuery,
+  useCreateContractMutation,
+  useUploadSignatureImageMutation,
+  useSignContractMutation,
+  useGetContractQuery,
 } = evmInventoryApi;
 

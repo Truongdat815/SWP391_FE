@@ -78,6 +78,14 @@ export const inventoryApi = baseApi.injectEndpoints({
       },
       invalidatesTags: ['Inventory'],
     }),
+    // Xác nhận nhận xe (Manager nhận xe khi đã được gửi)
+    confirmReceiving: builder.mutation({
+      query: (inventoryId) => ({
+        url: `/inventory-transactions/${inventoryId}/confirm-receiving`,
+        method: 'PUT',
+      }),
+      invalidatesTags: ['Inventory'],
+    }),
     // Lấy store stock theo ID
     getStoreStockById: builder.query({
       query: (storeStockId) => `/store-stocks/${storeStockId}`,
@@ -86,6 +94,11 @@ export const inventoryApi = baseApi.injectEndpoints({
     // Lấy inventory transaction theo ID
     getInventoryTransactionById: builder.query({
       query: (inventoryId) => `/inventory-transactions/${inventoryId}`,
+      providesTags: ['Inventory'],
+    }),
+    // Lấy thông tin contract
+    getContract: builder.query({
+      query: (inventoryId) => `/inventory-transactions/${inventoryId}/contract`,
       providesTags: ['Inventory'],
     }),
     // Xuất báo cáo inventory
@@ -118,5 +131,7 @@ export const {
   useGetStoreStockByIdQuery,
   useGetInventoryTransactionByIdQuery,
   useLazyExportInventoryQuery,
+  useConfirmReceivingMutation,
+  useGetContractQuery,
 } = inventoryApi;
 

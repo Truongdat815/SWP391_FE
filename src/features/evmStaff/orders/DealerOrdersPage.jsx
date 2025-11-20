@@ -8,7 +8,10 @@ import {
   RefreshCw,
   ChevronRight,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  PenTool,
+  Upload
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import EVMStaffLayout from '../../../components/layout/EVMStaffLayout';
@@ -33,6 +36,10 @@ import {
   useStartShippingMutation,
   useConfirmPaymentMutation,
   useCancelInventoryRequestMutation,
+  useCreateContractMutation,
+  useUploadSignatureImageMutation,
+  useSignContractMutation,
+  useGetContractQuery,
 } from '../../../api/evmStaff/inventoryApi';
 
 const DealerOrdersPage = () => {
@@ -45,6 +52,9 @@ const DealerOrdersPage = () => {
   const [itemsPerPage] = useState(10);
   const [selectedTransactionId, setSelectedTransactionId] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isSignContractModalOpen, setIsSignContractModalOpen] = useState(false);
+  const [signatureFile, setSignatureFile] = useState(null);
+  const [signaturePreview, setSignaturePreview] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, message: '', onConfirm: null });
   const { toasts, showToast, removeToast } = useToast();
 
@@ -67,6 +77,12 @@ const DealerOrdersPage = () => {
   const [startShipping] = useStartShippingMutation();
   const [confirmPayment] = useConfirmPaymentMutation();
   const [cancelRequest] = useCancelInventoryRequestMutation();
+  const [createContract, { isLoading: isCreatingContract }] = useCreateContractMutation();
+  const [uploadSignatureImage] = useUploadSignatureImageMutation();
+  const [signContract, { isLoading: isSigningContract }] = useSignContractMutation();
+  const { data: contractData } = useGetContractQuery(selectedTransactionId, {
+    skip: !selectedTransactionId,
+  });
 
   const isStoreNotFoundError = (err) => {
     return (
@@ -218,13 +234,62 @@ const DealerOrdersPage = () => {
     }));
   };
 
-  const getActionButton = (status) => {
-    if (status === 'PENDING' || status === 'DRAFT') return 'Chấp nhận';
-    if (status === 'ACCEPTED' || status === 'CONFIRMED') return 'Xác nhận thanh toán';
-    if (status === 'PROCESSING') return 'Bắt đầu vận chuyển';
-    if (status === 'SHIPPING') return 'Xác nhận giao';
-    if (status === 'DELIVERED' || status === 'COMPLETED') return 'Đã giao';
+  const getActionButton = (status, transaction) => {
+    if (status === 'PENDING' || status === 'DRAFT') return { text: 'Chấp nhận', type: 'accept' };
+    if (status === 'ACCEPTED' || status === 'CONFIRMED') {
+      // Sau khi accept, EVM cần tạo hợp đồng
+      // Kiểm tra xem đã có contract chưa
+      // Nếu đang xem detail của transaction này, dùng contractData
+      const isViewingDetail = selectedTransactionId === transaction.inventoryId;
+      const contractInfo = isViewingDetail && contractData?.data 
+        ? contractData.data 
+        : null;
+      
+      const hasContract = contractInfo || transaction.contractId;
+      
+      if (!hasContract) {
+        // Chưa có contract, hiển thị nút "Tạo hợp đồng"
+        return { text: 'Tạo hợp đồng', type: 'createContract' };
+      }
+      
+      // Đã có contract, kiểm tra xem đã ký chưa
+      const contractStatus = contractInfo?.status || transaction.contractStatus;
+      const hasSignature = contractInfo?.evmSignatureUrl || transaction.evmSignatureUrl;
+      
+      // Nếu contract status là DRAFT hoặc chưa có signature, hiển thị nút "Ký hợp đồng"
+      if (contractStatus === 'DRAFT' || !hasSignature) {
+        return { text: 'Ký hợp đồng', type: 'signContract' };
+      }
+      
+      // Đã ký, chờ manager upload hợp đồng đã ký và hóa đơn
+      return null;
+    }
+    if (status === 'EVM_SIGNED') {
+      // EVM đã ký, chờ manager ký và upload lại
+      return null;
+    }
+    if (status === 'FILE_UPLOADED' || status === 'SIGNED' || status === 'CONTRACT_SIGNED') {
+      // Manager đã upload hợp đồng đã ký, chờ upload hóa đơn
+      return null;
+    }
+    if (status === 'PAYMENT_CONFIRMED') {
+      // Đã có cả hợp đồng và hóa đơn, có thể gửi xe
+      return { text: 'Bắt đầu vận chuyển', type: 'startShipping' };
+    }
+    if (status === 'PROCESSING' || status === 'SHIPPING') {
+      // Đang vận chuyển, chờ manager nhận xe
+      return null;
+    }
+    if (status === 'DELIVERED' || status === 'COMPLETED') return null;
     return null;
+  };
+
+  const canStartShipping = (transaction) => {
+    // Chỉ có thể start shipping khi:
+    // 1. Status = PAYMENT_CONFIRMED (đã có hợp đồng và hóa đơn)
+    // 2. Hoặc kiểm tra có contractFile và receiptImage
+    return transaction.status === 'PAYMENT_CONFIRMED' ||
+           (transaction.contractFile && transaction.receiptImage);
   };
 
   const formatCurrency = (amount) => {
@@ -296,15 +361,21 @@ const DealerOrdersPage = () => {
     });
   };
 
-  const handleStartShipping = async (inventoryId) => {
+  const handleStartShipping = async (inventoryId, transaction) => {
+    // Kiểm tra điều kiện trước khi cho phép shipping
+    if (!canStartShipping(transaction)) {
+      showToast('Chưa thể vận chuyển. Vui lòng đảm bảo đã có hợp đồng đã ký và hóa đơn thanh toán.', 'warning');
+      return;
+    }
+
     setConfirmModal({
       isOpen: true,
-      message: 'Bạn có chắc chắn muốn bắt đầu vận chuyển?',
+      message: 'Bạn có chắc chắn muốn bắt đầu vận chuyển xe? Xe sẽ được gửi tới đại lý.',
       onConfirm: async () => {
         try {
           await startShipping(inventoryId).unwrap();
           setConfirmModal({ isOpen: false, message: '', onConfirm: null });
-          showToast('Đã bắt đầu vận chuyển thành công!', 'success');
+          showToast('Đã bắt đầu vận chuyển thành công! Xe đang trên đường tới đại lý.', 'success');
         } catch (error) {
           setConfirmModal({ isOpen: false, message: '', onConfirm: null });
           const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi bắt đầu vận chuyển';
@@ -312,6 +383,91 @@ const DealerOrdersPage = () => {
         }
       },
     });
+  };
+
+  const handleCreateContract = async (inventoryId) => {
+    setConfirmModal({
+      isOpen: true,
+      message: 'Bạn có chắc chắn muốn tạo hợp đồng cho yêu cầu này?',
+      onConfirm: async () => {
+        try {
+          await createContract(inventoryId).unwrap();
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          showToast('Đã tạo hợp đồng thành công! Vui lòng ký hợp đồng.', 'success');
+        } catch (error) {
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi tạo hợp đồng';
+          showToast(errorMessage, 'error');
+        }
+      },
+    });
+  };
+
+  const handleSignContract = async (inventoryId) => {
+    if (!signatureFile) {
+      showToast('Vui lòng chọn file ảnh chữ ký', 'warning');
+      return;
+    }
+
+    try {
+      // Upload signature image lên cloudinary hoặc server trước
+      // Ở đây giả sử backend sẽ xử lý upload, ta chỉ cần gửi URL
+      // Hoặc có thể upload file trực tiếp nếu API hỗ trợ
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api';
+      const token = localStorage.getItem('accessToken');
+      
+      // Upload signature image
+      const formData = new FormData();
+      formData.append('file', signatureFile);
+      
+      const uploadResponse = await fetch(`${baseUrl}/upload/signature`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('Không thể upload ảnh chữ ký');
+      }
+
+      const uploadData = await uploadResponse.json();
+      const signatureUrl = uploadData.url || uploadData.data?.url;
+
+      if (!signatureUrl) {
+        throw new Error('Không nhận được URL ảnh chữ ký');
+      }
+
+      // Ký hợp đồng với URL signature
+      await signContract({
+        inventoryId,
+        evmSignatureImageUrl: signatureUrl,
+      }).unwrap();
+
+      setIsSignContractModalOpen(false);
+      setSignatureFile(null);
+      setSignaturePreview(null);
+      showToast('Đã ký hợp đồng thành công! Hợp đồng đã được gửi tới Manager.', 'success');
+    } catch (error) {
+      const errorMessage = error?.data?.message || error?.message || 'Có lỗi xảy ra khi ký hợp đồng';
+      showToast(errorMessage, 'error');
+      if (import.meta.env.DEV) {
+        console.error('Sign contract error:', error);
+      }
+    }
+  };
+
+  const handleSignatureFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSignatureFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setSignaturePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleConfirmPayment = async (inventoryId) => {
@@ -532,7 +688,7 @@ const DealerOrdersPage = () => {
                   <tbody className="divide-y divide-gray-100">
                     {paginatedTransactions.map((transaction, index) => {
                       const progressSteps = getProgressSteps(transaction.status);
-                      const actionButtonText = getActionButton(transaction.status);
+                      const actionButtonText = getActionButton(transaction.status, transaction);
 
                       return (
                         <motion.tr
@@ -656,23 +812,53 @@ const DealerOrdersPage = () => {
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-center gap-2">
                               {actionButtonText && transaction.status !== 'COMPLETED' && transaction.status !== 'DELIVERED' && (
-                                <Button
-                                  size="sm"
-                                  onClick={() => {
-                                    if (transaction.status === 'PENDING' || transaction.status === 'DRAFT') {
-                                      handleAcceptTransaction(transaction.inventoryId);
-                                    } else if (transaction.status === 'ACCEPTED' || transaction.status === 'CONFIRMED') {
-                                      handleConfirmPayment(transaction.inventoryId);
-                                    } else if (transaction.status === 'PROCESSING') {
-                                      handleStartShipping(transaction.inventoryId);
-                                    } else if (transaction.status === 'SHIPPING') {
-                                      handleConfirmDelivery(transaction.inventoryId);
-                                    }
-                                  }}
-                                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1"
-                                >
-                                  {actionButtonText}
-                                </Button>
+                                <>
+                                  {actionButtonText.type === 'accept' && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleAcceptTransaction(transaction.inventoryId)}
+                                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1"
+                                    >
+                                      {actionButtonText.text}
+                                    </Button>
+                                  )}
+                                  {actionButtonText.type === 'createContract' && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleCreateContract(transaction.inventoryId)}
+                                      disabled={isCreatingContract}
+                                      className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 disabled:opacity-50"
+                                    >
+                                      <FileText size={14} className="mr-1" />
+                                      {isCreatingContract ? 'Đang tạo...' : actionButtonText.text}
+                                    </Button>
+                                  )}
+                                  {actionButtonText.type === 'signContract' && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => {
+                                        setSelectedTransactionId(transaction.inventoryId);
+                                        setIsSignContractModalOpen(true);
+                                      }}
+                                      className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1"
+                                    >
+                                      <PenTool size={14} className="mr-1" />
+                                      {actionButtonText.text}
+                                    </Button>
+                                  )}
+                                  {actionButtonText.type === 'startShipping' && (
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleStartShipping(transaction.inventoryId, transaction)}
+                                      disabled={!canStartShipping(transaction)}
+                                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
+                                      title={!canStartShipping(transaction) ? 'Chưa có đủ hợp đồng và hóa đơn' : ''}
+                                    >
+                                      <Truck size={14} className="mr-1" />
+                                      {actionButtonText.text}
+                                    </Button>
+                                  )}
+                                </>
                               )}
                               {(transaction.status === 'PENDING' || transaction.status === 'DRAFT') && (
                                 <Button
@@ -689,6 +875,7 @@ const DealerOrdersPage = () => {
                                   setIsDetailModalOpen(true);
                                 }}
                                 className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Xem chi tiết"
                               >
                                 <ChevronRight size={16} />
                               </button>
@@ -841,9 +1028,28 @@ const DealerOrdersPage = () => {
                 </p>
               </div>
             </div>
+            {/* Hiển thị hợp đồng nếu có */}
+            {(transactionDetail.data.contractFile || transactionDetail.data.contractPath) && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 block mb-2">Hợp đồng đã ký</label>
+                {transactionDetail.data.contractFile ? (
+                  <a
+                    href={transactionDetail.data.contractFile}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    Xem hợp đồng
+                  </a>
+                ) : (
+                  <p className="text-sm text-gray-600">Đã có hợp đồng</p>
+                )}
+              </div>
+            )}
+            {/* Hiển thị hóa đơn nếu có */}
             {transactionDetail.data.receiptImage && (
               <div>
-                <label className="text-sm font-medium text-gray-500 block mb-2">Biên lai thanh toán</label>
+                <label className="text-sm font-medium text-gray-500 block mb-2">Hóa đơn thanh toán</label>
                 <img
                   src={transactionDetail.data.receiptImage}
                   alt="Receipt"
@@ -851,10 +1057,99 @@ const DealerOrdersPage = () => {
                 />
               </div>
             )}
+            {/* Hiển thị thông báo nếu chưa đủ điều kiện để shipping */}
+            {transactionDetail.data.status === 'PAYMENT_CONFIRMED' && !canStartShipping(transactionDetail.data) && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800">
+                  ⚠️ Chưa thể vận chuyển. Vui lòng đảm bảo đã có hợp đồng đã ký và hóa đơn thanh toán từ đại lý.
+                </p>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center py-8 text-gray-500">Không có dữ liệu</div>
         )}
+      </Modal>
+
+      {/* Sign Contract Modal */}
+      <Modal
+        isOpen={isSignContractModalOpen}
+        onClose={() => {
+          setIsSignContractModalOpen(false);
+          setSignatureFile(null);
+          setSignaturePreview(null);
+        }}
+        title="Ký hợp đồng"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="text-sm text-gray-600">
+            Vui lòng upload ảnh chữ ký của bạn để ký hợp đồng. Ảnh sẽ được sử dụng để ký hợp đồng cho giao dịch này.
+          </div>
+          
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Ảnh chữ ký <span className="text-red-500">*</span>
+            </label>
+            <div className="mt-1">
+              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
+                {signaturePreview ? (
+                  <div className="relative w-full h-full">
+                    <img
+                      src={signaturePreview}
+                      alt="Signature preview"
+                      className="w-full h-full object-contain rounded-lg"
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSignatureFile(null);
+                        setSignaturePreview(null);
+                      }}
+                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+                    >
+                      <span className="text-xs">×</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                    <p className="mb-2 text-sm text-gray-500">
+                      <span className="font-semibold">Click để chọn</span> hoặc kéo thả file
+                    </p>
+                    <p className="text-xs text-gray-500">PNG, JPG, GIF (MAX. 5MB)</p>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={handleSignatureFileChange}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              onClick={() => {
+                setIsSignContractModalOpen(false);
+                setSignatureFile(null);
+                setSignaturePreview(null);
+              }}
+              variant="outline"
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={() => handleSignContract(selectedTransactionId)}
+              variant="primary"
+              disabled={!signatureFile || isSigningContract}
+            >
+              {isSigningContract ? 'Đang ký...' : 'Ký hợp đồng'}
+            </Button>
+          </div>
+        </div>
       </Modal>
 
       {/* Confirm Modal */}
