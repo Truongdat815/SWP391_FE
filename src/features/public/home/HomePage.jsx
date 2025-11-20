@@ -44,19 +44,22 @@ const HomePage = () => {
       id: 1,
       name: 'Electra Model S',
       description: 'Quãng đường 600km - Tốc độ tối đa 250km/h',
-      image: 'https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop',
+      image: null, // Use CSS background instead
+      bgColor: 'bg-gradient-to-br from-blue-600 to-blue-800',
     },
     {
       id: 2,
       name: 'Electra Model X',
       description: 'Quãng đường 550km - 7 chỗ ngồi linh hoạt',
-      image: 'https://images.unsplash.com/photo-1617788138017-8adcc8da66e3?w=800&h=600&fit=crop',
+      image: null,
+      bgColor: 'bg-gradient-to-br from-indigo-600 to-indigo-800',
     },
     {
       id: 3,
       name: 'Electra Model R',
       description: 'Quãng đường 500km - Tăng tốc 0-100km/h trong 2.5s',
-      image: 'https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop',
+      image: null,
+      bgColor: 'bg-gradient-to-br from-purple-600 to-purple-800',
     },
   ];
 
@@ -64,17 +67,23 @@ const HomePage = () => {
     {
       title: 'Công nghệ Pin Lượng tử',
       description: 'Tăng quãng đường di chuyển lên đến 30% và sạc đầy chỉ trong 15 phút.',
-      image: 'https://images.unsplash.com/photo-1605792657660-596af9009d82?w=600&h=400&fit=crop',
+      image: null,
+      bgColor: 'bg-gradient-to-br from-cyan-600 to-blue-600',
+      icon: '⚡',
     },
     {
       title: 'Hệ thống Tự lái Thông minh',
       description: 'Bộ cảm biến và AI tiên tiến giúp bạn di chuyển an toàn trên mọi hành trình.',
-      image: 'https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=600&h=400&fit=crop',
+      image: null,
+      bgColor: 'bg-gradient-to-br from-green-600 to-emerald-600',
+      icon: '🤖',
     },
     {
       title: 'Thiết kế Khí động học',
       description: 'Tối ưu hóa luồng không khí, giảm lực cản và tăng hiệu suất vận hành tối đa.',
-      image: 'https://images.unsplash.com/photo-1605559424843-9e4c228bf1c2?w=600&h=400&fit=crop',
+      image: null,
+      bgColor: 'bg-gradient-to-br from-purple-600 to-pink-600',
+      icon: '🌬️',
     },
   ];
 
@@ -127,14 +136,8 @@ const HomePage = () => {
 
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center justify-center overflow-hidden">
-        {/* Background Image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{
-            backgroundImage:
-              'url(https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=1920&h=1080&fit=crop)',
-          }}
-        >
+        {/* Background Gradient */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-900 via-indigo-900 to-purple-900">
           <div className="absolute inset-0 bg-gradient-to-b from-gray-900/80 via-gray-900/60 to-gray-900/90"></div>
         </div>
 
@@ -170,12 +173,8 @@ const HomePage = () => {
                 key={model.id}
                 className="bg-gray-800 rounded-xl overflow-hidden hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-700"
               >
-                <div className="relative h-64 overflow-hidden">
-                  <img
-                    src={model.image}
-                    alt={model.name}
-                    className="w-full h-full object-cover"
-                  />
+                <div className={`relative h-64 overflow-hidden ${model.bgColor} flex items-center justify-center`}>
+                  <div className="text-white text-6xl font-bold opacity-20">{model.name.charAt(model.name.length - 1)}</div>
                   <div className="absolute inset-0 bg-gradient-to-t from-gray-900/80 to-transparent"></div>
                 </div>
                 <div className="p-6">
@@ -211,12 +210,8 @@ const HomePage = () => {
                 key={index}
                 className="bg-gray-800 rounded-xl overflow-hidden hover:shadow-2xl hover:scale-105 transition-all duration-300 border border-gray-700"
               >
-                <div className="relative h-48 overflow-hidden">
-                  <img
-                    src={tech.image}
-                    alt={tech.title}
-                    className="w-full h-full object-cover"
-                  />
+                <div className={`relative h-48 overflow-hidden ${tech.bgColor} flex items-center justify-center`}>
+                  <div className="text-white text-5xl opacity-30">{tech.icon}</div>
                   <div className="absolute inset-0 bg-gradient-to-t from-gray-900/90 to-transparent"></div>
                 </div>
                 <div className="p-6">

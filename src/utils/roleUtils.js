@@ -16,10 +16,10 @@ export const normalizeRole = (roleName) => {
     'QUẢN TRỊ VIÊN': 'ADMIN',
     'QUAN TRI VIEN': 'ADMIN',
     'NHÂN VIÊN ĐẠI LÝ': 'DEALER_STAFF',
-    'NHAN VIEN CUA HANG': 'DEALER_STAFF',
+    'NHÂN VIÊN CỬA HÀNG': 'DEALER_STAFF',
     'NHÂN VIÊN BÁN HÀNG': 'DEALER_STAFF',
     'NHAN VIEN BAN HANG': 'DEALER_STAFF',
-    'QUẢN LÝ ĐẠI LÝ': 'DEALER_MANAGER',
+    'QUẢN LÝ CỬA HÀNG': 'DEALER_MANAGER',
     'QUAN LY DAI LY': 'DEALER_MANAGER',
     'NHÂN VIÊN HÃNG XE': 'EVM_STAFF',
     'NHAN VIEN EVM': 'EVM_STAFF',
@@ -107,5 +107,57 @@ export const getRoleDisplayName = (roleName) => {
   };
   
   return displayNames[normalizedRole] || roleName;
+};
+
+/**
+ * Get role from URL path
+ */
+export const getRoleFromPath = (pathname) => {
+  if (pathname.includes('/admin/')) return 'ADMIN';
+  if (pathname.includes('/dealer-staff/')) return 'DEALER_STAFF';
+  if (pathname.includes('/dealer-manager/')) return 'DEALER_MANAGER';
+  if (pathname.includes('/evm-staff/')) return 'EVM_STAFF';
+  return null;
+};
+
+/**
+ * SessionStorage utility functions for role-based auth
+ */
+export const getAuthStorageKey = (role) => {
+  const normalizedRole = normalizeRole(role);
+  return normalizedRole ? `auth_${normalizedRole}` : 'auth_default';
+};
+
+export const getAuthFromStorage = (role) => {
+  const key = getAuthStorageKey(role);
+  const data = sessionStorage.getItem(key);
+  if (!data) return null;
+  try {
+    return JSON.parse(data);
+  } catch {
+    return null;
+  }
+};
+
+export const setAuthToStorage = (role, authData) => {
+  const key = getAuthStorageKey(role);
+  sessionStorage.setItem(key, JSON.stringify(authData));
+};
+
+export const removeAuthFromStorage = (role) => {
+  const key = getAuthStorageKey(role);
+  sessionStorage.removeItem(key);
+};
+
+export const getAllAuthRoles = () => {
+  const roles = [];
+  for (let i = 0; i < sessionStorage.length; i++) {
+    const key = sessionStorage.key(i);
+    if (key && key.startsWith('auth_')) {
+      const role = key.replace('auth_', '');
+      roles.push(role);
+    }
+  }
+  return roles;
 };
 

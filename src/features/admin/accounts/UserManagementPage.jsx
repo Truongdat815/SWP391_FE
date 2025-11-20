@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { MoreVertical, Plus, Edit, Trash2 } from 'lucide-react';
+import { MoreVertical, Plus, Edit, Trash2, Check, X } from 'lucide-react';
 import AdminLayout from '../../../components/layout/AdminLayout';
 import SearchBar from '../../../components/shared/SearchBar';
 import Table from '../../../components/ui/Table';
@@ -8,6 +8,7 @@ import Button from '../../../components/ui/Button';
 import Modal from '../../../components/ui/Modal';
 import Input from '../../../components/ui/Input';
 import Dropdown from '../../../components/ui/Dropdown';
+import { useToast } from '../../../components/ui/Toast';
 import {
   useGetAllUsersQuery,
   useCreateUserMutation,
@@ -19,8 +20,9 @@ import { useGetAllRolesQuery } from '../../../api/admin/roleApi';
 import { useGetAllStoresQuery } from '../../../api/admin/storeApi';
 
 const UserManagementPage = () => {
+  const toast = useToast();
   const [searchTerm, setSearchTerm] = useState('');
-  const [activeRoleTab, setActiveRoleTab] = useState('DEALER_STAFF'); // 'DEALER_STAFF', 'DEALER_MANAGER', 'EVM_STAFF'
+  const [activeRoleTab, setActiveRoleTab] = useState('all'); // 'all', 'DEALER_STAFF', 'DEALER_MANAGER', 'EVM_STAFF'
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -34,7 +36,7 @@ const UserManagementPage = () => {
     password: '',
     roleId: '',
     storeId: '',
-    status: 'ACTIVE',
+    status: 'PENDING',
   });
 
   const { data: usersResponse, isLoading, error } = useGetAllUsersQuery();
@@ -82,6 +84,7 @@ const UserManagementPage = () => {
   };
 
   const roleTabs = [
+    { value: 'all', label: 'Tất cả' },
     { value: 'DEALER_STAFF', label: 'Dealer Staff' },
     { value: 'DEALER_MANAGER', label: 'Dealer Manager' },
     { value: 'EVM_STAFF', label: 'EVM Staff' },
@@ -102,17 +105,30 @@ const UserManagementPage = () => {
     }
 
     return users.filter((user) => {
+      // Loại bỏ admin users
+      const userRoleName = user.roleName || '';
+      const userRoleNormalized = normalizeRoleName(userRoleName);
+      if (
+        userRoleNormalized.includes('ADMIN') ||
+        userRoleNormalized.includes('QUAN_TRI_VIEN') ||
+        userRoleName.includes('Quản trị viên') ||
+        userRoleName.includes('quản trị viên')
+      ) {
+        return false;
+      }
+      
       const matchesSearch =
         user.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.phone?.includes(searchTerm);
       
-      // So sánh role với nhiều format khác nhau
-      const userRoleName = user.roleName || '';
-      const possibleRoleNames = roleNameMap[activeRoleTab] || [activeRoleTab];
+      // Nếu chọn "Tất cả", không filter theo role
+      if (activeRoleTab === 'all') {
+        return matchesSearch;
+      }
       
-      // Kiểm tra xem user.roleName có match với bất kỳ role name nào trong map không
-      const userRoleNormalized = normalizeRoleName(userRoleName);
+      // So sánh role với nhiều format khác nhau (userRoleName và userRoleNormalized đã được lấy ở trên)
+      const possibleRoleNames = roleNameMap[activeRoleTab] || [activeRoleTab];
       
       let matchesRole = possibleRoleNames.some((roleName) => {
         const targetRoleNormalized = normalizeRoleName(roleName);
@@ -172,18 +188,62 @@ const UserManagementPage = () => {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  const getStatusBadge = (status) => {
+    const statusMap = {
+      PENDING: { variant: 'warning', label: 'Chờ duyệt' },
+      ACTIVE: { variant: 'success', label: 'Hoạt động' },
+      DISABLED: { variant: 'error', label: 'Vô hiệu hóa' },
+    };
+    const config = statusMap[status] || { variant: 'default', label: status || 'N/A' };
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  // Helper function để kiểm tra role có phải là EVM_STAFF không
+  const isEVMStaffRole = (roleId) => {
+    if (!roleId) return false;
+    const selectedRole = roles.find((role) => role.roleId?.toString() === roleId?.toString());
+    if (!selectedRole) return false;
+    const roleName = selectedRole.roleName || '';
+    return (
+      normalizeRoleName(roleName).includes('NHAN_VIEN_HANG') ||
+      roleName.includes('Nhân viên hãng xe') ||
+      roleName.includes('nhân viên hãng xe') ||
+      roleName.includes('Nhân viên hãng') ||
+      roleName.includes('EVM_STAFF') ||
+      roleName.includes('EVM Staff')
+    );
+  };
+
+  // Lọc roles để loại bỏ ADMIN trong create modal
+  const availableRolesForCreate = useMemo(() => {
+    return roles.filter((role) => {
+      const roleName = role.roleName || '';
+      const normalized = normalizeRoleName(roleName);
+      return !(
+        normalized.includes('ADMIN') ||
+        normalized.includes('QUAN_TRI_VIEN') ||
+        roleName.includes('Quản trị viên') ||
+        roleName.includes('quản trị viên')
+      );
+    });
+  }, [roles]);
+
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
+      // Nếu là EVM_STAFF, đảm bảo storeId là null
+      const isEVMStaff = isEVMStaffRole(formData.roleId);
       const payload = {
         fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
         password: formData.password,
         roleId: parseInt(formData.roleId),
-        storeId: formData.storeId ? parseInt(formData.storeId) : null,
+        storeId: isEVMStaff ? null : (formData.storeId ? parseInt(formData.storeId) : null),
+        status: 'PENDING', // Mới tạo user sẽ có trạng thái PENDING
       };
       await createUser(payload).unwrap();
+      toast.success('Tạo người dùng thành công');
       setIsCreateModalOpen(false);
       setFormData({
         fullName: '',
@@ -192,10 +252,10 @@ const UserManagementPage = () => {
         password: '',
         roleId: '',
         storeId: '',
-        status: 'ACTIVE',
+        status: 'PENDING',
       });
     } catch (error) {
-      alert(error?.data?.message || 'Có lỗi xảy ra khi tạo user');
+      toast.error(error?.data?.message || 'Có lỗi xảy ra khi tạo user');
       if (import.meta.env.DEV) {
         console.error(error);
       }
@@ -220,18 +280,20 @@ const UserManagementPage = () => {
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
+      const isEVMStaff = isEVMStaffRole(formData.roleId);
       const payload = {
         fullName: formData.fullName,
         email: formData.email,
         phone: formData.phone,
         roleId: parseInt(formData.roleId),
-        storeId: formData.storeId ? parseInt(formData.storeId) : null,
+        storeId: isEVMStaff ? null : (formData.storeId ? parseInt(formData.storeId) : null),
       };
       await updateUser({ userId: selectedUser.userId, ...payload }).unwrap();
+      toast.success('Cập nhật người dùng thành công');
       setIsEditModalOpen(false);
       setSelectedUser(null);
     } catch (error) {
-      alert(error?.data?.message || 'Có lỗi xảy ra khi cập nhật user');
+      toast.error(error?.data?.message || 'Có lỗi xảy ra khi cập nhật user');
       if (import.meta.env.DEV) {
         console.error(error);
       }
@@ -242,8 +304,9 @@ const UserManagementPage = () => {
     if (window.confirm('Bạn có chắc chắn muốn xóa user này?')) {
       try {
         await deleteUser(userId).unwrap();
+        toast.success('Xóa người dùng thành công');
       } catch (error) {
-        alert(error?.data?.message || 'Có lỗi xảy ra khi xóa user');
+        toast.error(error?.data?.message || 'Có lỗi xảy ra khi xóa user');
         if (import.meta.env.DEV) {
           console.error(error);
         }
@@ -254,13 +317,27 @@ const UserManagementPage = () => {
 
   const handleToggleStatus = async (user) => {
     try {
-      const newStatus = user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+      // Chỉ cho phép chuyển đổi giữa ACTIVE và DISABLED
+      // PENDING không thể thay đổi từ đây (sẽ tự động chuyển sang ACTIVE sau khi user đổi password)
+      let newStatus;
+      if (user.status === 'ACTIVE') {
+        newStatus = 'DISABLED';
+      } else if (user.status === 'DISABLED') {
+        newStatus = 'ACTIVE';
+      } else {
+        // Nếu là PENDING, không cho phép thay đổi từ menu này
+        toast.warning('Người dùng đang ở trạng thái chờ duyệt. Trạng thái sẽ tự động chuyển sang hoạt động sau khi người dùng đổi mật khẩu lần đầu.');
+        setOpenMenuId(null);
+        return;
+      }
+      
       await updateUserStatus({
         userId: user.userId,
         status: newStatus,
       }).unwrap();
+      toast.success(newStatus === 'DISABLED' ? 'Vô hiệu hóa người dùng thành công' : 'Kích hoạt người dùng thành công');
     } catch (error) {
-      alert(error?.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái');
+      toast.error(error?.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái');
       if (import.meta.env.DEV) {
         console.error(error);
       }
@@ -286,24 +363,24 @@ const UserManagementPage = () => {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            
-            
-          </div>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <Plus size={20} className="mr-2" />
-            Thêm người dùng mới
-          </Button>
-        </div>
-
-        {/* Role Tabs */}
+        {/* Role Tabs với button Thêm người dùng mới và SearchBar */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex gap-2">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex gap-2 flex-1">
             {roleTabs.map((tab) => {
               // Đếm số lượng users theo role
               const count = tab.value === 'all' 
-                ? users.length 
+                ? users.filter((user) => {
+                    // Loại bỏ admin users
+                    const userRoleName = user.roleName || '';
+                    const userRoleNormalized = normalizeRoleName(userRoleName);
+                    return !(
+                      userRoleNormalized.includes('ADMIN') ||
+                      userRoleNormalized.includes('QUAN_TRI_VIEN') ||
+                      userRoleName.includes('Quản trị viên') ||
+                      userRoleName.includes('quản trị viên')
+                    );
+                  }).length
                 : users.filter((user) => {
                     const userRoleName = user.roleName || '';
                     const userRoleNormalized = normalizeRoleName(userRoleName);
@@ -356,15 +433,19 @@ const UserManagementPage = () => {
               );
             })}
           </div>
-        </div>
-
-        <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-4 flex-1">
           <SearchBar
             placeholder="Tìm kiếm theo tên, email, số điện thoại..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="flex-1"
           />
+              <Button onClick={() => setIsCreateModalOpen(true)}>
+                <Plus size={20} className="mr-2" />
+                Thêm người dùng mới
+              </Button>
+            </div>
+          </div>
         </div>
 
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -409,30 +490,39 @@ const UserManagementPage = () => {
               <Table>
                 <Table.Header>
                   <Table.Row>
-                    <Table.Head className="w-12 text-center">
-                      <input type="checkbox" className="rounded" />
-                    </Table.Head>
                     <Table.Head>Tên người dùng</Table.Head>
                     <Table.Head>Email</Table.Head>
                     <Table.Head>Số điện thoại</Table.Head>
                     <Table.Head>Vai trò</Table.Head>
                     <Table.Head>Chi nhánh</Table.Head>
                     <Table.Head>Ngày tạo</Table.Head>
+                    <Table.Head>Trạng thái</Table.Head>
                     <Table.Head className="text-center">Hành động</Table.Head>
                   </Table.Row>
                 </Table.Header>
                 <Table.Body>
                   {paginatedUsers.map((user) => (
                     <Table.Row key={user.userId}>
-                      <Table.Cell className="text-center">
-                        <input type="checkbox" className="rounded" />
-                      </Table.Cell>
                       <Table.Cell className="font-medium">{user.fullName || 'N/A'}</Table.Cell>
                       <Table.Cell>{user.email || 'N/A'}</Table.Cell>
                       <Table.Cell>{user.phone || 'N/A'}</Table.Cell>
                       <Table.Cell>{getRoleBadge(user.roleName)}</Table.Cell>
-                      <Table.Cell>{user.storeName || 'N/A'}</Table.Cell>
+                      <Table.Cell>
+                        {(() => {
+                          const userRoleName = user.roleName || '';
+                          const userRoleNormalized = normalizeRoleName(userRoleName);
+                          const isEVMStaff = 
+                            userRoleNormalized.includes('NHAN_VIEN_HANG') ||
+                            userRoleName.includes('Nhân viên hãng xe') ||
+                            userRoleName.includes('nhân viên hãng xe') ||
+                            userRoleName.includes('Nhân viên hãng') ||
+                            userRoleName.includes('EVM_STAFF') ||
+                            userRoleName.includes('EVM Staff');
+                          return isEVMStaff ? '-' : (user.storeName || 'N/A');
+                        })()}
+                      </Table.Cell>
                       <Table.Cell>{formatDate(user.createdAt)}</Table.Cell>
+                      <Table.Cell>{getStatusBadge(user.status)}</Table.Cell>
                       <Table.Cell className="text-center">
                         <div className="relative flex justify-center">
                           <button
@@ -450,19 +540,21 @@ const UserManagementPage = () => {
                                 <Edit size={16} />
                                 Chỉnh sửa
                               </button>
+                              {user.status !== 'PENDING' && (
                               <button
                                 onClick={() => handleToggleStatus(user)}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-gray-50 transition-colors border-b border-gray-200"
-                              >
-                                {user.status === 'ACTIVE' ? 'Khóa tài khoản' : 'Kích hoạt tài khoản'}
+                                  className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-gray-50 transition-colors"
+                                >
+                                  {user.status === 'ACTIVE' ? (
+                                    <>
+                                      <X size={16} />
+                                      Vô hiệu hóa
+                                    </>
+                                  ) : (
+                                    'Kích hoạt'
+                                  )}
                               </button>
-                              <button
-                                onClick={() => handleDelete(user.userId)}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-left text-red-600 hover:bg-red-50 transition-colors"
-                              >
-                                <Trash2 size={16} />
-                                Xóa
-                              </button>
+                              )}
                             </div>
                           )}
                         </div>
@@ -534,52 +626,65 @@ const UserManagementPage = () => {
         size="lg"
       >
         <form onSubmit={handleCreate} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Họ và tên"
+              label="Họ và tên *"
+              placeholder="Nhập họ và tên đầy đủ"
             value={formData.fullName}
             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
             required
           />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cửa hàng *</label>
+              <Dropdown
+                options={storeOptions}
+                value={formData.storeId}
+                onChange={(value) => setFormData({ ...formData, storeId: value })}
+                placeholder="Chọn cửa hàng"
+                disabled={isEVMStaffRole(formData.roleId)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Vai trò *</label>
+              <Dropdown
+                options={availableRolesForCreate.map((role) => ({
+                  value: role.roleId?.toString(),
+                  label: role.roleName || `Role ${role.roleId}`,
+                }))}
+                value={formData.roleId}
+                onChange={(value) => {
+                  const isEVMStaff = isEVMStaffRole(value);
+                  setFormData({ 
+                    ...formData, 
+                    roleId: value,
+                    // Clear storeId nếu chọn EVM_STAFF
+                    storeId: isEVMStaff ? '' : formData.storeId
+                  });
+                }}
+                placeholder="Chọn vai trò"
+              />
+            </div>
           <Input
-            label="Email"
+              label="Email *"
             type="email"
             value={formData.email}
             onChange={(e) => setFormData({ ...formData, email: e.target.value })}
             required
           />
           <Input
-            label="Số điện thoại"
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            required
-          />
-          <Input
-            label="Mật khẩu"
+              label="Mật khẩu *"
             type="password"
             value={formData.password}
             onChange={(e) => setFormData({ ...formData, password: e.target.value })}
             required
           />
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Vai trò *</label>
-            <Dropdown
-              options={roles.map((role) => ({
-                value: role.roleId?.toString(),
-                label: role.roleName || `Role ${role.roleId}`,
-              }))}
-              value={formData.roleId}
-              onChange={(value) => setFormData({ ...formData, roleId: value })}
-              placeholder="Chọn vai trò"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Chi nhánh</label>
-            <Dropdown
-              options={[{ value: '', label: 'Không chọn' }, ...storeOptions]}
-              value={formData.storeId}
-              onChange={(value) => setFormData({ ...formData, storeId: value })}
-              placeholder="Chọn chi nhánh (tùy chọn)"
+            <Input
+              label="Số điện thoại *"
+              type="tel"
+              placeholder="Nhập số điện thoại"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              required
             />
           </div>
           <div className="flex gap-4 pt-4">
@@ -590,10 +695,11 @@ const UserManagementPage = () => {
               className="flex-1"
               disabled={isCreating}
             >
+              <X size={16} className="mr-2" />
               Hủy
             </Button>
-            <Button type="submit" className="flex-1" disabled={isCreating}>
-              {isCreating ? 'Đang tạo...' : 'Tạo'}
+            <Button type="submit" className="flex-1 bg-red-600 hover:bg-red-700" disabled={isCreating}>
+              {isCreating ? 'Đang tạo...' : 'Tạo tài khoản'}
             </Button>
           </div>
         </form>
@@ -606,30 +712,38 @@ const UserManagementPage = () => {
           setIsEditModalOpen(false);
           setSelectedUser(null);
         }}
-        title="Chỉnh sửa người dùng"
+        title={
+          <div className="flex items-center gap-2">
+            <Edit className="w-5 h-5 text-yellow-500" />
+            <span>Chỉnh sửa người dùng</span>
+          </div>
+        }
         size="lg"
       >
         <form onSubmit={handleUpdate} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Họ và tên"
+              label="Họ và tên *"
             value={formData.fullName}
             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
             required
           />
-          <Input
-            label="Email"
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            required
-          />
-          <Input
-            label="Số điện thoại"
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            required
-          />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cửa hàng *</label>
+              <Dropdown
+                options={storeOptions}
+                value={formData.storeId}
+                onChange={(value) => {
+                  const isEVMStaff = isEVMStaffRole(formData.roleId);
+                  setFormData({ 
+                    ...formData, 
+                    storeId: isEVMStaff ? '' : value 
+                  });
+                }}
+                placeholder="Chọn cửa hàng"
+                disabled={isEVMStaffRole(formData.roleId)}
+              />
+            </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Vai trò *</label>
             <Dropdown
@@ -638,17 +752,31 @@ const UserManagementPage = () => {
                 label: role.roleName || `Role ${role.roleId}`,
               }))}
               value={formData.roleId}
-              onChange={(value) => setFormData({ ...formData, roleId: value })}
+                onChange={(value) => {
+                  const isEVMStaff = isEVMStaffRole(value);
+                  setFormData({ 
+                    ...formData, 
+                    roleId: value,
+                    // Clear storeId nếu chọn EVM_STAFF
+                    storeId: isEVMStaff ? '' : formData.storeId
+                  });
+                }}
               placeholder="Chọn vai trò"
             />
           </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Chi nhánh</label>
-            <Dropdown
-              options={[{ value: '', label: 'Không chọn' }, ...storeOptions]}
-              value={formData.storeId}
-              onChange={(value) => setFormData({ ...formData, storeId: value })}
-              placeholder="Chọn chi nhánh (tùy chọn)"
+            <Input
+              label="Email *"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              required
+            />
+            <Input
+              label="Số điện thoại *"
+              type="tel"
+              value={formData.phone}
+              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+              required
             />
           </div>
           <div className="flex gap-4 pt-4">
@@ -665,7 +793,8 @@ const UserManagementPage = () => {
               Hủy
             </Button>
             <Button type="submit" className="flex-1" disabled={isUpdating}>
-              {isUpdating ? 'Đang cập nhật...' : 'Cập nhật'}
+              <Check size={16} className="mr-2" />
+              {isUpdating ? 'Đang cập nhật...' : 'Cập nhật người dùng'}
             </Button>
           </div>
         </form>

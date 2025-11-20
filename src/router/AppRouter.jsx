@@ -2,6 +2,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 
 import HomePage from '../features/public/home/HomePage';
 import LoginPage from '../features/public/login/LoginPage';
+import ChangePasswordPage from '../features/public/change-password/ChangePasswordPage';
 import ProtectedRoute from './ProtectedRoute';
 import RoleRoute from './RoleRoute';
 
@@ -39,6 +40,14 @@ function AppRouter() {
       {/* Public routes */}
       <Route path="/" element={<HomePage />} />
       <Route path="/login" element={<LoginPage />} />
+      <Route
+        path="/change-password"
+        element={
+          <ProtectedRoute>
+            <ChangePasswordPage />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Admin routes - Protected by authentication and role */}
       <Route

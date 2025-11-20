@@ -42,6 +42,13 @@ export const storeApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Branch'],
     }),
+    toggleStoreStatus: builder.mutation({
+      query: (storeId) => ({
+        url: `/stores/toggle-status/${storeId}`,
+        method: 'PUT',
+      }),
+      invalidatesTags: ['Branch'],
+    }),
     deleteStore: builder.mutation({
       query: (storeId) => ({
         url: `/stores/delete/${storeId}`,
@@ -51,6 +58,10 @@ export const storeApi = baseApi.injectEndpoints({
     }),
     getMonthlyRevenue: builder.query({
       query: () => '/stores/revenue/monthly',
+      providesTags: ['Branch'],
+    }),
+    getTotalMonthlyRevenue: builder.query({
+      query: () => '/stores/revenue/total-monthly',
       providesTags: ['Branch'],
     }),
     getStoreStatuses: builder.query({
@@ -67,8 +78,10 @@ export const {
   useGetAllStoresQuery,
   useGetActiveStoresQuery,
   useUpdateStoreMutation,
+  useToggleStoreStatusMutation,
   useDeleteStoreMutation,
   useGetMonthlyRevenueQuery,
+  useGetTotalMonthlyRevenueQuery,
   useGetStoreStatusesQuery,
 } = storeApi;
 
