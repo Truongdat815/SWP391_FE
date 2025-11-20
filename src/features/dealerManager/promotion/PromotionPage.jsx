@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Eye, Edit, Trash2 } from 'lucide-react';
+import { Search, Plus, Eye, Edit, Trash2, AlertCircle } from 'lucide-react';
 import DealerManagerLayout from '../../../components/layout/DealerManagerLayout';
 import SearchBar from '../../../components/shared/SearchBar';
 import Table from '../../../components/ui/Table';
@@ -15,6 +15,7 @@ import {
   useDeletePromotionMutation,
   useGetPromotionTypesQuery,
 } from '../../../api/dealerManager/promotionApi';
+import { useGetAllModelsQuery } from '../../../api/admin/modelApi';
 
 const PromotionPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -25,6 +26,14 @@ const PromotionPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedPromotion, setSelectedPromotion] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
+  const [successModal, setSuccessModal] = useState({ isOpen: false, message: '' });
+  const [confirmModal, setConfirmModal] = useState({ 
+    isOpen: false, 
+    message: '', 
+    onConfirm: null 
+  });
   const [formData, setFormData] = useState({
     promotionName: '',
     startDate: '',
@@ -36,12 +45,26 @@ const PromotionPage = () => {
 
   const { data: promotionsData, isLoading, error } = useGetAllPromotionsQuery();
   const { data: typesData } = useGetPromotionTypesQuery();
+  const { data: modelsData } = useGetAllModelsQuery();
   const [createPromotion, { isLoading: isCreating }] = useCreatePromotionMutation();
   const [updatePromotion, { isLoading: isUpdating }] = useUpdatePromotionMutation();
   const [deletePromotion] = useDeletePromotionMutation();
 
   const promotions = promotionsData?.data || [];
   const types = typesData?.data || [];
+  const models = modelsData?.data || [];
+
+  // Helper function to check if promotion is actually active based on dates
+  const isPromotionActive = (promo) => {
+    if (!promo.startDate || !promo.endDate) return false;
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const start = new Date(promo.startDate);
+    const startDateOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    const end = new Date(promo.endDate);
+    const endDateOnly = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59);
+    return today >= startDateOnly && today <= endDateOnly;
+  };
 
   // Filter promotions
   const filteredPromotions = useMemo(() => {
@@ -49,10 +72,14 @@ const PromotionPage = () => {
       const matchesSearch =
         promo.promotionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         promo.promotionCode?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      // Tính trạng thái thực tế dựa trên ngày tháng
+      const actuallyActive = isPromotionActive(promo);
       const matchesStatus =
         statusFilter === 'all' ||
-        (statusFilter === 'active' && promo.isActive) ||
-        (statusFilter === 'inactive' && !promo.isActive);
+        (statusFilter === 'active' && actuallyActive) ||
+        (statusFilter === 'inactive' && !actuallyActive);
+      
       const matchesType = typeFilter === 'all' || promo.promotionType === typeFilter;
       return matchesSearch && matchesStatus && matchesType;
     });
@@ -65,19 +92,28 @@ const PromotionPage = () => {
   const paginatedPromotions = filteredPromotions.slice(startIndex, endIndex);
 
   const getStatusBadge = (isActive, startDate, endDate) => {
-    const now = new Date();
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-
-    if (!isActive) {
-      return <Badge variant="default">Đã kết thúc</Badge>;
+    if (!startDate || !endDate) {
+      return <Badge variant="default">N/A</Badge>;
     }
-    if (now < start) {
+
+    const now = new Date();
+    // Chỉ lấy phần ngày, bỏ qua giờ để so sánh chính xác
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const start = new Date(startDate);
+    const startDateOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate());
+    
+    const end = new Date(endDate);
+    // Set endDate thành cuối ngày (23:59:59) để đảm bảo cả ngày cuối cùng vẫn còn hiệu lực
+    const endDateOnly = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59);
+
+    // Ưu tiên kiểm tra ngày tháng trước, không phụ thuộc vào isActive từ backend
+    if (today < startDateOnly) {
       return <Badge variant="warning">Sắp diễn ra</Badge>;
     }
-    if (now >= start && now <= end) {
+    if (today >= startDateOnly && today <= endDateOnly) {
       return <Badge variant="success">Đang hoạt động</Badge>;
     }
+    // Nếu đã qua ngày kết thúc
     return <Badge variant="default">Đã kết thúc</Badge>;
   };
 
@@ -102,10 +138,52 @@ const PromotionPage = () => {
     }
   };
 
+  // Format date for input type="date" (YYYY-MM-DD)
+  const formatDateForInput = (dateString) => {
+    if (!dateString) return '';
+    try {
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    } catch {
+      return '';
+    }
+  };
+
   const handleCreate = async (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.discountType) {
+      setErrorModal({ isOpen: true, message: 'Vui lòng chọn loại giảm giá' });
+      return;
+    }
+    
+    const discountValue = parseFloat(formData.discountValue);
+    if (isNaN(discountValue) || discountValue <= 0) {
+      setErrorModal({ isOpen: true, message: 'Giá trị giảm giá phải lớn hơn 0' });
+      return;
+    }
+    
+    if (formData.discountType === 'PERCENTAGE' && discountValue > 100) {
+      setErrorModal({ isOpen: true, message: 'Phần trăm giảm giá không được vượt quá 100%' });
+      return;
+    }
+    
+    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
+      setErrorModal({ isOpen: true, message: 'Ngày kết thúc phải sau ngày bắt đầu' });
+      return;
+    }
+    
     try {
-      await createPromotion(formData).unwrap();
+      const submitData = {
+        ...formData,
+        discountValue: discountValue,
+        modelId: formData.modelId || null,
+      };
+      await createPromotion(submitData).unwrap();
       setIsCreateModalOpen(false);
       setFormData({
         promotionName: '',
@@ -115,9 +193,13 @@ const PromotionPage = () => {
         discountValue: '',
         modelId: null,
       });
+      setSuccessModal({ isOpen: true, message: 'Tạo khuyến mãi thành công!' });
     } catch (error) {
-      alert('Có lỗi xảy ra khi tạo khuyến mãi');
-      console.error(error);
+      const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi tạo khuyến mãi';
+      setErrorModal({ isOpen: true, message: errorMessage });
+      if (import.meta.env.DEV) {
+        console.error(error);
+      }
     }
   };
 
@@ -125,10 +207,10 @@ const PromotionPage = () => {
     setSelectedPromotion(promo);
     setFormData({
       promotionName: promo.promotionName || '',
-      startDate: promo.startDate || '',
-      endDate: promo.endDate || '',
+      startDate: formatDateForInput(promo.startDate) || '',
+      endDate: formatDateForInput(promo.endDate) || '',
       discountType: promo.discountType || '',
-      discountValue: promo.discountValue || '',
+      discountValue: promo.discountValue?.toString() || '',
       modelId: promo.modelId || null,
     });
     setIsEditModalOpen(true);
@@ -136,25 +218,73 @@ const PromotionPage = () => {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    if (!selectedPromotion) return;
+    
+    // Validation
+    if (!formData.discountType) {
+      setErrorModal({ isOpen: true, message: 'Vui lòng chọn loại giảm giá' });
+      return;
+    }
+    
+    const discountValue = parseFloat(formData.discountValue);
+    if (isNaN(discountValue) || discountValue <= 0) {
+      setErrorModal({ isOpen: true, message: 'Giá trị giảm giá phải lớn hơn 0' });
+      return;
+    }
+    
+    if (formData.discountType === 'PERCENTAGE' && discountValue > 100) {
+      setErrorModal({ isOpen: true, message: 'Phần trăm giảm giá không được vượt quá 100%' });
+      return;
+    }
+    
+    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
+      setErrorModal({ isOpen: true, message: 'Ngày kết thúc phải sau ngày bắt đầu' });
+      return;
+    }
+    
     try {
-      await updatePromotion({ id: selectedPromotion.promotionId, ...formData }).unwrap();
+      const submitData = {
+        ...formData,
+        discountValue: discountValue,
+        modelId: formData.modelId || null,
+      };
+      await updatePromotion({ id: selectedPromotion.promotionId, ...submitData }).unwrap();
       setIsEditModalOpen(false);
       setSelectedPromotion(null);
+      setSuccessModal({ isOpen: true, message: 'Cập nhật khuyến mãi thành công!' });
     } catch (error) {
-      alert('Có lỗi xảy ra khi cập nhật khuyến mãi');
-      console.error(error);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa khuyến mãi này?')) {
-      try {
-        await deletePromotion(id).unwrap();
-      } catch (error) {
-        alert('Có lỗi xảy ra khi xóa khuyến mãi');
+      const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi cập nhật khuyến mãi';
+      setErrorModal({ isOpen: true, message: errorMessage });
+      if (import.meta.env.DEV) {
         console.error(error);
       }
     }
+  };
+
+  const handleDelete = (id) => {
+    setConfirmModal({
+      isOpen: true,
+      message: 'Bạn có chắc chắn muốn xóa khuyến mãi này?',
+      onConfirm: async () => {
+        try {
+          await deletePromotion(id).unwrap();
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          setSuccessModal({ isOpen: true, message: 'Xóa khuyến mãi thành công!' });
+        } catch (error) {
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi xóa khuyến mãi';
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          setErrorModal({ isOpen: true, message: errorMessage });
+          if (import.meta.env.DEV) {
+            console.error(error);
+          }
+        }
+      },
+    });
+  };
+
+  const handleViewDetails = (promo) => {
+    setSelectedPromotion(promo);
+    setIsDetailModalOpen(true);
   };
 
   if (isLoading) {
@@ -280,20 +410,26 @@ const PromotionPage = () => {
                         </Table.Cell>
                         <Table.Cell>
                           <div className="flex items-center justify-center gap-2">
-                            <button className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors">
+                            <button
+                              onClick={() => handleViewDetails(promo)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              title="Xem chi tiết"
+                            >
                               <Eye size={16} />
                             </button>
-                            {promo.isActive && (
+                            {isPromotionActive(promo) && (
                               <>
                                 <button
                                   onClick={() => handleEdit(promo)}
                                   className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                                  title="Chỉnh sửa"
                                 >
                                   <Edit size={16} />
                                 </button>
                                 <button
                                   onClick={() => handleDelete(promo.promotionId)}
                                   className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                  title="Xóa"
                                 >
                                   <Trash2 size={16} />
                                 </button>
@@ -403,9 +539,13 @@ const PromotionPage = () => {
           <Input
             label="Giá trị giảm giá"
             type="number"
+            min={formData.discountType === 'PERCENTAGE' ? '0' : '0'}
+            max={formData.discountType === 'PERCENTAGE' ? '100' : undefined}
+            step={formData.discountType === 'PERCENTAGE' ? '0.01' : '1'}
             value={formData.discountValue}
             onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
             required
+            placeholder={formData.discountType === 'PERCENTAGE' ? 'Nhập % (0-100)' : 'Nhập số tiền'}
           />
           <div className="flex gap-4 pt-4">
             <Button
@@ -472,9 +612,13 @@ const PromotionPage = () => {
           <Input
             label="Giá trị giảm giá"
             type="number"
+            min={formData.discountType === 'PERCENTAGE' ? '0' : '0'}
+            max={formData.discountType === 'PERCENTAGE' ? '100' : undefined}
+            step={formData.discountType === 'PERCENTAGE' ? '0.01' : '1'}
             value={formData.discountValue}
             onChange={(e) => setFormData({ ...formData, discountValue: e.target.value })}
             required
+            placeholder={formData.discountType === 'PERCENTAGE' ? 'Nhập % (0-100)' : 'Nhập số tiền'}
           />
           <div className="flex gap-4 pt-4">
             <Button
@@ -494,6 +638,202 @@ const PromotionPage = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Detail Modal */}
+      <Modal
+        isOpen={isDetailModalOpen}
+        onClose={() => {
+          setIsDetailModalOpen(false);
+          setSelectedPromotion(null);
+        }}
+        title="Chi tiết Khuyến mãi"
+        size="lg"
+      >
+        {selectedPromotion ? (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-500">Tên chương trình</label>
+                <p className="text-lg font-semibold mt-1">{selectedPromotion.promotionName || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Mã khuyến mãi</label>
+                <p className="text-lg font-mono mt-1">{selectedPromotion.promotionCode || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Ngày bắt đầu</label>
+                <p className="text-lg mt-1">{formatDate(selectedPromotion.startDate)}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Ngày kết thúc</label>
+                <p className="text-lg mt-1">{formatDate(selectedPromotion.endDate)}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Loại giảm giá</label>
+                <p className="text-lg mt-1">
+                  {selectedPromotion.discountType === 'PERCENTAGE' ? 'Phần trăm (%)' : 
+                   selectedPromotion.discountType === 'FIXED_AMOUNT' ? 'Số tiền cố định' : 
+                   selectedPromotion.promotionType || 'N/A'}
+                </p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Giá trị giảm giá</label>
+                <p className="text-lg font-semibold text-blue-600 mt-1">
+                  {formatDiscount(selectedPromotion)}
+                </p>
+              </div>
+              {selectedPromotion.modelId && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Áp dụng cho mẫu xe</label>
+                  <p className="text-lg mt-1">
+                    {models.find(m => m.modelId === selectedPromotion.modelId)?.modelName || 
+                     `Model ID: ${selectedPromotion.modelId}`}
+                  </p>
+                </div>
+              )}
+              <div>
+                <label className="text-sm font-medium text-gray-500">Trạng thái</label>
+                <div className="mt-1">
+                  {getStatusBadge(selectedPromotion.isActive, selectedPromotion.startDate, selectedPromotion.endDate)}
+                </div>
+              </div>
+            </div>
+            
+            {selectedPromotion.description && (
+              <div>
+                <label className="text-sm font-medium text-gray-500">Mô tả</label>
+                <p className="text-base mt-1 text-gray-700">{selectedPromotion.description}</p>
+              </div>
+            )}
+
+            <div className="flex gap-4 pt-4 border-t">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsDetailModalOpen(false);
+                  setSelectedPromotion(null);
+                }}
+                className="flex-1"
+              >
+                Đóng
+              </Button>
+              {isPromotionActive(selectedPromotion) && (
+                <Button
+                  onClick={() => {
+                    setIsDetailModalOpen(false);
+                    handleEdit(selectedPromotion);
+                  }}
+                  className="flex-1"
+                >
+                  <Edit size={18} className="mr-2" />
+                  Chỉnh sửa
+                </Button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-gray-500">Không có dữ liệu</div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Error Modal */}
+      <Modal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, message: '' })}
+        title="Lỗi"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <p className="text-gray-700">{errorModal.message}</p>
+            </div>
+          </div>
+          <div className="flex justify-end pt-4">
+            <Button
+              onClick={() => setErrorModal({ isOpen: false, message: '' })}
+              variant="outline"
+            >
+              Đóng
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal
+        isOpen={successModal.isOpen}
+        onClose={() => setSuccessModal({ isOpen: false, message: '' })}
+        title="Thành công"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+            <div className="flex-1">
+              <p className="text-gray-700">{successModal.message}</p>
+            </div>
+          </div>
+          <div className="flex justify-end pt-4">
+            <Button
+              onClick={() => setSuccessModal({ isOpen: false, message: '' })}
+            >
+              Đóng
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Confirm Modal */}
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, message: '', onConfirm: null })}
+        title="Xác nhận"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-yellow-600" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <p className="text-gray-700">{confirmModal.message}</p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              onClick={() => setConfirmModal({ isOpen: false, message: '', onConfirm: null })}
+              variant="outline"
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={() => {
+                if (confirmModal.onConfirm) {
+                  confirmModal.onConfirm();
+                }
+              }}
+            >
+              Xác nhận
+            </Button>
+          </div>
+        </div>
       </Modal>
     </DealerManagerLayout>
   );

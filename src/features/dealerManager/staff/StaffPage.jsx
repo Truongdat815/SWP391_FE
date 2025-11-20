@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Edit, Trash2, UserPlus } from 'lucide-react';
+import { Search, Plus, Edit, UserPlus, AlertCircle, X } from 'lucide-react';
 import DealerManagerLayout from '../../../components/layout/DealerManagerLayout';
 import SearchBar from '../../../components/shared/SearchBar';
 import Table from '../../../components/ui/Table';
@@ -24,6 +24,8 @@ const StaffPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedStaff, setSelectedStaff] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
+  const [successModal, setSuccessModal] = useState({ isOpen: false, message: '' });
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -74,7 +76,8 @@ const StaffPage = () => {
   const getStatusBadge = (status) => {
     const statusMap = {
       ACTIVE: { variant: 'success', label: 'Hoạt động' },
-      INACTIVE: { variant: 'error', label: 'Bị khóa' },
+      DISABLED: { variant: 'error', label: 'Bị khóa' },
+      INACTIVE: { variant: 'error', label: 'Bị khóa' }, // Fallback cho INACTIVE
       PENDING: { variant: 'warning', label: 'Chờ duyệt' },
     };
     const config = statusMap[status] || { variant: 'default', label: status || 'N/A' };
@@ -91,7 +94,10 @@ const StaffPage = () => {
           role.roleName?.includes('DEALER_STAFF')
       );
       if (!dealerStaffRole) {
-        alert('Không tìm thấy role Dealer Staff');
+        setErrorModal({
+          isOpen: true,
+          message: 'Không tìm thấy role Dealer Staff',
+        });
         return;
       }
 
@@ -107,9 +113,19 @@ const StaffPage = () => {
         password: '',
         roleId: '',
       });
+      setSuccessModal({
+        isOpen: true,
+        message: 'Tạo nhân viên thành công!',
+      });
     } catch (error) {
-      alert('Có lỗi xảy ra khi tạo nhân viên');
-      console.error(error);
+      const errorMessage = error?.data?.message || error?.data?.error || 'Có lỗi xảy ra khi tạo nhân viên';
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+      if (import.meta.env.DEV) {
+        console.error(error);
+      }
     }
   };
 
@@ -134,9 +150,19 @@ const StaffPage = () => {
       }).unwrap();
       setIsEditModalOpen(false);
       setSelectedStaff(null);
+      setSuccessModal({
+        isOpen: true,
+        message: 'Cập nhật nhân viên thành công!',
+      });
     } catch (error) {
-      alert('Có lỗi xảy ra khi cập nhật nhân viên');
-      console.error(error);
+      const errorMessage = error?.data?.message || error?.data?.error || 'Có lỗi xảy ra khi cập nhật nhân viên';
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
+      if (import.meta.env.DEV) {
+        console.error(error);
+      }
     }
   };
 
@@ -144,23 +170,81 @@ const StaffPage = () => {
     if (window.confirm('Bạn có chắc chắn muốn xóa nhân viên này?')) {
       try {
         await deleteStaff(userId).unwrap();
+        setSuccessModal({
+          isOpen: true,
+          message: 'Xóa nhân viên thành công!',
+        });
       } catch (error) {
-        alert('Có lỗi xảy ra khi xóa nhân viên');
-        console.error(error);
+        const errorMessage = error?.data?.message || error?.data?.error || 'Có lỗi xảy ra khi xóa nhân viên';
+        setErrorModal({
+          isOpen: true,
+          message: errorMessage,
+        });
+        if (import.meta.env.DEV) {
+          console.error(error);
+        }
       }
     }
   };
 
   const handleToggleStatus = async (member) => {
+    if (!member || !member.userId) {
+      setErrorModal({
+        isOpen: true,
+        message: 'Thông tin nhân viên không hợp lệ',
+      });
+      return;
+    }
+
     try {
-      const newStatus = member.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-      await updateStaffStatus({
+      const currentStatus = member.status?.toUpperCase();
+      // Backend chỉ chấp nhận: DISABLED, ACTIVE, PENDING
+      // Nếu đang ACTIVE thì chuyển sang DISABLED, ngược lại chuyển sang ACTIVE
+      const newStatus = (currentStatus === 'ACTIVE' || currentStatus === 'PENDING') ? 'DISABLED' : 'ACTIVE';
+      
+      if (import.meta.env.DEV) {
+        console.log('Updating staff status:', {
+          userId: member.userId,
+          currentStatus,
+          newStatus,
+        });
+      }
+
+      const result = await updateStaffStatus({
         userId: member.userId,
         status: newStatus,
       }).unwrap();
+
+      if (import.meta.env.DEV) {
+        console.log('Update status result:', result);
+      }
+
+      setSuccessModal({
+        isOpen: true,
+        message: `Đã ${newStatus === 'DISABLED' ? 'khóa' : 'kích hoạt'} tài khoản thành công!`,
+      });
     } catch (error) {
-      alert('Có lỗi xảy ra khi cập nhật trạng thái');
-      console.error(error);
+      if (import.meta.env.DEV) {
+        console.error('Error updating staff status:', {
+          error,
+          response: error?.data,
+          status: error?.status,
+          statusText: error?.statusText,
+        });
+      }
+
+      // Lấy thông báo lỗi từ nhiều nguồn có thể
+      const errorMessage = 
+        error?.data?.message || 
+        error?.data?.error || 
+        error?.data?.errorMessage ||
+        error?.message ||
+        `Có lỗi xảy ra khi cập nhật trạng thái${error?.status ? ` (${error.status})` : ''}`;
+      
+      setErrorModal({
+        isOpen: true,
+        message: errorMessage,
+      });
     }
   };
 
@@ -268,19 +352,15 @@ const StaffPage = () => {
                             </button>
                             <button
                               onClick={() => handleToggleStatus(member)}
+                              disabled={!member.userId}
                               className={`p-2 rounded transition-colors ${
-                                member.status === 'ACTIVE'
+                                member.status === 'ACTIVE' || member.status === 'PENDING'
                                   ? 'text-red-600 hover:bg-red-50'
                                   : 'text-green-600 hover:bg-green-50'
-                              }`}
+                              } disabled:opacity-50 disabled:cursor-not-allowed`}
+                              title={member.status === 'ACTIVE' || member.status === 'PENDING' ? 'Khóa tài khoản' : 'Kích hoạt tài khoản'}
                             >
-                              {member.status === 'ACTIVE' ? 'Khóa' : 'Kích hoạt'}
-                            </button>
-                            <button
-                              onClick={() => handleDelete(member.userId)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                            >
-                              <Trash2 size={16} />
+                              {(member.status === 'ACTIVE' || member.status === 'PENDING') ? 'Khóa' : 'Kích hoạt'}
                             </button>
                           </div>
                         </Table.Cell>
@@ -427,6 +507,65 @@ const StaffPage = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Error Modal */}
+      <Modal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, message: '' })}
+        title="Lỗi"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+            </div>
+            <div className="flex-1">
+              <p className="text-gray-700">{errorModal.message}</p>
+            </div>
+          </div>
+          <div className="flex justify-end pt-4">
+            <Button
+              onClick={() => setErrorModal({ isOpen: false, message: '' })}
+              variant="outline"
+            >
+              Đóng
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal
+        isOpen={successModal.isOpen}
+        onClose={() => setSuccessModal({ isOpen: false, message: '' })}
+        title="Thành công"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0">
+              <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+            </div>
+            <div className="flex-1">
+              <p className="text-gray-700">{successModal.message}</p>
+            </div>
+          </div>
+          <div className="flex justify-end pt-4">
+            <Button
+              onClick={() => setSuccessModal({ isOpen: false, message: '' })}
+            >
+              Đóng
+            </Button>
+          </div>
+        </div>
       </Modal>
     </DealerManagerLayout>
   );

@@ -7,7 +7,8 @@ import Table from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
 import Dropdown from '../../../components/ui/Dropdown';
-import { useGetAllOrdersQuery, useGetMonthlyRevenueQuery } from '../../../api/dealerManager/dmOrderApi';
+import Modal from '../../../components/ui/Modal';
+import { useGetAllOrdersQuery, useGetMonthlyRevenueQuery, useGetOrderByIdQuery } from '../../../api/dealerManager/dmOrderApi';
 
 const OrderManagementPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -16,9 +17,14 @@ const OrderManagementPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [selectedOrderId, setSelectedOrderId] = useState(null);
+  const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
   const { data: ordersData, isLoading, error } = useGetAllOrdersQuery();
   const { data: revenueData } = useGetMonthlyRevenueQuery();
+  const { data: orderDetailData, isLoading: isLoadingOrderDetail } = useGetOrderByIdQuery(selectedOrderId, {
+    skip: !selectedOrderId,
+  });
 
   const orders = ordersData?.data || [];
   const monthlyRevenue = revenueData?.data || [];
@@ -43,9 +49,9 @@ const OrderManagementPage = () => {
   }).length;
   const deliveringCars = orders.filter((order) => order.status === 'DELIVERING').length;
 
-  // Filter orders
+  // Filter và sắp xếp orders (mới nhất ở trên)
   const filteredOrders = useMemo(() => {
-    return orders.filter((order) => {
+    const filtered = orders.filter((order) => {
       const matchesSearch =
         order.orderId?.toString().includes(searchTerm) ||
         order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -54,6 +60,14 @@ const OrderManagementPage = () => {
       const matchesModel =
         modelFilter === 'all' || order.modelName?.toLowerCase().includes(modelFilter.toLowerCase());
       return matchesSearch && matchesStatus && matchesModel;
+    });
+    
+    // Sắp xếp theo ngày tạo: mới nhất ở trên
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.orderDate || a.createdDate || 0);
+      const dateB = new Date(b.createdAt || b.orderDate || b.createdDate || 0);
+      // Sắp xếp giảm dần (mới nhất trước)
+      return dateB.getTime() - dateA.getTime();
     });
   }, [orders, searchTerm, statusFilter, modelFilter]);
 
@@ -100,6 +114,84 @@ const OrderManagementPage = () => {
       return `${(amount / 1000000).toFixed(0)} Triệu`;
     }
     return formatCurrency(amount);
+  };
+
+  const handleViewDetails = (orderId) => {
+    setSelectedOrderId(orderId);
+    setIsDetailModalOpen(true);
+    setOpenMenuId(null);
+  };
+
+  const handlePrintOrder = (order) => {
+    setOpenMenuId(null);
+    // Tạo nội dung hóa đơn để in
+    const printWindow = window.open('', '_blank');
+    const orderDetails = order.getOrderDetailsResponses || order.orderDetails || [];
+    
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Hóa đơn #${order.orderId}</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            .header { text-align: center; margin-bottom: 30px; }
+            .info { margin-bottom: 20px; }
+            .info-row { margin: 10px 0; }
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            .total { text-align: right; font-weight: bold; font-size: 18px; margin-top: 20px; }
+            @media print {
+              body { padding: 0; }
+              .no-print { display: none; }
+            }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1>HÓA ĐƠN BÁN HÀNG</h1>
+            <p>Mã đơn hàng: #${order.orderId}</p>
+          </div>
+          <div class="info">
+            <div class="info-row"><strong>Khách hàng:</strong> ${order.customerName || 'N/A'}</div>
+            <div class="info-row"><strong>Nhân viên:</strong> ${order.staffName || order.createdBy || 'N/A'}</div>
+            <div class="info-row"><strong>Ngày tạo:</strong> ${formatDate(order.createdAt || order.orderDate)}</div>
+            <div class="info-row"><strong>Trạng thái:</strong> ${getStatusBadge(order.status).props.children}</div>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Mẫu xe</th>
+                <th>Màu sắc</th>
+                <th>Số lượng</th>
+                <th>Đơn giá</th>
+                <th>Thành tiền</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${orderDetails.map(detail => `
+                <tr>
+                  <td>${detail.modelName || order.modelName || 'N/A'}</td>
+                  <td>${detail.colorName || 'N/A'}</td>
+                  <td>${detail.quantity || 1}</td>
+                  <td>${formatCurrency(detail.price || detail.unitPrice || 0)}</td>
+                  <td>${formatCurrency((detail.price || detail.unitPrice || 0) * (detail.quantity || 1))}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div class="total">
+            <p>Tổng cộng: ${formatCurrency(order.totalAmount || order.totalPrice || 0)}</p>
+          </div>
+          <div class="no-print" style="margin-top: 20px; text-align: center;">
+            <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">In hóa đơn</button>
+            <button onclick="window.close()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; margin-left: 10px;">Đóng</button>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   if (isLoading) {
@@ -272,6 +364,8 @@ const OrderManagementPage = () => {
                           {(() => {
                             // Lấy model và color từ orderDetails nếu có
                             const orderDetails = order.getOrderDetailsResponses || order.orderDetails || [];
+                            
+                            // Thử lấy từ orderDetails trước
                             if (orderDetails.length > 0) {
                               const firstDetail = orderDetails[0];
                               const modelName = firstDetail.modelName || order.modelName;
@@ -288,13 +382,56 @@ const OrderManagementPage = () => {
                                 return <span>{modelName}</span>;
                               }
                             }
-                            // Fallback về modelName trực tiếp từ order
-                            return <span>{order.modelName || 'N/A'}</span>;
+                            
+                            // Fallback: Thử lấy từ order object trực tiếp
+                            if (order.modelName) {
+                              return (
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{order.modelName}</span>
+                                  {order.colorName && (
+                                    <span className="text-sm text-gray-500">{order.colorName}</span>
+                                  )}
+                                </div>
+                              );
+                            }
+                            
+                            // Nếu là đơn nháp và chưa có thông tin
+                            if (order.status === 'DRAFT' || order.status === 'PENDING') {
+                              return <span className="text-gray-400 italic">Chưa chọn xe</span>;
+                            }
+                            
+                            return <span className="text-gray-400">N/A</span>;
                           })()}
                         </Table.Cell>
                         <Table.Cell>{formatDate(order.createdAt || order.orderDate)}</Table.Cell>
                         <Table.Cell className="font-medium">
-                          {formatCurrency(order.totalAmount || order.totalPrice)}
+                          {(() => {
+                            // Tính tổng từ orderDetails nếu totalAmount/totalPrice không có hoặc bằng 0
+                            const totalAmount = order.totalAmount || order.totalPrice;
+                            if (totalAmount && totalAmount > 0) {
+                              return formatCurrency(totalAmount);
+                            }
+                            
+                            // Thử tính từ orderDetails
+                            const orderDetails = order.getOrderDetailsResponses || order.orderDetails || [];
+                            if (orderDetails.length > 0) {
+                              const calculatedTotal = orderDetails.reduce((sum, detail) => {
+                                const price = detail.price || detail.unitPrice || 0;
+                                const quantity = detail.quantity || 1;
+                                return sum + (price * quantity);
+                              }, 0);
+                              if (calculatedTotal > 0) {
+                                return formatCurrency(calculatedTotal);
+                              }
+                            }
+                            
+                            // Nếu là đơn nháp và chưa có giá
+                            if (order.status === 'DRAFT' || order.status === 'PENDING') {
+                              return <span className="text-gray-400 italic">Chưa tính giá</span>;
+                            }
+                            
+                            return formatCurrency(0);
+                          })()}
                         </Table.Cell>
                         <Table.Cell>{getStatusBadge(order.status)}</Table.Cell>
                         <Table.Cell>
@@ -315,10 +452,7 @@ const OrderManagementPage = () => {
                                   <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
                                     <div className="py-1">
                                       <button
-                                        onClick={() => {
-                                          // TODO: Xem chi tiết
-                                          setOpenMenuId(null);
-                                        }}
+                                        onClick={() => handleViewDetails(order.orderId)}
                                         className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                                       >
                                         <Eye size={16} />
@@ -348,18 +482,13 @@ const OrderManagementPage = () => {
                                           </button>
                                         </>
                                       )}
-                                      {(order.status === 'DELIVERED' || order.status === 'FULLY_PAID') && (
-                                        <button
-                                          onClick={() => {
-                                            // TODO: In hóa đơn
-                                            setOpenMenuId(null);
-                                          }}
-                                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                        >
-                                          <Printer size={16} />
-                                          In hóa đơn
-                                        </button>
-                                      )}
+                                      <button
+                                        onClick={() => handlePrintOrder(order)}
+                                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                      >
+                                        <Printer size={16} />
+                                        In hóa đơn
+                                      </button>
                                     </div>
                                   </div>
                                 </>
@@ -412,6 +541,109 @@ const OrderManagementPage = () => {
             </>
           )}
         </div>
+
+        {/* Order Detail Modal */}
+        <Modal
+          isOpen={isDetailModalOpen}
+          onClose={() => {
+            setIsDetailModalOpen(false);
+            setSelectedOrderId(null);
+          }}
+          title={`Chi tiết đơn hàng #${selectedOrderId}`}
+          size="xl"
+        >
+          {isLoadingOrderDetail ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-gray-500">Đang tải dữ liệu...</div>
+            </div>
+          ) : orderDetailData?.data ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Mã đơn hàng</label>
+                  <p className="text-lg font-semibold">#{orderDetailData.data.orderId}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Trạng thái</label>
+                  <div className="mt-1">{getStatusBadge(orderDetailData.data.status)}</div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Khách hàng</label>
+                  <p className="text-lg">{orderDetailData.data.customerName || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Nhân viên</label>
+                  <p className="text-lg">{orderDetailData.data.staffName || orderDetailData.data.createdBy || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Ngày tạo</label>
+                  <p className="text-lg">{formatDate(orderDetailData.data.createdAt || orderDetailData.data.orderDate)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Tổng tiền</label>
+                  <p className="text-lg font-semibold text-blue-600">
+                    {formatCurrency(orderDetailData.data.totalAmount || orderDetailData.data.totalPrice)}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-500 mb-2 block">Chi tiết sản phẩm</label>
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <Table>
+                    <Table.Header>
+                      <Table.Row>
+                        <Table.Head>Mẫu xe</Table.Head>
+                        <Table.Head>Màu sắc</Table.Head>
+                        <Table.Head>Số lượng</Table.Head>
+                        <Table.Head>Đơn giá</Table.Head>
+                        <Table.Head>Thành tiền</Table.Head>
+                      </Table.Row>
+                    </Table.Header>
+                    <Table.Body>
+                      {(orderDetailData.data.getOrderDetailsResponses || orderDetailData.data.orderDetails || []).map((detail, index) => (
+                        <Table.Row key={index}>
+                          <Table.Cell>{detail.modelName || orderDetailData.data.modelName || 'N/A'}</Table.Cell>
+                          <Table.Cell>{detail.colorName || 'N/A'}</Table.Cell>
+                          <Table.Cell>{detail.quantity || 1}</Table.Cell>
+                          <Table.Cell>{formatCurrency(detail.price || detail.unitPrice || 0)}</Table.Cell>
+                          <Table.Cell className="font-medium">
+                            {formatCurrency((detail.price || detail.unitPrice || 0) * (detail.quantity || 1))}
+                          </Table.Cell>
+                        </Table.Row>
+                      ))}
+                    </Table.Body>
+                  </Table>
+                </div>
+              </div>
+
+              <div className="flex gap-4 pt-4 border-t">
+                <Button
+                  variant="outline"
+                  onClick={() => handlePrintOrder(orderDetailData.data)}
+                  className="flex-1"
+                >
+                  <Printer size={18} className="mr-2" />
+                  In hóa đơn
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsDetailModalOpen(false);
+                    setSelectedOrderId(null);
+                  }}
+                  className="flex-1"
+                >
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-red-500">Không tìm thấy thông tin đơn hàng</div>
+            </div>
+          )}
+        </Modal>
       </div>
     </DealerManagerLayout>
   );

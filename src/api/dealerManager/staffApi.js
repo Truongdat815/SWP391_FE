@@ -32,10 +32,10 @@ export const staffApi = baseApi.injectEndpoints({
     }),
     // Cập nhật trạng thái staff
     updateStaffStatus: builder.mutation({
-      query: ({ userId, status }) => ({
+      query: ({ userId, ...statusData }) => ({
         url: `/users/${userId}/status`,
         method: 'PUT',
-        body: { status },
+        body: statusData,
       }),
       invalidatesTags: ['Staff'],
     }),

@@ -59,18 +59,54 @@ const InventoryPage = () => {
   const transactions = transactionsData?.data || [];
   const modelColors = modelColorsData?.data || [];
 
-  // Tính toán metrics
-  const totalCars = stocks.length;
-  const arrivingCars = stocks.filter(
-    (stock) => stock.status === 'IN_TRANSIT' || stock.status === 'ARRIVING'
-  ).length;
-  const availableCars = stocks.filter((stock) => stock.status === 'AVAILABLE').length;
+  // Debug logging trong development
+  if (import.meta.env.DEV && transactions.length > 0) {
+    console.log('Inventory Transactions Sample:', transactions.slice(0, 2));
+    console.log('Transaction fields:', transactions[0] ? Object.keys(transactions[0]) : []);
+    // Log quantity và date fields
+    if (transactions[0]) {
+      const sample = transactions[0];
+      console.log('Sample transaction quantity fields:', {
+        quantity: sample.quantity,
+        importQuantity: sample.importQuantity,
+        requestedQuantity: sample.requestedQuantity,
+        orderQuantity: sample.orderQuantity,
+        requestQuantity: sample.requestQuantity,
+      });
+      console.log('Sample transaction date fields:', {
+        createdAt: sample.createdAt,
+        requestDate: sample.requestDate,
+        createdDate: sample.createdDate,
+        dateCreated: sample.dateCreated,
+        orderDate: sample.orderDate,
+      });
+    }
+  }
+
+  // Tính toán metrics - Tính từ quantity thực tế của mỗi stock
+  const totalCars = stocks.reduce((sum, stock) => {
+    const quantity = parseInt(stock.quantity || stock.stockQuantity || 1);
+    return sum + (isNaN(quantity) ? 1 : quantity);
+  }, 0);
+  
+  const arrivingCars = stocks
+    .filter((stock) => stock.status === 'IN_TRANSIT' || stock.status === 'ARRIVING')
+    .reduce((sum, stock) => {
+      const quantity = parseInt(stock.quantity || stock.stockQuantity || 1);
+      return sum + (isNaN(quantity) ? 1 : quantity);
+    }, 0);
+  
+  const availableCars = stocks
+    .filter((stock) => stock.status === 'AVAILABLE')
+    .reduce((sum, stock) => {
+      const quantity = parseInt(stock.quantity || stock.stockQuantity || 1);
+      return sum + (isNaN(quantity) ? 1 : quantity);
+    }, 0);
 
   // Filter stocks
   const filteredStocks = useMemo(() => {
     return stocks.filter((stock) => {
       const matchesSearch =
-        stock.vin?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         stock.modelName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         stock.colorName?.toLowerCase().includes(searchTerm.toLowerCase());
       return matchesSearch;
@@ -82,6 +118,25 @@ const InventoryPage = () => {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
   const paginatedStocks = filteredStocks.slice(startIndex, endIndex);
+
+  // Hàm lấy số lượng từ stock
+  const getStockQuantity = (stock) => {
+    const quantity = parseInt(stock.quantity || stock.stockQuantity || 0);
+    return isNaN(quantity) ? 0 : quantity;
+  };
+
+  // Hàm lấy trạng thái dựa trên số lượng
+  const getStockStatusBadge = (stock) => {
+    const quantity = getStockQuantity(stock);
+    
+    if (quantity === 0) {
+      return <Badge variant="error">Hết</Badge>;
+    } else if (quantity <= 3) {
+      return <Badge variant="warning">Sắp hết</Badge>;
+    } else {
+      return <Badge variant="success">Còn hàng</Badge>;
+    }
+  };
 
   const getStatusBadge = (status) => {
     const statusMap = {
@@ -415,7 +470,7 @@ const InventoryPage = () => {
               <div className="flex items-center gap-4">
                 <div className="flex-1">
                   <SearchBar
-                    placeholder="Tìm kiếm theo Số VIN, Mẫu xe..."
+                    placeholder="Tìm kiếm theo Mẫu xe, Màu sắc..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
@@ -443,41 +498,40 @@ const InventoryPage = () => {
                       <Table.Row>
                         <Table.Head>MẪU XE</Table.Head>
                         <Table.Head>MÀU SẮC</Table.Head>
-                        <Table.Head>SỐ VIN</Table.Head>
+                        <Table.Head>SỐ LƯỢNG</Table.Head>
                         <Table.Head>TÌNH TRẠNG</Table.Head>
-                        <Table.Head>VỊ TRÍ</Table.Head>
                         <Table.Head>NGÀY NHẬP KHO</Table.Head>
                         <Table.Head className="text-center">HÀNH ĐỘNG</Table.Head>
                       </Table.Row>
                     </Table.Header>
                     <Table.Body>
-                      {paginatedStocks.map((stock) => (
-                        <Table.Row key={stock.storeStockId}>
-                          <Table.Cell className="font-medium">
-                            {stock.modelName || `Model ${stock.modelId}`}
-                          </Table.Cell>
-                          <Table.Cell>{stock.colorName || 'N/A'}</Table.Cell>
-                          <Table.Cell className="font-mono text-sm">
-                            {stock.vin || `VIN${stock.storeStockId}`}
-                          </Table.Cell>
-                          <Table.Cell>{getStatusBadge(stock.status)}</Table.Cell>
-                          <Table.Cell>{stock.location || 'Kho chính'}</Table.Cell>
-                          <Table.Cell>{formatDate(stock.createdAt || stock.stockedDate)}</Table.Cell>
-                          <Table.Cell>
-                            <div className="flex items-center justify-center gap-2">
-                              <button className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors">
-                                <Eye size={16} />
-                              </button>
-                              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors">
-                                <Edit size={16} />
-                              </button>
-                              <button className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors">
-                                <Truck size={16} />
-                              </button>
-                            </div>
-                          </Table.Cell>
-                        </Table.Row>
-                      ))}
+                      {paginatedStocks.map((stock) => {
+                        const quantity = getStockQuantity(stock);
+                        return (
+                          <Table.Row key={stock.storeStockId}>
+                            <Table.Cell className="font-medium">
+                              {stock.modelName || `Model ${stock.modelId}`}
+                            </Table.Cell>
+                            <Table.Cell>{stock.colorName || 'N/A'}</Table.Cell>
+                            <Table.Cell className="font-semibold">{quantity}</Table.Cell>
+                            <Table.Cell>{getStockStatusBadge(stock)}</Table.Cell>
+                            <Table.Cell>{formatDate(stock.stockedDate || stock.receivedDate || stock.createdAt)}</Table.Cell>
+                            <Table.Cell>
+                              <div className="flex items-center justify-center gap-2">
+                                <button className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors">
+                                  <Eye size={16} />
+                                </button>
+                                <button className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors">
+                                  <Edit size={16} />
+                                </button>
+                                <button className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors">
+                                  <Truck size={16} />
+                                </button>
+                              </div>
+                            </Table.Cell>
+                          </Table.Row>
+                        );
+                      })}
                     </Table.Body>
                   </Table>
                 </div>
@@ -557,8 +611,51 @@ const InventoryPage = () => {
                               {transaction.modelName || `Model ${transaction.modelId}`}
                             </Table.Cell>
                             <Table.Cell>{transaction.colorName || 'N/A'}</Table.Cell>
-                            <Table.Cell>{transaction.quantity || 1}</Table.Cell>
-                            <Table.Cell>{formatDate(transaction.createdAt || transaction.requestDate)}</Table.Cell>
+                            <Table.Cell className="font-semibold">
+                              {(() => {
+                                // Ưu tiên các field quantity từ transaction
+                                const quantity = transaction.quantity || 
+                                                transaction.importQuantity || 
+                                                transaction.requestedQuantity || 
+                                                transaction.orderQuantity || 
+                                                transaction.requestQuantity;
+                                
+                                if (quantity !== undefined && quantity !== null) {
+                                  const qty = parseInt(quantity);
+                                  return isNaN(qty) ? 1 : qty;
+                                }
+                                
+                                // Nếu có storeStockId, tìm storeStock và lấy quantity
+                                if (transaction.storeStockId) {
+                                  const relatedStock = stocks.find(
+                                    (stock) => stock.storeStockId === transaction.storeStockId || 
+                                               stock.stockId === transaction.storeStockId
+                                  );
+                                  if (relatedStock) {
+                                    const stockQuantity = parseInt(relatedStock.quantity || relatedStock.stockQuantity || 1);
+                                    return isNaN(stockQuantity) ? 1 : stockQuantity;
+                                  }
+                                }
+                                
+                                // Cuối cùng mới dùng default 1
+                                return 1;
+                              })()}
+                            </Table.Cell>
+                            <Table.Cell>
+                              {(() => {
+                                // Kiểm tra nhiều field có thể chứa ngày tạo
+                                const dateStr = transaction.createdAt || 
+                                              transaction.requestDate || 
+                                              transaction.createdDate || 
+                                              transaction.dateCreated ||
+                                              transaction.orderDate;
+                                
+                                if (dateStr) {
+                                  return formatDate(dateStr);
+                                }
+                                return 'N/A';
+                              })()}
+                            </Table.Cell>
                             <Table.Cell>{getTransactionStatusBadge(transaction.status)}</Table.Cell>
                             <Table.Cell className="max-w-xs truncate">
                               {transaction.notes || '-'}

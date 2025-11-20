@@ -11,6 +11,21 @@ import { useGetAllOrdersQuery, useGetMonthlyRevenueQuery } from '../../../api/de
 import { useGetAllStoreStocksQuery } from '../../../api/dealerManager/inventoryApi';
 import { useGetAllStaffQuery } from '../../../api/dealerManager/staffApi';
 
+// Hàm chuyển đổi status sang tiếng Việt
+const getStatusLabel = (status) => {
+  const statusMap = {
+    DRAFT: 'Nháp',
+    PENDING: 'Chờ duyệt',
+    CONFIRMED: 'Đã xác nhận',
+    DELIVERING: 'Đang giao',
+    DELIVERED: 'Hoàn thành',
+    FULLY_PAID: 'Đã thanh toán',
+    CANCELLED: 'Đã hủy',
+    CONTRACT_SIGNED: 'Đã ký hợp đồng',
+  };
+  return statusMap[status] || status;
+};
+
 const ReportsPage = () => {
   const [reportType, setReportType] = useState('overview');
   const [startDate, setStartDate] = useState('');
@@ -86,10 +101,14 @@ const ReportsPage = () => {
       const monthOrders = filteredOrders.filter((order) => {
         if (!order.createdAt && !order.orderDate) return false;
         const orderDate = new Date(order.createdAt || order.orderDate);
+        // Tính từ các đơn đã hoàn thành hoặc đã thanh toán (giống Dashboard)
+        const isCompleted = order.status === 'DELIVERED' || 
+                          order.status === 'FULLY_PAID' || 
+                          order.status === 'CONFIRMED';
         return (
           orderDate.getMonth() === monthDate.getMonth() &&
           orderDate.getFullYear() === monthDate.getFullYear() &&
-          order.status === 'DELIVERED'
+          isCompleted
         );
       });
       
@@ -134,7 +153,7 @@ const ReportsPage = () => {
     return Object.entries(statusCounts)
       .filter(([_, count]) => count > 0)
       .map(([status, count]) => ({
-        name: status,
+        name: getStatusLabel(status),
         value: count,
       }));
   }, [filteredOrders]);
@@ -143,7 +162,11 @@ const ReportsPage = () => {
   const modelRevenueData = useMemo(() => {
     const modelMap = {};
     filteredOrders
-      .filter((order) => order.status === 'DELIVERED')
+      .filter((order) => 
+        order.status === 'DELIVERED' || 
+        order.status === 'FULLY_PAID' || 
+        order.status === 'CONFIRMED'
+      )
       .forEach((order) => {
         const modelName = order.modelName || 'Không xác định';
         const amount = parseFloat(order.totalAmount || order.totalPrice) || 0;
@@ -163,7 +186,11 @@ const ReportsPage = () => {
   const staffRevenueData = useMemo(() => {
     const staffMap = {};
     filteredOrders
-      .filter((order) => order.status === 'DELIVERED')
+      .filter((order) => 
+        order.status === 'DELIVERED' || 
+        order.status === 'FULLY_PAID' || 
+        order.status === 'CONFIRMED'
+      )
       .forEach((order) => {
         const staffId = order.staffId?.toString() || order.createdBy?.toString() || 'unknown';
         const staffName = order.staffName || order.createdBy || 'Không xác định';
@@ -195,7 +222,12 @@ const ReportsPage = () => {
 
   // Tính toán metrics
   const totalRevenue = useMemo(() => {
-    const completed = filteredOrders.filter((o) => o.status === 'DELIVERED');
+    // Tính từ các đơn đã hoàn thành hoặc đã thanh toán (giống Dashboard)
+    const completed = filteredOrders.filter((o) => 
+      o.status === 'DELIVERED' || 
+      o.status === 'FULLY_PAID' || 
+      o.status === 'CONFIRMED'
+    );
     const total = completed.reduce(
       (sum, order) => sum + (parseFloat(order.totalAmount || order.totalPrice) || 0),
       0
@@ -204,13 +236,37 @@ const ReportsPage = () => {
   }, [filteredOrders]);
 
   const currentMonthRevenue = useMemo(() => {
-    const currentMonth = new Date().getMonth() + 1;
+    // Tính từ orders của tháng hiện tại (giống Dashboard)
+    const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
-    const revenue = monthlyRevenue.find(
-      (rev) => rev.month === currentMonth && rev.year === currentYear
+    const monthOrders = orders.filter((order) => {
+      if (!order.createdAt && !order.orderDate) return false;
+      try {
+        const orderDate = new Date(order.createdAt || order.orderDate);
+        // Chỉ tính các đơn đã hoàn thành hoặc đã thanh toán (giống Dashboard)
+        const isCompleted = order.status === 'DELIVERED' || 
+                          order.status === 'FULLY_PAID' || 
+                          order.status === 'CONFIRMED';
+        return (
+          orderDate.getMonth() === currentMonth &&
+          orderDate.getFullYear() === currentYear &&
+          isCompleted
+        );
+      } catch {
+        return false;
+      }
+    });
+    
+    const total = monthOrders.reduce(
+      (sum, order) => {
+        const amount = parseFloat(order.totalAmount || order.totalPrice || 0);
+        return sum + (isNaN(amount) ? 0 : amount);
+      },
+      0
     );
-    return revenue?.totalRevenue || 0;
-  }, [monthlyRevenue]);
+    
+    return total;
+  }, [orders]);
 
   const totalOrders = filteredOrders.length;
   const completedOrders = filteredOrders.filter((o) => o.status === 'DELIVERED').length;
@@ -562,7 +618,7 @@ const ReportsPage = () => {
                     Chi Tiết Đơn Hàng - {staff.find((s) => s.userId?.toString() === selectedStaffId)?.fullName || staffRevenueData.find((s) => s.id === selectedStaffId)?.name || 'Nhân viên'}
                   </Card.Title>
                   <p className="text-sm text-gray-500 mt-1">
-                    {staffOrders.filter((o) => o.status === 'DELIVERED').length} đơn đã hoàn thành | Tổng doanh số: {formatCurrency(staffOrders.filter((o) => o.status === 'DELIVERED').reduce((sum, o) => sum + (parseFloat(o.totalAmount || o.totalPrice) || 0), 0))}
+                    {staffOrders.filter((o) => o.status === 'DELIVERED' || o.status === 'FULLY_PAID' || o.status === 'CONFIRMED').length} đơn đã hoàn thành | Tổng doanh số: {formatCurrency(staffOrders.filter((o) => o.status === 'DELIVERED' || o.status === 'FULLY_PAID' || o.status === 'CONFIRMED').reduce((sum, o) => sum + (parseFloat(o.totalAmount || o.totalPrice) || 0), 0))}
                   </p>
                 </Card.Header>
                 <Card.Content>

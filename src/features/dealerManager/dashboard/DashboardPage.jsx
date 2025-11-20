@@ -4,8 +4,9 @@ import DealerManagerLayout from '../../../components/layout/DealerManagerLayout'
 import MetricCard from '../../../components/shared/MetricCard';
 import Card from '../../../components/ui/Card';
 import LineChart from '../../../components/charts/LineChart';
-import { useGetAllOrdersQuery, useGetMonthlyRevenueQuery } from '../../../api/dealerManager/dmOrderApi';
+import { useGetAllOrdersQuery } from '../../../api/dealerManager/dmOrderApi';
 import { useGetAllStoreStocksQuery } from '../../../api/dealerManager/inventoryApi';
+import { useGetMonthlyRevenueQuery } from '../../../api/dealerManager/storeApi';
 
 const DealerManagerDashboard = () => {
   const { data: ordersData, isLoading: isLoadingOrders, error: ordersError } = useGetAllOrdersQuery();
@@ -13,8 +14,22 @@ const DealerManagerDashboard = () => {
   const { data: stocksData, isLoading: isLoadingStocks, error: stocksError } = useGetAllStoreStocksQuery();
 
   const orders = ordersData?.data || [];
-  const monthlyRevenue = revenueData?.data || [];
+  // API từ storeApi có transformResponse trả về { data: revenues[0] || null }
+  // revenues[0] có thể là object { month, year, totalRevenue, storeId } hoặc null
+  const monthlyRevenue = revenueData?.data;
   const stocks = stocksData?.data || [];
+
+  // Debug logging trong development
+  if (import.meta.env.DEV) {
+    console.log('Dashboard Data:', {
+      ordersData: ordersData,
+      ordersCount: orders.length,
+      revenueData: revenueData,
+      monthlyRevenue,
+      stocksCount: stocks.length,
+      ordersSample: orders.slice(0, 2),
+    });
+  }
 
   const isLoading = isLoadingOrders || isLoadingRevenue || isLoadingStocks;
   
@@ -27,15 +42,81 @@ const DealerManagerDashboard = () => {
   const hasError = (ordersError && ordersError.status !== 401) || 
                    (revenueError && revenueError.status !== 401);
 
-  // Tính toán metrics
+  // Tính toán metrics - Doanh thu tháng hiện tại từ API store revenue
   const currentMonthRevenue = useMemo(() => {
-    const currentMonth = new Date().getMonth() + 1;
+    // API từ storeApi có transformResponse trả về { data: revenues[0] || null }
+    // revenues[0] là object { month, year, totalRevenue, storeId } hoặc null
+    if (monthlyRevenue && typeof monthlyRevenue === 'object' && !Array.isArray(monthlyRevenue)) {
+      // Kiểm tra nếu là object có totalRevenue (từ transformResponse)
+      if (monthlyRevenue.totalRevenue !== undefined) {
+        const currentMonth = new Date().getMonth() + 1;
+        const currentYear = new Date().getFullYear();
+        // Chỉ dùng nếu là tháng hiện tại
+        if (monthlyRevenue.month === currentMonth && monthlyRevenue.year === currentYear) {
+          const revenue = parseFloat(monthlyRevenue.totalRevenue) || 0;
+          if (import.meta.env.DEV) {
+            console.log('Using monthly revenue from API:', revenue);
+          }
+          return revenue;
+        }
+      }
+    }
+    
+    // Nếu là array (fallback nếu transformResponse không hoạt động)
+    if (Array.isArray(monthlyRevenue) && monthlyRevenue.length > 0) {
+      const currentMonth = new Date().getMonth() + 1;
+      const currentYear = new Date().getFullYear();
+      const revenue = monthlyRevenue.find(
+        (rev) => rev.month === currentMonth && rev.year === currentYear
+      );
+      if (revenue?.totalRevenue !== undefined) {
+        const total = parseFloat(revenue.totalRevenue) || 0;
+        if (import.meta.env.DEV) {
+          console.log('Using monthly revenue from API array:', total);
+        }
+        return total;
+      }
+    }
+    
+    // Fallback: Tính từ orders của tháng hiện tại nếu API không trả về
+    const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
-    const revenue = monthlyRevenue.find(
-      (rev) => rev.month === currentMonth && rev.year === currentYear
+    const monthOrders = orders.filter((order) => {
+      if (!order.createdAt && !order.orderDate) return false;
+      try {
+        const orderDate = new Date(order.createdAt || order.orderDate);
+        // Chỉ tính các đơn đã hoàn thành hoặc đã thanh toán
+        const isCompleted = order.status === 'DELIVERED' || 
+                          order.status === 'FULLY_PAID' || 
+                          order.status === 'CONFIRMED';
+        return (
+          orderDate.getMonth() === currentMonth &&
+          orderDate.getFullYear() === currentYear &&
+          isCompleted
+        );
+      } catch {
+        return false;
+      }
+    });
+    
+    const total = monthOrders.reduce(
+      (sum, order) => {
+        const amount = parseFloat(order.totalAmount || order.totalPrice || 0);
+        return sum + (isNaN(amount) ? 0 : amount);
+      },
+      0
     );
-    return revenue?.totalRevenue || 0;
-  }, [monthlyRevenue]);
+    
+    if (import.meta.env.DEV) {
+      console.log('Calculated monthly revenue from orders:', {
+        monthOrdersCount: monthOrders.length,
+        totalOrders: orders.length,
+        total,
+      });
+    }
+    
+    return total;
+  }, [monthlyRevenue, orders]);
 
   const pendingOrders = orders.filter(
     (order) => order.status === 'PENDING' || order.status === 'DRAFT'
@@ -51,37 +132,81 @@ const DealerManagerDashboard = () => {
 
   // Revenue chart data (4 tuần gần nhất)
   const revenueChartData = useMemo(() => {
+    if (!Array.isArray(orders) || orders.length === 0) {
+      if (import.meta.env.DEV) {
+        console.log('No orders data available for chart', {
+          ordersData,
+          ordersIsArray: Array.isArray(orders),
+          ordersLength: orders?.length,
+        });
+      }
+      // Trả về dữ liệu mặc định nếu chưa có orders
+      return [
+        { name: 'Tuần 1', value: 0 },
+        { name: 'Tuần 2', value: 0 },
+        { name: 'Tuần 3', value: 0 },
+        { name: 'Tuần 4', value: 0 },
+      ];
+    }
+
     const weeks = [];
     const now = new Date();
+    now.setHours(23, 59, 59, 999); // Set to end of day for accurate comparison
+    
     for (let i = 3; i >= 0; i--) {
       const weekStart = new Date(now);
       weekStart.setDate(now.getDate() - (i * 7));
+      weekStart.setHours(0, 0, 0, 0); // Start of week
+      
       const weekEnd = new Date(weekStart);
       weekEnd.setDate(weekStart.getDate() + 6);
+      weekEnd.setHours(23, 59, 59, 999); // End of week
 
       const weekOrders = orders.filter((order) => {
-        const orderDate = new Date(order.createdAt || order.orderDate);
-        return orderDate >= weekStart && orderDate <= weekEnd;
+        if (!order.createdAt && !order.orderDate) return false;
+        try {
+          const orderDate = new Date(order.createdAt || order.orderDate);
+          // Chỉ tính các đơn đã hoàn thành hoặc đã thanh toán
+          const isCompleted = order.status === 'DELIVERED' || 
+                             order.status === 'FULLY_PAID' || 
+                             order.status === 'CONFIRMED';
+          return orderDate >= weekStart && orderDate <= weekEnd && isCompleted;
+        } catch (e) {
+          return false;
+        }
       });
 
       const weekTotal = weekOrders.reduce(
-        (sum, order) => sum + (parseFloat(order.totalAmount || order.totalPrice) || 0),
+        (sum, order) => {
+          const amount = parseFloat(order.totalAmount || order.totalPrice || 0);
+          return sum + (isNaN(amount) ? 0 : amount);
+        },
         0
       );
+      
       weeks.push({
         name: `Tuần ${4 - i}`,
         value: Math.round(weekTotal / 1000000), // Convert to millions
       });
     }
-    return weeks.length > 0
-      ? weeks
-      : [
-          { name: 'Tuần 1', value: 0 },
-          { name: 'Tuần 2', value: 0 },
-          { name: 'Tuần 3', value: 0 },
-          { name: 'Tuần 4', value: 0 },
-        ];
-  }, [orders]);
+    
+    if (import.meta.env.DEV) {
+      console.log('Revenue Chart Data:', {
+        weeks,
+        totalOrders: orders.length,
+        completedOrders: orders.filter(o => 
+          o.status === 'DELIVERED' || o.status === 'FULLY_PAID' || o.status === 'CONFIRMED'
+        ).length,
+      });
+    }
+    
+    return weeks.length > 0 ? weeks : [
+      { name: 'Tuần 1', value: 0 },
+      { name: 'Tuần 2', value: 0 },
+      { name: 'Tuần 3', value: 0 },
+      { name: 'Tuần 4', value: 0 },
+    ];
+  }, [orders, ordersData]);
 
   const formatRevenue = (amount) => {
     if (amount >= 1000000000) {
@@ -184,12 +309,18 @@ const DealerManagerDashboard = () => {
               <Card.Title>Doanh Thu Theo Tuần</Card.Title>
             </Card.Header>
             <Card.Content>
-              <LineChart
-                data={revenueChartData}
-                dataKey="value"
-                name="Doanh thu (triệu VND)"
-                color="#3B82F6"
-              />
+              {revenueChartData && revenueChartData.length > 0 ? (
+                <LineChart
+                  data={revenueChartData}
+                  dataKey="value"
+                  name="Doanh thu (triệu VND)"
+                  color="#3B82F6"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-[300px] text-gray-500">
+                  Chưa có dữ liệu để hiển thị
+                </div>
+              )}
             </Card.Content>
           </Card>
 
