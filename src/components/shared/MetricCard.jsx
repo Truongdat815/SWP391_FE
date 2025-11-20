@@ -3,23 +3,30 @@ import { cn } from '../../utils/cn';
 import Card from '../ui/Card';
 
 const MetricCard = ({ title, value, change, changeType = 'positive', icon: Icon, className }) => {
+  const isGradient = className?.includes('gradient');
   return (
-    <Card className={cn('', className)}>
+    <Card className={cn('', className, isGradient && 'border-0')}>
       <div className="flex items-center justify-between">
         <div className="flex-1">
-          <p className="text-sm font-medium text-gray-600 mb-1">{title}</p>
-          <p className="text-2xl font-bold text-gray-900">{value}</p>
+          <p className={cn(
+            'text-sm font-medium mb-1',
+            isGradient ? 'text-white/90' : 'text-gray-600'
+          )}>{title}</p>
+          <p className={cn(
+            'text-2xl font-bold',
+            isGradient ? 'text-white' : 'text-gray-900'
+          )}>{value}</p>
           {change !== undefined && (
             <div className="flex items-center mt-2">
               {changeType === 'positive' ? (
-                <TrendingUp size={16} className="text-green-600 mr-1" />
+                <TrendingUp size={16} className={cn('mr-1', isGradient ? 'text-white' : 'text-green-600')} />
               ) : (
-                <TrendingDown size={16} className="text-red-600 mr-1" />
+                <TrendingDown size={16} className={cn('mr-1', isGradient ? 'text-white' : 'text-red-600')} />
               )}
               <span
                 className={cn(
                   'text-sm font-medium',
-                  changeType === 'positive' ? 'text-green-600' : 'text-red-600'
+                  isGradient ? 'text-white' : (changeType === 'positive' ? 'text-green-600' : 'text-red-600')
                 )}
               >
                 {change}
@@ -28,8 +35,11 @@ const MetricCard = ({ title, value, change, changeType = 'positive', icon: Icon,
           )}
         </div>
         {Icon && (
-          <div className="p-3 bg-blue-100 rounded-lg">
-            <Icon size={24} className="text-blue-600" />
+          <div className={cn(
+            'p-3 rounded-lg',
+            isGradient ? 'bg-white/20' : 'bg-blue-100'
+          )}>
+            <Icon size={24} className={isGradient ? 'text-white' : 'text-blue-600'} />
           </div>
         )}
       </div>

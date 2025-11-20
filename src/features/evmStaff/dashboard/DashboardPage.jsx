@@ -5,29 +5,24 @@ import MetricCard from '../../../components/shared/MetricCard';
 import Card from '../../../components/ui/Card';
 import LineChart from '../../../components/charts/LineChart';
 import { useGetAllModelsQuery } from '../../../api/admin/modelApi';
-import { useGetAllDealerOrdersQuery } from '../../../api/evmStaff/dealerOrdersApi';
 import { useGetAllModelColorsQuery } from '../../../api/evmStaff/productApi';
 import { useGetAllInventoryTransactionsQuery } from '../../../api/evmStaff/inventoryApi';
 
 const EVMStaffDashboard = () => {
   const { data: modelsData, isLoading: isLoadingModels, error: modelsError } = useGetAllModelsQuery();
-  const { data: ordersData, isLoading: isLoadingOrders, error: ordersError } = useGetAllDealerOrdersQuery();
   const { data: modelColorsData, isLoading: isLoadingColors, error: colorsError } = useGetAllModelColorsQuery();
   const { data: transactionsData, isLoading: isLoadingTransactions, error: transactionsError } = useGetAllInventoryTransactionsQuery();
 
   const models = modelsData?.data || [];
-  // Xử lý orders: nếu có lỗi 404 (store not found), vẫn hiển thị mảng rỗng
-  const orders = ordersError?.status === 404 ? [] : (ordersData?.data || []);
   const modelColors = modelColorsData?.data || [];
-  // Xử lý inventory transactions: nếu có lỗi 404, vẫn hiển thị mảng rỗng
-  const transactions = transactionsError?.status === 404 ? [] : (transactionsData?.data || []);
+  // Xử lý inventory transactions: nếu có lỗi 404 hoặc không có data, vẫn hiển thị mảng rỗng
+  const transactions = (transactionsError?.status === 404 || !transactionsData?.data) ? [] : (transactionsData?.data || []);
 
-  const isLoading = isLoadingModels || isLoadingOrders || isLoadingColors || isLoadingTransactions;
+  const isLoading = isLoadingModels || isLoadingColors || isLoadingTransactions;
   
   // Kiểm tra lỗi 401 (Unauthorized)
   const isUnauthorized = 
     modelsError?.status === 401 || 
-    ordersError?.status === 401 || 
     colorsError?.status === 401 ||
     transactionsError?.status === 401;
   
@@ -40,22 +35,26 @@ const EVMStaffDashboard = () => {
             error?.data?.code === 1004);
   };
   
-  // Kiểm tra tất cả các lỗi (trừ 401 và lỗi "Không tìm thấy store" cho orders và transactions)
-  // Lỗi "Không tìm thấy store" chỉ bỏ qua cho orders và transactions vì EVM Staff có thể không có storeId
+  // Kiểm tra tất cả các lỗi (trừ 401 và lỗi "Không tìm thấy store" cho transactions)
+  // Lỗi "Không tìm thấy store" chỉ bỏ qua cho transactions vì EVM Staff có thể không có storeId
   const hasError = 
     (modelsError && modelsError.status !== 401 && modelsError.status !== undefined) || 
-    (ordersError && ordersError.status !== 401 && ordersError.status !== undefined && !isStoreNotFoundError(ordersError)) ||
     (colorsError && colorsError.status !== 401 && colorsError.status !== undefined) ||
     (transactionsError && transactionsError.status !== 401 && transactionsError.status !== undefined && !isStoreNotFoundError(transactionsError));
 
-  // Tính toán metrics
+  // Tính toán metrics từ inventory-transactions
   const totalModels = models.length;
   const totalVariants = modelColors.length;
-  const totalOrders = orders.length;
-  const pendingOrders = orders.filter(
-    (order) => order.status === 'PENDING' || order.status === 'DRAFT'
+  // Tổng đơn hàng = tổng số inventory transactions
+  const totalOrders = transactions.length;
+  // Đơn hàng chờ xử lý = PENDING
+  const pendingOrders = transactions.filter(
+    (t) => t.status === 'PENDING' || t.status === 'DRAFT'
   ).length;
-  const completedOrders = orders.filter((order) => order.status === 'DELIVERED' || order.status === 'COMPLETED').length;
+  // Đơn hàng đã hoàn thành = DELIVERED hoặc COMPLETED
+  const completedOrders = transactions.filter(
+    (t) => t.status === 'DELIVERED' || t.status === 'COMPLETED'
+  ).length;
   const completionRate = totalOrders > 0 ? Math.round((completedOrders / totalOrders) * 100) : 0;
   // Tính toán từ inventory-transactions
   const deliveredTransactions = transactions.filter(
@@ -64,7 +63,7 @@ const EVMStaffDashboard = () => {
   const deliveredVehicles = deliveredTransactions.reduce((sum, t) => sum + (t.importQuantity || 0), 0);
   const uniqueDealers = new Set(deliveredTransactions.map((t) => t.storeId).filter(Boolean)).size;
 
-  // Order trend chart data (6 tháng gần nhất)
+  // Order trend chart data (6 tháng gần nhất) - dùng inventory transactions
   const orderTrendData = useMemo(() => {
     const months = [];
     const now = new Date();
@@ -72,8 +71,8 @@ const EVMStaffDashboard = () => {
       const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthName = monthDate.toLocaleDateString('vi-VN', { month: 'short' });
       
-      const monthOrders = orders.filter((order) => {
-        const orderDate = new Date(order.createdAt || order.orderDate);
+      const monthTransactions = transactions.filter((t) => {
+        const orderDate = new Date(t.orderDate);
         return (
           orderDate.getMonth() === monthDate.getMonth() &&
           orderDate.getFullYear() === monthDate.getFullYear()
@@ -82,7 +81,7 @@ const EVMStaffDashboard = () => {
       
       months.push({
         name: monthName,
-        value: monthOrders.length,
+        value: monthTransactions.length,
       });
     }
     return months.length > 0
@@ -95,7 +94,7 @@ const EVMStaffDashboard = () => {
           { name: 'Tháng 5', value: 0 },
           { name: 'Tháng 6', value: 0 },
         ];
-  }, [orders]);
+  }, [transactions]);
 
   // Tính % tăng trưởng đơn hàng (so sánh tháng hiện tại với tháng trước)
   const orderGrowthRate = useMemo(() => {
@@ -257,7 +256,7 @@ const EVMStaffDashboard = () => {
             <p className="text-sm text-gray-500 mt-1">Dựa trên tổng số đơn hàng</p>
           </Card.Header>
           <Card.Content>
-            {isLoadingOrders ? (
+            {isLoadingTransactions ? (
               <div className="flex items-center justify-center py-8">
                 <div className="text-gray-500">Đang tải dữ liệu...</div>
               </div>
@@ -266,42 +265,45 @@ const EVMStaffDashboard = () => {
                 <div className="p-4 bg-blue-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Chờ xử lý</p>
                   <p className="text-2xl font-bold text-blue-600">
-                    {orders.filter((o) => 
-                      o.status === 'PENDING' || 
-                      o.status === 'DRAFT' ||
-                      o.status?.toUpperCase() === 'PENDING'
+                    {transactions.filter((t) => 
+                      t.status === 'PENDING' || 
+                      t.status === 'DRAFT' ||
+                      t.status?.toUpperCase() === 'PENDING'
                     ).length}
                   </p>
                 </div>
                 <div className="p-4 bg-yellow-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Đang xử lý</p>
                   <p className="text-2xl font-bold text-yellow-600">
-                    {orders.filter((o) => 
-                      o.status === 'PROCESSING' || 
-                      o.status === 'CONFIRMED' ||
-                      o.status?.toUpperCase() === 'PROCESSING'
+                    {transactions.filter((t) => 
+                      t.status === 'PROCESSING' || 
+                      t.status === 'CONFIRMED' ||
+                      t.status === 'ACCEPTED' ||
+                      t.status === 'SHIPPING' ||
+                      t.status?.toUpperCase() === 'PROCESSING' ||
+                      t.status?.toUpperCase() === 'CONFIRMED'
                     ).length}
                   </p>
                 </div>
                 <div className="p-4 bg-green-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Hoàn thành</p>
                   <p className="text-2xl font-bold text-green-600">
-                    {orders.filter((o) => 
-                      o.status === 'DELIVERED' || 
-                      o.status === 'COMPLETED' ||
-                      o.status?.toUpperCase() === 'DELIVERED' ||
-                      o.status?.toUpperCase() === 'COMPLETED'
+                    {transactions.filter((t) => 
+                      t.status === 'DELIVERED' || 
+                      t.status === 'COMPLETED' ||
+                      t.status?.toUpperCase() === 'DELIVERED' ||
+                      t.status?.toUpperCase() === 'COMPLETED'
                     ).length}
                   </p>
                 </div>
                 <div className="p-4 bg-red-50 rounded-lg">
                   <p className="text-sm text-gray-600 mb-1">Đã hủy</p>
                   <p className="text-2xl font-bold text-red-600">
-                    {orders.filter((o) => 
-                      o.status === 'CANCELLED' || 
-                      o.status === 'REJECTED' ||
-                      o.status?.toUpperCase() === 'CANCELLED' ||
-                      o.status?.toUpperCase() === 'REJECTED'
+                    {transactions.filter((t) => 
+                      t.status === 'CANCELLED' || 
+                      t.status === 'REJECTED' ||
+                      t.status?.toUpperCase() === 'CANCELLED' ||
+                      t.status?.toUpperCase() === 'REJECTED'
                     ).length}
                   </p>
                 </div>

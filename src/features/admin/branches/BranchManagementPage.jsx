@@ -727,7 +727,7 @@ const BranchManagementPage = () => {
             label="Ngày kết thúc hợp đồng"
             type="date"
             value={formData.contractEndDate}
-            onChange={(e) => setFormData({ ...formData, contractEndDate: e.target.value })}
+git             onChange={(e) => setFormData({ ...formData, contractEndDate: e.target.value })}
             required
           />
           <div className="flex gap-4 pt-4">
