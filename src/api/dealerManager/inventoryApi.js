@@ -8,13 +8,13 @@ export const inventoryApi = baseApi.injectEndpoints({
       providesTags: ['Inventory'],
     }),
     // Lấy số lượng tồn kho theo model và color
-    getStockQuantity: builder.query({
+    // Note: Tài liệu nói GET nhưng có body, dùng mutation để an toàn
+    getStockQuantity: builder.mutation({
       query: ({ modelId, colorId }) => ({
         url: '/store-stocks/quantity',
-        method: 'POST',
+        method: 'GET',
         body: { modelId, colorId },
       }),
-      providesTags: ['Inventory'],
     }),
     // Cập nhật giá của store stock
     updateStockPrice: builder.mutation({
@@ -39,14 +39,56 @@ export const inventoryApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Inventory'],
     }),
+    // Lấy contract HTML (dùng mutation vì cần custom response handling)
+    downloadContractHtml: builder.mutation({
+      query: (inventoryId) => ({
+        url: `/inventory-transactions/${inventoryId}/contract/html`,
+        responseHandler: async (response) => {
+          if (!response.ok) {
+            throw new Error('Failed to download contract');
+          }
+          const text = await response.text();
+          return { html: text };
+        },
+      }),
+    }),
+    // Upload contract đã ký
+    uploadContract: builder.mutation({
+      query: ({ inventoryId, file }) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: `/inventory-transactions/${inventoryId}/upload-contract`,
+          method: 'POST',
+          body: formData,
+        };
+      },
+      invalidatesTags: ['Inventory'],
+    }),
+    // Upload biên lai thanh toán
+    uploadReceipt: builder.mutation({
+      query: ({ inventoryId, file }) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: `/inventory-transactions/${inventoryId}/upload-receipt`,
+          method: 'POST',
+          body: formData,
+        };
+      },
+      invalidatesTags: ['Inventory'],
+    }),
   }),
 });
 
 export const {
   useGetAllStoreStocksQuery,
-  useGetStockQuantityQuery,
+  useGetStockQuantityMutation,
   useUpdateStockPriceMutation,
   useGetAllInventoryTransactionsQuery,
   useCreateInventoryTransactionMutation,
+  useDownloadContractHtmlMutation,
+  useUploadContractMutation,
+  useUploadReceiptMutation,
 } = inventoryApi;
 

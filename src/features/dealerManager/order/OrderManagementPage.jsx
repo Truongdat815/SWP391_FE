@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Download, Plus, Eye, Printer, Check, X } from 'lucide-react';
+import { Search, Download, Plus, Eye, Printer, Check, X, MoreVertical } from 'lucide-react';
 import DealerManagerLayout from '../../../components/layout/DealerManagerLayout';
 import SearchBar from '../../../components/shared/SearchBar';
 import MetricCard from '../../../components/shared/MetricCard';
@@ -15,6 +15,7 @@ const OrderManagementPage = () => {
   const [modelFilter, setModelFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
   const { data: ordersData, isLoading, error } = useGetAllOrdersQuery();
   const { data: revenueData } = useGetMonthlyRevenueQuery();
@@ -68,6 +69,8 @@ const OrderManagementPage = () => {
       CONFIRMED: { variant: 'info', label: 'Đã xác nhận' },
       DELIVERING: { variant: 'info', label: 'Đang giao' },
       DELIVERED: { variant: 'success', label: 'Hoàn thành' },
+      FULLY_PAID: { variant: 'success', label: 'Đã thanh toán' },
+      CONTRACT_SIGNED: { variant: 'info', label: 'Đã ký hợp đồng' },
       CANCELLED: { variant: 'error', label: 'Đã hủy' },
       DRAFT: { variant: 'default', label: 'Nháp' },
     };
@@ -211,6 +214,8 @@ const OrderManagementPage = () => {
                 { value: 'CONFIRMED', label: 'Đã xác nhận' },
                 { value: 'DELIVERING', label: 'Đang giao' },
                 { value: 'DELIVERED', label: 'Hoàn thành' },
+                { value: 'FULLY_PAID', label: 'Đã thanh toán' },
+                { value: 'CONTRACT_SIGNED', label: 'Đã ký hợp đồng' },
                 { value: 'CANCELLED', label: 'Đã hủy' },
               ]}
               value={statusFilter}
@@ -245,7 +250,7 @@ const OrderManagementPage = () => {
                       <Table.Head>MÃ ĐƠN HÀNG</Table.Head>
                       <Table.Head>KHÁCH HÀNG</Table.Head>
                       <Table.Head>NHÂN VIÊN</Table.Head>
-                      <Table.Head>MẪU XE</Table.Head>
+                      <Table.Head>MẪU XE / MÀU SẮC</Table.Head>
                       <Table.Head>NGÀY TẠO</Table.Head>
                       <Table.Head>GIÁ TRỊ</Table.Head>
                       <Table.Head>TRẠNG THÁI</Table.Head>
@@ -263,32 +268,103 @@ const OrderManagementPage = () => {
                         </Table.Cell>
                         <Table.Cell>{order.customerName || 'N/A'}</Table.Cell>
                         <Table.Cell>{order.staffName || order.createdBy || 'N/A'}</Table.Cell>
-                        <Table.Cell>{order.modelName || 'N/A'}</Table.Cell>
+                        <Table.Cell>
+                          {(() => {
+                            // Lấy model và color từ orderDetails nếu có
+                            const orderDetails = order.getOrderDetailsResponses || order.orderDetails || [];
+                            if (orderDetails.length > 0) {
+                              const firstDetail = orderDetails[0];
+                              const modelName = firstDetail.modelName || order.modelName;
+                              const colorName = firstDetail.colorName;
+                              if (modelName && colorName) {
+                                return (
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{modelName}</span>
+                                    <span className="text-sm text-gray-500">{colorName}</span>
+                                  </div>
+                                );
+                              }
+                              if (modelName) {
+                                return <span>{modelName}</span>;
+                              }
+                            }
+                            // Fallback về modelName trực tiếp từ order
+                            return <span>{order.modelName || 'N/A'}</span>;
+                          })()}
+                        </Table.Cell>
                         <Table.Cell>{formatDate(order.createdAt || order.orderDate)}</Table.Cell>
                         <Table.Cell className="font-medium">
                           {formatCurrency(order.totalAmount || order.totalPrice)}
                         </Table.Cell>
                         <Table.Cell>{getStatusBadge(order.status)}</Table.Cell>
                         <Table.Cell>
-                          <div className="flex items-center justify-center gap-2">
-                            {order.status === 'PENDING' && (
-                              <>
-                                <button className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors">
-                                  <Check size={16} />
-                                </button>
-                                <button className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors">
-                                  <X size={16} />
-                                </button>
-                              </>
-                            )}
-                            <button className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors">
-                              <Eye size={16} />
-                            </button>
-                            {order.status === 'DELIVERED' && (
-                              <button className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors">
-                                <Printer size={16} />
+                          <div className="flex items-center justify-center">
+                            <div className="relative">
+                              <button
+                                onClick={() => setOpenMenuId(openMenuId === order.orderId ? null : order.orderId)}
+                                className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                              >
+                                <MoreVertical size={18} />
                               </button>
-                            )}
+                              {openMenuId === order.orderId && (
+                                <>
+                                  <div
+                                    className="fixed inset-0 z-10"
+                                    onClick={() => setOpenMenuId(null)}
+                                  />
+                                  <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-20">
+                                    <div className="py-1">
+                                      <button
+                                        onClick={() => {
+                                          // TODO: Xem chi tiết
+                                          setOpenMenuId(null);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                      >
+                                        <Eye size={16} />
+                                        Xem chi tiết
+                                      </button>
+                                      {order.status === 'PENDING' && (
+                                        <>
+                                          <button
+                                            onClick={() => {
+                                              // TODO: Duyệt đơn
+                                              setOpenMenuId(null);
+                                            }}
+                                            className="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
+                                          >
+                                            <Check size={16} />
+                                            Duyệt đơn
+                                          </button>
+                                          <button
+                                            onClick={() => {
+                                              // TODO: Từ chối
+                                              setOpenMenuId(null);
+                                            }}
+                                            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                          >
+                                            <X size={16} />
+                                            Từ chối
+                                          </button>
+                                        </>
+                                      )}
+                                      {(order.status === 'DELIVERED' || order.status === 'FULLY_PAID') && (
+                                        <button
+                                          onClick={() => {
+                                            // TODO: In hóa đơn
+                                            setOpenMenuId(null);
+                                          }}
+                                          className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                        >
+                                          <Printer size={16} />
+                                          In hóa đơn
+                                        </button>
+                                      )}
+                                    </div>
+                                  </div>
+                                </>
+                              )}
+                            </div>
                           </div>
                         </Table.Cell>
                       </Table.Row>

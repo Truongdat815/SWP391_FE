@@ -1,17 +1,17 @@
 import { useState, useMemo } from 'react';
-import { 
-  Clock, 
-  CreditCard, 
-  CheckCircle2, 
-  Truck, 
-  Package, 
+import {
+  Clock,
+  CreditCard,
+  CheckCircle2,
+  Truck,
+  Package,
   RefreshCw,
-  Upload,
-  FileText
+  ChevronRight,
+  Calendar
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import EVMStaffLayout from '../../../components/layout/EVMStaffLayout';
 import SearchBar from '../../../components/shared/SearchBar';
-import MetricCard from '../../../components/shared/MetricCard';
 import Badge from '../../../components/ui/Badge';
 import Dropdown from '../../../components/ui/Dropdown';
 import Button from '../../../components/ui/Button';
@@ -35,7 +35,7 @@ const DealerOrdersPage = () => {
   const [timeRangeFilter, setTimeRangeFilter] = useState('all');
   const [dealerFilter, setDealerFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [itemsPerPage] = useState(10);
   const [selectedTransactionId, setSelectedTransactionId] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
 
@@ -46,7 +46,7 @@ const DealerOrdersPage = () => {
     selectedTransactionId,
     { skip: !selectedTransactionId }
   );
-  
+
   const [acceptRequest] = useAcceptInventoryRequestMutation();
   const [confirmDelivery] = useConfirmDeliveryMutation();
   const [rejectRequest] = useRejectInventoryRequestMutation();
@@ -54,7 +54,6 @@ const DealerOrdersPage = () => {
   const [confirmPayment] = useConfirmPaymentMutation();
   const [cancelRequest] = useCancelInventoryRequestMutation();
 
-  // Xử lý lỗi 404 cho transactions (EVM Staff có thể không có store)
   const isStoreNotFoundError = (err) => {
     return (
       err?.status === 404 &&
@@ -64,64 +63,56 @@ const DealerOrdersPage = () => {
     );
   };
 
-  // Nếu lỗi 404 (store not found), vẫn hiển thị mảng rỗng thay vì lỗi
   const transactions = isStoreNotFoundError(error) ? [] : (transactionsData?.data || []);
   const stores = storesData?.data || [];
   const statuses = statusesData?.data || [];
 
-  // Tính toán số lượng đơn hàng theo trạng thái
   const statusCounts = useMemo(() => {
     return {
       PENDING: transactions.filter((t) => t.status === 'PENDING' || t.status === 'DRAFT').length,
-      CONFIRM_PAYMENT: transactions.filter((t) => t.status === 'DELIVERED').length,
-      PROCESSING: transactions.filter((t) => 
-        t.status === 'ACCEPTED' || 
-        t.status === 'CONFIRMED' || 
-        t.status === 'PROCESSING'
-      ).length,
+      CONFIRM_PAYMENT: transactions.filter((t) => t.status === 'ACCEPTED' || t.status === 'CONFIRMED').length,
+      PROCESSING: transactions.filter((t) => t.status === 'PROCESSING').length,
       SHIPPING: transactions.filter((t) => t.status === 'SHIPPING').length,
-      COMPLETED: transactions.filter((t) => t.status === 'COMPLETED').length,
+      COMPLETED: transactions.filter((t) => t.status === 'COMPLETED' || t.status === 'DELIVERED').length,
     };
   }, [transactions]);
 
-  // Filter và sort transactions (mới nhất lên trên)
   const filteredTransactions = useMemo(() => {
     const filtered = transactions.filter((transaction) => {
       const matchesSearch =
         transaction.inventoryId?.toString().includes(searchTerm) ||
         transaction.storeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         transaction.modelName?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      // Logic filter status phù hợp với các button filter
+
       let matchesStatus = true;
       if (statusFilter !== 'all') {
         if (statusFilter === 'PENDING') {
           matchesStatus = transaction.status === 'PENDING' || transaction.status === 'DRAFT';
         } else if (statusFilter === 'ACCEPTED') {
-          matchesStatus = transaction.status === 'ACCEPTED' || 
-                         transaction.status === 'CONFIRMED' || 
-                         transaction.status === 'PROCESSING';
-        } else if (statusFilter === 'DELIVERED') {
-          matchesStatus = transaction.status === 'DELIVERED';
+          matchesStatus = transaction.status === 'ACCEPTED' || transaction.status === 'CONFIRMED';
+        } else if (statusFilter === 'PROCESSING') {
+          matchesStatus = transaction.status === 'PROCESSING';
+        } else if (statusFilter === 'SHIPPING') {
+          matchesStatus = transaction.status === 'SHIPPING';
+        } else if (statusFilter === 'COMPLETED') {
+          matchesStatus = transaction.status === 'COMPLETED' || transaction.status === 'DELIVERED';
         } else {
           matchesStatus = transaction.status === statusFilter;
         }
       }
-      
+
       const matchesDealer =
         dealerFilter === 'all' || transaction.storeId?.toString() === dealerFilter;
       return matchesSearch && matchesStatus && matchesDealer;
     });
-    
-    // Sắp xếp theo orderDate giảm dần (mới nhất lên trên)
+
     return filtered.sort((a, b) => {
       const dateA = new Date(a.orderDate || a.createdAt || 0);
       const dateB = new Date(b.orderDate || b.createdAt || 0);
-      return dateB - dateA; // Giảm dần
+      return dateB - dateA;
     });
   }, [transactions, searchTerm, statusFilter, dealerFilter]);
 
-  // Pagination
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -144,47 +135,25 @@ const DealerOrdersPage = () => {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const getStatusLabel = (status) => {
-    const statusMap = {
-      DRAFT: 'Nháp',
-      PENDING: 'Chờ xử lý',
-      CONFIRMED: 'Đã xác nhận',
-      ACCEPTED: 'Đã chấp nhận',
-      PROCESSING: 'Đang xử lý',
-      SHIPPING: 'Đang vận chuyển',
-      DELIVERED: 'Đã giao',
-      COMPLETED: 'Hoàn thành',
-      CANCELLED: 'Đã hủy',
-      REJECTED: 'Đã từ chối',
-    };
-    return statusMap[status] || status || 'N/A';
-  };
-
-  // Xác định progress steps dựa trên status
   const getProgressSteps = (status) => {
     const steps = [
       { key: 'PENDING', label: 'Chờ xử lý', icon: Clock },
-      { key: 'ACCEPTED', label: 'Đã chấp nhận', icon: CheckCircle2 },
-      { key: 'CONTRACT', label: 'Đã ký hợp đồng', icon: FileText },
-      { key: 'UPLOADED', label: 'Đã upload', icon: Upload },
-      { key: 'PAID', label: 'Đã thanh toán', icon: CreditCard },
+      { key: 'CONFIRM_PAYMENT', label: 'Thanh toán', icon: CreditCard },
+      { key: 'PROCESSING', label: 'Đang xử lý', icon: CheckCircle2 },
       { key: 'SHIPPING', label: 'Vận chuyển', icon: Truck },
-      { key: 'DELIVERED', label: 'Đã giao', icon: Package },
+      { key: 'COMPLETED', label: 'Hoàn thành', icon: Package },
     ];
 
     const statusOrder = {
-      PENDING: 0,
-      DRAFT: 0,
-      ACCEPTED: 1,
-      CONFIRMED: 2,
+      PENDING: 0, DRAFT: 0,
+      ACCEPTED: 1, CONFIRMED: 1,
       PROCESSING: 2,
-      SHIPPING: 5,
-      DELIVERED: 6,
-      COMPLETED: 6,
+      SHIPPING: 3,
+      DELIVERED: 4, COMPLETED: 4,
     };
 
     const currentStep = statusOrder[status] ?? 0;
-    
+
     return steps.map((step, index) => ({
       ...step,
       completed: index <= currentStep,
@@ -192,13 +161,12 @@ const DealerOrdersPage = () => {
     }));
   };
 
-  // Lấy action button text dựa trên status
   const getActionButton = (status) => {
     if (status === 'PENDING' || status === 'DRAFT') return 'Chấp nhận';
-    if (status === 'ACCEPTED' || status === 'CONFIRMED') return 'Đã xác nhận';
+    if (status === 'ACCEPTED' || status === 'CONFIRMED') return 'Xác nhận thanh toán';
+    if (status === 'PROCESSING') return 'Bắt đầu vận chuyển';
     if (status === 'SHIPPING') return 'Xác nhận giao';
-    if (status === 'DELIVERED') return 'Xác nhận thanh toán';
-    if (status === 'COMPLETED') return 'Đã giao';
+    if (status === 'DELIVERED' || status === 'COMPLETED') return 'Đã giao';
     return null;
   };
 
@@ -211,13 +179,7 @@ const DealerOrdersPage = () => {
     if (!dateString) return 'N/A';
     try {
       const date = new Date(dateString);
-      return date.toLocaleString('vi-VN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      return date.toLocaleDateString('vi-VN');
     } catch {
       return 'N/A';
     }
@@ -230,7 +192,6 @@ const DealerOrdersPage = () => {
         alert('Đã chấp nhận yêu cầu thành công');
       } catch (error) {
         alert('Có lỗi xảy ra khi chấp nhận yêu cầu');
-        console.error(error);
       }
     }
   };
@@ -242,19 +203,6 @@ const DealerOrdersPage = () => {
         alert('Đã xác nhận giao hàng thành công');
       } catch (error) {
         alert('Có lỗi xảy ra khi xác nhận giao hàng');
-        console.error(error);
-      }
-    }
-  };
-
-  const handleRejectTransaction = async (inventoryId) => {
-    if (window.confirm('Bạn có chắc chắn muốn từ chối giao dịch này?')) {
-      try {
-        await rejectRequest(inventoryId).unwrap();
-        alert('Đã từ chối giao dịch thành công');
-      } catch (error) {
-        alert('Có lỗi xảy ra khi từ chối giao dịch');
-        console.error(error);
       }
     }
   };
@@ -266,7 +214,6 @@ const DealerOrdersPage = () => {
         alert('Đã bắt đầu vận chuyển thành công');
       } catch (error) {
         alert('Có lỗi xảy ra khi bắt đầu vận chuyển');
-        console.error(error);
       }
     }
   };
@@ -278,19 +225,6 @@ const DealerOrdersPage = () => {
         alert('Đã xác nhận thanh toán thành công');
       } catch (error) {
         alert('Có lỗi xảy ra khi xác nhận thanh toán');
-        console.error(error);
-      }
-    }
-  };
-
-  const handleCancelTransaction = async (inventoryId) => {
-    if (window.confirm('Bạn có chắc chắn muốn hủy giao dịch này?')) {
-      try {
-        await cancelRequest(inventoryId).unwrap();
-        alert('Đã hủy giao dịch thành công');
-      } catch (error) {
-        alert('Có lỗi xảy ra khi hủy giao dịch');
-        console.error(error);
       }
     }
   };
@@ -305,9 +239,8 @@ const DealerOrdersPage = () => {
     );
   }
 
-  // Kiểm tra lỗi 401 (Unauthorized)
   const isUnauthorized = error?.status === 401 || storesError?.status === 401;
-  
+
   if (isUnauthorized) {
     return (
       <EVMStaffLayout>
@@ -343,87 +276,89 @@ const DealerOrdersPage = () => {
 
   return (
     <EVMStaffLayout>
-      <div className="space-y-6 p-6">
+      <motion.div
+        className="space-y-6 p-6 bg-gray-50/50 min-h-screen"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+      >
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
-                <Package className="text-white" size={24} />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Quản lý đơn hàng từ đại lý</h1>
-                <p className="text-gray-600 mt-1">Xử lý yêu cầu nhập hàng từ Dealer Manager và Staff</p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => window.location.reload()}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw size={16} />
-              Cập nhật mới nhất
-            </Button>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+              Quản lý đơn hàng
+            </h1>
+            <p className="text-gray-600 mt-1">Theo dõi và xử lý đơn hàng từ đại lý</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-2 bg-white shadow-sm hover:bg-gray-50"
+          >
+            <RefreshCw size={16} />
+            Cập nhật
+          </Button>
+        </div>
+
+        {/* Filters & Tabs */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1">
+          <div className="flex overflow-x-auto scrollbar-hide p-1 gap-1">
+            {[
+              { key: 'all', label: 'Tất cả', count: transactions.length },
+              { key: 'PENDING', label: 'Chờ xử lý', count: statusCounts.PENDING },
+              { key: 'ACCEPTED', label: 'Thanh toán', count: statusCounts.CONFIRM_PAYMENT },
+              { key: 'PROCESSING', label: 'Đang xử lý', count: statusCounts.PROCESSING },
+              { key: 'SHIPPING', label: 'Vận chuyển', count: statusCounts.SHIPPING },
+              { key: 'COMPLETED', label: 'Hoàn thành', count: statusCounts.COMPLETED },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setStatusFilter(tab.key)}
+                className={`
+                  px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2
+                  ${statusFilter === tab.key
+                    ? 'bg-blue-50 text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
+                `}
+              >
+                {tab.label}
+                <span className={`
+                  px-2 py-0.5 rounded-full text-xs font-semibold
+                  ${statusFilter === tab.key
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700'}
+                `}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Status Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <MetricCard
-            title="Chờ xử lý"
-            value={statusCounts.PENDING}
-            icon={Clock}
-            className="bg-gradient-to-br from-orange-400 to-orange-500 text-white"
-          />
-          <MetricCard
-            title="Xác nhận thanh toán"
-            value={statusCounts.CONFIRM_PAYMENT}
-            icon={CreditCard}
-            className="bg-gradient-to-br from-orange-400 to-orange-500 text-white"
-          />
-          <MetricCard
-            title="Đang xử lý"
-            value={statusCounts.PROCESSING}
-            icon={CheckCircle2}
-            className="bg-gradient-to-br from-teal-400 to-teal-500 text-white"
-          />
-          <MetricCard
-            title="Vận chuyển"
-            value={statusCounts.SHIPPING}
-            icon={Truck}
-            className="bg-gradient-to-br from-purple-400 to-purple-500 text-white"
-          />
-          <MetricCard
-            title="Hoàn thành"
-            value={statusCounts.COMPLETED}
-            icon={Package}
-            className="bg-gradient-to-br from-green-400 to-green-500 text-white"
-          />
-        </div>
-
-        {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <SearchBar
-                placeholder="Tìm kiếm theo Mã giao dịch, Tên đại lý, Model..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+        {/* Search and Advanced Filters */}
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <SearchBar
+              placeholder="Tìm kiếm theo Mã đơn, Đại lý, Model..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-white"
+            />
+          </div>
+          <div className="flex gap-2">
             <Dropdown
               options={[
-                { value: 'all', label: 'Khoảng thời gian' },
+                { value: 'all', label: 'Tất cả thời gian' },
                 { value: 'today', label: 'Hôm nay' },
                 { value: 'week', label: 'Tuần này' },
                 { value: 'month', label: 'Tháng này' },
               ]}
               value={timeRangeFilter}
               onChange={setTimeRangeFilter}
+              className="w-40"
             />
             <Dropdown
               options={[
-                { value: 'all', label: 'Đại lý' },
+                { value: 'all', label: 'Tất cả đại lý' },
                 ...stores.map((store) => ({
                   value: store.storeId?.toString(),
                   label: store.storeName || `Store ${store.storeId}`,
@@ -431,241 +366,208 @@ const DealerOrdersPage = () => {
               ]}
               value={dealerFilter}
               onChange={setDealerFilter}
+              className="w-48"
             />
           </div>
-          
-          {/* Status Filter Buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {[
-              { key: 'PENDING', label: 'Chờ xử lý', icon: Clock, count: statusCounts.PENDING, color: 'orange' },
-              { key: 'PROCESSING', label: 'Đang xử lí', icon: FileText, count: statusCounts.PROCESSING, color: 'gray' },
-              { key: 'CONFIRM_PAYMENT', label: 'Xác nhận thanh toán', icon: CheckCircle2, count: statusCounts.CONFIRM_PAYMENT, color: 'gray' },
-              { key: 'SHIPPING', label: 'Vận chuyển', icon: Truck, count: statusCounts.SHIPPING, color: 'gray' },
-              { key: 'COMPLETED', label: 'Hoàn thành', icon: Package, count: statusCounts.COMPLETED, color: 'green' },
-            ].map(({ key, label, icon: Icon, count, color }) => {
-              const isActive = 
-                (key === 'PENDING' && (statusFilter === 'PENDING' || statusFilter === 'DRAFT')) ||
-                (key === 'PROCESSING' && (statusFilter === 'ACCEPTED' || statusFilter === 'CONFIRMED' || statusFilter === 'PROCESSING')) ||
-                (key === 'CONFIRM_PAYMENT' && statusFilter === 'DELIVERED') ||
-                (key === 'SHIPPING' && statusFilter === 'SHIPPING') ||
-                (key === 'COMPLETED' && statusFilter === 'COMPLETED');
-              
-              const buttonClasses = {
-                orange: isActive ? 'bg-orange-500 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50',
-                gray: isActive ? 'bg-gray-500 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50',
-                green: isActive ? 'bg-green-500 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50',
-              };
-              
-              return (
-                <button
-                  key={key}
-                  onClick={() => {
-                    if (key === 'PENDING') setStatusFilter('PENDING');
-                    else if (key === 'PROCESSING') setStatusFilter('ACCEPTED');
-                    else if (key === 'CONFIRM_PAYMENT') setStatusFilter('DELIVERED');
-                    else if (key === 'SHIPPING') setStatusFilter('SHIPPING');
-                    else if (key === 'COMPLETED') setStatusFilter('COMPLETED');
-                  }}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${buttonClasses[color]}`}
-                >
-                  <Icon size={16} />
-                  <span>{label}</span>
-                  {count > 0 && (
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      isActive 
-                        ? 'bg-white/20 text-white' 
-                        : color === 'green' 
-                          ? 'bg-green-100 text-green-700' 
-                          : color === 'orange'
-                            ? 'bg-orange-100 text-orange-700'
-                            : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
         </div>
 
-        {/* Order Cards */}
-        <div className="space-y-4">
-          {transactions.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-              {isStoreNotFoundError(error) ? (
-                <div className="space-y-2">
-                  <Package size={64} className="mx-auto text-gray-300" />
-                  <p className="text-gray-500 text-lg font-medium">Chưa có giao dịch kho nào trong hệ thống</p>
-                  <p className="text-sm text-gray-400">
-                    Các giao dịch kho từ đại lý sẽ hiển thị tại đây khi có dữ liệu
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Package size={64} className="mx-auto text-gray-300" />
-                  <p className="text-gray-500 text-lg font-medium">Không có dữ liệu giao dịch kho</p>
-                </div>
-              )}
-            </div>
-          ) : paginatedTransactions.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-              <Package size={64} className="mx-auto text-gray-300" />
-              <p className="text-gray-500 text-lg font-medium mt-4">Không có đơn hàng {statusFilter === 'PENDING' || statusFilter === 'DRAFT' ? 'chờ xử lý' : statusFilter === 'DELIVERED' ? 'cần xác nhận thanh toán' : statusFilter === 'SHIPPING' ? 'đang vận chuyển' : 'phù hợp với bộ lọc'}</p>
-              <p className="text-sm text-gray-400 mt-2">
-                {statusFilter === 'DELIVERED' 
-                  ? 'Các đơn hàng đã upload biên lai cần xác nhận sẽ xuất hiện ở đây'
-                  : statusFilter === 'SHIPPING'
-                    ? 'Các đơn hàng đang giao sẽ xuất hiện ở đây'
-                    : 'Các đơn hàng mới sẽ xuất hiện ở đây'}
-              </p>
-            </div>
-          ) : (
-            paginatedTransactions.map((transaction) => {
-              const progressSteps = getProgressSteps(transaction.status);
-              const actionButtonText = getActionButton(transaction.status);
-              
-              return (
-                <div
-                  key={transaction.inventoryId}
-                  className="bg-blue-50 rounded-lg border border-blue-200 p-6 space-y-4"
-                >
-                  {/* Header */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900">
-                        Đơn hàng #{transaction.inventoryId}
-                      </h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        lúc {formatDate(transaction.orderDate)}
-                      </p>
-                    </div>
-                    {actionButtonText && (
-                      <Button
-                        onClick={() => {
-                          if (transaction.status === 'PENDING' || transaction.status === 'DRAFT') {
-                            handleAcceptTransaction(transaction.inventoryId);
-                          } else if (transaction.status === 'SHIPPING') {
-                            handleConfirmDelivery(transaction.inventoryId);
-                          } else if (transaction.status === 'DELIVERED') {
-                            handleConfirmPayment(transaction.inventoryId);
-                          }
-                        }}
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                      >
-                        {actionButtonText}
-                      </Button>
-                    )}
-                  </div>
+        {/* Order Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <AnimatePresence mode="wait">
+            {paginatedTransactions.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="p-12 text-center"
+              >
+                <Package size={64} className="mx-auto text-gray-300 mb-4" />
+                <p className="text-gray-500 text-lg font-medium">Không có đơn hàng</p>
+                <p className="text-sm text-gray-400 mt-2">
+                  Các đơn hàng sẽ hiển thị tại đây
+                </p>
+              </motion.div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Mã ĐH
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Đại lý
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Sản phẩm
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        SL
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Ngày đặt
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Tổng tiền
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Tiến trình
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Trạng thái
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Hành động
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {paginatedTransactions.map((transaction, index) => {
+                      const progressSteps = getProgressSteps(transaction.status);
+                      const actionButtonText = getActionButton(transaction.status);
 
-                  {/* Progress Bar */}
-                  <div className="relative pt-4">
-                    <div className="flex items-center justify-between relative">
-                      {/* Progress Line */}
-                      <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200">
-                        <div
-                          className="h-full bg-blue-500 transition-all duration-300"
-                          style={{
-                            width: `${(progressSteps.filter((s) => s.completed).length / progressSteps.length) * 100}%`,
-                          }}
-                        />
-                      </div>
-                      
-                      {/* Steps */}
-                      {progressSteps.map((step, index) => {
-                        const Icon = step.icon;
-                        return (
-                          <div key={step.key} className="flex-1 flex flex-col items-center relative z-10">
-                            <div
-                              className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
-                                step.completed
-                                  ? step.active
-                                    ? 'bg-yellow-400 border-yellow-500 text-yellow-700'
-                                    : 'bg-blue-500 border-blue-600 text-white'
-                                  : 'bg-white border-gray-300 text-gray-400'
-                              }`}
-                            >
-                              <Icon size={20} />
+                      return (
+                        <motion.tr
+                          key={transaction.inventoryId}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                              #{transaction.inventoryId}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-sm font-medium text-gray-900">
+                              {transaction.storeName || 'N/A'}
                             </div>
-                            <p
-                              className={`text-xs mt-2 text-center max-w-[80px] ${
-                                step.completed ? 'text-gray-700 font-medium' : 'text-gray-400'
-                              }`}
-                            >
-                              {step.label}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Order Details */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-blue-200">
-                    <div>
-                      <p className="text-sm text-gray-500">Model • Màu</p>
-                      <p className="text-base font-medium text-gray-900 mt-1">
-                        {transaction.modelName || 'N/A'} - {transaction.colorName || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Số lượng</p>
-                      <p className="text-base font-medium text-gray-900 mt-1">
-                        {transaction.importQuantity || 0} xe
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Tổng giá</p>
-                      <p className="text-base font-medium text-gray-900 mt-1">
-                        {formatCurrency(transaction.totalPrice)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-
-          {/* Pagination */}
-          {paginatedTransactions.length > 0 && (
-            <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm border border-gray-200">
-              <p className="text-sm text-gray-600">
-                Hiển thị {startIndex + 1} đến {Math.min(endIndex, filteredTransactions.length)} trong{' '}
-                {filteredTransactions.length} kết quả
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  Trước
-                </Button>
-                {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => i + 1).map((page) => (
-                  <Button
-                    key={page}
-                    variant={currentPage === page ? 'primary' : 'outline'}
-                    size="sm"
-                    onClick={() => setCurrentPage(page)}
-                  >
-                    {page}
-                  </Button>
-                ))}
-                {totalPages > 3 && <span className="px-2">...</span>}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Tiếp
-                </Button>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-sm text-gray-900">{transaction.modelName || 'N/A'}</div>
+                            <div className="text-xs text-gray-500">{transaction.colorName || 'N/A'}</div>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {transaction.importQuantity || 0}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-sm text-gray-600">
+                              {formatDate(transaction.orderDate)}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="text-sm font-semibold text-gray-900">
+                              {formatCurrency(transaction.totalPrice)}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-1">
+                              {progressSteps.map((step, idx) => {
+                                const Icon = step.icon;
+                                return (
+                                  <div
+                                    key={idx}
+                                    className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${step.completed
+                                        ? step.active
+                                          ? 'bg-blue-500 border-blue-600 text-white'
+                                          : 'bg-blue-500 border-blue-600 text-white'
+                                        : 'bg-gray-100 border-gray-300 text-gray-400'
+                                      }`}
+                                    title={step.label}
+                                  >
+                                    <Icon size={12} />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {getStatusBadge(transaction.status)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-2">
+                              {actionButtonText && transaction.status !== 'COMPLETED' && transaction.status !== 'DELIVERED' && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => {
+                                    if (transaction.status === 'PENDING' || transaction.status === 'DRAFT') {
+                                      handleAcceptTransaction(transaction.inventoryId);
+                                    } else if (transaction.status === 'ACCEPTED' || transaction.status === 'CONFIRMED') {
+                                      handleConfirmPayment(transaction.inventoryId);
+                                    } else if (transaction.status === 'PROCESSING') {
+                                      handleStartShipping(transaction.inventoryId);
+                                    } else if (transaction.status === 'SHIPPING') {
+                                      handleConfirmDelivery(transaction.inventoryId);
+                                    }
+                                  }}
+                                  className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1"
+                                >
+                                  {actionButtonText}
+                                </Button>
+                              )}
+                              <button
+                                onClick={() => {
+                                  setSelectedTransactionId(transaction.inventoryId);
+                                  setIsDetailModalOpen(true);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                              >
+                                <ChevronRight size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          )}
+            )}
+          </AnimatePresence>
         </div>
-      </div>
+
+        {/* Pagination */}
+        {paginatedTransactions.length > 0 && (
+          <div className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+            <p className="text-sm text-gray-600">
+              Hiển thị {startIndex + 1} đến {Math.min(endIndex, filteredTransactions.length)} trong{' '}
+              {filteredTransactions.length} kết quả
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Trước
+              </Button>
+              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((page) => (
+                <Button
+                  key={page}
+                  variant={currentPage === page ? 'primary' : 'outline'}
+                  size="sm"
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </Button>
+              ))}
+              {totalPages > 5 && <span className="px-2">...</span>}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Tiếp
+              </Button>
+            </div>
+          </div>
+        )}
+      </motion.div>
 
       {/* Detail Modal */}
       <Modal
@@ -693,15 +595,19 @@ const DealerOrdersPage = () => {
                 <div className="mt-1">{getStatusBadge(transactionDetail.data.status)}</div>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Tên đại lý</label>
+                <label className="text-sm font-medium text-gray-500">Đại lý</label>
                 <p className="text-base text-gray-900">{transactionDetail.data.storeName || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Ngày đặt</label>
+                <p className="text-base text-gray-900">{formatDate(transactionDetail.data.orderDate)}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Model</label>
                 <p className="text-base text-gray-900">{transactionDetail.data.modelName || 'N/A'}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Màu</label>
+                <label className="text-sm font-medium text-gray-500">Màu sắc</label>
                 <p className="text-base text-gray-900">{transactionDetail.data.colorName || 'N/A'}</p>
               </div>
               <div>
@@ -709,51 +615,23 @@ const DealerOrdersPage = () => {
                 <p className="text-base text-gray-900">{transactionDetail.data.importQuantity || 0} xe</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Giá đơn vị</label>
-                <p className="text-base text-gray-900">{formatCurrency(transactionDetail.data.unitBasePrice)}</p>
+                <label className="text-sm font-medium text-gray-500">Tổng giá</label>
+                <p className="text-base font-semibold text-gray-900">{formatCurrency(transactionDetail.data.totalPrice)}</p>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Tổng giá gốc</label>
-                <p className="text-base text-gray-900">{formatCurrency(transactionDetail.data.totalBasePrice)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Giảm giá (%)</label>
-                <p className="text-base text-gray-900">{transactionDetail.data.discountPercentage || 0}%</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Số tiền giảm</label>
-                <p className="text-base text-gray-900">{formatCurrency(transactionDetail.data.discountAmount)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Tổng giá trị</label>
-                <p className="text-base font-semibold text-blue-600">{formatCurrency(transactionDetail.data.totalPrice)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Ngày đặt</label>
-                <p className="text-base text-gray-900">{formatDate(transactionDetail.data.orderDate)}</p>
-              </div>
-              {transactionDetail.data.deliveryDate && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Ngày giao</label>
-                  <p className="text-base text-gray-900">{formatDate(transactionDetail.data.deliveryDate)}</p>
-                </div>
-              )}
-              {transactionDetail.data.imageUrl && (
-                <div className="col-span-2">
-                  <label className="text-sm font-medium text-gray-500">Hình ảnh biên lai</label>
-                  <div className="mt-2">
-                    <img
-                      src={transactionDetail.data.imageUrl}
-                      alt="Biên lai"
-                      className="max-w-full h-auto rounded-lg border border-gray-200"
-                    />
-                  </div>
-                </div>
-              )}
             </div>
+            {transactionDetail.data.receiptImage && (
+              <div>
+                <label className="text-sm font-medium text-gray-500 block mb-2">Biên lai thanh toán</label>
+                <img
+                  src={transactionDetail.data.receiptImage}
+                  alt="Receipt"
+                  className="max-w-full h-auto rounded-lg border border-gray-200"
+                />
+              </div>
+            )}
           </div>
         ) : (
-          <div className="text-center text-gray-500 py-8">Không tìm thấy thông tin chi tiết</div>
+          <div className="text-center py-8 text-gray-500">Không có dữ liệu</div>
         )}
       </Modal>
     </EVMStaffLayout>
@@ -761,4 +639,3 @@ const DealerOrdersPage = () => {
 };
 
 export default DealerOrdersPage;
-

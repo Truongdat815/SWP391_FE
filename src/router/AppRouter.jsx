@@ -17,7 +17,7 @@ import CustomerManagementPage from '../features/dealerStaff/customers/CustomerMa
 import AppointmentsPage from '../features/dealerStaff/appointments/AppointmentsPage';
 import QuotationPage from '../features/dealerStaff/quotation/QuotationPage';
 import ProductsPage from '../features/dealerStaff/products/ProductsPage';
-import ReportsPage from '../features/dealerStaff/reports/ReportsPage';
+import DealerStaffReportsPage from '../features/dealerStaff/reports/ReportsPage';
 
 // Dealer Manager routes
 import DealerManagerDashboard from '../features/dealerManager/dashboard/DashboardPage';
@@ -25,6 +25,8 @@ import DealerManagerInventoryPage from '../features/dealerManager/inventory/Inve
 import DealerManagerOrderManagementPage from '../features/dealerManager/order/OrderManagementPage';
 import PromotionPage from '../features/dealerManager/promotion/PromotionPage';
 import StaffPage from '../features/dealerManager/staff/StaffPage';
+import StoreManagementPage from '../features/dealerManager/store/StoreManagementPage';
+import DealerManagerReportsPage from '../features/dealerManager/reports/ReportsPage';
 
 // EVM Staff routes
 import EvmStaffDashboard from '../features/evmStaff/dashboard/DashboardPage';
@@ -72,7 +74,7 @@ function AppRouter() {
                 <Route path="appointments" element={<AppointmentsPage />} />
                 <Route path="quotation" element={<QuotationPage />} />
                 <Route path="products" element={<ProductsPage />} />
-                <Route path="reports" element={<ReportsPage />} />
+                <Route path="reports" element={<DealerStaffReportsPage />} />
                 <Route path="" element={<Navigate to="/dealer-staff/dashboard" replace />} />
               </Routes>
             </RoleRoute>
@@ -92,6 +94,8 @@ function AppRouter() {
                 <Route path="orders" element={<DealerManagerOrderManagementPage />} />
                 <Route path="promotions" element={<PromotionPage />} />
                 <Route path="staff" element={<StaffPage />} />
+                <Route path="store" element={<StoreManagementPage />} />
+                <Route path="reports" element={<DealerManagerReportsPage />} />
                 <Route path="" element={<Navigate to="/dealer-manager/dashboard" replace />} />
               </Routes>
             </RoleRoute>

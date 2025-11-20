@@ -1,10 +1,12 @@
 import { useState, useMemo } from 'react';
-import { Search, Building2, MapPin, Phone } from 'lucide-react';
+import { Search, Building2, MapPin, Phone, Store, RefreshCw } from 'lucide-react';
+import { motion } from 'framer-motion';
 import EVMStaffLayout from '../../../components/layout/EVMStaffLayout';
 import SearchBar from '../../../components/shared/SearchBar';
 import Table from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
 import Dropdown from '../../../components/ui/Dropdown';
+import Button from '../../../components/ui/Button';
 import { useGetAllStoresQuery, useGetStoreStatusesQuery } from '../../../api/evmStaff/storeApi';
 
 const DealersPage = () => {
@@ -18,11 +20,6 @@ const DealersPage = () => {
 
   const stores = storesData?.data || [];
   const statuses = statusesData?.data || [];
-
-  // Debug: Log store structure in development
-  if (import.meta.env.DEV && stores.length > 0) {
-    console.log('Store data structure:', stores[0]);
-  }
 
   // Filter stores
   const filteredStores = useMemo(() => {
@@ -108,15 +105,31 @@ const DealersPage = () => {
 
   return (
     <EVMStaffLayout>
-      <div className="space-y-6 p-6">
+      <motion.div
+        className="space-y-6 p-6 bg-gray-50/50 min-h-screen"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+      >
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Quản lý Đại lý</h1>
-          <p className="text-gray-600 mt-1">Xem và quản lý thông tin các đại lý</p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+              Quản lý Đại lý
+            </h1>
+            <p className="text-gray-600 mt-1">Xem và quản lý thông tin các đại lý ủy quyền</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-2 bg-white shadow-sm hover:bg-gray-50"
+          >
+            <RefreshCw size={16} />
+            Cập nhật
+          </Button>
         </div>
 
         {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <SearchBar
@@ -135,14 +148,18 @@ const DealersPage = () => {
               ]}
               value={statusFilter}
               onChange={setStatusFilter}
+              className="w-64"
             />
           </div>
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           {paginatedStores.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">Không có dữ liệu</div>
+            <div className="p-12 text-center flex flex-col items-center justify-center text-gray-500">
+              <Store size={48} className="text-gray-300 mb-4" />
+              <p>Không tìm thấy đại lý nào</p>
+            </div>
           ) : (
             <>
               <div className="overflow-x-auto">
@@ -158,74 +175,84 @@ const DealersPage = () => {
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
-                    {paginatedStores.map((store) => (
-                      <Table.Row key={store.storeId}>
-                        <Table.Cell className="font-mono">#{store.storeId}</Table.Cell>
-                        <Table.Cell className="font-medium">{store.storeName || 'N/A'}</Table.Cell>
-                        <Table.Cell>
+                    {paginatedStores.map((store, index) => (
+                      <motion.tr
+                        key={store.storeId}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors"
+                      >
+                        <Table.Cell className="font-mono font-medium text-blue-600">#{store.storeId}</Table.Cell>
+                        <Table.Cell className="font-medium text-gray-900">
                           <div className="flex items-center gap-2">
-                            <MapPin size={16} className="text-gray-400" />
-                            <span className="text-sm">{store.address || 'N/A'}</span>
+                            <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center text-blue-600">
+                              <Building2 size={16} />
+                            </div>
+                            {store.storeName || 'N/A'}
                           </div>
                         </Table.Cell>
                         <Table.Cell>
-                          <div className="flex items-center gap-2">
-                            <Phone size={16} className="text-gray-400" />
+                          <div className="flex items-center gap-2 text-gray-600">
+                            <MapPin size={16} className="text-gray-400 flex-shrink-0" />
+                            <span className="text-sm truncate max-w-xs" title={store.address}>{store.address || 'N/A'}</span>
+                          </div>
+                        </Table.Cell>
+                        <Table.Cell>
+                          <div className="flex items-center gap-2 text-gray-600">
+                            <Phone size={16} className="text-gray-400 flex-shrink-0" />
                             <span>{store.phone || store.phoneNumber || 'N/A'}</span>
                           </div>
                         </Table.Cell>
                         <Table.Cell>{formatDate(store.createdAt)}</Table.Cell>
                         <Table.Cell>{getStatusBadge(store.status)}</Table.Cell>
-                      </Table.Row>
+                      </motion.tr>
                     ))}
                   </Table.Body>
                 </Table>
               </div>
 
               {/* Pagination */}
-              <div className="flex items-center justify-between p-4 border-t border-gray-200">
-                <p className="text-sm text-gray-600">
-                  Hiển thị {startIndex + 1} đến {Math.min(endIndex, filteredStores.length)} trong{' '}
-                  {filteredStores.length} kết quả
+              <div className="flex items-center justify-between p-4 border-t border-gray-100 bg-gray-50/30">
+                <p className="text-sm text-gray-500">
+                  Hiển thị {startIndex + 1}-{Math.min(endIndex, filteredStores.length)} trong{' '}
+                  {filteredStores.length} đại lý
                 </p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setCurrentPage(currentPage - 1)}
                     disabled={currentPage === 1}
-                    className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white hover:border-gray-300 transition-all"
                   >
-                    Previous
+                    Trước
                   </button>
                   {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((page) => (
                     <button
                       key={page}
                       onClick={() => setCurrentPage(page)}
-                      className={`px-4 py-2 border rounded-lg ${
-                        currentPage === page
-                          ? 'bg-blue-600 text-white border-blue-600'
-                          : 'border-gray-300 hover:bg-gray-50'
-                      }`}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${currentPage === page
+                          ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/30'
+                          : 'bg-white border border-gray-200 text-gray-600 hover:border-gray-300'
+                        }`}
                     >
                       {page}
                     </button>
                   ))}
-                  {totalPages > 5 && <span className="px-2">...</span>}
                   <button
                     onClick={() => setCurrentPage(currentPage + 1)}
                     disabled={currentPage === totalPages}
-                    className="px-4 py-2 border border-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50"
+                    className="px-3 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-white hover:border-gray-300 transition-all"
                   >
-                    Next
+                    Sau
                   </button>
                 </div>
               </div>
             </>
           )}
         </div>
-      </div>
+      </motion.div>
     </EVMStaffLayout>
   );
 };
 
 export default DealersPage;
-
