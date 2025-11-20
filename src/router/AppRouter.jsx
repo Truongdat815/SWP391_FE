@@ -29,9 +29,10 @@ import StaffPage from '../features/dealerManager/staff/StaffPage';
 // EVM Staff routes
 import EvmStaffDashboard from '../features/evmStaff/dashboard/DashboardPage';
 import ProductManagementPage from '../features/evmStaff/products/ProductManagementPage';
-import EvmStaffInventoryPage from '../features/evmStaff/inventory/InventoryPage';
 import DealerOrdersPage from '../features/evmStaff/orders/DealerOrdersPage';
 import ColorManagementPage from '../features/evmStaff/colors/ColorManagementPage';
+import DealersPage from '../features/evmStaff/dealers/DealersPage';
+import EvmStaffReportsPage from '../features/evmStaff/reports/ReportsPage';
 
 function AppRouter() {
   return (
@@ -106,9 +107,10 @@ function AppRouter() {
               <Routes>
                 <Route path="dashboard" element={<EvmStaffDashboard />} />
                 <Route path="products" element={<ProductManagementPage />} />
-                <Route path="inventory" element={<EvmStaffInventoryPage />} />
                 <Route path="orders" element={<DealerOrdersPage />} />
                 <Route path="colors" element={<ColorManagementPage />} />
+                <Route path="dealers" element={<DealersPage />} />
+                <Route path="reports" element={<EvmStaffReportsPage />} />
                 <Route path="" element={<Navigate to="/evm-staff/dashboard" replace />} />
               </Routes>
             </RoleRoute>

@@ -6,31 +6,41 @@ import Card from '../../../components/ui/Card';
 import LineChart from '../../../components/charts/LineChart';
 import { useGetAllModelsQuery } from '../../../api/admin/modelApi';
 import { useGetAllDealerOrdersQuery } from '../../../api/evmStaff/dealerOrdersApi';
-import { useGetAllStoreStocksQuery } from '../../../api/evmStaff/inventoryApi';
 import { useGetAllModelColorsQuery } from '../../../api/evmStaff/productApi';
 
 const EVMStaffDashboard = () => {
   const { data: modelsData, isLoading: isLoadingModels, error: modelsError } = useGetAllModelsQuery();
   const { data: ordersData, isLoading: isLoadingOrders, error: ordersError } = useGetAllDealerOrdersQuery();
-  const { data: stocksData, isLoading: isLoadingStocks, error: stocksError } = useGetAllStoreStocksQuery();
   const { data: modelColorsData, isLoading: isLoadingColors, error: colorsError } = useGetAllModelColorsQuery();
 
   const models = modelsData?.data || [];
-  const orders = ordersData?.data || [];
-  const stocks = stocksData?.data || [];
+  // Xử lý orders: nếu có lỗi 404 (store not found), vẫn hiển thị mảng rỗng
+  const orders = ordersError?.status === 404 ? [] : (ordersData?.data || []);
   const modelColors = modelColorsData?.data || [];
 
-  const isLoading = isLoadingModels || isLoadingOrders || isLoadingStocks || isLoadingColors;
+  const isLoading = isLoadingModels || isLoadingOrders || isLoadingColors;
   
   // Kiểm tra lỗi 401 (Unauthorized)
   const isUnauthorized = 
     modelsError?.status === 401 || 
     ordersError?.status === 401 || 
-    stocksError?.status === 401 ||
     colorsError?.status === 401;
   
-  const hasError = (modelsError && modelsError.status !== 401) || 
-                   (ordersError && ordersError.status !== 401);
+  // Kiểm tra xem lỗi có phải là "Không tìm thấy store" (404) không
+  // EVM Staff có thể không có storeId, nên lỗi này có thể bỏ qua
+  const isStoreNotFoundError = (error) => {
+    return error?.status === 404 && 
+           (error?.data?.message?.includes('Không tìm thấy store') ||
+            error?.data?.message?.includes('store') ||
+            error?.data?.code === 1004);
+  };
+  
+  // Kiểm tra tất cả các lỗi (trừ 401 và lỗi "Không tìm thấy store" cho orders)
+  // Lỗi "Không tìm thấy store" chỉ bỏ qua cho orders vì EVM Staff có thể không có storeId
+  const hasError = 
+    (modelsError && modelsError.status !== 401 && modelsError.status !== undefined) || 
+    (ordersError && ordersError.status !== 401 && ordersError.status !== undefined && !isStoreNotFoundError(ordersError)) ||
+    (colorsError && colorsError.status !== 401 && colorsError.status !== undefined);
 
   // Tính toán metrics
   const totalModels = models.length;
@@ -41,8 +51,9 @@ const EVMStaffDashboard = () => {
   ).length;
   const completedOrders = orders.filter((order) => order.status === 'DELIVERED').length;
   const completionRate = totalOrders > 0 ? Math.round((completedOrders / totalOrders) * 100) : 0;
-  const deliveredVehicles = stocks.filter((stock) => stock.status === 'DELIVERED').length;
-  const uniqueDealers = new Set(stocks.map((stock) => stock.storeId).filter(Boolean)).size;
+  // Không dùng store-stocks nữa, dùng inventory-transactions thay thế
+  const deliveredVehicles = 0; // Sẽ được tính từ inventory-transactions nếu cần
+  const uniqueDealers = 0; // Sẽ được tính từ inventory-transactions nếu cần
 
   // Order trend chart data (6 tháng gần nhất)
   const orderTrendData = useMemo(() => {
@@ -224,32 +235,56 @@ const EVMStaffDashboard = () => {
             <p className="text-sm text-gray-500 mt-1">Dựa trên tổng số đơn hàng</p>
           </Card.Header>
           <Card.Content>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="p-4 bg-blue-50 rounded-lg">
-                <p className="text-sm text-gray-600">Chờ xử lý</p>
-                <p className="text-2xl font-bold text-blue-600">
-                  {orders.filter((o) => o.status === 'PENDING').length}
-                </p>
+            {isLoadingOrders ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="text-gray-500">Đang tải dữ liệu...</div>
               </div>
-              <div className="p-4 bg-yellow-50 rounded-lg">
-                <p className="text-sm text-gray-600">Đang xử lý</p>
-                <p className="text-2xl font-bold text-yellow-600">
-                  {orders.filter((o) => o.status === 'PROCESSING' || o.status === 'CONFIRMED').length}
-                </p>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Chờ xử lý</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {orders.filter((o) => 
+                      o.status === 'PENDING' || 
+                      o.status === 'DRAFT' ||
+                      o.status?.toUpperCase() === 'PENDING'
+                    ).length}
+                  </p>
+                </div>
+                <div className="p-4 bg-yellow-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Đang xử lý</p>
+                  <p className="text-2xl font-bold text-yellow-600">
+                    {orders.filter((o) => 
+                      o.status === 'PROCESSING' || 
+                      o.status === 'CONFIRMED' ||
+                      o.status?.toUpperCase() === 'PROCESSING'
+                    ).length}
+                  </p>
+                </div>
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Hoàn thành</p>
+                  <p className="text-2xl font-bold text-green-600">
+                    {orders.filter((o) => 
+                      o.status === 'DELIVERED' || 
+                      o.status === 'COMPLETED' ||
+                      o.status?.toUpperCase() === 'DELIVERED' ||
+                      o.status?.toUpperCase() === 'COMPLETED'
+                    ).length}
+                  </p>
+                </div>
+                <div className="p-4 bg-red-50 rounded-lg">
+                  <p className="text-sm text-gray-600 mb-1">Đã hủy</p>
+                  <p className="text-2xl font-bold text-red-600">
+                    {orders.filter((o) => 
+                      o.status === 'CANCELLED' || 
+                      o.status === 'REJECTED' ||
+                      o.status?.toUpperCase() === 'CANCELLED' ||
+                      o.status?.toUpperCase() === 'REJECTED'
+                    ).length}
+                  </p>
+                </div>
               </div>
-              <div className="p-4 bg-green-50 rounded-lg">
-                <p className="text-sm text-gray-600">Hoàn thành</p>
-                <p className="text-2xl font-bold text-green-600">
-                  {orders.filter((o) => o.status === 'DELIVERED').length}
-                </p>
-              </div>
-              <div className="p-4 bg-red-50 rounded-lg">
-                <p className="text-sm text-gray-600">Đã hủy</p>
-                <p className="text-2xl font-bold text-red-600">
-                  {orders.filter((o) => o.status === 'CANCELLED').length}
-                </p>
-              </div>
-            </div>
+            )}
           </Card.Content>
         </Card>
       </div>

@@ -12,19 +12,39 @@ export const dealerOrdersApi = baseApi.injectEndpoints({
       query: (orderId) => `/orders/${orderId}`,
       providesTags: ['Order'],
     }),
-    // Xử lý đơn hàng (approve/reject)
-    processDealerOrder: builder.mutation({
-      query: ({ orderId, action, ...data }) => ({
-        url: `/orders/${orderId}/${action}`,
-        method: 'PUT',
-        body: data,
-      }),
-      invalidatesTags: ['Order'],
-    }),
     // Lấy order details
     getDealerOrderDetails: builder.query({
       query: (orderId) => `/orders/${orderId}/order-details`,
       providesTags: ['Order'],
+    }),
+    // Lấy orders theo customer
+    getOrdersByCustomer: builder.query({
+      query: (customerId) => `/orders/customer/${customerId}`,
+      providesTags: ['Order'],
+    }),
+    // Xác nhận order từ draft
+    confirmOrder: builder.mutation({
+      query: (orderId) => ({
+        url: `/orders/${orderId}/confirm`,
+        method: 'PUT',
+      }),
+      invalidatesTags: ['Order'],
+    }),
+    // Đánh dấu đơn hàng đã giao
+    deliverOrder: builder.mutation({
+      query: (orderId) => ({
+        url: `/orders/${orderId}/deliver`,
+        method: 'PUT',
+      }),
+      invalidatesTags: ['Order'],
+    }),
+    // Xóa order
+    deleteOrder: builder.mutation({
+      query: (orderId) => ({
+        url: `/orders/delete/${orderId}`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: ['Order'],
     }),
     // Lấy danh sách trạng thái order
     getOrderStatuses: builder.query({
@@ -37,8 +57,11 @@ export const dealerOrdersApi = baseApi.injectEndpoints({
 export const {
   useGetAllDealerOrdersQuery,
   useGetDealerOrderByIdQuery,
-  useProcessDealerOrderMutation,
   useGetDealerOrderDetailsQuery,
+  useGetOrdersByCustomerQuery,
+  useConfirmOrderMutation,
+  useDeliverOrderMutation,
+  useDeleteOrderMutation,
   useGetOrderStatusesQuery,
 } = dealerOrdersApi;
 

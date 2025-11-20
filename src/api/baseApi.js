@@ -37,6 +37,23 @@ const baseQuery = fetchBaseQuery({
 const baseQueryWithReauth = async (args, api, extraOptions) => {
   let result = await baseQuery(args, api, extraOptions);
 
+  // Xử lý lỗi 404 cho các endpoint có thể không có dữ liệu (EVM Staff)
+  // Các endpoint này có thể trả về 404 khi không có store hoặc dữ liệu
+  const url = typeof args === 'string' ? args : args?.url || '';
+  const allow404Endpoints = [
+    '/orders/all',
+    '/store-stocks/all',
+    '/inventory-transactions/all',
+  ];
+
+  if (result?.error?.status === 404 && allow404Endpoints.some(endpoint => url.includes(endpoint))) {
+    // Trả về response hợp lệ với dữ liệu rỗng thay vì error
+    return {
+      data: { data: [], code: 200, message: 'No data found' },
+      meta: result.meta,
+    };
+  }
+
   if (result?.error?.status === 401) {
     const token = localStorage.getItem('accessToken');
 

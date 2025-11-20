@@ -21,6 +21,15 @@ import {
   useDeleteModelColorMutation,
 } from '../../../api/evmStaff/productApi';
 import { useGetAllColorsQuery } from '../../../api/evmStaff/colorApi';
+import {
+  useGetAllInventoryTransactionsQuery,
+  useCreateInventoryTransactionMutation,
+  useAcceptInventoryRequestMutation,
+  useRejectInventoryRequestMutation,
+  useStartShippingMutation,
+  useConfirmDeliveryMutation,
+  useGetInventoryTransactionStatusesQuery,
+} from '../../../api/evmStaff/inventoryApi';
 
 const ProductManagementPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -29,6 +38,8 @@ const ProductManagementPage = () => {
   const [isCreateModelModalOpen, setIsCreateModelModalOpen] = useState(false);
   const [isCreateColorModalOpen, setIsCreateColorModalOpen] = useState(false);
   const [isEditModelModalOpen, setIsEditModelModalOpen] = useState(false);
+  const [showInventoryTransactions, setShowInventoryTransactions] = useState(false);
+  const [transactionStatusFilter, setTransactionStatusFilter] = useState('all');
   const [modelFormData, setModelFormData] = useState({
     modelName: '',
     modelYear: '',
@@ -52,6 +63,14 @@ const ProductManagementPage = () => {
   const { data: modelColorsData } = useGetModelColorsByModelQuery(selectedModel?.modelId, {
     skip: !selectedModel,
   });
+  const { data: transactionsData, isLoading: isLoadingTransactions } = useGetAllInventoryTransactionsQuery();
+  const { data: statusesData } = useGetInventoryTransactionStatusesQuery();
+  
+  const [createTransaction] = useCreateInventoryTransactionMutation();
+  const [acceptRequest] = useAcceptInventoryRequestMutation();
+  const [rejectRequest] = useRejectInventoryRequestMutation();
+  const [startShipping] = useStartShippingMutation();
+  const [confirmDelivery] = useConfirmDeliveryMutation();
 
   const [createModel, { isLoading: isCreatingModel }] = useCreateModelMutation();
   const [updateModel, { isLoading: isUpdatingModel }] = useUpdateModelMutation();
@@ -63,6 +82,8 @@ const ProductManagementPage = () => {
   const models = modelsData?.data || [];
   const colors = colorsData?.data || [];
   const modelColors = modelColorsData?.data || [];
+  const transactions = transactionsData?.data || [];
+  const statuses = statusesData?.data || [];
 
   // Filter models
   const filteredModels = useMemo(() => {
@@ -212,6 +233,90 @@ const ProductManagementPage = () => {
     }).format(amount);
   };
 
+  const formatCurrencyVND = (amount) => {
+    if (!amount) return '0₫';
+    return new Intl.NumberFormat('vi-VN').format(amount) + '₫';
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('vi-VN');
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  // Filter transactions
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((transaction) => {
+      const matchesStatus = transactionStatusFilter === 'all' || transaction.status === transactionStatusFilter;
+      return matchesStatus;
+    });
+  }, [transactions, transactionStatusFilter]);
+
+  const getTransactionStatusBadge = (status) => {
+    const statusMap = {
+      PENDING: { variant: 'warning', label: 'Chờ xử lý' },
+      ACCEPTED: { variant: 'info', label: 'Đã chấp nhận' },
+      REJECTED: { variant: 'error', label: 'Đã từ chối' },
+      SHIPPING: { variant: 'info', label: 'Đang vận chuyển' },
+      DELIVERED: { variant: 'success', label: 'Đã giao' },
+      CANCELLED: { variant: 'default', label: 'Đã hủy' },
+    };
+    const config = statusMap[status] || { variant: 'default', label: status || 'N/A' };
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  const handleAcceptTransaction = async (inventoryId) => {
+    if (window.confirm('Bạn có chắc chắn muốn chấp nhận yêu cầu này?')) {
+      try {
+        await acceptRequest(inventoryId).unwrap();
+        alert('Đã chấp nhận yêu cầu thành công');
+      } catch (error) {
+        alert('Có lỗi xảy ra khi chấp nhận yêu cầu');
+        console.error(error);
+      }
+    }
+  };
+
+  const handleRejectTransaction = async (inventoryId) => {
+    if (window.confirm('Bạn có chắc chắn muốn từ chối yêu cầu này?')) {
+      try {
+        await rejectRequest(inventoryId).unwrap();
+        alert('Đã từ chối yêu cầu thành công');
+      } catch (error) {
+        alert('Có lỗi xảy ra khi từ chối yêu cầu');
+        console.error(error);
+      }
+    }
+  };
+
+  const handleStartShipping = async (inventoryId) => {
+    if (window.confirm('Bạn có chắc chắn muốn bắt đầu vận chuyển?')) {
+      try {
+        await startShipping(inventoryId).unwrap();
+        alert('Đã bắt đầu vận chuyển thành công');
+      } catch (error) {
+        alert('Có lỗi xảy ra khi bắt đầu vận chuyển');
+        console.error(error);
+      }
+    }
+  };
+
+  const handleConfirmDelivery = async (inventoryId) => {
+    if (window.confirm('Bạn có chắc chắn muốn xác nhận đã giao hàng?')) {
+      try {
+        await confirmDelivery(inventoryId).unwrap();
+        alert('Đã xác nhận giao hàng thành công');
+      } catch (error) {
+        alert('Có lỗi xảy ra khi xác nhận giao hàng');
+        console.error(error);
+      }
+    }
+  };
+
   if (isLoadingModels) {
     return (
       <EVMStaffLayout>
@@ -229,58 +334,176 @@ const ProductManagementPage = () => {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Quản lý Sản phẩm</h1>
-            <p className="text-gray-600 mt-1">Quản lý models và color variants</p>
+            <p className="text-gray-600 mt-1">Quản lý models, color variants và inventory transactions</p>
           </div>
-          <Button onClick={() => setIsCreateModelModalOpen(true)}>
-            <Plus size={20} className="mr-2" />
-            Add New Model
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant={showInventoryTransactions ? 'outline' : 'primary'}
+              onClick={() => setShowInventoryTransactions(!showInventoryTransactions)}
+            >
+              {showInventoryTransactions ? 'Quản lý Models' : 'Quản lý Inventory Transactions'}
+            </Button>
+            {!showInventoryTransactions && (
+              <Button onClick={() => setIsCreateModelModalOpen(true)}>
+                <Plus size={20} className="mr-2" />
+                Add New Model
+              </Button>
+            )}
+          </div>
         </div>
 
-        {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <SearchBar
-                placeholder="Search by model name, code..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
+        {/* Inventory Transactions Section */}
+        {showInventoryTransactions ? (
+          <>
+            {/* Search and Filters for Transactions */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <SearchBar
+                    placeholder="Tìm kiếm theo mã transaction, tên model..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <Dropdown
+                  options={[
+                    { value: 'all', label: 'Trạng thái: Tất cả' },
+                    ...statuses.map((status) => ({
+                      value: status,
+                      label: status,
+                    })),
+                  ]}
+                  value={transactionStatusFilter}
+                  onChange={setTransactionStatusFilter}
+                />
+              </div>
             </div>
-            <div className="flex gap-2">
-              <button
-                onClick={() => setStatusFilter('all')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  statusFilter === 'all'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                All
-              </button>
-              <button
-                onClick={() => setStatusFilter('active')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  statusFilter === 'active'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                Active
-              </button>
-              <button
-                onClick={() => setStatusFilter('inactive')}
-                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
-                  statusFilter === 'inactive'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
-                }`}
-              >
-                Inactive
-              </button>
+
+            {/* Transactions Table */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              {isLoadingTransactions ? (
+                <div className="p-8 text-center text-gray-500">Đang tải dữ liệu...</div>
+              ) : filteredTransactions.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">Không có dữ liệu</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <Table.Header>
+                      <Table.Row>
+                        <Table.Head>MÃ TRANSACTION</Table.Head>
+                        <Table.Head>MODEL</Table.Head>
+                        <Table.Head>MÀU</Table.Head>
+                        <Table.Head>ĐẠI LÝ</Table.Head>
+                        <Table.Head>SỐ LƯỢNG</Table.Head>
+                        <Table.Head>TỔNG GIÁ</Table.Head>
+                        <Table.Head>NGÀY TẠO</Table.Head>
+                        <Table.Head>TRẠNG THÁI</Table.Head>
+                        <Table.Head className="text-center">HÀNH ĐỘNG</Table.Head>
+                      </Table.Row>
+                    </Table.Header>
+                    <Table.Body>
+                      {filteredTransactions.map((transaction) => (
+                        <Table.Row key={transaction.inventoryId}>
+                          <Table.Cell className="font-mono">#{transaction.inventoryId}</Table.Cell>
+                          <Table.Cell>{transaction.modelName || 'N/A'}</Table.Cell>
+                          <Table.Cell>{transaction.colorName || 'N/A'}</Table.Cell>
+                          <Table.Cell>{transaction.storeName || 'N/A'}</Table.Cell>
+                          <Table.Cell>{transaction.importQuantity || 0}</Table.Cell>
+                          <Table.Cell className="font-medium">
+                            {formatCurrencyVND(transaction.totalPrice || 0)}
+                          </Table.Cell>
+                          <Table.Cell>{formatDate(transaction.orderDate)}</Table.Cell>
+                          <Table.Cell>{getTransactionStatusBadge(transaction.status)}</Table.Cell>
+                          <Table.Cell>
+                            <div className="flex items-center justify-center gap-2">
+                              {transaction.status === 'PENDING' && (
+                                <>
+                                  <button
+                                    onClick={() => handleAcceptTransaction(transaction.inventoryId)}
+                                    className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                                  >
+                                    Chấp nhận
+                                  </button>
+                                  <button
+                                    onClick={() => handleRejectTransaction(transaction.inventoryId)}
+                                    className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                                  >
+                                    Từ chối
+                                  </button>
+                                </>
+                              )}
+                              {transaction.status === 'ACCEPTED' && (
+                                <button
+                                  onClick={() => handleStartShipping(transaction.inventoryId)}
+                                  className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                                >
+                                  Bắt đầu vận chuyển
+                                </button>
+                              )}
+                              {transaction.status === 'SHIPPING' && (
+                                <button
+                                  onClick={() => handleConfirmDelivery(transaction.inventoryId)}
+                                  className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                                >
+                                  Xác nhận giao hàng
+                                </button>
+                              )}
+                            </div>
+                          </Table.Cell>
+                        </Table.Row>
+                      ))}
+                    </Table.Body>
+                  </Table>
+                </div>
+              )}
             </div>
-          </div>
-        </div>
+          </>
+        ) : (
+          <>
+            {/* Search and Filters for Models */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                  <SearchBar
+                    placeholder="Search by model name, code..."
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setStatusFilter('all')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      statusFilter === 'all'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter('active')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      statusFilter === 'active'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Active
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter('inactive')}
+                    className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                      statusFilter === 'inactive'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    Inactive
+                  </button>
+                </div>
+              </div>
+            </div>
 
         {/* Models Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -423,6 +646,8 @@ const ProductManagementPage = () => {
               </Table>
             </div>
           </div>
+        )}
+          </>
         )}
       </div>
 

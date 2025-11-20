@@ -45,7 +45,6 @@ const EVMStaffLayout = ({ children }) => {
     { icon: ShoppingCart, label: 'Quản lý Đơn hàng', path: '/evm-staff/orders' },
     { icon: Package, label: 'Quản lý Sản phẩm', path: '/evm-staff/products' },
     { icon: Palette, label: 'Quản lý Màu sắc', path: '/evm-staff/colors' },
-    { icon: Factory, label: 'Quản lý Kho xe', path: '/evm-staff/inventory' },
     { icon: Building2, label: 'Quản lý Đại lý', path: '/evm-staff/dealers' },
     { icon: BarChart3, label: 'Báo Cáo', path: '/evm-staff/reports' },
   ];

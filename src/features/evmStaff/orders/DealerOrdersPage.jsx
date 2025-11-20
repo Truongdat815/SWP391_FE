@@ -5,8 +5,14 @@ import SearchBar from '../../../components/shared/SearchBar';
 import Table from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
 import Dropdown from '../../../components/ui/Dropdown';
-import { useGetAllDealerOrdersQuery, useProcessDealerOrderMutation } from '../../../api/evmStaff/dealerOrdersApi';
-import { useGetAllStoresQuery } from '../../../api/admin/storeApi';
+import Button from '../../../components/ui/Button';
+import { 
+  useGetAllDealerOrdersQuery,
+  useConfirmOrderMutation,
+  useDeliverOrderMutation,
+  useDeleteOrderMutation,
+} from '../../../api/evmStaff/dealerOrdersApi';
+import { useGetAllStoresQuery } from '../../../api/evmStaff/storeApi';
 
 const DealerOrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -17,10 +23,24 @@ const DealerOrdersPage = () => {
   const [itemsPerPage] = useState(5);
 
   const { data: ordersData, isLoading, error } = useGetAllDealerOrdersQuery();
-  const { data: storesData } = useGetAllStoresQuery();
-  const [processOrder] = useProcessDealerOrderMutation();
+  const { data: storesData, isLoading: isLoadingStores, error: storesError } = useGetAllStoresQuery();
+  
+  const [confirmOrder] = useConfirmOrderMutation();
+  const [deliverOrder] = useDeliverOrderMutation();
+  const [deleteOrder] = useDeleteOrderMutation();
 
-  const orders = ordersData?.data || [];
+  // Xử lý lỗi 404 cho orders (EVM Staff có thể không có store)
+  const isStoreNotFoundError = (err) => {
+    return (
+      err?.status === 404 &&
+      (err?.data?.message?.includes('Không tìm thấy store') ||
+        err?.data?.message?.includes('Not found') ||
+        err?.data?.message?.includes('store'))
+    );
+  };
+
+  // Nếu lỗi 404 (store not found), vẫn hiển thị mảng rỗng thay vì lỗi
+  const orders = isStoreNotFoundError(error) ? [] : (ordersData?.data || []);
   const stores = storesData?.data || [];
 
   // Filter orders
@@ -68,7 +88,43 @@ const DealerOrdersPage = () => {
     }
   };
 
-  if (isLoading) {
+  const handleConfirmOrder = async (orderId) => {
+    if (window.confirm('Bạn có chắc chắn muốn xác nhận đơn hàng này?')) {
+      try {
+        await confirmOrder(orderId).unwrap();
+        alert('Đã xác nhận đơn hàng thành công');
+      } catch (error) {
+        alert('Có lỗi xảy ra khi xác nhận đơn hàng');
+        console.error(error);
+      }
+    }
+  };
+
+  const handleDeliverOrder = async (orderId) => {
+    if (window.confirm('Bạn có chắc chắn muốn đánh dấu đơn hàng đã giao?')) {
+      try {
+        await deliverOrder(orderId).unwrap();
+        alert('Đã đánh dấu đơn hàng đã giao thành công');
+      } catch (error) {
+        alert('Có lỗi xảy ra khi đánh dấu đơn hàng');
+        console.error(error);
+      }
+    }
+  };
+
+  const handleDeleteOrder = async (orderId) => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa đơn hàng này?')) {
+      try {
+        await deleteOrder(orderId).unwrap();
+        alert('Đã xóa đơn hàng thành công');
+      } catch (error) {
+        alert('Có lỗi xảy ra khi xóa đơn hàng');
+        console.error(error);
+      }
+    }
+  };
+
+  if (isLoading || isLoadingStores) {
     return (
       <EVMStaffLayout>
         <div className="flex items-center justify-center h-64">
@@ -79,7 +135,7 @@ const DealerOrdersPage = () => {
   }
 
   // Kiểm tra lỗi 401 (Unauthorized)
-  const isUnauthorized = error?.status === 401;
+  const isUnauthorized = error?.status === 401 || storesError?.status === 401;
   
   if (isUnauthorized) {
     return (
@@ -102,7 +158,9 @@ const DealerOrdersPage = () => {
     );
   }
 
-  if (error) {
+  const hasError = error && !isStoreNotFoundError(error);
+
+  if (hasError && !isUnauthorized) {
     return (
       <EVMStaffLayout>
         <div className="flex items-center justify-center h-64">
@@ -168,8 +226,23 @@ const DealerOrdersPage = () => {
 
         {/* Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          {paginatedOrders.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">Không có dữ liệu</div>
+          {orders.length === 0 ? (
+            <div className="p-8 text-center">
+              {isStoreNotFoundError(error) ? (
+                <div className="space-y-2">
+                  <p className="text-gray-500">Chưa có đơn hàng nào trong hệ thống</p>
+                  <p className="text-sm text-gray-400">
+                    Các đơn hàng từ đại lý sẽ hiển thị tại đây khi có dữ liệu
+                  </p>
+                </div>
+              ) : (
+                <div className="text-gray-500">Không có dữ liệu đơn hàng</div>
+              )}
+            </div>
+          ) : paginatedOrders.length === 0 ? (
+            <div className="p-8 text-center text-gray-500">
+              Không tìm thấy đơn hàng phù hợp với bộ lọc
+            </div>
           ) : (
             <>
               <div className="overflow-x-auto">
@@ -201,10 +274,40 @@ const DealerOrdersPage = () => {
                         </Table.Cell>
                         <Table.Cell>{getStatusBadge(order.status)}</Table.Cell>
                         <Table.Cell>
-                          <div className="flex items-center justify-center">
-                            <button className="text-blue-600 hover:text-blue-800 font-medium">
+                          <div className="flex items-center justify-center gap-2">
+                            <button 
+                              className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                              onClick={() => {
+                                // TODO: Mở modal xem chi tiết
+                                console.log('Xem chi tiết order:', order.orderId);
+                              }}
+                            >
                               Xem chi tiết
                             </button>
+                            {(order.status === 'PENDING' || order.status === 'DRAFT') && (
+                              <button
+                                onClick={() => handleConfirmOrder(order.orderId)}
+                                className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700 transition-colors"
+                              >
+                                Xác nhận
+                              </button>
+                            )}
+                            {order.status === 'CONFIRMED' || order.status === 'PROCESSING' ? (
+                              <button
+                                onClick={() => handleDeliverOrder(order.orderId)}
+                                className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
+                              >
+                                Đã giao
+                              </button>
+                            ) : null}
+                            {order.status !== 'DELIVERED' && order.status !== 'COMPLETED' && (
+                              <button
+                                onClick={() => handleDeleteOrder(order.orderId)}
+                                className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                              >
+                                Xóa
+                              </button>
+                            )}
                           </div>
                         </Table.Cell>
                       </Table.Row>

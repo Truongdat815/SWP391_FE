@@ -23,6 +23,11 @@ export const modelColorApi = baseApi.injectEndpoints({
       query: (modelId) => `/model-colors/model/${modelId}`,
       providesTags: ['Product'],
     }),
+    // Lấy model colors theo color
+    getModelColorsByColor: builder.query({
+      query: (colorId) => `/model-colors/color/${colorId}`,
+      providesTags: ['Product'],
+    }),
     // Lấy model color theo ID
     getModelColorById: builder.query({
       query: (id) => `/model-colors/${id}`,
@@ -82,6 +87,7 @@ export const modelColorApi = baseApi.injectEndpoints({
 export const {
   useGetAllModelColorsQuery,
   useGetModelColorsByModelQuery,
+  useGetModelColorsByColorQuery,
   useGetModelColorByIdQuery,
   useCreateModelColorMutation,
   useUploadModelColorImageMutation,
