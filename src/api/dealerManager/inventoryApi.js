@@ -78,6 +78,31 @@ export const inventoryApi = baseApi.injectEndpoints({
       },
       invalidatesTags: ['Inventory'],
     }),
+    // Lấy store stock theo ID
+    getStoreStockById: builder.query({
+      query: (storeStockId) => `/store-stocks/${storeStockId}`,
+      providesTags: ['Inventory'],
+    }),
+    // Lấy inventory transaction theo ID
+    getInventoryTransactionById: builder.query({
+      query: (inventoryId) => `/inventory-transactions/${inventoryId}`,
+      providesTags: ['Inventory'],
+    }),
+    // Xuất báo cáo inventory
+    exportInventory: builder.query({
+      query: (params) => ({
+        url: '/store-stocks/export',
+        method: 'GET',
+        params,
+        responseHandler: async (response) => {
+          if (!response.ok) {
+            throw new Error('Failed to export inventory');
+          }
+          const blob = await response.blob();
+          return blob;
+        },
+      }),
+    }),
   }),
 });
 
@@ -90,5 +115,8 @@ export const {
   useDownloadContractHtmlMutation,
   useUploadContractMutation,
   useUploadReceiptMutation,
+  useGetStoreStockByIdQuery,
+  useGetInventoryTransactionByIdQuery,
+  useLazyExportInventoryQuery,
 } = inventoryApi;
 

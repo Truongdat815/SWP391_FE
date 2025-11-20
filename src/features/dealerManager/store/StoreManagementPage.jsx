@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Edit, Image as ImageIcon, Building2, MapPin, Phone, User, Calendar, Eye } from 'lucide-react';
+import { Edit, Image as ImageIcon, Building2, MapPin, Phone, User, Calendar, Eye, AlertCircle } from 'lucide-react';
 import DealerManagerLayout from '../../../components/layout/DealerManagerLayout';
 import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
@@ -15,6 +15,8 @@ import { provincesApi } from '../../../api/public/provincesApi';
 const StoreManagementPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
+  const [successModal, setSuccessModal] = useState({ isOpen: false, message: '' });
   const [provinces, setProvinces] = useState([]);
   const [districts, setDistricts] = useState([]);
   const [wards, setWards] = useState([]);
@@ -180,15 +182,32 @@ const StoreManagementPage = () => {
   const handleUpdate = async (e) => {
     e.preventDefault();
     if (!store?.storeId) {
-      alert('Không tìm thấy thông tin đại lý');
+      setErrorModal({ isOpen: true, message: 'Không tìm thấy thông tin đại lý' });
       return;
     }
+
+    // Validation: Ngày kết thúc phải sau ngày bắt đầu
+    if (formData.contractStartDate && formData.contractEndDate) {
+      const startDate = new Date(formData.contractStartDate);
+      const endDate = new Date(formData.contractEndDate);
+      
+      // Set time về 0 để so sánh chỉ ngày
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(0, 0, 0, 0);
+      
+      if (endDate <= startDate) {
+        setErrorModal({ isOpen: true, message: 'Ngày kết thúc hợp đồng phải sau ngày bắt đầu hợp đồng' });
+        return;
+      }
+    }
+
     try {
       await updateStore({ storeId: store.storeId, ...formData }).unwrap();
-      alert('Cập nhật thông tin đại lý thành công');
       setIsEditModalOpen(false);
+      setSuccessModal({ isOpen: true, message: 'Cập nhật thông tin đại lý thành công!' });
     } catch (error) {
-      alert(error?.data?.message || 'Có lỗi xảy ra khi cập nhật thông tin đại lý');
+      const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi cập nhật thông tin đại lý';
+      setErrorModal({ isOpen: true, message: errorMessage });
       if (import.meta.env.DEV) {
         console.error(error);
       }
@@ -231,20 +250,14 @@ const StoreManagementPage = () => {
 
   return (
     <DealerManagerLayout>
-      <div className="space-y-6 p-6">
+      <div className="max-w-6xl mx-auto space-y-4 p-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Thông tin Đại lý</h1>
-            <p className="text-gray-600 mt-1">Xem và quản lý thông tin đại lý của bạn.</p>
+            <h1 className="text-2xl font-bold text-gray-900">Thông tin Đại lý</h1>
+            <p className="text-gray-600 mt-1 text-sm">Xem và quản lý thông tin đại lý của bạn.</p>
           </div>
           <div className="flex gap-2">
-            {store.imagePath && (
-              <Button variant="outline" onClick={handleViewImage}>
-                <ImageIcon size={20} className="mr-2" />
-                Xem hình ảnh
-              </Button>
-            )}
             <Button onClick={handleEdit}>
               <Edit size={20} className="mr-2" />
               Chỉnh sửa
@@ -253,9 +266,10 @@ const StoreManagementPage = () => {
         </div>
 
         {/* Store Information Card */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Left Column: All Information */}
+            <div className="space-y-3">
               <div className="flex items-start gap-3">
                 <Building2 size={20} className="text-gray-400 mt-1" />
                 <div>
@@ -287,9 +301,7 @@ const StoreManagementPage = () => {
                   <p className="text-base text-gray-900">{store.ownerName || 'N/A'}</p>
                 </div>
               </div>
-            </div>
 
-            <div className="space-y-4">
               <div>
                 <p className="text-sm font-medium text-gray-500 mb-1">Tỉnh/Thành phố</p>
                 <p className="text-base text-gray-900">{store.provinceName || 'N/A'}</p>
@@ -315,16 +327,26 @@ const StoreManagementPage = () => {
                 <p className="text-sm font-medium text-gray-500 mb-1">Trạng thái</p>
                 <div className="mt-1">{getStatusBadge(store.status || 'ACTIVE')}</div>
               </div>
+            </div>
 
-              {store.imagePath && (
+            {/* Right Column: Store Image Only */}
+            <div>
+              {store.imagePath ? (
                 <div>
-                  <p className="text-sm font-medium text-gray-500 mb-2">Hình ảnh đại lý</p>
+                  <p className="text-sm font-medium text-gray-500 mb-2">Hình ảnh chi nhánh</p>
                   <img
                     src={store.imagePath}
                     alt={store.storeName || 'Hình ảnh đại lý'}
-                    className="w-full h-48 object-cover rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+                    className="w-full h-auto max-h-[400px] object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
                     onClick={handleViewImage}
                   />
+                </div>
+              ) : (
+                <div className="flex items-center justify-center h-full min-h-[250px] border-2 border-dashed border-gray-300 rounded-lg">
+                  <div className="text-center">
+                    <ImageIcon size={40} className="text-gray-400 mx-auto mb-2" />
+                    <p className="text-gray-500 text-sm">Chưa có hình ảnh</p>
+                  </div>
                 </div>
               )}
             </div>
@@ -339,7 +361,7 @@ const StoreManagementPage = () => {
           setIsEditModalOpen(false);
         }}
         title="Chỉnh sửa Thông tin Đại lý"
-        size="fullscreen"
+        size="lg"
       >
         <form onSubmit={handleUpdate} className="space-y-4">
           <Input
@@ -495,9 +517,72 @@ const StoreManagementPage = () => {
           </div>
         )}
       </Modal>
+
+      {/* Error Modal */}
+      <Modal
+        isOpen={errorModal.isOpen}
+        onClose={() => setErrorModal({ isOpen: false, message: '' })}
+        title="Lỗi"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-red-600" />
+            </div>
+            <p className="text-gray-700">{errorModal.message}</p>
+          </div>
+          <div className="flex justify-end pt-4">
+            <Button
+              onClick={() => setErrorModal({ isOpen: false, message: '' })}
+              variant="primary"
+            >
+              Đóng
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Success Modal */}
+      <Modal
+        isOpen={successModal.isOpen}
+        onClose={() => setSuccessModal({ isOpen: false, message: '' })}
+        title="Thành công"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+              <svg
+                className="w-5 h-5 text-green-600"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M5 13l4 4L19 7"
+                />
+              </svg>
+            </div>
+            <p className="text-gray-700">{successModal.message}</p>
+          </div>
+          <div className="flex justify-end pt-4">
+            <Button
+              onClick={() => setSuccessModal({ isOpen: false, message: '' })}
+              variant="primary"
+            >
+              Đóng
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </DealerManagerLayout>
   );
 };
 
 export default StoreManagementPage;
+
 

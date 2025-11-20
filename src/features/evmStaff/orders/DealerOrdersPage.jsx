@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   Clock,
   CreditCard,
@@ -7,7 +7,8 @@ import {
   Package,
   RefreshCw,
   ChevronRight,
-  Calendar
+  Calendar,
+  AlertCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import EVMStaffLayout from '../../../components/layout/EVMStaffLayout';
@@ -16,6 +17,11 @@ import Badge from '../../../components/ui/Badge';
 import Dropdown from '../../../components/ui/Dropdown';
 import Button from '../../../components/ui/Button';
 import Modal from '../../../components/ui/Modal';
+import { TableSkeleton } from '../../../components/shared/SkeletonLoader';
+import EmptyState from '../../../components/shared/EmptyState';
+import Toast from '../../../components/shared/Toast';
+import { useDebounce } from '../../../hooks/useDebounce';
+import { useToast } from '../../../hooks/useToast';
 import { useGetAllStoresQuery } from '../../../api/evmStaff/storeApi';
 import {
   useGetAllInventoryTransactionsQuery,
@@ -31,6 +37,7 @@ import {
 
 const DealerOrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [statusFilter, setStatusFilter] = useState('all');
   const [timeRangeFilter, setTimeRangeFilter] = useState('all');
   const [dealerFilter, setDealerFilter] = useState('all');
@@ -38,6 +45,13 @@ const DealerOrdersPage = () => {
   const [itemsPerPage] = useState(10);
   const [selectedTransactionId, setSelectedTransactionId] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, message: '', onConfirm: null });
+  const { toasts, showToast, removeToast } = useToast();
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, statusFilter, dealerFilter, timeRangeFilter]);
 
   const { data: transactionsData, isLoading, error } = useGetAllInventoryTransactionsQuery();
   const { data: storesData, isLoading: isLoadingStores, error: storesError } = useGetAllStoresQuery();
@@ -64,6 +78,32 @@ const DealerOrdersPage = () => {
   };
 
   const transactions = isStoreNotFoundError(error) ? [] : (transactionsData?.data || []);
+  
+  // Debug logging trong development
+  if (import.meta.env.DEV && transactions.length > 0) {
+    console.log('EVM Staff Transactions Sample:', transactions.slice(0, 2));
+    if (transactions[0]) {
+      const sample = transactions[0];
+      console.log('EVM Staff Transaction fields:', Object.keys(sample));
+      console.log('EVM Staff Transaction FULL OBJECT:', sample);
+      console.log('EVM Staff Transaction price fields:', {
+        totalPrice: sample.totalPrice,
+        totalBasePrice: sample.totalBasePrice,
+        totalAmount: sample.totalAmount,
+        price: sample.price,
+        unitPrice: sample.unitPrice,
+        unitBasePrice: sample.unitBasePrice,
+        modelColorPrice: sample.modelColorPrice,
+      });
+      console.log('EVM Staff Transaction quantity fields:', {
+        importQuantity: sample.importQuantity,
+        quantity: sample.quantity,
+        requestedQuantity: sample.requestedQuantity,
+        orderQuantity: sample.orderQuantity,
+        requestQuantity: sample.requestQuantity,
+      });
+    }
+  }
   const stores = storesData?.data || [];
   const statuses = statusesData?.data || [];
 
@@ -80,9 +120,9 @@ const DealerOrdersPage = () => {
   const filteredTransactions = useMemo(() => {
     const filtered = transactions.filter((transaction) => {
       const matchesSearch =
-        transaction.inventoryId?.toString().includes(searchTerm) ||
-        transaction.storeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        transaction.modelName?.toLowerCase().includes(searchTerm.toLowerCase());
+        transaction.inventoryId?.toString().includes(debouncedSearchTerm) ||
+        transaction.storeName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        transaction.modelName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
 
       let matchesStatus = true;
       if (statusFilter !== 'all') {
@@ -103,7 +143,24 @@ const DealerOrdersPage = () => {
 
       const matchesDealer =
         dealerFilter === 'all' || transaction.storeId?.toString() === dealerFilter;
-      return matchesSearch && matchesStatus && matchesDealer;
+      
+      // Time range filter
+      let matchesTimeRange = true;
+      if (timeRangeFilter !== 'all') {
+        const transactionDate = new Date(transaction.orderDate || transaction.createdAt);
+        const now = new Date();
+        if (timeRangeFilter === 'today') {
+          matchesTimeRange = transactionDate.toDateString() === now.toDateString();
+        } else if (timeRangeFilter === 'week') {
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          matchesTimeRange = transactionDate >= weekAgo;
+        } else if (timeRangeFilter === 'month') {
+          matchesTimeRange = transactionDate.getMonth() === now.getMonth() && 
+                           transactionDate.getFullYear() === now.getFullYear();
+        }
+      }
+      
+      return matchesSearch && matchesStatus && matchesDealer && matchesTimeRange;
     });
 
     return filtered.sort((a, b) => {
@@ -111,7 +168,7 @@ const DealerOrdersPage = () => {
       const dateB = new Date(b.orderDate || b.createdAt || 0);
       return dateB - dateA;
     });
-  }, [transactions, searchTerm, statusFilter, dealerFilter]);
+  }, [transactions, debouncedSearchTerm, statusFilter, dealerFilter, timeRangeFilter]);
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -186,54 +243,102 @@ const DealerOrdersPage = () => {
   };
 
   const handleAcceptTransaction = async (inventoryId) => {
-    if (window.confirm('Bạn có chắc chắn muốn chấp nhận yêu cầu này?')) {
-      try {
-        await acceptRequest(inventoryId).unwrap();
-        alert('Đã chấp nhận yêu cầu thành công');
-      } catch (error) {
-        alert('Có lỗi xảy ra khi chấp nhận yêu cầu');
-      }
-    }
+    setConfirmModal({
+      isOpen: true,
+      message: 'Bạn có chắc chắn muốn chấp nhận yêu cầu này?',
+      onConfirm: async () => {
+        try {
+          await acceptRequest(inventoryId).unwrap();
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          showToast('Đã chấp nhận yêu cầu thành công!', 'success');
+        } catch (error) {
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi chấp nhận yêu cầu';
+          showToast(errorMessage, 'error');
+        }
+      },
+    });
+  };
+
+  const handleRejectTransaction = async (inventoryId) => {
+    setConfirmModal({
+      isOpen: true,
+      message: 'Bạn có chắc chắn muốn từ chối yêu cầu này?',
+      onConfirm: async () => {
+        try {
+          await rejectRequest(inventoryId).unwrap();
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          showToast('Đã từ chối yêu cầu thành công!', 'success');
+        } catch (error) {
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi từ chối yêu cầu';
+          showToast(errorMessage, 'error');
+        }
+      },
+    });
   };
 
   const handleConfirmDelivery = async (inventoryId) => {
-    if (window.confirm('Bạn có chắc chắn muốn xác nhận đã giao hàng?')) {
-      try {
-        await confirmDelivery(inventoryId).unwrap();
-        alert('Đã xác nhận giao hàng thành công');
-      } catch (error) {
-        alert('Có lỗi xảy ra khi xác nhận giao hàng');
-      }
-    }
+    setConfirmModal({
+      isOpen: true,
+      message: 'Bạn có chắc chắn muốn xác nhận đã giao hàng?',
+      onConfirm: async () => {
+        try {
+          await confirmDelivery(inventoryId).unwrap();
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          showToast('Đã xác nhận giao hàng thành công!', 'success');
+        } catch (error) {
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi xác nhận giao hàng';
+          showToast(errorMessage, 'error');
+        }
+      },
+    });
   };
 
   const handleStartShipping = async (inventoryId) => {
-    if (window.confirm('Bạn có chắc chắn muốn bắt đầu vận chuyển?')) {
-      try {
-        await startShipping(inventoryId).unwrap();
-        alert('Đã bắt đầu vận chuyển thành công');
-      } catch (error) {
-        alert('Có lỗi xảy ra khi bắt đầu vận chuyển');
-      }
-    }
+    setConfirmModal({
+      isOpen: true,
+      message: 'Bạn có chắc chắn muốn bắt đầu vận chuyển?',
+      onConfirm: async () => {
+        try {
+          await startShipping(inventoryId).unwrap();
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          showToast('Đã bắt đầu vận chuyển thành công!', 'success');
+        } catch (error) {
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi bắt đầu vận chuyển';
+          showToast(errorMessage, 'error');
+        }
+      },
+    });
   };
 
   const handleConfirmPayment = async (inventoryId) => {
-    if (window.confirm('Bạn có chắc chắn muốn xác nhận thanh toán?')) {
-      try {
-        await confirmPayment(inventoryId).unwrap();
-        alert('Đã xác nhận thanh toán thành công');
-      } catch (error) {
-        alert('Có lỗi xảy ra khi xác nhận thanh toán');
-      }
-    }
+    setConfirmModal({
+      isOpen: true,
+      message: 'Bạn có chắc chắn muốn xác nhận thanh toán?',
+      onConfirm: async () => {
+        try {
+          await confirmPayment(inventoryId).unwrap();
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          showToast('Đã xác nhận thanh toán thành công!', 'success');
+        } catch (error) {
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi xác nhận thanh toán';
+          showToast(errorMessage, 'error');
+        }
+      },
+    });
   };
 
   if (isLoading || isLoadingStores) {
     return (
       <EVMStaffLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-500">Đang tải dữ liệu...</div>
+        <div className="space-y-6 p-6 bg-gray-50/50 min-h-screen">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <TableSkeleton rows={8} columns={9} />
+          </div>
         </div>
       </EVMStaffLayout>
     );
@@ -379,13 +484,16 @@ const DealerOrdersPage = () => {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="p-12 text-center"
               >
-                <Package size={64} className="mx-auto text-gray-300 mb-4" />
-                <p className="text-gray-500 text-lg font-medium">Không có đơn hàng</p>
-                <p className="text-sm text-gray-400 mt-2">
-                  Các đơn hàng sẽ hiển thị tại đây
-                </p>
+                <EmptyState
+                  icon="package"
+                  title="Không có đơn hàng"
+                  message={
+                    filteredTransactions.length === 0
+                      ? "Hiện tại không có đơn hàng nào từ đại lý. Các đơn hàng sẽ hiển thị tại đây khi có."
+                      : "Không tìm thấy đơn hàng phù hợp với bộ lọc của bạn. Hãy thử thay đổi bộ lọc."
+                  }
+                />
               </motion.div>
             ) : (
               <div className="overflow-x-auto">
@@ -450,7 +558,16 @@ const DealerOrdersPage = () => {
                           </td>
                           <td className="px-4 py-3 text-center">
                             <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                              {transaction.importQuantity || 0}
+                              {(() => {
+                                // Kiểm tra cả null/undefined, không skip khi === 0
+                                const quantity = transaction.importQuantity !== null && transaction.importQuantity !== undefined ? transaction.importQuantity :
+                                               transaction.quantity !== null && transaction.quantity !== undefined ? transaction.quantity :
+                                               transaction.requestedQuantity !== null && transaction.requestedQuantity !== undefined ? transaction.requestedQuantity :
+                                               transaction.orderQuantity !== null && transaction.orderQuantity !== undefined ? transaction.orderQuantity :
+                                               transaction.requestQuantity !== null && transaction.requestQuantity !== undefined ? transaction.requestQuantity :
+                                               0;
+                                return quantity;
+                              })()}
                             </span>
                           </td>
                           <td className="px-4 py-3">
@@ -460,7 +577,56 @@ const DealerOrdersPage = () => {
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="text-sm font-semibold text-gray-900">
-                              {formatCurrency(transaction.totalPrice)}
+                              {(() => {
+                                // Đọc trực tiếp từ response - ưu tiên các field có thể có
+                                // Parse để đảm bảo là number, không skip giá trị 0
+                                let totalPrice = null;
+                                
+                                if (transaction.totalPrice !== null && transaction.totalPrice !== undefined) {
+                                  totalPrice = parseFloat(transaction.totalPrice) || 0;
+                                } else if (transaction.totalBasePrice !== null && transaction.totalBasePrice !== undefined) {
+                                  totalPrice = parseFloat(transaction.totalBasePrice) || 0;
+                                } else if (transaction.totalAmount !== null && transaction.totalAmount !== undefined) {
+                                  totalPrice = parseFloat(transaction.totalAmount) || 0;
+                                } else if (transaction.price !== null && transaction.price !== undefined) {
+                                  totalPrice = parseFloat(transaction.price) || 0;
+                                }
+                                
+                                // Nếu không có totalPrice, tính từ unitPrice * quantity
+                                if (totalPrice === null || totalPrice === undefined || (totalPrice === 0 && transaction.importQuantity > 0)) {
+                                  const unitPrice = parseFloat(transaction.unitPrice || transaction.unitBasePrice || transaction.price || transaction.modelColorPrice || 0) || 0;
+                                  const quantity = parseFloat(transaction.importQuantity || transaction.quantity || transaction.requestedQuantity || transaction.orderQuantity || transaction.requestQuantity || 0) || 0;
+                                  const calculated = unitPrice * quantity;
+                                  
+                                  // Chỉ dùng calculated nếu totalPrice thực sự không có (null/undefined)
+                                  if (totalPrice === null || totalPrice === undefined) {
+                                    // Debug logging
+                                    if (import.meta.env.DEV) {
+                                      console.log('EVM Staff - Calculating price:', {
+                                        inventoryId: transaction.inventoryId,
+                                        unitPrice,
+                                        quantity,
+                                        calculated,
+                                        transaction: transaction,
+                                      });
+                                    }
+                                    
+                                    return formatCurrency(calculated);
+                                  }
+                                }
+                                
+                                // Debug logging
+                                if (import.meta.env.DEV) {
+                                  console.log('EVM Staff - Using direct price:', {
+                                    inventoryId: transaction.inventoryId,
+                                    totalPrice: transaction.totalPrice,
+                                    totalBasePrice: transaction.totalBasePrice,
+                                    parsedPrice: totalPrice,
+                                  });
+                                }
+                                
+                                return formatCurrency(totalPrice || 0);
+                              })()}
                             </div>
                           </td>
                           <td className="px-4 py-3">
@@ -508,6 +674,15 @@ const DealerOrdersPage = () => {
                                   {actionButtonText}
                                 </Button>
                               )}
+                              {(transaction.status === 'PENDING' || transaction.status === 'DRAFT') && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleRejectTransaction(transaction.inventoryId)}
+                                  className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1"
+                                >
+                                  Từ chối
+                                </Button>
+                              )}
                               <button
                                 onClick={() => {
                                   setSelectedTransactionId(transaction.inventoryId);
@@ -533,10 +708,11 @@ const DealerOrdersPage = () => {
         {paginatedTransactions.length > 0 && (
           <div className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-gray-100">
             <p className="text-sm text-gray-600">
-              Hiển thị {startIndex + 1} đến {Math.min(endIndex, filteredTransactions.length)} trong{' '}
-              {filteredTransactions.length} kết quả
+              Hiển thị <span className="font-medium">{startIndex + 1}</span> đến{' '}
+              <span className="font-medium">{Math.min(endIndex, filteredTransactions.length)}</span> trong{' '}
+              <span className="font-medium">{filteredTransactions.length}</span> kết quả
             </p>
-            <div className="flex gap-2">
+            <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
@@ -545,17 +721,29 @@ const DealerOrdersPage = () => {
               >
                 Trước
               </Button>
-              {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((page) => (
-                <Button
-                  key={page}
-                  variant={currentPage === page ? 'primary' : 'outline'}
-                  size="sm"
-                  onClick={() => setCurrentPage(page)}
-                >
-                  {page}
-                </Button>
-              ))}
-              {totalPages > 5 && <span className="px-2">...</span>}
+              <div className="flex gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                  if (
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+                  ) {
+                    return (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? 'primary' : 'outline'}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </Button>
+                    );
+                  } else if (page === currentPage - 2 || page === currentPage + 2) {
+                    return <span key={page} className="px-2 text-gray-400">...</span>;
+                  }
+                  return null;
+                })}
+              </div>
               <Button
                 variant="outline"
                 size="sm"
@@ -612,11 +800,45 @@ const DealerOrdersPage = () => {
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Số lượng</label>
-                <p className="text-base text-gray-900">{transactionDetail.data.importQuantity || 0} xe</p>
+                <p className="text-base text-gray-900">
+                  {transactionDetail.data.importQuantity || 
+                   transactionDetail.data.quantity || 
+                   transactionDetail.data.requestedQuantity || 
+                   transactionDetail.data.orderQuantity ||
+                   transactionDetail.data.requestQuantity ||
+                   0} xe
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Tổng giá</label>
-                <p className="text-base font-semibold text-gray-900">{formatCurrency(transactionDetail.data.totalPrice)}</p>
+                <p className="text-base font-semibold text-gray-900">
+                  {(() => {
+                    const detail = transactionDetail.data;
+                    // Ưu tiên: totalPrice > totalBasePrice > totalAmount > price
+                    let totalPrice = detail.totalPrice || 
+                                    detail.totalBasePrice ||
+                                    detail.totalAmount || 
+                                    detail.price;
+                    
+                    // Nếu không có totalPrice, tính từ unitPrice * quantity
+                    if (!totalPrice || totalPrice === 0) {
+                      const unitPrice = detail.unitPrice || 
+                                       detail.unitBasePrice ||
+                                       detail.price || 
+                                       detail.modelColorPrice || 
+                                       0;
+                      const quantity = detail.importQuantity || 
+                                     detail.quantity || 
+                                     detail.requestedQuantity || 
+                                     detail.orderQuantity ||
+                                     detail.requestQuantity ||
+                                     0;
+                      totalPrice = unitPrice * quantity;
+                    }
+                    
+                    return formatCurrency(totalPrice || 0);
+                  })()}
+                </p>
               </div>
             </div>
             {transactionDetail.data.receiptImage && (
@@ -634,6 +856,44 @@ const DealerOrdersPage = () => {
           <div className="text-center py-8 text-gray-500">Không có dữ liệu</div>
         )}
       </Modal>
+
+      {/* Confirm Modal */}
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, message: '', onConfirm: null })}
+        title="Xác nhận"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-blue-600" />
+            </div>
+            <p className="text-gray-700">{confirmModal.message}</p>
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              onClick={() => setConfirmModal({ isOpen: false, message: '', onConfirm: null })}
+              variant="outline"
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={() => {
+                if (confirmModal.onConfirm) {
+                  confirmModal.onConfirm();
+                }
+              }}
+              variant="primary"
+            >
+              Xác nhận
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Toast Notifications */}
+      <Toast toasts={toasts} removeToast={removeToast} />
     </EVMStaffLayout>
   );
 };

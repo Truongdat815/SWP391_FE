@@ -1,5 +1,5 @@
-import { useState, useMemo } from 'react';
-import { Search, Download, Plus, Eye, Printer, Check, X, MoreVertical } from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react';
+import { Search, Download, Plus, Eye, Printer, Check, X, MoreVertical, AlertCircle } from 'lucide-react';
 import DealerManagerLayout from '../../../components/layout/DealerManagerLayout';
 import SearchBar from '../../../components/shared/SearchBar';
 import MetricCard from '../../../components/shared/MetricCard';
@@ -8,26 +8,63 @@ import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
 import Dropdown from '../../../components/ui/Dropdown';
 import Modal from '../../../components/ui/Modal';
-import { useGetAllOrdersQuery, useGetMonthlyRevenueQuery, useGetOrderByIdQuery } from '../../../api/dealerManager/dmOrderApi';
+import Input from '../../../components/ui/Input';
+import { TableSkeleton, CardSkeleton } from '../../../components/shared/SkeletonLoader';
+import EmptyState from '../../../components/shared/EmptyState';
+import Toast from '../../../components/shared/Toast';
+import { useDebounce } from '../../../hooks/useDebounce';
+import { useToast } from '../../../hooks/useToast';
+import { useGetAllOrdersQuery, useGetMonthlyRevenueQuery, useGetOrderByIdQuery, useCreateDraftOrderMutation, useConfirmOrderMutation, useRejectOrderMutation, useLazyExportOrdersQuery } from '../../../api/dealerManager/dmOrderApi';
+import { useGetAllModelsQuery } from '../../../api/admin/modelApi';
+import { useGetModelColorsByModelQuery } from '../../../api/dealerStaff/vehicleApi';
 
 const OrderManagementPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [statusFilter, setStatusFilter] = useState('all');
   const [modelFilter, setModelFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
+  const [itemsPerPage] = useState(5);
   const [openMenuId, setOpenMenuId] = useState(null);
   const [selectedOrderId, setSelectedOrderId] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isCreateOrderModalOpen, setIsCreateOrderModalOpen] = useState(false);
+  const [selectedModelId, setSelectedModelId] = useState('');
+  const [formData, setFormData] = useState({
+    customerName: '',
+    customerPhone: '',
+    modelId: '',
+    colorId: '',
+    quantity: 1,
+    notes: '',
+  });
+  const [formErrors, setFormErrors] = useState({});
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, message: '', onConfirm: null });
+  const { toasts, showToast, removeToast } = useToast();
+
+  // Reset page when search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, statusFilter, modelFilter]);
 
   const { data: ordersData, isLoading, error } = useGetAllOrdersQuery();
   const { data: revenueData } = useGetMonthlyRevenueQuery();
   const { data: orderDetailData, isLoading: isLoadingOrderDetail } = useGetOrderByIdQuery(selectedOrderId, {
     skip: !selectedOrderId,
   });
+  const { data: modelsData } = useGetAllModelsQuery();
+  const { data: modelColorsData } = useGetModelColorsByModelQuery(selectedModelId, {
+    skip: !selectedModelId,
+  });
+  const [createDraftOrder, { isLoading: isCreating }] = useCreateDraftOrderMutation();
+  const [confirmOrder, { isLoading: isConfirming }] = useConfirmOrderMutation();
+  const [rejectOrder, { isLoading: isRejecting }] = useRejectOrderMutation();
+  const [exportOrders] = useLazyExportOrdersQuery();
 
   const orders = ordersData?.data || [];
   const monthlyRevenue = revenueData?.data || [];
+  const models = modelsData?.data || [];
+  const modelColors = modelColorsData?.data || [];
 
   // Tính toán metrics
   const currentMonthRevenue = useMemo(() => {
@@ -49,13 +86,13 @@ const OrderManagementPage = () => {
   }).length;
   const deliveringCars = orders.filter((order) => order.status === 'DELIVERING').length;
 
-  // Filter và sắp xếp orders (mới nhất ở trên)
+  // Filter và sắp xếp orders (mới nhất ở trên) - sử dụng debounced search
   const filteredOrders = useMemo(() => {
     const filtered = orders.filter((order) => {
       const matchesSearch =
-        order.orderId?.toString().includes(searchTerm) ||
-        order.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        order.staffName?.toLowerCase().includes(searchTerm.toLowerCase());
+        order.orderId?.toString().includes(debouncedSearchTerm) ||
+        order.customerName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        order.staffName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
       const matchesModel =
         modelFilter === 'all' || order.modelName?.toLowerCase().includes(modelFilter.toLowerCase());
@@ -69,7 +106,7 @@ const OrderManagementPage = () => {
       // Sắp xếp giảm dần (mới nhất trước)
       return dateB.getTime() - dateA.getTime();
     });
-  }, [orders, searchTerm, statusFilter, modelFilter]);
+  }, [orders, debouncedSearchTerm, statusFilter, modelFilter]);
 
   // Pagination
   const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
@@ -85,6 +122,7 @@ const OrderManagementPage = () => {
       DELIVERED: { variant: 'success', label: 'Hoàn thành' },
       FULLY_PAID: { variant: 'success', label: 'Đã thanh toán' },
       CONTRACT_SIGNED: { variant: 'info', label: 'Đã ký hợp đồng' },
+      CONTRACT_PENDING: { variant: 'warning', label: 'Chờ ký hợp đồng' },
       CANCELLED: { variant: 'error', label: 'Đã hủy' },
       DRAFT: { variant: 'default', label: 'Nháp' },
     };
@@ -120,6 +158,154 @@ const OrderManagementPage = () => {
     setSelectedOrderId(orderId);
     setIsDetailModalOpen(true);
     setOpenMenuId(null);
+  };
+
+  const handleOpenCreateOrderModal = () => {
+    setIsCreateOrderModalOpen(true);
+    setFormData({
+      customerName: '',
+      customerPhone: '',
+      modelId: '',
+      colorId: '',
+      quantity: 1,
+      notes: '',
+    });
+    setSelectedModelId('');
+  };
+
+  const handleModelChange = (modelId) => {
+    setSelectedModelId(modelId);
+    setFormData({ ...formData, modelId, colorId: '' });
+  };
+
+  // Real-time form validation
+  const validateForm = () => {
+    const errors = {};
+    if (!formData.customerName.trim()) {
+      errors.customerName = 'Vui lòng nhập tên khách hàng';
+    }
+    if (!formData.customerPhone.trim()) {
+      errors.customerPhone = 'Vui lòng nhập số điện thoại';
+    } else if (!/^[0-9]{10,11}$/.test(formData.customerPhone.replace(/\s/g, ''))) {
+      errors.customerPhone = 'Số điện thoại không hợp lệ';
+    }
+    if (!formData.modelId) {
+      errors.modelId = 'Vui lòng chọn model xe';
+    }
+    if (!formData.colorId) {
+      errors.colorId = 'Vui lòng chọn màu sắc';
+    }
+    if (!formData.quantity || formData.quantity < 1) {
+      errors.quantity = 'Số lượng phải lớn hơn 0';
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleCreateOrder = async (e) => {
+    e.preventDefault();
+    
+    if (!validateForm()) {
+      showToast('Vui lòng điền đầy đủ và đúng thông tin bắt buộc', 'error');
+      return;
+    }
+
+    try {
+      const orderData = {
+        customerName: formData.customerName.trim(),
+        customerPhone: formData.customerPhone.trim(),
+        orderDetails: [
+          {
+            modelId: parseInt(formData.modelId),
+            colorId: parseInt(formData.colorId),
+            quantity: parseInt(formData.quantity),
+          },
+        ],
+        notes: formData.notes || undefined,
+        status: 'DRAFT',
+      };
+
+      await createDraftOrder(orderData).unwrap();
+      
+      showToast('Tạo đơn hàng thành công!', 'success');
+      setIsCreateOrderModalOpen(false);
+      setFormData({
+        customerName: '',
+        customerPhone: '',
+        modelId: '',
+        colorId: '',
+        quantity: 1,
+        notes: '',
+      });
+      setFormErrors({});
+      setSelectedModelId('');
+    } catch (error) {
+      const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi tạo đơn hàng';
+      showToast(errorMessage, 'error');
+    }
+  };
+
+  const handleApproveOrder = async (orderId) => {
+    setConfirmModal({
+      isOpen: true,
+      message: 'Bạn có chắc chắn muốn duyệt đơn hàng này?',
+      onConfirm: async () => {
+        try {
+          await confirmOrder(orderId).unwrap();
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          showToast('Đã duyệt đơn hàng thành công!', 'success');
+          setOpenMenuId(null);
+        } catch (error) {
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi duyệt đơn hàng';
+          showToast(errorMessage, 'error');
+        }
+      },
+    });
+  };
+
+  const handleRejectOrder = async (orderId) => {
+    setConfirmModal({
+      isOpen: true,
+      message: 'Bạn có chắc chắn muốn từ chối đơn hàng này?',
+      onConfirm: async () => {
+        try {
+          await rejectOrder(orderId).unwrap();
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          showToast('Đã từ chối đơn hàng thành công!', 'success');
+          setOpenMenuId(null);
+        } catch (error) {
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi từ chối đơn hàng';
+          showToast(errorMessage, 'error');
+        }
+      },
+    });
+  };
+
+  const handleExportReport = async () => {
+    try {
+      showToast('Đang xuất báo cáo...', 'info');
+      const result = await exportOrders({
+        statusFilter: statusFilter !== 'all' ? statusFilter : undefined,
+        modelFilter: modelFilter !== 'all' ? modelFilter : undefined,
+      }).unwrap();
+      
+      // Tạo download link
+      const url = window.URL.createObjectURL(result);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bao-cao-don-hang-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      showToast('Xuất báo cáo thành công!', 'success');
+    } catch (error) {
+      const errorMessage = error?.data?.message || error?.message || 'Có lỗi xảy ra khi xuất báo cáo';
+      showToast(errorMessage, 'error');
+    }
   };
 
   const handlePrintOrder = (order) => {
@@ -197,8 +383,15 @@ const OrderManagementPage = () => {
   if (isLoading) {
     return (
       <DealerManagerLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-500">Đang tải dữ liệu...</div>
+        <div className="space-y-6 p-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <CardSkeleton key={i} />
+            ))}
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <TableSkeleton rows={5} columns={8} />
+          </div>
         </div>
       </DealerManagerLayout>
     );
@@ -250,11 +443,11 @@ const OrderManagementPage = () => {
             </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleExportReport}>
               <Download size={20} className="mr-2" />
               Xuất Báo Cáo
             </Button>
-            <Button>
+            <Button onClick={handleOpenCreateOrderModal}>
               <Plus size={20} className="mr-2" />
               Tạo Đơn Hàng Mới
             </Button>
@@ -266,26 +459,18 @@ const OrderManagementPage = () => {
           <MetricCard
             title="Tổng Doanh Thu (Tháng)"
             value={formatRevenue(currentMonthRevenue)}
-            change="+15.2%"
-            changeType="positive"
           />
           <MetricCard
             title="Đơn Hàng Chờ Duyệt"
             value={pendingOrders}
-            change="+3 so với hôm qua"
-            changeType="positive"
           />
           <MetricCard
             title="Tổng Số Đơn Hàng (Tháng)"
             value={totalOrdersThisMonth}
-            change="+8.5%"
-            changeType="positive"
           />
           <MetricCard
             title="Xe Sắp Giao"
             value={deliveringCars}
-            change="+2 trong tuần này"
-            changeType="positive"
           />
         </div>
 
@@ -316,9 +501,10 @@ const OrderManagementPage = () => {
             <Dropdown
               options={[
                 { value: 'all', label: 'Mẫu xe: Tất cả' },
-                { value: 'Model S', label: 'Model S' },
-                { value: 'Model X', label: 'Model X' },
-                { value: 'Model R', label: 'Model R' },
+                ...Array.from(new Set(orders.map(o => o.modelName).filter(Boolean))).map(modelName => ({
+                  value: modelName,
+                  label: modelName,
+                })),
               ]}
               value={modelFilter}
               onChange={setModelFilter}
@@ -329,7 +515,17 @@ const OrderManagementPage = () => {
         {/* Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {paginatedOrders.length === 0 ? (
-            <div className="p-8 text-center text-gray-500">Không có dữ liệu</div>
+            <EmptyState
+              icon="search"
+              title="Không tìm thấy đơn hàng"
+              message={
+                filteredOrders.length === 0
+                  ? "Hiện tại không có đơn hàng nào. Hãy tạo đơn hàng mới để bắt đầu."
+                  : "Không có đơn hàng nào phù hợp với bộ lọc của bạn. Hãy thử thay đổi bộ lọc."
+              }
+              actionLabel={filteredOrders.length === 0 ? "Tạo đơn hàng mới" : undefined}
+              onAction={filteredOrders.length === 0 ? handleOpenCreateOrderModal : undefined}
+            />
           ) : (
             <>
               <div className="overflow-x-auto">
@@ -363,13 +559,14 @@ const OrderManagementPage = () => {
                         <Table.Cell>
                           {(() => {
                             // Lấy model và color từ orderDetails nếu có
-                            const orderDetails = order.getOrderDetailsResponses || order.orderDetails || [];
+                            const orderDetails = order.getOrderDetailsResponses || order.orderDetails || order.orderDetailList || [];
                             
                             // Thử lấy từ orderDetails trước
                             if (orderDetails.length > 0) {
                               const firstDetail = orderDetails[0];
-                              const modelName = firstDetail.modelName || order.modelName;
-                              const colorName = firstDetail.colorName;
+                              const modelName = firstDetail.modelName || firstDetail.vehicleModel || firstDetail.carModel || firstDetail.model?.modelName || order.modelName;
+                              const colorName = firstDetail.colorName || firstDetail.vehicleColor || firstDetail.carColor || firstDetail.color?.colorName || order.colorName;
+                              
                               if (modelName && colorName) {
                                 return (
                                   <div className="flex flex-col">
@@ -381,23 +578,60 @@ const OrderManagementPage = () => {
                               if (modelName) {
                                 return <span>{modelName}</span>;
                               }
+                              if (colorName) {
+                                return <span className="text-sm text-gray-500">{colorName}</span>;
+                              }
                             }
                             
-                            // Fallback: Thử lấy từ order object trực tiếp
-                            if (order.modelName) {
+                            // Thử lấy từ order object trực tiếp (nhiều tên trường khác nhau)
+                            const modelName = order.modelName || order.vehicleModel || order.carModel || order.model?.modelName || order.vehicle?.modelName;
+                            const colorName = order.colorName || order.vehicleColor || order.carColor || order.color?.colorName || order.vehicle?.colorName;
+                            
+                            if (modelName && colorName) {
                               return (
                                 <div className="flex flex-col">
-                                  <span className="font-medium">{order.modelName}</span>
-                                  {order.colorName && (
-                                    <span className="text-sm text-gray-500">{order.colorName}</span>
-                                  )}
+                                  <span className="font-medium">{modelName}</span>
+                                  <span className="text-sm text-gray-500">{colorName}</span>
                                 </div>
                               );
+                            }
+                            if (modelName) {
+                              return <span>{modelName}</span>;
+                            }
+                            if (colorName) {
+                              return <span className="text-sm text-gray-500">{colorName}</span>;
+                            }
+                            
+                            // Thử lấy từ vehicle object nếu có
+                            if (order.vehicle) {
+                              const vehicleModel = order.vehicle.modelName || order.vehicle.model?.modelName;
+                              const vehicleColor = order.vehicle.colorName || order.vehicle.color?.colorName;
+                              if (vehicleModel && vehicleColor) {
+                                return (
+                                  <div className="flex flex-col">
+                                    <span className="font-medium">{vehicleModel}</span>
+                                    <span className="text-sm text-gray-500">{vehicleColor}</span>
+                                  </div>
+                                );
+                              }
+                              if (vehicleModel) {
+                                return <span>{vehicleModel}</span>;
+                              }
                             }
                             
                             // Nếu là đơn nháp và chưa có thông tin
                             if (order.status === 'DRAFT' || order.status === 'PENDING') {
                               return <span className="text-gray-400 italic">Chưa chọn xe</span>;
+                            }
+                            
+                            // Debug log trong development để xem cấu trúc dữ liệu
+                            if (import.meta.env.DEV && !modelName && !colorName) {
+                              console.log('Order without vehicle info:', {
+                                orderId: order.orderId,
+                                status: order.status,
+                                orderKeys: Object.keys(order),
+                                orderDetails: orderDetails,
+                              });
                             }
                             
                             return <span className="text-gray-400">N/A</span>;
@@ -461,24 +695,20 @@ const OrderManagementPage = () => {
                                       {order.status === 'PENDING' && (
                                         <>
                                           <button
-                                            onClick={() => {
-                                              // TODO: Duyệt đơn
-                                              setOpenMenuId(null);
-                                            }}
-                                            className="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2"
+                                            onClick={() => handleApproveOrder(order.orderId)}
+                                            disabled={isConfirming}
+                                            className="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                           >
                                             <Check size={16} />
-                                            Duyệt đơn
+                                            {isConfirming ? 'Đang duyệt...' : 'Duyệt đơn'}
                                           </button>
                                           <button
-                                            onClick={() => {
-                                              // TODO: Từ chối
-                                              setOpenMenuId(null);
-                                            }}
-                                            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                                            onClick={() => handleRejectOrder(order.orderId)}
+                                            disabled={isRejecting}
+                                            className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                           >
                                             <X size={16} />
-                                            Từ chối
+                                            {isRejecting ? 'Đang từ chối...' : 'Từ chối'}
                                           </button>
                                         </>
                                       )}
@@ -505,10 +735,11 @@ const OrderManagementPage = () => {
               {/* Pagination */}
               <div className="flex items-center justify-between p-4 border-t border-gray-200">
                 <p className="text-sm text-gray-600">
-                  Hiển thị {startIndex + 1}-{Math.min(endIndex, filteredOrders.length)} của{' '}
-                  {filteredOrders.length}
+                  Hiển thị <span className="font-medium">{startIndex + 1}</span> đến{' '}
+                  <span className="font-medium">{Math.min(endIndex, filteredOrders.length)}</span> trong{' '}
+                  <span className="font-medium">{filteredOrders.length}</span> kết quả
                 </p>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
@@ -517,17 +748,30 @@ const OrderManagementPage = () => {
                   >
                     Trước
                   </Button>
-                  {Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1).map((page) => (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? 'primary' : 'outline'}
-                      size="sm"
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </Button>
-                  ))}
-                  {totalPages > 5 && <span className="px-2">...</span>}
+                  <div className="flex gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                      // Hiển thị trang đầu, cuối, và các trang xung quanh trang hiện tại
+                      if (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 1 && page <= currentPage + 1)
+                      ) {
+                        return (
+                          <Button
+                            key={page}
+                            variant={currentPage === page ? 'primary' : 'outline'}
+                            size="sm"
+                            onClick={() => setCurrentPage(page)}
+                          >
+                            {page}
+                          </Button>
+                        );
+                      } else if (page === currentPage - 2 || page === currentPage + 2) {
+                        return <span key={page} className="px-2 text-gray-400">...</span>;
+                      }
+                      return null;
+                    })}
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
@@ -644,6 +888,225 @@ const OrderManagementPage = () => {
             </div>
           )}
         </Modal>
+
+        {/* Create Order Modal */}
+        <Modal
+          isOpen={isCreateOrderModalOpen}
+          onClose={() => {
+            setIsCreateOrderModalOpen(false);
+            setFormData({
+              customerName: '',
+              customerPhone: '',
+              modelId: '',
+              colorId: '',
+              quantity: 1,
+              notes: '',
+            });
+            setSelectedModelId('');
+          }}
+          title="Tạo Đơn Hàng Mới"
+          size="lg"
+        >
+          <form onSubmit={handleCreateOrder} className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <Input
+                  label="Tên khách hàng *"
+                  value={formData.customerName}
+                  onChange={(e) => {
+                    setFormData({ ...formData, customerName: e.target.value });
+                    if (formErrors.customerName) {
+                      setFormErrors({ ...formErrors, customerName: '' });
+                    }
+                  }}
+                  required
+                />
+                {formErrors.customerName && (
+                  <p className="text-sm text-red-600 mt-1">{formErrors.customerName}</p>
+                )}
+              </div>
+              <div>
+                <Input
+                  label="Số điện thoại *"
+                  value={formData.customerPhone}
+                  onChange={(e) => {
+                    const value = e.target.value.replace(/\D/g, '');
+                    setFormData({ ...formData, customerPhone: value });
+                    if (formErrors.customerPhone) {
+                      setFormErrors({ ...formErrors, customerPhone: '' });
+                    }
+                  }}
+                  required
+                />
+                {formErrors.customerPhone && (
+                  <p className="text-sm text-red-600 mt-1">{formErrors.customerPhone}</p>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Model xe *
+              </label>
+              <Dropdown
+                options={[
+                  { value: '', label: 'Chọn model' },
+                  ...models.map((model) => ({
+                    value: model.modelId?.toString(),
+                    label: model.modelName || `Model ${model.modelId}`,
+                  })),
+                ]}
+                value={formData.modelId}
+                onChange={(value) => {
+                  handleModelChange(value);
+                  if (formErrors.modelId) {
+                    setFormErrors({ ...formErrors, modelId: '' });
+                  }
+                }}
+                placeholder="Chọn model"
+              />
+              {formErrors.modelId && (
+                <p className="text-sm text-red-600 mt-1">{formErrors.modelId}</p>
+              )}
+            </div>
+
+            {selectedModelId && modelColors.length > 0 && (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Màu sắc *
+                </label>
+                <Dropdown
+                  options={[
+                    { value: '', label: 'Chọn màu sắc' },
+                    ...modelColors.map((modelColor) => ({
+                      value: modelColor.colorId?.toString(),
+                      label: modelColor.colorName || `Màu ${modelColor.colorId}`,
+                    })),
+                  ]}
+                  value={formData.colorId}
+                  onChange={(value) => {
+                    setFormData({ ...formData, colorId: value });
+                    if (formErrors.colorId) {
+                      setFormErrors({ ...formErrors, colorId: '' });
+                    }
+                  }}
+                  placeholder="Chọn màu sắc"
+                />
+                {formErrors.colorId && (
+                  <p className="text-sm text-red-600 mt-1">{formErrors.colorId}</p>
+                )}
+              </div>
+            )}
+
+            <div>
+              <Input
+                label="Số lượng *"
+                type="number"
+                min="1"
+                value={formData.quantity}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 1;
+                  setFormData({ ...formData, quantity: value });
+                  if (formErrors.quantity) {
+                    setFormErrors({ ...formErrors, quantity: '' });
+                  }
+                }}
+                required
+              />
+              {formErrors.quantity && (
+                <p className="text-sm text-red-600 mt-1">{formErrors.quantity}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Ghi chú (tùy chọn)
+              </label>
+              <textarea
+                value={formData.notes}
+                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                rows={3}
+                placeholder="Nhập ghi chú nếu có..."
+              />
+            </div>
+
+            <div className="flex gap-4 pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setIsCreateOrderModalOpen(false);
+                  setFormData({
+                    customerName: '',
+                    customerPhone: '',
+                    modelId: '',
+                    colorId: '',
+                    quantity: 1,
+                    notes: '',
+                  });
+                  setSelectedModelId('');
+                }}
+                className="flex-1"
+                disabled={isCreating}
+              >
+                Hủy
+              </Button>
+              <Button
+                type="submit"
+                className="flex-1"
+                disabled={isCreating || !formData.customerName || !formData.customerPhone || !formData.modelId || !formData.colorId}
+              >
+                {isCreating ? (
+                  <>
+                    <span className="inline-block animate-spin mr-2">⏳</span>
+                    Đang tạo...
+                  </>
+                ) : (
+                  'Tạo đơn hàng'
+                )}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Confirm Modal */}
+        <Modal
+          isOpen={confirmModal.isOpen}
+          onClose={() => setConfirmModal({ isOpen: false, message: '', onConfirm: null })}
+          title="Xác nhận"
+          size="sm"
+        >
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                <AlertCircle className="w-5 h-5 text-blue-600" />
+              </div>
+              <p className="text-gray-700">{confirmModal.message}</p>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button
+                onClick={() => setConfirmModal({ isOpen: false, message: '', onConfirm: null })}
+                variant="outline"
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={() => {
+                  if (confirmModal.onConfirm) {
+                    confirmModal.onConfirm();
+                  }
+                }}
+                variant="primary"
+              >
+                Xác nhận
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Toast Notifications */}
+        <Toast toasts={toasts} removeToast={removeToast} />
       </div>
     </DealerManagerLayout>
   );

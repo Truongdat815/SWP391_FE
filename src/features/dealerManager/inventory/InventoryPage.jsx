@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Filter, Download, Printer, Plus, Eye, Edit, Truck, Package, Clock, FileText, Upload, Receipt } from 'lucide-react';
+import { Search, Filter, Download, Printer, Plus, Eye, Edit, Truck, Package, Clock, FileText, Upload, Receipt, AlertCircle } from 'lucide-react';
 import DealerManagerLayout from '../../../components/layout/DealerManagerLayout';
 import SearchBar from '../../../components/shared/SearchBar';
 import MetricCard from '../../../components/shared/MetricCard';
@@ -9,6 +9,11 @@ import Badge from '../../../components/ui/Badge';
 import Modal from '../../../components/ui/Modal';
 import Input from '../../../components/ui/Input';
 import Dropdown from '../../../components/ui/Dropdown';
+import { TableSkeleton, CardSkeleton } from '../../../components/shared/SkeletonLoader';
+import EmptyState from '../../../components/shared/EmptyState';
+import Toast from '../../../components/shared/Toast';
+import { useDebounce } from '../../../hooks/useDebounce';
+import { useToast } from '../../../hooks/useToast';
 import {
   useGetAllStoreStocksQuery,
   useGetAllInventoryTransactionsQuery,
@@ -16,6 +21,9 @@ import {
   useDownloadContractHtmlMutation,
   useUploadContractMutation,
   useUploadReceiptMutation,
+  useGetStoreStockByIdQuery,
+  useGetInventoryTransactionByIdQuery,
+  useLazyExportInventoryQuery,
 } from '../../../api/dealerManager/inventoryApi';
 import { useGetAllModelsQuery } from '../../../api/admin/modelApi';
 import { useGetModelColorsByModelQuery } from '../../../api/dealerStaff/vehicleApi';
@@ -24,21 +32,35 @@ import { useGetMyStoreQuery } from '../../../api/dealerManager/storeApi';
 const InventoryPage = () => {
   const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' or 'requests'
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [isUploadContractModalOpen, setIsUploadContractModalOpen] = useState(false);
   const [isUploadReceiptModalOpen, setIsUploadReceiptModalOpen] = useState(false);
   const [selectedTransactionId, setSelectedTransactionId] = useState(null);
+  const [selectedStockId, setSelectedStockId] = useState(null);
+  const [isStockDetailModalOpen, setIsStockDetailModalOpen] = useState(false);
+  const [isTransactionDetailModalOpen, setIsTransactionDetailModalOpen] = useState(false);
+  const [isEditStockModalOpen, setIsEditStockModalOpen] = useState(false);
+  const [isFilterModalOpen, setIsFilterModalOpen] = useState(false);
   const [contractFile, setContractFile] = useState(null);
   const [receiptFile, setReceiptFile] = useState(null);
   const [selectedModelId, setSelectedModelId] = useState('');
+  const [exportInventory] = useLazyExportInventoryQuery();
   const [formData, setFormData] = useState({
     modelId: '',
     colorId: '',
     quantity: 1,
     notes: '',
   });
+  const [formErrors, setFormErrors] = useState({});
+  const { toasts, showToast, removeToast } = useToast();
+
+  // Reset page when search or tab changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, activeTab]);
 
   const { data: stocksData, isLoading, error } = useGetAllStoreStocksQuery();
   const { data: modelsData } = useGetAllModelsQuery();
@@ -47,6 +69,12 @@ const InventoryPage = () => {
     skip: !selectedModelId,
   });
   const { data: storeData } = useGetMyStoreQuery();
+  const { data: stockDetailData, isLoading: isLoadingStockDetail } = useGetStoreStockByIdQuery(selectedStockId, {
+    skip: !selectedStockId,
+  });
+  const { data: transactionDetailData, isLoading: isLoadingTransactionDetail } = useGetInventoryTransactionByIdQuery(selectedTransactionId, {
+    skip: !selectedTransactionId,
+  });
   const [createTransaction, { isLoading: isCreating }] = useCreateInventoryTransactionMutation();
   const [downloadContractHtml] = useDownloadContractHtmlMutation();
   const [uploadContract, { isLoading: isUploadingContract }] = useUploadContractMutation();
@@ -103,15 +131,15 @@ const InventoryPage = () => {
       return sum + (isNaN(quantity) ? 1 : quantity);
     }, 0);
 
-  // Filter stocks
+  // Filter stocks - sử dụng debounced search
   const filteredStocks = useMemo(() => {
     return stocks.filter((stock) => {
       const matchesSearch =
-        stock.modelName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        stock.colorName?.toLowerCase().includes(searchTerm.toLowerCase());
+        stock.modelName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        stock.colorName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
       return matchesSearch;
     });
-  }, [stocks, searchTerm]);
+  }, [stocks, debouncedSearchTerm]);
 
   // Pagination
   const totalPages = Math.ceil(filteredStocks.length / itemsPerPage);
@@ -159,16 +187,23 @@ const InventoryPage = () => {
     }
   };
 
-  // Filter transactions
+  // Filter và sắp xếp transactions (mới nhất lên đầu) - sử dụng debounced search
   const filteredTransactions = useMemo(() => {
-    return transactions.filter((transaction) => {
+    const filtered = transactions.filter((transaction) => {
       const matchesSearch =
-        transaction.inventoryId?.toString().includes(searchTerm) ||
-        transaction.modelName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        transaction.colorName?.toLowerCase().includes(searchTerm.toLowerCase());
+        transaction.inventoryId?.toString().includes(debouncedSearchTerm) ||
+        transaction.modelName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        transaction.colorName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
       return matchesSearch;
     });
-  }, [transactions, searchTerm]);
+    
+    // Sắp xếp theo ngày tạo: mới nhất lên đầu
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.requestDate || a.createdDate || a.dateCreated || a.orderDate || 0);
+      const dateB = new Date(b.createdAt || b.requestDate || b.createdDate || b.dateCreated || b.orderDate || 0);
+      return dateB.getTime() - dateA.getTime(); // Giảm dần (mới nhất trước)
+    });
+  }, [transactions, debouncedSearchTerm]);
 
   // Pagination for transactions
   const transactionPages = Math.ceil(filteredTransactions.length / itemsPerPage);
@@ -211,41 +246,82 @@ const InventoryPage = () => {
     setFormData({ ...formData, modelId, colorId: '' });
   };
 
+  const validateForm = () => {
+    const errors = {};
+    if (!store?.storeId) {
+      showToast('Không tìm thấy thông tin đại lý', 'error');
+      return false;
+    }
+    if (!formData.modelId) {
+      errors.modelId = 'Vui lòng chọn model xe';
+    }
+    if (!formData.colorId) {
+      errors.colorId = 'Vui lòng chọn màu sắc';
+    }
+    if (!formData.quantity || formData.quantity < 1) {
+      errors.quantity = 'Số lượng phải lớn hơn 0';
+    }
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleCreateOrder = async (e) => {
     e.preventDefault();
-    if (!store?.storeId) {
-      alert('Không tìm thấy thông tin đại lý');
+    
+    if (!validateForm()) {
       return;
     }
+    
+    const modelId = parseInt(formData.modelId);
+    const colorId = parseInt(formData.colorId);
+    const quantity = parseInt(formData.quantity) || 1;
+    
     try {
       // Tìm storeStockId từ modelId và colorId (nếu có)
-      // Nếu không có storeStockId, có thể để null hoặc 0
       const storeStock = stocks.find(
-        (stock) => stock.modelId === parseInt(formData.modelId) && stock.colorId === parseInt(formData.colorId)
+        (stock) => stock.modelId === modelId && stock.colorId === colorId
       );
       
+      // Tìm giá gốc từ modelColor
+      const modelColor = modelColors.find(
+        (mc) => mc.modelId === modelId && mc.colorId === colorId
+      );
+      
+      const unitPrice = modelColor?.price || 0;
+      const totalPrice = unitPrice * quantity;
+      
+      // Debug logging
+      if (import.meta.env.DEV) {
+        console.log('Creating transaction with data:', {
+          modelId,
+          colorId,
+          quantity,
+          importQuantity: quantity,
+          unitPrice,
+          totalPrice,
+          storeId: store.storeId,
+        });
+      }
+      
+      // Gửi đúng field mà backend cần
       await createTransaction({
-        storeStockId: storeStock?.stockId || null,
-        quantity: parseInt(formData.quantity),
-        transactionType: 'IN', // Đặt xe từ hãng = nhập vào
-        notes: formData.notes || undefined,
-        requestedStoreId: store.storeId, // Store của dealer manager
-        sourceStoreId: null, // Từ hãng, không có source store
-        // Backend có thể cần modelId và colorId để tạo storeStock nếu chưa có
-        modelId: parseInt(formData.modelId),
-        colorId: parseInt(formData.colorId),
+        modelId: modelId,
+        colorId: colorId,
+        importQuantity: quantity,
       }).unwrap();
-      alert('Yêu cầu đặt xe đã được gửi thành công');
       setIsOrderModalOpen(false);
+      showToast('Yêu cầu đặt xe đã được gửi thành công!', 'success');
       setFormData({
         modelId: '',
         colorId: '',
         quantity: 1,
         notes: '',
       });
+      setFormErrors({});
       setSelectedModelId('');
     } catch (error) {
-      alert(error?.data?.message || 'Có lỗi xảy ra khi tạo yêu cầu đặt xe');
+      const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi tạo yêu cầu đặt xe';
+      showToast(errorMessage, 'error');
       if (import.meta.env.DEV) {
         console.error(error);
       }
@@ -293,7 +369,7 @@ const InventoryPage = () => {
   const handleUploadContract = async (e) => {
     e.preventDefault();
     if (!contractFile || !selectedTransactionId) {
-      alert('Vui lòng chọn file hợp đồng');
+      showToast('Vui lòng chọn file hợp đồng', 'warning');
       return;
     }
     try {
@@ -301,22 +377,112 @@ const InventoryPage = () => {
         inventoryId: selectedTransactionId,
         file: contractFile,
       }).unwrap();
-      alert('Upload hợp đồng thành công');
+      showToast('Upload hợp đồng thành công', 'success');
       setIsUploadContractModalOpen(false);
       setContractFile(null);
       setSelectedTransactionId(null);
     } catch (error) {
-      alert(error?.data?.message || 'Có lỗi xảy ra khi upload hợp đồng');
+      showToast(error?.data?.message || 'Có lỗi xảy ra khi upload hợp đồng', 'error');
       if (import.meta.env.DEV) {
         console.error(error);
       }
     }
   };
 
+  const handleViewStockDetail = (stockId) => {
+    setSelectedStockId(stockId);
+    setIsStockDetailModalOpen(true);
+  };
+
+  const handleEditStock = (stock) => {
+    setSelectedStockId(stock.storeStockId);
+    setIsEditStockModalOpen(true);
+  };
+
+  const handleViewShipping = (stock) => {
+    showToast('Tính năng vận chuyển đang được phát triển', 'info');
+  };
+
+  const handleExportInventory = async () => {
+    try {
+      showToast('Đang xuất báo cáo...', 'info');
+      const result = await exportInventory({}).unwrap();
+      
+      const url = window.URL.createObjectURL(result);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `bao-cao-kho-xe-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      showToast('Xuất báo cáo thành công!', 'success');
+    } catch (error) {
+      const errorMessage = error?.data?.message || error?.message || 'Có lỗi xảy ra khi xuất báo cáo';
+      showToast(errorMessage, 'error');
+    }
+  };
+
+  const handlePrintInventory = () => {
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Báo cáo kho xe</title>
+          <style>
+            body { font-family: Arial, sans-serif; padding: 20px; }
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+            th { background-color: #f2f2f2; }
+            @media print { body { padding: 0; } }
+          </style>
+        </head>
+        <body>
+          <h1>BÁO CÁO KHO XE</h1>
+          <p>Ngày xuất: ${new Date().toLocaleDateString('vi-VN')}</p>
+          <table>
+            <thead>
+              <tr>
+                <th>Mẫu xe</th>
+                <th>Màu sắc</th>
+                <th>Số lượng</th>
+                <th>Tình trạng</th>
+                <th>Ngày nhập kho</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${filteredStocks.map(stock => `
+                <tr>
+                  <td>${stock.modelName || 'N/A'}</td>
+                  <td>${stock.colorName || 'N/A'}</td>
+                  <td>${getStockQuantity(stock)}</td>
+                  <td>${getStockStatusBadge(stock).props.children}</td>
+                  <td>${formatDate(stock.stockedDate || stock.receivedDate || stock.createdAt)}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <div style="margin-top: 20px; text-align: center;">
+            <button onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer;">In báo cáo</button>
+            <button onclick="window.close()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; margin-left: 10px;">Đóng</button>
+          </div>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
+  const handleViewTransactionDetail = (transactionId) => {
+    setSelectedTransactionId(transactionId);
+    setIsTransactionDetailModalOpen(true);
+  };
+
   const handleUploadReceipt = async (e) => {
     e.preventDefault();
     if (!receiptFile || !selectedTransactionId) {
-      alert('Vui lòng chọn file biên lai');
+      showToast('Vui lòng chọn file biên lai', 'warning');
       return;
     }
     try {
@@ -324,12 +490,12 @@ const InventoryPage = () => {
         inventoryId: selectedTransactionId,
         file: receiptFile,
       }).unwrap();
-      alert('Upload biên lai thành công');
+      showToast('Upload biên lai thành công', 'success');
       setIsUploadReceiptModalOpen(false);
       setReceiptFile(null);
       setSelectedTransactionId(null);
     } catch (error) {
-      alert(error?.data?.message || 'Có lỗi xảy ra khi upload biên lai');
+      showToast(error?.data?.message || 'Có lỗi xảy ra khi upload biên lai', 'error');
       if (import.meta.env.DEV) {
         console.error(error);
       }
@@ -344,8 +510,15 @@ const InventoryPage = () => {
   if (isLoading) {
     return (
       <DealerManagerLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-500">Đang tải dữ liệu...</div>
+        <div className="space-y-6 p-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <CardSkeleton key={i} />
+            ))}
+          </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+            <TableSkeleton rows={5} columns={6} />
+          </div>
         </div>
       </DealerManagerLayout>
     );
@@ -475,13 +648,25 @@ const InventoryPage = () => {
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
                 </div>
-                <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                <button 
+                  onClick={() => setIsFilterModalOpen(true)}
+                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Lọc"
+                >
                   <Filter size={20} />
                 </button>
-                <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                <button 
+                  onClick={handleExportInventory}
+                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="Xuất báo cáo"
+                >
                   <Download size={20} />
                 </button>
-                <button className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors">
+                <button 
+                  onClick={handlePrintInventory}
+                  className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                  title="In báo cáo"
+                >
                   <Printer size={20} />
                 </button>
               </div>
@@ -490,7 +675,17 @@ const InventoryPage = () => {
             {/* Table */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               {paginatedStocks.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">Không có dữ liệu</div>
+                <EmptyState
+                  icon="package"
+                  title="Không có xe trong kho"
+                  message={
+                    filteredStocks.length === 0
+                      ? "Hiện tại không có xe nào trong kho. Hãy đặt xe từ hãng để bắt đầu."
+                      : "Không tìm thấy xe phù hợp với từ khóa tìm kiếm."
+                  }
+                  actionLabel={filteredStocks.length === 0 ? "Đặt xe từ hãng" : undefined}
+                  onAction={filteredStocks.length === 0 ? handleOpenOrderModal : undefined}
+                />
               ) : (
                 <div className="overflow-x-auto">
                   <Table>
@@ -518,13 +713,25 @@ const InventoryPage = () => {
                             <Table.Cell>{formatDate(stock.stockedDate || stock.receivedDate || stock.createdAt)}</Table.Cell>
                             <Table.Cell>
                               <div className="flex items-center justify-center gap-2">
-                                <button className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors">
+                                <button 
+                                  onClick={() => handleViewStockDetail(stock.storeStockId)}
+                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                  title="Xem chi tiết"
+                                >
                                   <Eye size={16} />
                                 </button>
-                                <button className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors">
+                                <button 
+                                  onClick={() => handleEditStock(stock)}
+                                  className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
+                                  title="Chỉnh sửa"
+                                >
                                   <Edit size={16} />
                                 </button>
-                                <button className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors">
+                                <button 
+                                  onClick={() => handleViewShipping(stock)}
+                                  className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors"
+                                  title="Vận chuyển"
+                                >
                                   <Truck size={16} />
                                 </button>
                               </div>
@@ -582,9 +789,19 @@ const InventoryPage = () => {
             {/* Transactions Table */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               {isLoadingTransactions ? (
-                <div className="p-8 text-center text-gray-500">Đang tải dữ liệu...</div>
+                <div className="p-4">
+                  <TableSkeleton rows={5} columns={8} />
+                </div>
               ) : paginatedTransactions.length === 0 ? (
-                <div className="p-8 text-center text-gray-500">Không có yêu cầu đặt xe nào</div>
+                <EmptyState
+                  icon="inbox"
+                  title="Không có yêu cầu đặt xe"
+                  message={
+                    filteredTransactions.length === 0
+                      ? "Hiện tại không có yêu cầu đặt xe nào. Hãy tạo yêu cầu mới để bắt đầu."
+                      : "Không tìm thấy yêu cầu phù hợp với từ khóa tìm kiếm."
+                  }
+                />
               ) : (
                 <>
                   <div className="overflow-x-auto">
@@ -705,9 +922,7 @@ const InventoryPage = () => {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    onClick={() => {
-                                      // TODO: Xem chi tiết
-                                    }}
+                                    onClick={() => handleViewTransactionDetail(transaction.inventoryId)}
                                   >
                                     <Eye size={16} className="mr-1" />
                                     Chi tiết
@@ -784,9 +999,17 @@ const InventoryPage = () => {
                   })),
                 ]}
                 value={formData.modelId}
-                onChange={handleModelChange}
+                onChange={(value) => {
+                  handleModelChange(value);
+                  if (formErrors.modelId) {
+                    setFormErrors({ ...formErrors, modelId: '' });
+                  }
+                }}
                 placeholder="Chọn model"
               />
+              {formErrors.modelId && (
+                <p className="text-sm text-red-600 mt-1">{formErrors.modelId}</p>
+              )}
             </div>
 
             {selectedModelId && modelColors.length > 0 && (
@@ -803,20 +1026,71 @@ const InventoryPage = () => {
                     })),
                   ]}
                   value={formData.colorId}
-                  onChange={(value) => setFormData({ ...formData, colorId: value })}
+                  onChange={(value) => {
+                    setFormData({ ...formData, colorId: value });
+                    if (formErrors.colorId) {
+                      setFormErrors({ ...formErrors, colorId: '' });
+                    }
+                  }}
                   placeholder="Chọn màu sắc"
                 />
+                {formErrors.colorId && (
+                  <p className="text-sm text-red-600 mt-1">{formErrors.colorId}</p>
+                )}
               </div>
             )}
 
-            <Input
-              label="Số lượng *"
-              type="number"
-              min="1"
-              value={formData.quantity}
-              onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
-              required
-            />
+            <div>
+              <Input
+                label="Số lượng *"
+                type="number"
+                min="1"
+                value={formData.quantity}
+                onChange={(e) => {
+                  const value = parseInt(e.target.value) || 1;
+                  setFormData({ ...formData, quantity: value });
+                  if (formErrors.quantity) {
+                    setFormErrors({ ...formErrors, quantity: '' });
+                  }
+                }}
+                required
+              />
+              {formErrors.quantity && (
+                <p className="text-sm text-red-600 mt-1">{formErrors.quantity}</p>
+              )}
+            </div>
+
+            {/* Hiển thị giá tiền */}
+            {formData.modelId && formData.colorId && formData.quantity > 0 && (() => {
+              const selectedModelColor = modelColors.find(
+                (mc) => mc.modelId === parseInt(formData.modelId) && mc.colorId === parseInt(formData.colorId)
+              );
+              const unitPrice = selectedModelColor?.price || 0;
+              const totalPrice = unitPrice * formData.quantity;
+              
+              return (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-700">Giá đơn vị:</span>
+                    <span className="text-sm font-semibold text-gray-900">
+                      {unitPrice > 0 
+                        ? new Intl.NumberFormat('vi-VN').format(unitPrice) + '₫'
+                        : 'Chưa có giá'
+                      }
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between border-t border-blue-200 pt-2">
+                    <span className="text-base font-semibold text-gray-900">Tổng tiền:</span>
+                    <span className="text-lg font-bold text-blue-600">
+                      {totalPrice > 0 
+                        ? new Intl.NumberFormat('vi-VN').format(totalPrice) + '₫'
+                        : '0₫'
+                      }
+                    </span>
+                  </div>
+                </div>
+              );
+            })()}
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -855,7 +1129,14 @@ const InventoryPage = () => {
                 className="flex-1"
                 disabled={isCreating || !formData.modelId || !formData.colorId}
               >
-                {isCreating ? 'Đang gửi...' : 'Gửi yêu cầu'}
+                {isCreating ? (
+                  <>
+                    <span className="inline-block animate-spin mr-2">⏳</span>
+                    Đang gửi...
+                  </>
+                ) : (
+                  'Gửi yêu cầu'
+                )}
               </Button>
             </div>
           </form>
@@ -964,6 +1245,186 @@ const InventoryPage = () => {
             </div>
           </form>
         </Modal>
+
+        {/* Stock Detail Modal */}
+        <Modal
+          isOpen={isStockDetailModalOpen}
+          onClose={() => {
+            setIsStockDetailModalOpen(false);
+            setSelectedStockId(null);
+          }}
+          title="Chi tiết Kho xe"
+          size="lg"
+        >
+          {isLoadingStockDetail ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-gray-500">Đang tải dữ liệu...</div>
+            </div>
+          ) : stockDetailData?.data ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Mẫu xe</label>
+                  <p className="text-base font-semibold text-gray-900">{stockDetailData.data.modelName || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Màu sắc</label>
+                  <p className="text-base text-gray-900">{stockDetailData.data.colorName || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Số lượng</label>
+                  <p className="text-base font-semibold text-gray-900">{getStockQuantity(stockDetailData.data)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Tình trạng</label>
+                  <div className="mt-1">{getStockStatusBadge(stockDetailData.data)}</div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Ngày nhập kho</label>
+                  <p className="text-base text-gray-900">{formatDate(stockDetailData.data.stockedDate || stockDetailData.data.receivedDate || stockDetailData.data.createdAt)}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Trạng thái</label>
+                  <div className="mt-1">{getStatusBadge(stockDetailData.data.status)}</div>
+                </div>
+              </div>
+              <div className="flex justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsStockDetailModalOpen(false);
+                    setSelectedStockId(null);
+                  }}
+                >
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">Không có dữ liệu</div>
+          )}
+        </Modal>
+
+        {/* Transaction Detail Modal */}
+        <Modal
+          isOpen={isTransactionDetailModalOpen}
+          onClose={() => {
+            setIsTransactionDetailModalOpen(false);
+            setSelectedTransactionId(null);
+          }}
+          title="Chi tiết Yêu cầu đặt xe"
+          size="lg"
+        >
+          {isLoadingTransactionDetail ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-gray-500">Đang tải dữ liệu...</div>
+            </div>
+          ) : transactionDetailData?.data ? (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Mã yêu cầu</label>
+                  <p className="text-base font-semibold text-gray-900">#{transactionDetailData.data.inventoryId}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Trạng thái</label>
+                  <div className="mt-1">{getTransactionStatusBadge(transactionDetailData.data.status)}</div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Model</label>
+                  <p className="text-base text-gray-900">{transactionDetailData.data.modelName || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Màu sắc</label>
+                  <p className="text-base text-gray-900">{transactionDetailData.data.colorName || 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Số lượng</label>
+                  <p className="text-base text-gray-900">
+                    {transactionDetailData.data.importQuantity || 
+                     transactionDetailData.data.quantity || 
+                     transactionDetailData.data.requestedQuantity || 
+                     0} xe
+                  </p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Ngày tạo</label>
+                  <p className="text-base text-gray-900">
+                    {formatDate(transactionDetailData.data.createdAt || transactionDetailData.data.requestDate)}
+                  </p>
+                </div>
+                {transactionDetailData.data.notes && (
+                  <div className="col-span-2">
+                    <label className="text-sm font-medium text-gray-500">Ghi chú</label>
+                    <p className="text-base text-gray-900">{transactionDetailData.data.notes}</p>
+                  </div>
+                )}
+              </div>
+              <div className="flex justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsTransactionDetailModalOpen(false);
+                    setSelectedTransactionId(null);
+                  }}
+                >
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">Không có dữ liệu</div>
+          )}
+        </Modal>
+
+        {/* Filter Modal */}
+        <Modal
+          isOpen={isFilterModalOpen}
+          onClose={() => setIsFilterModalOpen(false)}
+          title="Lọc kho xe"
+          size="md"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">Tính năng lọc nâng cao đang được phát triển. Hiện tại bạn có thể sử dụng thanh tìm kiếm để lọc theo tên model hoặc màu sắc.</p>
+            <div className="flex justify-end pt-4">
+              <Button
+                variant="outline"
+                onClick={() => setIsFilterModalOpen(false)}
+              >
+                Đóng
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Edit Stock Modal - Placeholder */}
+        <Modal
+          isOpen={isEditStockModalOpen}
+          onClose={() => {
+            setIsEditStockModalOpen(false);
+            setSelectedStockId(null);
+          }}
+          title="Chỉnh sửa Kho xe"
+          size="md"
+        >
+          <div className="space-y-4">
+            <p className="text-sm text-gray-600">Tính năng chỉnh sửa kho xe đang được phát triển.</p>
+            <div className="flex justify-end pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsEditStockModalOpen(false);
+                  setSelectedStockId(null);
+                }}
+              >
+                Đóng
+              </Button>
+            </div>
+          </div>
+        </Modal>
+
+        {/* Toast Notifications */}
+        <Toast toasts={toasts} removeToast={removeToast} />
       </div>
     </DealerManagerLayout>
   );

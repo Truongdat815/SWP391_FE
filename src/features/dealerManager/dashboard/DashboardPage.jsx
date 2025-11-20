@@ -1,23 +1,32 @@
-import { useMemo } from 'react';
-import { DollarSign, ShoppingCart, Package, TrendingUp } from 'lucide-react';
+import { useMemo, useState, useEffect } from 'react';
+import { DollarSign, ShoppingCart, Package, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
 import DealerManagerLayout from '../../../components/layout/DealerManagerLayout';
 import MetricCard from '../../../components/shared/MetricCard';
 import Card from '../../../components/ui/Card';
+import Table from '../../../components/ui/Table';
+import Badge from '../../../components/ui/Badge';
 import LineChart from '../../../components/charts/LineChart';
+import BarChart from '../../../components/charts/BarChart';
 import { useGetAllOrdersQuery } from '../../../api/dealerManager/dmOrderApi';
 import { useGetAllStoreStocksQuery } from '../../../api/dealerManager/inventoryApi';
 import { useGetMonthlyRevenueQuery } from '../../../api/dealerManager/storeApi';
+import { useGetAllStaffQuery } from '../../../api/dealerManager/staffApi';
 
 const DealerManagerDashboard = () => {
+  const [currentPage, setCurrentPage] = useState(1);
+  const ordersPerPage = 5;
+  
   const { data: ordersData, isLoading: isLoadingOrders, error: ordersError } = useGetAllOrdersQuery();
   const { data: revenueData, isLoading: isLoadingRevenue, error: revenueError } = useGetMonthlyRevenueQuery();
   const { data: stocksData, isLoading: isLoadingStocks, error: stocksError } = useGetAllStoreStocksQuery();
+  const { data: staffData } = useGetAllStaffQuery();
 
   const orders = ordersData?.data || [];
   // API từ storeApi có transformResponse trả về { data: revenues[0] || null }
   // revenues[0] có thể là object { month, year, totalRevenue, storeId } hoặc null
   const monthlyRevenue = revenueData?.data;
   const stocks = stocksData?.data || [];
+  const allStaff = staffData?.data || [];
 
   // Debug logging trong development
   if (import.meta.env.DEV) {
@@ -217,6 +226,101 @@ const DealerManagerDashboard = () => {
     return new Intl.NumberFormat('vi-VN').format(amount) + '₫';
   };
 
+  const formatCurrency = (amount) => {
+    if (!amount) return '0₫';
+    return new Intl.NumberFormat('vi-VN').format(amount) + '₫';
+  };
+
+  // Tính doanh số theo nhân viên (từ các đơn đã hoàn thành)
+  const staffRevenueData = useMemo(() => {
+    const staffMap = {};
+    
+    // Lọc các đơn đã hoàn thành hoặc đã thanh toán
+    const completedOrders = orders.filter((order) => 
+      order.status === 'DELIVERED' || 
+      order.status === 'FULLY_PAID' || 
+      order.status === 'CONFIRMED'
+    );
+    
+    completedOrders.forEach((order) => {
+      const staffId = order.staffId?.toString() || order.createdBy?.toString() || 'unknown';
+      const staffName = order.staffName || 
+                       allStaff.find(s => s.userId?.toString() === staffId)?.fullName || 
+                       'Không xác định';
+      const amount = parseFloat(order.totalAmount || order.totalPrice || 0);
+      
+      if (!staffMap[staffId]) {
+        staffMap[staffId] = {
+          id: staffId,
+          name: staffName,
+          revenue: 0,
+        };
+      }
+      
+      staffMap[staffId].revenue += isNaN(amount) ? 0 : amount;
+    });
+    
+    // Chuyển đổi sang format cho biểu đồ và sắp xếp theo doanh số giảm dần
+    return Object.values(staffMap)
+      .map((staff) => ({
+        name: staff.name,
+        value: Math.round(staff.revenue / 1000000), // Convert to millions
+        revenue: staff.revenue,
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 10); // Top 10 nhân viên
+  }, [orders, allStaff]);
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString('vi-VN');
+    } catch {
+      return 'N/A';
+    }
+  };
+
+  const getStatusBadge = (status) => {
+    const statusMap = {
+      PENDING: { variant: 'warning', label: 'Chờ duyệt' },
+      CONFIRMED: { variant: 'info', label: 'Đã xác nhận' },
+      DELIVERING: { variant: 'info', label: 'Đang giao' },
+      DELIVERED: { variant: 'success', label: 'Hoàn thành' },
+      FULLY_PAID: { variant: 'success', label: 'Đã thanh toán' },
+      CONTRACT_SIGNED: { variant: 'info', label: 'Đã ký hợp đồng' },
+      CONTRACT_PENDING: { variant: 'warning', label: 'Chờ ký hợp đồng' },
+      CANCELLED: { variant: 'error', label: 'Đã hủy' },
+      DRAFT: { variant: 'default', label: 'Nháp' },
+    };
+    const config = statusMap[status] || { variant: 'default', label: status || 'N/A' };
+    return <Badge variant={config.variant}>{config.label}</Badge>;
+  };
+
+  // Lấy các đơn hàng mới nhất (sắp xếp theo ngày tạo, mới nhất trước)
+  const recentOrders = useMemo(() => {
+    const sorted = [...orders].sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.orderDate || a.createdDate || 0);
+      const dateB = new Date(b.createdAt || b.orderDate || b.createdDate || 0);
+      return dateB.getTime() - dateA.getTime();
+    });
+    return sorted;
+  }, [orders]);
+
+  // Tính toán phân trang
+  const totalPages = Math.max(1, Math.ceil(recentOrders.length / ordersPerPage));
+  const startIndex = (currentPage - 1) * ordersPerPage;
+  const endIndex = startIndex + ordersPerPage;
+  const paginatedOrders = recentOrders.slice(startIndex, endIndex);
+
+  // Reset về trang 1 khi số lượng orders thay đổi đáng kể
+  useEffect(() => {
+    const newTotalPages = Math.ceil(recentOrders.length / ordersPerPage);
+    if (currentPage > newTotalPages && newTotalPages > 0) {
+      setCurrentPage(1);
+    }
+  }, [recentOrders.length, currentPage, ordersPerPage]);
+
   if (isLoading) {
     return (
       <DealerManagerLayout>
@@ -263,50 +367,42 @@ const DealerManagerDashboard = () => {
 
   return (
     <DealerManagerLayout>
-      <div className="space-y-6 p-6">
+      <div className="space-y-3 p-4 max-h-[calc(100vh-80px)] overflow-y-auto">
         {/* Header */}
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Tổng quan</h1>
-          <p className="text-gray-600 mt-1">Xem tổng quan hoạt động của đại lý</p>
+          <h1 className="text-2xl font-bold text-gray-900">Tổng quan</h1>
+          <p className="text-gray-600 mt-0.5 text-sm">Xem tổng quan hoạt động của đại lý</p>
         </div>
 
         {/* Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
           <MetricCard
             title="Tổng Doanh Thu (Tháng)"
             value={formatRevenue(currentMonthRevenue)}
-            change="+15.2%"
-            changeType="positive"
             icon={DollarSign}
           />
           <MetricCard
             title="Đơn Hàng Chờ Duyệt"
             value={pendingOrders}
-            change="+3 so với hôm qua"
-            changeType="positive"
             icon={ShoppingCart}
           />
           <MetricCard
             title="Tổng Số Đơn Hàng (Tháng)"
             value={totalOrdersThisMonth}
-            change="+8.5%"
-            changeType="positive"
             icon={TrendingUp}
           />
           <MetricCard
             title="Xe Có Sẵn"
             value={availableCars}
-            change=""
-            changeType="neutral"
             icon={Package}
           />
         </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <Card>
-            <Card.Header>
-              <Card.Title>Doanh Thu Theo Tuần</Card.Title>
+            <Card.Header className="pb-2">
+              <Card.Title className="text-lg">Doanh Thu Theo Tuần</Card.Title>
             </Card.Header>
             <Card.Content>
               {revenueChartData && revenueChartData.length > 0 ? (
@@ -315,9 +411,10 @@ const DealerManagerDashboard = () => {
                   dataKey="value"
                   name="Doanh thu (triệu VND)"
                   color="#3B82F6"
+                  height={200}
                 />
               ) : (
-                <div className="flex items-center justify-center h-[300px] text-gray-500">
+                <div className="flex items-center justify-center h-[200px] text-gray-500 text-sm">
                   Chưa có dữ liệu để hiển thị
                 </div>
               )}
@@ -325,14 +422,14 @@ const DealerManagerDashboard = () => {
           </Card>
 
           <Card>
-            <Card.Header>
-              <Card.Title>Thống Kê Đơn Hàng</Card.Title>
+            <Card.Header className="pb-2">
+              <Card.Title className="text-lg">Thống Kê Đơn Hàng</Card.Title>
             </Card.Header>
             <Card.Content>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <span className="text-gray-700">Đơn hàng mới hôm nay</span>
-                  <span className="text-2xl font-bold text-blue-600">
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-700 text-sm">Đơn hàng mới hôm nay</span>
+                  <span className="text-xl font-bold text-blue-600">
                     {orders.filter((order) => {
                       const orderDate = new Date(order.createdAt || order.orderDate);
                       const today = new Date();
@@ -344,19 +441,140 @@ const DealerManagerDashboard = () => {
                     }).length}
                   </span>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <span className="text-gray-700">Đơn hàng đang giao</span>
-                  <span className="text-2xl font-bold text-green-600">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-700 text-sm">Đơn hàng đang giao</span>
+                  <span className="text-xl font-bold text-green-600">
                     {orders.filter((order) => order.status === 'DELIVERING').length}
                   </span>
                 </div>
-                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                  <span className="text-gray-700">Đơn hàng đã hoàn thành</span>
-                  <span className="text-2xl font-bold text-purple-600">
+                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <span className="text-gray-700 text-sm">Đơn hàng đã hoàn thành</span>
+                  <span className="text-xl font-bold text-purple-600">
                     {orders.filter((order) => order.status === 'DELIVERED').length}
                   </span>
                 </div>
               </div>
+            </Card.Content>
+          </Card>
+        </div>
+
+        {/* Staff Revenue Chart and Recent Orders - Side by Side */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <Card>
+            <Card.Header className="pb-2">
+              <Card.Title className="text-lg">Doanh Số Theo Nhân Viên</Card.Title>
+              <p className="text-xs text-gray-500 mt-0.5">Doanh số các nhân viên trong cửa hàng đạt được</p>
+            </Card.Header>
+            <Card.Content>
+              {staffRevenueData && staffRevenueData.length > 0 ? (
+                <BarChart
+                  data={staffRevenueData}
+                  dataKey="value"
+                  name="Doanh số (triệu VND)"
+                  color="#10B981"
+                  height={200}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-[200px] text-gray-500 text-sm">
+                  Chưa có dữ liệu để hiển thị
+                </div>
+              )}
+            </Card.Content>
+          </Card>
+
+          {/* Recent Orders Table */}
+          <Card>
+            <Card.Header className="pb-2">
+              <Card.Title className="text-lg">Đơn Hàng Gần Đây</Card.Title>
+              <p className="text-xs text-gray-500 mt-0.5">Danh sách các đơn hàng mới nhất</p>
+            </Card.Header>
+            <Card.Content>
+              {recentOrders.length === 0 ? (
+                <div className="text-center py-8 text-gray-500 text-sm">Chưa có đơn hàng nào</div>
+              ) : (
+                <>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <Table.Header>
+                        <Table.Row>
+                          <Table.Head className="text-xs">Mã đơn</Table.Head>
+                          <Table.Head className="text-xs">Khách hàng</Table.Head>
+                          <Table.Head className="text-xs">Nhân viên</Table.Head>
+                          <Table.Head className="text-xs">Ngày</Table.Head>
+                          <Table.Head className="text-xs">Giá trị</Table.Head>
+                          <Table.Head className="text-xs">Trạng thái</Table.Head>
+                        </Table.Row>
+                      </Table.Header>
+                      <Table.Body>
+                        {paginatedOrders.map((order) => (
+                          <Table.Row key={order.orderId}>
+                            <Table.Cell className="font-mono text-xs">
+                              #{order.orderId || `ELEC-${order.orderId}`}
+                            </Table.Cell>
+                            <Table.Cell className="font-medium text-xs">
+                              {order.customerName || 'N/A'}
+                            </Table.Cell>
+                            <Table.Cell className="text-xs">
+                              {order.staffName || order.createdBy || 'N/A'}
+                            </Table.Cell>
+                            <Table.Cell className="text-xs">
+                              {formatDate(order.createdAt || order.orderDate)}
+                            </Table.Cell>
+                            <Table.Cell className="font-semibold text-xs">
+                              {formatCurrency(order.totalAmount || order.totalPrice || 0)}
+                            </Table.Cell>
+                            <Table.Cell className="text-xs">
+                              {getStatusBadge(order.status)}
+                            </Table.Cell>
+                          </Table.Row>
+                        ))}
+                      </Table.Body>
+                    </Table>
+                  </div>
+                  
+                  {/* Pagination */}
+                  {totalPages > 1 && (
+                    <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-200">
+                      <div className="text-sm text-gray-600">
+                        Hiển thị {startIndex + 1}-{Math.min(endIndex, recentOrders.length)} trong tổng {recentOrders.length} đơn hàng
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                          disabled={currentPage === 1}
+                          className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          aria-label="Trang trước"
+                        >
+                          <ChevronLeft size={16} />
+                        </button>
+                        <div className="flex items-center gap-1">
+                          {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                            <button
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                                currentPage === page
+                                  ? 'bg-blue-600 text-white'
+                                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                              }`}
+                            >
+                              {page}
+                            </button>
+                          ))}
+                        </div>
+                        <button
+                          onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+                          disabled={currentPage === totalPages}
+                          className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          aria-label="Trang sau"
+                        >
+                          <ChevronRight size={16} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
             </Card.Content>
           </Card>
         </div>
