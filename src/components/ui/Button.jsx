@@ -39,7 +39,7 @@ const Button = ({
         baseStyles,
         variants[variant],
         sizes[size],
-        disabled && 'opacity-50 cursor-not-allowed',
+        disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer',
         className
       )}
       disabled={disabled}

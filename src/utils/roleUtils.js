@@ -21,6 +21,8 @@ export const normalizeRole = (roleName) => {
     'NHAN VIEN BAN HANG': 'DEALER_STAFF',
     'QUẢN LÝ CỬA HÀNG': 'DEALER_MANAGER',
     'QUAN LY DAI LY': 'DEALER_MANAGER',
+    'QUẢN LÝ CỬA HÀNG': 'DEALER_MANAGER',
+    'QUAN LY CUA HANG': 'DEALER_MANAGER',
     'NHÂN VIÊN HÃNG XE': 'EVM_STAFF',
     'NHAN VIEN EVM': 'EVM_STAFF',
   };

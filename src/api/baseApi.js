@@ -74,6 +74,35 @@ const baseQuery = fetchBaseQuery({
 });
 
 const baseQueryWithReauth = async (args, api, extraOptions) => {
+  // Xử lý đặc biệt cho các endpoint create-contract (không có body)
+  // Xóa Content-Type header nếu request không có body để tránh lỗi 415
+  if (typeof args === 'object' && args?.url && args?.url.includes('create-contract')) {
+    // Kiểm tra xem có body không (undefined, null, hoặc không có field body)
+    const hasBody = args.body !== undefined && args.body !== null && args.body !== '';
+    
+    if (!hasBody) {
+      // Tạo một args mới không có Content-Type trong headers
+      const modifiedArgs = {
+        ...args,
+        headers: {
+          ...args.headers,
+        },
+      };
+      // Xóa Content-Type nếu có
+      if (modifiedArgs.headers) {
+        delete modifiedArgs.headers['Content-Type'];
+        delete modifiedArgs.headers['content-type'];
+      }
+      // Xóa body field nếu có
+      if (modifiedArgs.body === undefined || modifiedArgs.body === null) {
+        delete modifiedArgs.body;
+      }
+      // Gọi baseQuery với args đã được modify
+      let result = await baseQuery(modifiedArgs, api, extraOptions);
+      return result;
+    }
+  }
+  
   let result = await baseQuery(args, api, extraOptions);
 
   // Xử lý lỗi 404 cho các endpoint có thể không có dữ liệu (EVM Staff)

@@ -1,6 +1,6 @@
 import {
-  LineChart as RechartsLineChart,
-  Line,
+  BarChart as RechartsBarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -9,20 +9,20 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
-const LineChart = ({ data, dataKey, name, color = '#3B82F6', height = 200 }) => {
+const BarChart = ({ data, dataKey, name, color = '#3B82F6', height = 200 }) => {
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <RechartsLineChart data={data}>
+      <RechartsBarChart data={data}>
         <CartesianGrid strokeDasharray="3 3" />
         <XAxis dataKey="name" />
         <YAxis />
         <Tooltip />
         <Legend />
-        <Line type="monotone" dataKey={dataKey} name={name} stroke={color} strokeWidth={2} />
-      </RechartsLineChart>
+        <Bar dataKey={dataKey} name={name} fill={color} />
+      </RechartsBarChart>
     </ResponsiveContainer>
   );
 };
 
-export default LineChart;
+export default BarChart;
 

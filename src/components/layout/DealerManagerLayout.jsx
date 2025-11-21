@@ -11,6 +11,7 @@ import {
   LogOut,
   Menu,
   X,
+  Building2,
 } from 'lucide-react';
 import { useLogoutMutation } from '../../api/auth/authApi';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
@@ -47,6 +48,7 @@ const DealerManagerLayout = ({ children }) => {
     { icon: Package, label: 'Kho xe', path: '/dealer-manager/inventory' },
     { icon: Tag, label: 'Khuyến mãi', path: '/dealer-manager/promotions' },
     { icon: Users, label: 'Đội Ngũ', path: '/dealer-manager/staff' },
+    { icon: Building2, label: 'Đại lý', path: '/dealer-manager/store' },
     { icon: BarChart3, label: 'Báo Cáo', path: '/dealer-manager/reports' },
   ];
 

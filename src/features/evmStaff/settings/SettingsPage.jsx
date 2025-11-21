@@ -25,16 +25,46 @@ const SettingsPage = () => {
 
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!profileData.fullName?.trim()) {
+      alert('Vui lòng nhập họ và tên');
+      return;
+    }
+    
+    if (!profileData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileData.email)) {
+      alert('Email không hợp lệ');
+      return;
+    }
+    
+    if (!profileData.phone || !/^[0-9]{10,11}$/.test(profileData.phone.replace(/\s/g, ''))) {
+      alert('Số điện thoại phải có 10-11 chữ số');
+      return;
+    }
+    
     // TODO: Implement profile update API
     alert('Cập nhật thông tin thành công!');
   };
 
   const handlePasswordChange = async (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!passwordData.currentPassword) {
+      alert('Vui lòng nhập mật khẩu hiện tại');
+      return;
+    }
+    
+    if (!passwordData.newPassword || passwordData.newPassword.length < 6) {
+      alert('Mật khẩu mới phải có ít nhất 6 ký tự');
+      return;
+    }
+    
     if (passwordData.newPassword !== passwordData.confirmPassword) {
       alert('Mật khẩu mới không khớp!');
       return;
     }
+    
     // TODO: Implement password change API
     alert('Đổi mật khẩu thành công!');
     setPasswordData({

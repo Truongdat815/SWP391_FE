@@ -1,21 +1,30 @@
-import { useState, useMemo } from 'react';
-import { 
-  Clock, 
-  CreditCard, 
-  CheckCircle2, 
-  Truck, 
-  Package, 
+import { useState, useMemo, useEffect } from 'react';
+import {
+  Clock,
+  CreditCard,
+  CheckCircle2,
+  Truck,
+  Package,
   RefreshCw,
-  Upload,
-  FileText
+  ChevronRight,
+  Calendar,
+  AlertCircle,
+  FileText,
+  Eye,
+  Receipt,
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import EVMStaffLayout from '../../../components/layout/EVMStaffLayout';
 import SearchBar from '../../../components/shared/SearchBar';
-import MetricCard from '../../../components/shared/MetricCard';
 import Badge from '../../../components/ui/Badge';
 import Dropdown from '../../../components/ui/Dropdown';
 import Button from '../../../components/ui/Button';
 import Modal from '../../../components/ui/Modal';
+import { TableSkeleton } from '../../../components/shared/SkeletonLoader';
+import EmptyState from '../../../components/shared/EmptyState';
+import Toast from '../../../components/shared/Toast';
+import { useDebounce } from '../../../hooks/useDebounce';
+import { useToast } from '../../../hooks/useToast';
 import { useGetAllStoresQuery } from '../../../api/evmStaff/storeApi';
 import {
   useGetAllInventoryTransactionsQuery,
@@ -27,34 +36,247 @@ import {
   useStartShippingMutation,
   useConfirmPaymentMutation,
   useCancelInventoryRequestMutation,
+  useGetContractQuery,
+  useGetPaymentInfoQuery,
 } from '../../../api/evmStaff/inventoryApi';
+import { getAuthFromStorage } from '../../../utils/roleUtils';
 
 const DealerOrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [statusFilter, setStatusFilter] = useState('all');
   const [timeRangeFilter, setTimeRangeFilter] = useState('all');
   const [dealerFilter, setDealerFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(5);
+  const [itemsPerPage] = useState(10);
   const [selectedTransactionId, setSelectedTransactionId] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
+  const [isViewReceiptModalOpen, setIsViewReceiptModalOpen] = useState(false);
+  const [isPaymentInfoModalOpen, setIsPaymentInfoModalOpen] = useState(false);
+  const [selectedReceiptImage, setSelectedReceiptImage] = useState(null);
+  const [isViewContractModalOpen, setIsViewContractModalOpen] = useState(false);
+  const [selectedContractImage, setSelectedContractImage] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({ isOpen: false, message: '', onConfirm: null });
+  const { toasts, showToast, removeToast } = useToast();
 
-  const { data: transactionsData, isLoading, error } = useGetAllInventoryTransactionsQuery();
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, statusFilter, dealerFilter, timeRangeFilter]);
+
+  const { data: transactionsData, isLoading, error, refetch: refetchTransactions } = useGetAllInventoryTransactionsQuery();
   const { data: storesData, isLoading: isLoadingStores, error: storesError } = useGetAllStoresQuery();
   const { data: statusesData } = useGetInventoryTransactionStatusesQuery();
   const { data: transactionDetail, isLoading: isLoadingDetail } = useGetInventoryTransactionByIdQuery(
     selectedTransactionId,
     { skip: !selectedTransactionId }
   );
-  
+
   const [acceptRequest] = useAcceptInventoryRequestMutation();
   const [confirmDelivery] = useConfirmDeliveryMutation();
   const [rejectRequest] = useRejectInventoryRequestMutation();
   const [startShipping] = useStartShippingMutation();
   const [confirmPayment] = useConfirmPaymentMutation();
   const [cancelRequest] = useCancelInventoryRequestMutation();
+  const [isCreatingContract, setIsCreatingContract] = useState(false);
+  const { data: contractData } = useGetContractQuery(selectedTransactionId, {
+    skip: !selectedTransactionId,
+  });
+  const { data: paymentInfoData, isLoading: isLoadingPaymentInfo, error: paymentInfoError } = useGetPaymentInfoQuery(selectedTransactionId, {
+    skip: !selectedTransactionId || !isPaymentInfoModalOpen,
+  });
+  // Hàm mở hợp đồng trong tab mới hoặc modal
+  const handleViewContract = async (inventoryId, transaction = null) => {
+    try {
+      if (!inventoryId) {
+        showToast('Không tìm thấy mã yêu cầu. Vui lòng thử lại sau.', 'error');
+        return;
+      }
+      
+      // Gọi API để lấy contract
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api';
+      const url = `${baseUrl}/inventory-transactions/${inventoryId}/contract`;
+      
+      const authData = getAuthFromStorage('evmStaff');
+      const token = authData?.token;
+      
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: headers,
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Failed to fetch contract');
+        showToast('Không thể tải hợp đồng: ' + errorText, 'error');
+        return;
+      }
+      
+      const data = await response.json();
+      
+      // Lấy contractFileUrl từ response
+      // Response có thể là { data: { contractFileUrl: ... } } hoặc { contractFileUrl: ... }
+      const contractFileUrl = data?.data?.contractFileUrl || data?.contractFileUrl;
+      
+      // Kiểm tra xem có HTML không (nếu không có contractFileUrl, có thể là HTML)
+      const contractHtml = data?.data?.html || data?.html;
+      
+      // Nếu status là FILE_UPLOADED → luôn hiển thị modal (hợp đồng Manager đã upload)
+      const isFileUploaded = transaction?.status === 'FILE_UPLOADED';
+      
+      if (contractFileUrl) {
+        // Nếu có contractFileUrl (ảnh) → hiển thị trong modal
+        setSelectedContractImage(contractFileUrl);
+        setIsViewContractModalOpen(true);
+      } else if (contractHtml && !isFileUploaded) {
+        // Nếu có HTML → mở trong tab mới
+        const fullHtml = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Hợp Đồng</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Times New Roman', serif;
+      padding: 20px;
+      background-color: #f5f5f5;
+      overflow-x: auto;
+    }
+    .contract-container {
+      max-width: 100%;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      .contract-container {
+        box-shadow: none;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="contract-container">
+    ${contractHtml}
+  </div>
+</body>
+</html>`;
+        
+        // Tạo blob URL và mở trong tab mới
+        const blob = new Blob([fullHtml], { type: 'text/html' });
+        const blobUrl = URL.createObjectURL(blob);
+        const newWindow = window.open(blobUrl, '_blank');
+        
+        // Cleanup blob URL sau khi window đóng
+        if (newWindow) {
+          newWindow.addEventListener('beforeunload', () => {
+            URL.revokeObjectURL(blobUrl);
+          });
+        } else {
+          // Nếu popup bị chặn, thử dùng cách khác
+          showToast('Popup bị chặn. Vui lòng cho phép popup để xem hợp đồng.', 'warning');
+          URL.revokeObjectURL(blobUrl);
+        }
+      } else {
+        // Nếu không có cả contractFileUrl và HTML, thử gọi API HTML
+        const htmlUrl = `${baseUrl}/inventory-transactions/${inventoryId}/contract/html`;
+        const htmlResponse = await fetch(htmlUrl, {
+          method: 'GET',
+          headers: headers,
+        });
+        
+        if (htmlResponse.ok) {
+          const htmlText = await htmlResponse.text();
+          const fullHtml = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Hợp Đồng</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Times New Roman', serif;
+      padding: 20px;
+      background-color: #f5f5f5;
+      overflow-x: auto;
+    }
+    .contract-container {
+      max-width: 100%;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      .contract-container {
+        box-shadow: none;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="contract-container">
+    ${htmlText}
+  </div>
+</body>
+</html>`;
+          
+          // Tạo blob URL và mở trong tab mới
+          const blob = new Blob([fullHtml], { type: 'text/html' });
+          const blobUrl = URL.createObjectURL(blob);
+          const newWindow = window.open(blobUrl, '_blank');
+          
+          // Cleanup blob URL sau khi window đóng
+          if (newWindow) {
+            newWindow.addEventListener('beforeunload', () => {
+              URL.revokeObjectURL(blobUrl);
+            });
+          } else {
+            showToast('Popup bị chặn. Vui lòng cho phép popup để xem hợp đồng.', 'warning');
+            URL.revokeObjectURL(blobUrl);
+          }
+        } else {
+          showToast('Không tìm thấy hợp đồng. Vui lòng thử lại sau.', 'error');
+        }
+      }
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('Error viewing contract:', error);
+      }
+      showToast('Có lỗi xảy ra khi xem hợp đồng', 'error');
+    }
+  };
 
-  // Xử lý lỗi 404 cho transactions (EVM Staff có thể không có store)
   const isStoreNotFoundError = (err) => {
     return (
       err?.status === 404 &&
@@ -64,64 +286,99 @@ const DealerOrdersPage = () => {
     );
   };
 
-  // Nếu lỗi 404 (store not found), vẫn hiển thị mảng rỗng thay vì lỗi
   const transactions = isStoreNotFoundError(error) ? [] : (transactionsData?.data || []);
+  
+  // Debug logging trong development
+  if (import.meta.env.DEV && transactions.length > 0) {
+    console.log('EVM Staff Transactions Sample:', transactions.slice(0, 2));
+    if (transactions[0]) {
+      const sample = transactions[0];
+      console.log('EVM Staff Transaction fields:', Object.keys(sample));
+      console.log('EVM Staff Transaction FULL OBJECT:', sample);
+      console.log('EVM Staff Transaction price fields:', {
+        totalPrice: sample.totalPrice,
+        totalBasePrice: sample.totalBasePrice,
+        totalAmount: sample.totalAmount,
+        price: sample.price,
+        unitPrice: sample.unitPrice,
+        unitBasePrice: sample.unitBasePrice,
+        modelColorPrice: sample.modelColorPrice,
+      });
+      console.log('EVM Staff Transaction quantity fields:', {
+        importQuantity: sample.importQuantity,
+        quantity: sample.quantity,
+        requestedQuantity: sample.requestedQuantity,
+        orderQuantity: sample.orderQuantity,
+        requestQuantity: sample.requestQuantity,
+      });
+    }
+  }
   const stores = storesData?.data || [];
   const statuses = statusesData?.data || [];
 
-  // Tính toán số lượng đơn hàng theo trạng thái
   const statusCounts = useMemo(() => {
     return {
       PENDING: transactions.filter((t) => t.status === 'PENDING' || t.status === 'DRAFT').length,
-      CONFIRM_PAYMENT: transactions.filter((t) => t.status === 'DELIVERED').length,
-      PROCESSING: transactions.filter((t) => 
-        t.status === 'ACCEPTED' || 
-        t.status === 'CONFIRMED' || 
-        t.status === 'PROCESSING'
-      ).length,
+      CONFIRM_PAYMENT: transactions.filter((t) => t.status === 'ACCEPTED' || t.status === 'CONFIRMED').length,
+      PROCESSING: transactions.filter((t) => t.status === 'PROCESSING').length,
       SHIPPING: transactions.filter((t) => t.status === 'SHIPPING').length,
-      COMPLETED: transactions.filter((t) => t.status === 'COMPLETED').length,
+      COMPLETED: transactions.filter((t) => t.status === 'COMPLETED' || t.status === 'DELIVERED').length,
     };
   }, [transactions]);
 
-  // Filter và sort transactions (mới nhất lên trên)
   const filteredTransactions = useMemo(() => {
     const filtered = transactions.filter((transaction) => {
       const matchesSearch =
-        transaction.inventoryId?.toString().includes(searchTerm) ||
-        transaction.storeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        transaction.modelName?.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      // Logic filter status phù hợp với các button filter
+        transaction.inventoryId?.toString().includes(debouncedSearchTerm) ||
+        transaction.storeName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase()) ||
+        transaction.modelName?.toLowerCase().includes(debouncedSearchTerm.toLowerCase());
+
       let matchesStatus = true;
       if (statusFilter !== 'all') {
         if (statusFilter === 'PENDING') {
           matchesStatus = transaction.status === 'PENDING' || transaction.status === 'DRAFT';
         } else if (statusFilter === 'ACCEPTED') {
-          matchesStatus = transaction.status === 'ACCEPTED' || 
-                         transaction.status === 'CONFIRMED' || 
-                         transaction.status === 'PROCESSING';
-        } else if (statusFilter === 'DELIVERED') {
-          matchesStatus = transaction.status === 'DELIVERED';
+          matchesStatus = transaction.status === 'ACCEPTED' || transaction.status === 'CONFIRMED';
+        } else if (statusFilter === 'PROCESSING') {
+          matchesStatus = transaction.status === 'PROCESSING';
+        } else if (statusFilter === 'SHIPPING') {
+          matchesStatus = transaction.status === 'SHIPPING';
+        } else if (statusFilter === 'COMPLETED') {
+          matchesStatus = transaction.status === 'COMPLETED' || transaction.status === 'DELIVERED';
         } else {
           matchesStatus = transaction.status === statusFilter;
         }
       }
-      
+
       const matchesDealer =
         dealerFilter === 'all' || transaction.storeId?.toString() === dealerFilter;
-      return matchesSearch && matchesStatus && matchesDealer;
+      
+      // Time range filter
+      let matchesTimeRange = true;
+      if (timeRangeFilter !== 'all') {
+        const transactionDate = new Date(transaction.orderDate || transaction.createdAt);
+        const now = new Date();
+        if (timeRangeFilter === 'today') {
+          matchesTimeRange = transactionDate.toDateString() === now.toDateString();
+        } else if (timeRangeFilter === 'week') {
+          const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+          matchesTimeRange = transactionDate >= weekAgo;
+        } else if (timeRangeFilter === 'month') {
+          matchesTimeRange = transactionDate.getMonth() === now.getMonth() && 
+                           transactionDate.getFullYear() === now.getFullYear();
+        }
+      }
+      
+      return matchesSearch && matchesStatus && matchesDealer && matchesTimeRange;
     });
-    
-    // Sắp xếp theo orderDate giảm dần (mới nhất lên trên)
+
     return filtered.sort((a, b) => {
       const dateA = new Date(a.orderDate || a.createdAt || 0);
       const dateB = new Date(b.orderDate || b.createdAt || 0);
-      return dateB - dateA; // Giảm dần
+      return dateB - dateA;
     });
-  }, [transactions, searchTerm, statusFilter, dealerFilter]);
+  }, [transactions, debouncedSearchTerm, statusFilter, dealerFilter, timeRangeFilter]);
 
-  // Pagination
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
@@ -133,7 +390,13 @@ const DealerOrdersPage = () => {
       PENDING: { variant: 'warning', label: 'Chờ xử lý' },
       CONFIRMED: { variant: 'info', label: 'Đã xác nhận' },
       ACCEPTED: { variant: 'info', label: 'Đã chấp nhận' },
+      EVM_SIGNED: { variant: 'info', label: 'Chờ ký hợp đồng' },
+      SIGNED: { variant: 'success', label: 'Đã ký hợp đồng' },
+      CONTRACT_SIGNED: { variant: 'success', label: 'Đã ký hợp đồng' },
+      FILE_UPLOADED: { variant: 'info', label: 'Đã upload hóa đơn' },
+      PAYMENT_CONFIRMED: { variant: 'info', label: 'Đã xác nhận thanh toán' },
       PROCESSING: { variant: 'info', label: 'Đang xử lý' },
+      IN_TRANSIT: { variant: 'info', label: 'Đang vận chuyển' },
       SHIPPING: { variant: 'info', label: 'Đang vận chuyển' },
       DELIVERED: { variant: 'success', label: 'Đã giao' },
       COMPLETED: { variant: 'success', label: 'Hoàn thành' },
@@ -144,47 +407,25 @@ const DealerOrdersPage = () => {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const getStatusLabel = (status) => {
-    const statusMap = {
-      DRAFT: 'Nháp',
-      PENDING: 'Chờ xử lý',
-      CONFIRMED: 'Đã xác nhận',
-      ACCEPTED: 'Đã chấp nhận',
-      PROCESSING: 'Đang xử lý',
-      SHIPPING: 'Đang vận chuyển',
-      DELIVERED: 'Đã giao',
-      COMPLETED: 'Hoàn thành',
-      CANCELLED: 'Đã hủy',
-      REJECTED: 'Đã từ chối',
-    };
-    return statusMap[status] || status || 'N/A';
-  };
-
-  // Xác định progress steps dựa trên status
   const getProgressSteps = (status) => {
     const steps = [
       { key: 'PENDING', label: 'Chờ xử lý', icon: Clock },
-      { key: 'ACCEPTED', label: 'Đã chấp nhận', icon: CheckCircle2 },
-      { key: 'CONTRACT', label: 'Đã ký hợp đồng', icon: FileText },
-      { key: 'UPLOADED', label: 'Đã upload', icon: Upload },
-      { key: 'PAID', label: 'Đã thanh toán', icon: CreditCard },
+      { key: 'CONFIRM_PAYMENT', label: 'Thanh toán', icon: CreditCard },
+      { key: 'PROCESSING', label: 'Đang xử lý', icon: CheckCircle2 },
       { key: 'SHIPPING', label: 'Vận chuyển', icon: Truck },
-      { key: 'DELIVERED', label: 'Đã giao', icon: Package },
+      { key: 'COMPLETED', label: 'Hoàn thành', icon: Package },
     ];
 
     const statusOrder = {
-      PENDING: 0,
-      DRAFT: 0,
-      ACCEPTED: 1,
-      CONFIRMED: 2,
+      PENDING: 0, DRAFT: 0,
+      ACCEPTED: 1, CONFIRMED: 1,
       PROCESSING: 2,
-      SHIPPING: 5,
-      DELIVERED: 6,
-      COMPLETED: 6,
+      SHIPPING: 3,
+      DELIVERED: 4, COMPLETED: 4,
     };
 
     const currentStep = statusOrder[status] ?? 0;
-    
+
     return steps.map((step, index) => ({
       ...step,
       completed: index <= currentStep,
@@ -192,14 +433,169 @@ const DealerOrdersPage = () => {
     }));
   };
 
-  // Lấy action button text dựa trên status
-  const getActionButton = (status) => {
-    if (status === 'PENDING' || status === 'DRAFT') return 'Chấp nhận';
-    if (status === 'ACCEPTED' || status === 'CONFIRMED') return 'Đã xác nhận';
-    if (status === 'SHIPPING') return 'Xác nhận giao';
-    if (status === 'DELIVERED') return 'Xác nhận thanh toán';
-    if (status === 'COMPLETED') return 'Đã giao';
-    return null;
+  const getActionButtons = (status, transaction) => {
+    const buttons = [];
+    
+    // Nếu bị từ chối → không có nút gì
+    if (status === 'REJECTED') {
+      return buttons;
+    }
+    
+    // Giai đoạn 1: Manager gửi yêu cầu (PENDING/DRAFT)
+    if (status === 'PENDING' || status === 'DRAFT') {
+      buttons.push({ text: 'Chấp nhận', type: 'accept' });
+      return buttons;
+    }
+    
+    // Giai đoạn 2: EVM đã duyệt (ACCEPTED/CONFIRMED) - Chờ tạo hợp đồng
+    if (status === 'ACCEPTED' || status === 'CONFIRMED') {
+      const isViewingDetail = selectedTransactionId === transaction.inventoryId;
+      const contractInfo = isViewingDetail && contractData?.data 
+        ? contractData.data 
+        : null;
+      
+      const hasContract = contractInfo || 
+                         transaction.contractId || 
+                         transaction.contractFile || 
+                         transaction.contractPath ||
+                         transaction.contractUrl ||
+                         transaction.contract;
+      
+      if (!hasContract) {
+        buttons.push({ text: 'Tạo hợp đồng', type: 'createContract' });
+      } else {
+        buttons.push({ text: 'Xem hợp đồng', type: 'viewContract' });
+      }
+      return buttons;
+    }
+    
+    // Giai đoạn 3: EVM đã tạo hợp đồng (EVM_SIGNED) - Chờ Manager ký
+    if (status === 'EVM_SIGNED') {
+      buttons.push({ text: 'Xem hợp đồng', type: 'viewContract' });
+      return buttons;
+    }
+    
+    // Giai đoạn 4: Manager đã upload hợp đồng (SIGNED/CONTRACT_SIGNED) - Chờ upload hóa đơn
+    // Lưu ý: "Xem thông tin thanh toán" chỉ hiển thị ở Manager, không hiển thị ở EVM Staff
+    if (status === 'SIGNED' || status === 'CONTRACT_SIGNED') {
+      buttons.push({ text: 'Xem hợp đồng', type: 'viewContract' });
+      return buttons;
+    }
+    
+    // Giai đoạn 5: Manager đã upload hóa đơn (FILE_UPLOADED)
+    if (status === 'FILE_UPLOADED') {
+      // Luôn hiển thị nút "Xem hóa đơn đã thanh toán" khi status là FILE_UPLOADED
+      // imageUrl là của hóa đơn thanh toán
+      const hasReceipt = transaction.receiptImage ||
+                        transaction.receiptPath ||
+                        transaction.receiptUrl ||
+                        transaction.receiptFile ||
+                        transaction.receipt ||
+                        transaction.imageUrl;
+      
+      if (hasReceipt) {
+        buttons.push({ text: 'Xem hóa đơn đã thanh toán', type: 'viewReceipt' });
+      }
+      
+      // Luôn hiển thị nút "Xem hợp đồng" (hợp đồng Manager đã upload) khi status là FILE_UPLOADED
+      // Gọi API /inventory-transactions/{inventoryId}/contract để lấy contractFileUrl
+      buttons.push({ text: 'Xem hợp đồng', type: 'viewContract' });
+      
+      // Kiểm tra có cả contract và receipt để xác nhận thanh toán
+      if (hasReceipt) {
+        buttons.push({ text: 'Xác nhận đã thanh toán', type: 'confirmPayment' });
+      }
+      
+      return buttons;
+    }
+    
+    // Giai đoạn 6: EVM đã xác nhận thanh toán (PAYMENT_CONFIRMED) - Chờ vận chuyển
+    if (status === 'PAYMENT_CONFIRMED') {
+      // Luôn hiển thị nút "Xem hợp đồng" (hợp đồng Manager đã upload)
+      buttons.push({ text: 'Xem hợp đồng', type: 'viewContract' });
+      
+      // Luôn hiển thị nút "Xem hóa đơn thanh toán" khi status là PAYMENT_CONFIRMED
+      // imageUrl là của hóa đơn thanh toán
+      const hasReceipt = transaction.receiptImage ||
+                        transaction.receiptPath ||
+                        transaction.receiptUrl ||
+                        transaction.receiptFile ||
+                        transaction.receipt ||
+                        transaction.imageUrl;
+      
+      if (hasReceipt) {
+        buttons.push({ text: 'Xem hóa đơn thanh toán', type: 'viewReceipt' });
+      }
+      
+      // Nút "Bắt đầu vận chuyển"
+      buttons.push({ text: 'Bắt đầu vận chuyển', type: 'startShipping' });
+      return buttons;
+    }
+    
+    // Giai đoạn 7: Đang vận chuyển (SHIPPING/IN_TRANSIT)
+    if (status === 'SHIPPING' || status === 'IN_TRANSIT') {
+      // Luôn hiển thị nút "Xem hợp đồng" (hợp đồng Manager đã upload)
+      buttons.push({ text: 'Xem hợp đồng', type: 'viewContract' });
+      
+      // Luôn hiển thị nút "Xem hóa đơn thanh toán"
+      // imageUrl là của hóa đơn thanh toán
+      const hasReceipt = transaction.receiptImage ||
+                        transaction.receiptPath ||
+                        transaction.receiptUrl ||
+                        transaction.receiptFile ||
+                        transaction.receipt ||
+                        transaction.imageUrl;
+      
+      if (hasReceipt) {
+        buttons.push({ text: 'Xem hóa đơn thanh toán', type: 'viewReceipt' });
+      }
+      
+      return buttons;
+    }
+    
+    // Giai đoạn 8: Đã giao (DELIVERED/COMPLETED)
+    if (status === 'DELIVERED' || status === 'COMPLETED') {
+      // Luôn hiển thị nút "Xem hợp đồng" (hợp đồng Manager đã upload)
+      buttons.push({ text: 'Xem hợp đồng', type: 'viewContract' });
+      
+      // Luôn hiển thị nút "Xem hóa đơn thanh toán"
+      // imageUrl là của hóa đơn thanh toán
+      const hasReceipt = transaction.receiptImage ||
+                        transaction.receiptPath ||
+                        transaction.receiptUrl ||
+                        transaction.receiptFile ||
+                        transaction.receipt ||
+                        transaction.imageUrl;
+      
+      if (hasReceipt) {
+        buttons.push({ text: 'Xem hóa đơn thanh toán', type: 'viewReceipt' });
+      }
+      
+      return buttons;
+    }
+    
+    // Các status khác không có nút action đặc biệt
+    return buttons;
+  };
+
+  const canStartShipping = (transaction) => {
+    // Chỉ có thể start shipping khi:
+    // 1. Status = PAYMENT_CONFIRMED (đã có hợp đồng và hóa đơn)
+    // 2. Hoặc kiểm tra có contractFile/contractPath/contractUrl và receiptImage/receiptPath/receiptUrl
+    const hasContract = transaction.contractFile || 
+                       transaction.contractPath ||
+                       transaction.contractUrl ||
+                       transaction.contractId ||
+                       transaction.contract;
+    
+    const hasReceipt = transaction.receiptImage ||
+                      transaction.receiptPath ||
+                      transaction.receiptUrl ||
+                      transaction.receiptFile ||
+                      transaction.receipt;
+    
+    return transaction.status === 'PAYMENT_CONFIRMED' ||
+           (hasContract && hasReceipt);
   };
 
   const formatCurrency = (amount) => {
@@ -211,103 +607,215 @@ const DealerOrdersPage = () => {
     if (!dateString) return 'N/A';
     try {
       const date = new Date(dateString);
-      return date.toLocaleString('vi-VN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
+      return date.toLocaleDateString('vi-VN');
     } catch {
       return 'N/A';
     }
   };
 
   const handleAcceptTransaction = async (inventoryId) => {
-    if (window.confirm('Bạn có chắc chắn muốn chấp nhận yêu cầu này?')) {
-      try {
-        await acceptRequest(inventoryId).unwrap();
-        alert('Đã chấp nhận yêu cầu thành công');
-      } catch (error) {
-        alert('Có lỗi xảy ra khi chấp nhận yêu cầu');
-        console.error(error);
-      }
-    }
-  };
-
-  const handleConfirmDelivery = async (inventoryId) => {
-    if (window.confirm('Bạn có chắc chắn muốn xác nhận đã giao hàng?')) {
-      try {
-        await confirmDelivery(inventoryId).unwrap();
-        alert('Đã xác nhận giao hàng thành công');
-      } catch (error) {
-        alert('Có lỗi xảy ra khi xác nhận giao hàng');
-        console.error(error);
-      }
-    }
+    setConfirmModal({
+      isOpen: true,
+      message: 'Bạn có chắc chắn muốn chấp nhận yêu cầu này?',
+      onConfirm: async () => {
+        try {
+          await acceptRequest(inventoryId).unwrap();
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          showToast('Đã chấp nhận yêu cầu thành công!', 'success');
+        } catch (error) {
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi chấp nhận yêu cầu';
+          showToast(errorMessage, 'error');
+        }
+      },
+    });
   };
 
   const handleRejectTransaction = async (inventoryId) => {
-    if (window.confirm('Bạn có chắc chắn muốn từ chối giao dịch này?')) {
-      try {
-        await rejectRequest(inventoryId).unwrap();
-        alert('Đã từ chối giao dịch thành công');
-      } catch (error) {
-        alert('Có lỗi xảy ra khi từ chối giao dịch');
-        console.error(error);
-      }
-    }
+    setConfirmModal({
+      isOpen: true,
+      message: 'Bạn có chắc chắn muốn từ chối yêu cầu này?',
+      onConfirm: async () => {
+        try {
+          await rejectRequest(inventoryId).unwrap();
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          showToast('Đã từ chối yêu cầu thành công!', 'success');
+        } catch (error) {
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi từ chối yêu cầu';
+          showToast(errorMessage, 'error');
+        }
+      },
+    });
   };
 
-  const handleStartShipping = async (inventoryId) => {
-    if (window.confirm('Bạn có chắc chắn muốn bắt đầu vận chuyển?')) {
-      try {
-        await startShipping(inventoryId).unwrap();
-        alert('Đã bắt đầu vận chuyển thành công');
-      } catch (error) {
-        alert('Có lỗi xảy ra khi bắt đầu vận chuyển');
-        console.error(error);
+  const handleConfirmDelivery = async (inventoryId) => {
+    setConfirmModal({
+      isOpen: true,
+      message: 'Bạn có chắc chắn muốn xác nhận đã giao hàng?',
+      onConfirm: async () => {
+        try {
+          await confirmDelivery(inventoryId).unwrap();
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          showToast('Đã xác nhận giao hàng thành công!', 'success');
+        } catch (error) {
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi xác nhận giao hàng';
+          showToast(errorMessage, 'error');
+        }
+      },
+    });
+  };
+
+  const handleStartShipping = async (inventoryId, transaction) => {
+    // Kiểm tra điều kiện trước khi cho phép shipping
+    if (!canStartShipping(transaction)) {
+      showToast('Chưa thể vận chuyển. Vui lòng đảm bảo đã có hợp đồng đã ký và hóa đơn thanh toán.', 'warning');
+      return;
+    }
+
+    setConfirmModal({
+      isOpen: true,
+      message: 'Bạn có chắc chắn muốn bắt đầu vận chuyển xe? Xe sẽ được gửi tới đại lý.',
+      onConfirm: async () => {
+        try {
+          await startShipping(inventoryId).unwrap();
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          showToast('Đã bắt đầu vận chuyển thành công! Xe đang trên đường tới đại lý.', 'success');
+        } catch (error) {
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi bắt đầu vận chuyển';
+          showToast(errorMessage, 'error');
+        }
+      },
+    });
+  };
+
+  const handleCreateContract = async (inventoryId) => {
+    // Kiểm tra xem transaction đã có contract chưa
+    const transaction = transactions.find(t => t.inventoryId === inventoryId);
+    if (transaction) {
+      const hasContract = transaction.contractId || 
+                         transaction.contractFile || 
+                         transaction.contractPath ||
+                         transaction.contractUrl ||
+                         transaction.contract;
+      
+      if (hasContract) {
+        showToast('Hợp đồng cho giao dịch tồn kho này đã tồn tại', 'error');
+        return;
       }
     }
+
+    setConfirmModal({
+      isOpen: true,
+      message: 'Bạn có chắc chắn muốn tạo hợp đồng cho yêu cầu này?',
+      onConfirm: async () => {
+        setIsCreatingContract(true);
+        try {
+          // Sử dụng fetch trực tiếp để tránh RTK Query tự động thêm Content-Type header
+          const baseUrl = import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api';
+          const url = `${baseUrl}/inventory-transactions/${inventoryId}/create-contract`;
+          
+          // Lấy token từ sessionStorage
+          const authData = getAuthFromStorage('evmStaff');
+          const token = authData?.token;
+          
+          const headers = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+          // KHÔNG thêm Content-Type header
+          
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: headers,
+            // KHÔNG có body
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: 'Failed to create contract' }));
+            throw { status: response.status, data: errorData };
+          }
+          
+          const result = await response.json();
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          setIsCreatingContract(false);
+          showToast('Đã tạo hợp đồng thành công! Hợp đồng đã được ký và gửi tới Manager.', 'success');
+          
+          // Refresh transactions để cập nhật UI (status sẽ chuyển thành EVM_SIGNED)
+          try {
+            await refetchTransactions();
+          } catch (refetchError) {
+            // Ignore refetch error, invalidatesTags sẽ tự động refresh
+            if (import.meta.env.DEV) {
+              console.warn('Failed to refetch transactions:', refetchError);
+            }
+          }
+          
+          // Đợi một chút để đảm bảo hợp đồng đã được tạo xong trên server
+          // Sau đó mở hợp đồng trong tab mới
+          setTimeout(() => {
+            handleViewContract(inventoryId);
+            
+            // Log để debug (nếu cần)
+            if (import.meta.env.DEV) {
+              console.log('Contract created successfully:', result);
+              console.log('Opening contract view for inventoryId:', inventoryId);
+            }
+          }, 500); // Đợi 500ms để server xử lý xong
+        } catch (error) {
+          setIsCreatingContract(false);
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          // Log chi tiết lỗi để debug
+          if (import.meta.env.DEV) {
+            console.error('Error creating contract:', error);
+            console.error('Error details:', {
+              status: error?.status,
+              data: error?.data,
+              message: error?.message,
+            });
+          }
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi tạo hợp đồng';
+          showToast(errorMessage, 'error');
+        }
+      },
+    });
   };
+
 
   const handleConfirmPayment = async (inventoryId) => {
-    if (window.confirm('Bạn có chắc chắn muốn xác nhận thanh toán?')) {
-      try {
-        await confirmPayment(inventoryId).unwrap();
-        alert('Đã xác nhận thanh toán thành công');
-      } catch (error) {
-        alert('Có lỗi xảy ra khi xác nhận thanh toán');
-        console.error(error);
-      }
-    }
-  };
-
-  const handleCancelTransaction = async (inventoryId) => {
-    if (window.confirm('Bạn có chắc chắn muốn hủy giao dịch này?')) {
-      try {
-        await cancelRequest(inventoryId).unwrap();
-        alert('Đã hủy giao dịch thành công');
-      } catch (error) {
-        alert('Có lỗi xảy ra khi hủy giao dịch');
-        console.error(error);
-      }
-    }
+    setConfirmModal({
+      isOpen: true,
+      message: 'Bạn có chắc chắn muốn xác nhận thanh toán?',
+      onConfirm: async () => {
+        try {
+          await confirmPayment(inventoryId).unwrap();
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          showToast('Đã xác nhận thanh toán thành công!', 'success');
+        } catch (error) {
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi xác nhận thanh toán';
+          showToast(errorMessage, 'error');
+        }
+      },
+    });
   };
 
   if (isLoading || isLoadingStores) {
     return (
       <EVMStaffLayout>
-        <div className="flex items-center justify-center h-64">
-          <div className="text-gray-500">Đang tải dữ liệu...</div>
+        <div className="space-y-6 p-6 bg-gray-50/50 min-h-screen">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+            <TableSkeleton rows={8} columns={9} />
+          </div>
         </div>
       </EVMStaffLayout>
     );
   }
 
-  // Kiểm tra lỗi 401 (Unauthorized)
   const isUnauthorized = error?.status === 401 || storesError?.status === 401;
-  
+
   if (isUnauthorized) {
     return (
       <EVMStaffLayout>
@@ -343,87 +851,89 @@ const DealerOrdersPage = () => {
 
   return (
     <EVMStaffLayout>
-      <div className="space-y-6 p-6">
+      <motion.div
+        className="space-y-6 p-6 bg-gray-50/50 min-h-screen"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+      >
         {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-green-500 rounded-lg flex items-center justify-center">
-                <Package className="text-white" size={24} />
-              </div>
-              <div>
-                <h1 className="text-3xl font-bold text-gray-900">Quản lý đơn hàng từ đại lý</h1>
-                <p className="text-gray-600 mt-1">Xử lý yêu cầu nhập hàng từ Dealer Manager và Staff</p>
-              </div>
-            </div>
-            <Button
-              variant="outline"
-              onClick={() => window.location.reload()}
-              className="flex items-center gap-2"
-            >
-              <RefreshCw size={16} />
-              Cập nhật mới nhất
-            </Button>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">
+              Quản lý đơn hàng
+            </h1>
+            <p className="text-gray-600 mt-1">Theo dõi và xử lý đơn hàng từ đại lý</p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={() => window.location.reload()}
+            className="flex items-center gap-2 bg-white shadow-sm hover:bg-gray-50"
+          >
+            <RefreshCw size={16} />
+            Cập nhật
+          </Button>
+        </div>
+
+        {/* Filters & Tabs */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-1">
+          <div className="flex overflow-x-auto scrollbar-hide p-1 gap-1">
+            {[
+              { key: 'all', label: 'Tất cả', count: transactions.length },
+              { key: 'PENDING', label: 'Chờ xử lý', count: statusCounts.PENDING },
+              { key: 'ACCEPTED', label: 'Thanh toán', count: statusCounts.CONFIRM_PAYMENT },
+              { key: 'PROCESSING', label: 'Đang xử lý', count: statusCounts.PROCESSING },
+              { key: 'SHIPPING', label: 'Vận chuyển', count: statusCounts.SHIPPING },
+              { key: 'COMPLETED', label: 'Hoàn thành', count: statusCounts.COMPLETED },
+            ].map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setStatusFilter(tab.key)}
+                className={`
+                  px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex items-center gap-2
+                  ${statusFilter === tab.key
+                    ? 'bg-blue-50 text-blue-600 shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}
+                `}
+              >
+                {tab.label}
+                <span className={`
+                  px-2 py-0.5 rounded-full text-xs font-semibold
+                  ${statusFilter === tab.key
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 text-gray-700'}
+                `}>
+                  {tab.count}
+                </span>
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Status Overview Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-          <MetricCard
-            title="Chờ xử lý"
-            value={statusCounts.PENDING}
-            icon={Clock}
-            className="bg-gradient-to-br from-orange-400 to-orange-500 text-white"
-          />
-          <MetricCard
-            title="Xác nhận thanh toán"
-            value={statusCounts.CONFIRM_PAYMENT}
-            icon={CreditCard}
-            className="bg-gradient-to-br from-orange-400 to-orange-500 text-white"
-          />
-          <MetricCard
-            title="Đang xử lý"
-            value={statusCounts.PROCESSING}
-            icon={CheckCircle2}
-            className="bg-gradient-to-br from-teal-400 to-teal-500 text-white"
-          />
-          <MetricCard
-            title="Vận chuyển"
-            value={statusCounts.SHIPPING}
-            icon={Truck}
-            className="bg-gradient-to-br from-purple-400 to-purple-500 text-white"
-          />
-          <MetricCard
-            title="Hoàn thành"
-            value={statusCounts.COMPLETED}
-            icon={Package}
-            className="bg-gradient-to-br from-green-400 to-green-500 text-white"
-          />
-        </div>
-
-        {/* Search and Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 space-y-4">
-          <div className="flex items-center gap-4">
-            <div className="flex-1">
-              <SearchBar
-                placeholder="Tìm kiếm theo Mã giao dịch, Tên đại lý, Model..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
+        {/* Search and Advanced Filters */}
+        <div className="flex flex-col md:flex-row gap-4">
+          <div className="flex-1">
+            <SearchBar
+              placeholder="Tìm kiếm theo Mã đơn, Đại lý, Model..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="bg-white"
+            />
+          </div>
+          <div className="flex gap-2">
             <Dropdown
               options={[
-                { value: 'all', label: 'Khoảng thời gian' },
+                { value: 'all', label: 'Tất cả thời gian' },
                 { value: 'today', label: 'Hôm nay' },
                 { value: 'week', label: 'Tuần này' },
                 { value: 'month', label: 'Tháng này' },
               ]}
               value={timeRangeFilter}
               onChange={setTimeRangeFilter}
+              className="w-40"
             />
             <Dropdown
               options={[
-                { value: 'all', label: 'Đại lý' },
+                { value: 'all', label: 'Tất cả đại lý' },
                 ...stores.map((store) => ({
                   value: store.storeId?.toString(),
                   label: store.storeName || `Store ${store.storeId}`,
@@ -431,241 +941,325 @@ const DealerOrdersPage = () => {
               ]}
               value={dealerFilter}
               onChange={setDealerFilter}
+              className="w-48"
             />
           </div>
-          
-          {/* Status Filter Buttons */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {[
-              { key: 'PENDING', label: 'Chờ xử lý', icon: Clock, count: statusCounts.PENDING, color: 'orange' },
-              { key: 'PROCESSING', label: 'Đang xử lí', icon: FileText, count: statusCounts.PROCESSING, color: 'gray' },
-              { key: 'CONFIRM_PAYMENT', label: 'Xác nhận thanh toán', icon: CheckCircle2, count: statusCounts.CONFIRM_PAYMENT, color: 'gray' },
-              { key: 'SHIPPING', label: 'Vận chuyển', icon: Truck, count: statusCounts.SHIPPING, color: 'gray' },
-              { key: 'COMPLETED', label: 'Hoàn thành', icon: Package, count: statusCounts.COMPLETED, color: 'green' },
-            ].map(({ key, label, icon: Icon, count, color }) => {
-              const isActive = 
-                (key === 'PENDING' && (statusFilter === 'PENDING' || statusFilter === 'DRAFT')) ||
-                (key === 'PROCESSING' && (statusFilter === 'ACCEPTED' || statusFilter === 'CONFIRMED' || statusFilter === 'PROCESSING')) ||
-                (key === 'CONFIRM_PAYMENT' && statusFilter === 'DELIVERED') ||
-                (key === 'SHIPPING' && statusFilter === 'SHIPPING') ||
-                (key === 'COMPLETED' && statusFilter === 'COMPLETED');
-              
-              const buttonClasses = {
-                orange: isActive ? 'bg-orange-500 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50',
-                gray: isActive ? 'bg-gray-500 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50',
-                green: isActive ? 'bg-green-500 text-white' : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50',
-              };
-              
-              return (
-                <button
-                  key={key}
-                  onClick={() => {
-                    if (key === 'PENDING') setStatusFilter('PENDING');
-                    else if (key === 'PROCESSING') setStatusFilter('ACCEPTED');
-                    else if (key === 'CONFIRM_PAYMENT') setStatusFilter('DELIVERED');
-                    else if (key === 'SHIPPING') setStatusFilter('SHIPPING');
-                    else if (key === 'COMPLETED') setStatusFilter('COMPLETED');
-                  }}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 ${buttonClasses[color]}`}
-                >
-                  <Icon size={16} />
-                  <span>{label}</span>
-                  {count > 0 && (
-                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${
-                      isActive 
-                        ? 'bg-white/20 text-white' 
-                        : color === 'green' 
-                          ? 'bg-green-100 text-green-700' 
-                          : color === 'orange'
-                            ? 'bg-orange-100 text-orange-700'
-                            : 'bg-gray-100 text-gray-700'
-                    }`}>
-                      {count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
         </div>
 
-        {/* Order Cards */}
-        <div className="space-y-4">
-          {transactions.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-              {isStoreNotFoundError(error) ? (
-                <div className="space-y-2">
-                  <Package size={64} className="mx-auto text-gray-300" />
-                  <p className="text-gray-500 text-lg font-medium">Chưa có giao dịch kho nào trong hệ thống</p>
-                  <p className="text-sm text-gray-400">
-                    Các giao dịch kho từ đại lý sẽ hiển thị tại đây khi có dữ liệu
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <Package size={64} className="mx-auto text-gray-300" />
-                  <p className="text-gray-500 text-lg font-medium">Không có dữ liệu giao dịch kho</p>
-                </div>
-              )}
-            </div>
-          ) : paginatedTransactions.length === 0 ? (
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-              <Package size={64} className="mx-auto text-gray-300" />
-              <p className="text-gray-500 text-lg font-medium mt-4">Không có đơn hàng {statusFilter === 'PENDING' || statusFilter === 'DRAFT' ? 'chờ xử lý' : statusFilter === 'DELIVERED' ? 'cần xác nhận thanh toán' : statusFilter === 'SHIPPING' ? 'đang vận chuyển' : 'phù hợp với bộ lọc'}</p>
-              <p className="text-sm text-gray-400 mt-2">
-                {statusFilter === 'DELIVERED' 
-                  ? 'Các đơn hàng đã upload biên lai cần xác nhận sẽ xuất hiện ở đây'
-                  : statusFilter === 'SHIPPING'
-                    ? 'Các đơn hàng đang giao sẽ xuất hiện ở đây'
-                    : 'Các đơn hàng mới sẽ xuất hiện ở đây'}
-              </p>
-            </div>
-          ) : (
-            paginatedTransactions.map((transaction) => {
-              const progressSteps = getProgressSteps(transaction.status);
-              const actionButtonText = getActionButton(transaction.status);
-              
-              return (
-                <div
-                  key={transaction.inventoryId}
-                  className="bg-blue-50 rounded-lg border border-blue-200 p-6 space-y-4"
-                >
-                  {/* Header */}
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900">
-                        Đơn hàng #{transaction.inventoryId}
-                      </h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        lúc {formatDate(transaction.orderDate)}
-                      </p>
-                    </div>
-                    {actionButtonText && (
-                      <Button
-                        onClick={() => {
-                          if (transaction.status === 'PENDING' || transaction.status === 'DRAFT') {
-                            handleAcceptTransaction(transaction.inventoryId);
-                          } else if (transaction.status === 'SHIPPING') {
-                            handleConfirmDelivery(transaction.inventoryId);
-                          } else if (transaction.status === 'DELIVERED') {
-                            handleConfirmPayment(transaction.inventoryId);
-                          }
-                        }}
-                        className="bg-green-600 hover:bg-green-700 text-white"
-                      >
-                        {actionButtonText}
-                      </Button>
-                    )}
-                  </div>
+        {/* Order Table */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <AnimatePresence mode="wait">
+            {paginatedTransactions.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+              >
+                <EmptyState
+                  icon="package"
+                  title="Không có đơn hàng"
+                  message={
+                    filteredTransactions.length === 0
+                      ? "Hiện tại không có đơn hàng nào từ đại lý. Các đơn hàng sẽ hiển thị tại đây khi có."
+                      : "Không tìm thấy đơn hàng phù hợp với bộ lọc của bạn. Hãy thử thay đổi bộ lọc."
+                  }
+                />
+              </motion.div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Mã ĐH
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Đại lý
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Sản phẩm
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        SL
+                      </th>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Ngày đặt
+                      </th>
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Tổng tiền
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Tiến trình
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Trạng thái
+                      </th>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
+                        Hành động
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {paginatedTransactions.map((transaction, index) => {
+                      const progressSteps = getProgressSteps(transaction.status);
+                      const actionButtons = getActionButtons(transaction.status, transaction);
 
-                  {/* Progress Bar */}
-                  <div className="relative pt-4">
-                    <div className="flex items-center justify-between relative">
-                      {/* Progress Line */}
-                      <div className="absolute top-5 left-0 right-0 h-0.5 bg-gray-200">
-                        <div
-                          className="h-full bg-blue-500 transition-all duration-300"
-                          style={{
-                            width: `${(progressSteps.filter((s) => s.completed).length / progressSteps.length) * 100}%`,
-                          }}
-                        />
-                      </div>
-                      
-                      {/* Steps */}
-                      {progressSteps.map((step, index) => {
-                        const Icon = step.icon;
-                        return (
-                          <div key={step.key} className="flex-1 flex flex-col items-center relative z-10">
-                            <div
-                              className={`w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all ${
-                                step.completed
-                                  ? step.active
-                                    ? 'bg-yellow-400 border-yellow-500 text-yellow-700'
-                                    : 'bg-blue-500 border-blue-600 text-white'
-                                  : 'bg-white border-gray-300 text-gray-400'
-                              }`}
-                            >
-                              <Icon size={20} />
+                      return (
+                        <motion.tr
+                          key={transaction.inventoryId}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="hover:bg-gray-50 transition-colors"
+                        >
+                          <td className="px-4 py-3">
+                            <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-medium bg-gradient-to-r from-blue-500 to-indigo-500 text-white">
+                              #{transaction.inventoryId}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-sm font-medium text-gray-900">
+                              {transaction.storeName || 'N/A'}
                             </div>
-                            <p
-                              className={`text-xs mt-2 text-center max-w-[80px] ${
-                                step.completed ? 'text-gray-700 font-medium' : 'text-gray-400'
-                              }`}
-                            >
-                              {step.label}
-                            </p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Order Details */}
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4 border-t border-blue-200">
-                    <div>
-                      <p className="text-sm text-gray-500">Model • Màu</p>
-                      <p className="text-base font-medium text-gray-900 mt-1">
-                        {transaction.modelName || 'N/A'} - {transaction.colorName || 'N/A'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Số lượng</p>
-                      <p className="text-base font-medium text-gray-900 mt-1">
-                        {transaction.importQuantity || 0} xe
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Tổng giá</p>
-                      <p className="text-base font-medium text-gray-900 mt-1">
-                        {formatCurrency(transaction.totalPrice)}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-
-          {/* Pagination */}
-          {paginatedTransactions.length > 0 && (
-            <div className="flex items-center justify-between p-4 bg-white rounded-lg shadow-sm border border-gray-200">
-              <p className="text-sm text-gray-600">
-                Hiển thị {startIndex + 1} đến {Math.min(endIndex, filteredTransactions.length)} trong{' '}
-                {filteredTransactions.length} kết quả
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                >
-                  Trước
-                </Button>
-                {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => i + 1).map((page) => (
-                  <Button
-                    key={page}
-                    variant={currentPage === page ? 'primary' : 'outline'}
-                    size="sm"
-                    onClick={() => setCurrentPage(page)}
-                  >
-                    {page}
-                  </Button>
-                ))}
-                {totalPages > 3 && <span className="px-2">...</span>}
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setCurrentPage(currentPage + 1)}
-                  disabled={currentPage === totalPages}
-                >
-                  Tiếp
-                </Button>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-sm text-gray-900">{transaction.modelName || 'N/A'}</div>
+                            <div className="text-xs text-gray-500">{transaction.colorName || 'N/A'}</div>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {(() => {
+                                // Kiểm tra cả null/undefined, không skip khi === 0
+                                const quantity = transaction.importQuantity !== null && transaction.importQuantity !== undefined ? transaction.importQuantity :
+                                               transaction.quantity !== null && transaction.quantity !== undefined ? transaction.quantity :
+                                               transaction.requestedQuantity !== null && transaction.requestedQuantity !== undefined ? transaction.requestedQuantity :
+                                               transaction.orderQuantity !== null && transaction.orderQuantity !== undefined ? transaction.orderQuantity :
+                                               transaction.requestQuantity !== null && transaction.requestQuantity !== undefined ? transaction.requestQuantity :
+                                               0;
+                                return quantity;
+                              })()}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="text-sm text-gray-600">
+                              {formatDate(transaction.orderDate)}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-right">
+                            <div className="text-sm font-semibold text-gray-900">
+                              {(() => {
+                                // Đọc trực tiếp từ response - ưu tiên các field có thể có
+                                // Parse để đảm bảo là number, không skip giá trị 0
+                                let totalPrice = null;
+                                
+                                if (transaction.totalPrice !== null && transaction.totalPrice !== undefined) {
+                                  totalPrice = parseFloat(transaction.totalPrice) || 0;
+                                } else if (transaction.totalBasePrice !== null && transaction.totalBasePrice !== undefined) {
+                                  totalPrice = parseFloat(transaction.totalBasePrice) || 0;
+                                } else if (transaction.totalAmount !== null && transaction.totalAmount !== undefined) {
+                                  totalPrice = parseFloat(transaction.totalAmount) || 0;
+                                } else if (transaction.price !== null && transaction.price !== undefined) {
+                                  totalPrice = parseFloat(transaction.price) || 0;
+                                }
+                                
+                                // Nếu không có totalPrice, tính từ unitPrice * quantity
+                                if (totalPrice === null || totalPrice === undefined || (totalPrice === 0 && transaction.importQuantity > 0)) {
+                                  const unitPrice = parseFloat(transaction.unitPrice || transaction.unitBasePrice || transaction.price || transaction.modelColorPrice || 0) || 0;
+                                  const quantity = parseFloat(transaction.importQuantity || transaction.quantity || transaction.requestedQuantity || transaction.orderQuantity || transaction.requestQuantity || 0) || 0;
+                                  const calculated = unitPrice * quantity;
+                                  
+                                  // Chỉ dùng calculated nếu totalPrice thực sự không có (null/undefined)
+                                  if (totalPrice === null || totalPrice === undefined) {
+                                    // Debug logging
+                                    if (import.meta.env.DEV) {
+                                      console.log('EVM Staff - Calculating price:', {
+                                        inventoryId: transaction.inventoryId,
+                                        unitPrice,
+                                        quantity,
+                                        calculated,
+                                        transaction: transaction,
+                                      });
+                                    }
+                                    
+                                    return formatCurrency(calculated);
+                                  }
+                                }
+                                
+                                // Debug logging
+                                if (import.meta.env.DEV) {
+                                  console.log('EVM Staff - Using direct price:', {
+                                    inventoryId: transaction.inventoryId,
+                                    totalPrice: transaction.totalPrice,
+                                    totalBasePrice: transaction.totalBasePrice,
+                                    parsedPrice: totalPrice,
+                                  });
+                                }
+                                
+                                return formatCurrency(totalPrice || 0);
+                              })()}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-1">
+                              {progressSteps.map((step, idx) => {
+                                const Icon = step.icon;
+                                return (
+                                  <div
+                                    key={idx}
+                                    className={`w-6 h-6 rounded-full flex items-center justify-center border transition-all ${step.completed
+                                        ? step.active
+                                          ? 'bg-blue-500 border-blue-600 text-white'
+                                          : 'bg-blue-500 border-blue-600 text-white'
+                                        : 'bg-gray-100 border-gray-300 text-gray-400'
+                                      }`}
+                                    title={step.label}
+                                  >
+                                    <Icon size={12} />
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3 text-center">
+                            {getStatusBadge(transaction.status)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-center gap-2 flex-wrap">
+                              {actionButtons.map((btn, idx) => (
+                                <Button
+                                  key={idx}
+                                  size="sm"
+                                  onClick={() => {
+                                    if (btn.type === 'accept') {
+                                      handleAcceptTransaction(transaction.inventoryId);
+                                    } else if (btn.type === 'createContract') {
+                                      handleCreateContract(transaction.inventoryId);
+                                    } else if (btn.type === 'viewContract') {
+                                      handleViewContract(transaction.inventoryId, transaction);
+                                    } else if (btn.type === 'viewPaymentInfo') {
+                                      setSelectedTransactionId(transaction.inventoryId);
+                                      setIsPaymentInfoModalOpen(true);
+                                    } else if (btn.type === 'viewReceipt') {
+                                      // imageUrl là của hóa đơn thanh toán
+                                      const receiptImage = transaction.receiptImage || 
+                                                         transaction.receiptFile || 
+                                                         transaction.receiptPath || 
+                                                         transaction.receiptUrl ||
+                                                         transaction.imageUrl;
+                                      setSelectedReceiptImage(receiptImage);
+                                      setIsViewReceiptModalOpen(true);
+                                    } else if (btn.type === 'confirmPayment') {
+                                      handleConfirmPayment(transaction.inventoryId);
+                                    } else if (btn.type === 'startShipping') {
+                                      handleStartShipping(transaction.inventoryId, transaction);
+                                    }
+                                  }}
+                                  disabled={btn.type === 'createContract' && isCreatingContract}
+                                  className={`
+                                    text-xs px-3 py-1
+                                    ${btn.type === 'accept' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
+                                    ${btn.type === 'createContract' ? 'bg-green-600 hover:bg-green-700 text-white disabled:opacity-50' : ''}
+                                    ${btn.type === 'viewContract' ? 'bg-purple-600 hover:bg-purple-700 text-white' : ''}
+                                    ${btn.type === 'viewPaymentInfo' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}
+                                    ${btn.type === 'viewReceipt' ? 'bg-cyan-600 hover:bg-cyan-700 text-white' : ''}
+                                    ${btn.type === 'confirmPayment' ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : ''}
+                                    ${btn.type === 'startShipping' ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed' : ''}
+                                  `}
+                                  title={btn.type === 'startShipping' && !canStartShipping(transaction) ? 'Chưa có đủ hợp đồng và hóa đơn' : ''}
+                                >
+                                  {btn.type === 'accept' && <CheckCircle2 size={14} className="mr-1" />}
+                                  {btn.type === 'createContract' && <FileText size={14} className="mr-1" />}
+                                  {btn.type === 'viewContract' && <FileText size={14} className="mr-1" />}
+                                  {btn.type === 'viewPaymentInfo' && <CreditCard size={14} className="mr-1" />}
+                                  {btn.type === 'viewReceipt' && <Receipt size={14} className="mr-1" />}
+                                  {btn.type === 'confirmPayment' && <CreditCard size={14} className="mr-1" />}
+                                  {btn.type === 'startShipping' && <Truck size={14} className="mr-1" />}
+                                  {btn.type === 'createContract' ? (isCreatingContract ? 'Đang tạo...' : btn.text) : btn.text}
+                                </Button>
+                              ))}
+                              {(transaction.status === 'PENDING' || transaction.status === 'DRAFT') && (
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleRejectTransaction(transaction.inventoryId)}
+                                  className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1"
+                                >
+                                  Từ chối
+                                </Button>
+                              )}
+                              <button
+                                onClick={() => {
+                                  setSelectedTransactionId(transaction.inventoryId);
+                                  setIsDetailModalOpen(true);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                title="Xem chi tiết"
+                              >
+                                <Eye size={16} />
+                              </button>
+                            </div>
+                          </td>
+                        </motion.tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-            </div>
-          )}
+            )}
+          </AnimatePresence>
         </div>
-      </div>
+
+        {/* Pagination */}
+        {paginatedTransactions.length > 0 && (
+          <div className="flex items-center justify-between p-4 bg-white rounded-xl shadow-sm border border-gray-100">
+            <p className="text-sm text-gray-600">
+              Hiển thị <span className="font-medium">{startIndex + 1}</span> đến{' '}
+              <span className="font-medium">{Math.min(endIndex, filteredTransactions.length)}</span> trong{' '}
+              <span className="font-medium">{filteredTransactions.length}</span> kết quả
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                Trước
+              </Button>
+              <div className="flex gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                  if (
+                    page === 1 ||
+                    page === totalPages ||
+                    (page >= currentPage - 1 && page <= currentPage + 1)
+                  ) {
+                    return (
+                      <Button
+                        key={page}
+                        variant={currentPage === page ? 'primary' : 'outline'}
+                        size="sm"
+                        onClick={() => setCurrentPage(page)}
+                      >
+                        {page}
+                      </Button>
+                    );
+                  } else if (page === currentPage - 2 || page === currentPage + 2) {
+                    return <span key={page} className="px-2 text-gray-400">...</span>;
+                  }
+                  return null;
+                })}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                Tiếp
+              </Button>
+            </div>
+          </div>
+        )}
+      </motion.div>
 
       {/* Detail Modal */}
       <Modal
@@ -693,72 +1287,331 @@ const DealerOrdersPage = () => {
                 <div className="mt-1">{getStatusBadge(transactionDetail.data.status)}</div>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Tên đại lý</label>
+                <label className="text-sm font-medium text-gray-500">Đại lý</label>
                 <p className="text-base text-gray-900">{transactionDetail.data.storeName || 'N/A'}</p>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-gray-500">Ngày đặt</label>
+                <p className="text-base text-gray-900">{formatDate(transactionDetail.data.orderDate)}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Model</label>
                 <p className="text-base text-gray-900">{transactionDetail.data.modelName || 'N/A'}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Màu</label>
+                <label className="text-sm font-medium text-gray-500">Màu sắc</label>
                 <p className="text-base text-gray-900">{transactionDetail.data.colorName || 'N/A'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Số lượng</label>
-                <p className="text-base text-gray-900">{transactionDetail.data.importQuantity || 0} xe</p>
+                <p className="text-base text-gray-900">
+                  {transactionDetail.data.importQuantity || 
+                   transactionDetail.data.quantity || 
+                   transactionDetail.data.requestedQuantity || 
+                   transactionDetail.data.orderQuantity ||
+                   transactionDetail.data.requestQuantity ||
+                   0} xe
+                </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Giá đơn vị</label>
-                <p className="text-base text-gray-900">{formatCurrency(transactionDetail.data.unitBasePrice)}</p>
+                <label className="text-sm font-medium text-gray-500">Tổng giá</label>
+                <p className="text-base font-semibold text-gray-900">
+                  {(() => {
+                    const detail = transactionDetail.data;
+                    // Ưu tiên: totalPrice > totalBasePrice > totalAmount > price
+                    let totalPrice = detail.totalPrice || 
+                                    detail.totalBasePrice ||
+                                    detail.totalAmount || 
+                                    detail.price;
+                    
+                    // Nếu không có totalPrice, tính từ unitPrice * quantity
+                    if (!totalPrice || totalPrice === 0) {
+                      const unitPrice = detail.unitPrice || 
+                                       detail.unitBasePrice ||
+                                       detail.price || 
+                                       detail.modelColorPrice || 
+                                       0;
+                      const quantity = detail.importQuantity || 
+                                     detail.quantity || 
+                                     detail.requestedQuantity || 
+                                     detail.orderQuantity ||
+                                     detail.requestQuantity ||
+                                     0;
+                      totalPrice = unitPrice * quantity;
+                    }
+                    
+                    return formatCurrency(totalPrice || 0);
+                  })()}
+                </p>
               </div>
+            </div>
+            {/* Hiển thị hợp đồng nếu có */}
+            {(transactionDetail.data.contractFile || transactionDetail.data.contractPath) && (
               <div>
-                <label className="text-sm font-medium text-gray-500">Tổng giá gốc</label>
-                <p className="text-base text-gray-900">{formatCurrency(transactionDetail.data.totalBasePrice)}</p>
+                <label className="text-sm font-medium text-gray-500 block mb-2">Hợp đồng đã ký</label>
+                {transactionDetail.data.contractFile ? (
+                  <a
+                    href={transactionDetail.data.contractFile}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:underline"
+                  >
+                    Xem hợp đồng
+                  </a>
+                ) : (
+                  <p className="text-sm text-gray-600">Đã có hợp đồng</p>
+                )}
               </div>
+            )}
+            {/* Hiển thị hóa đơn nếu có */}
+            {transactionDetail.data.receiptImage && (
               <div>
-                <label className="text-sm font-medium text-gray-500">Giảm giá (%)</label>
-                <p className="text-base text-gray-900">{transactionDetail.data.discountPercentage || 0}%</p>
+                <label className="text-sm font-medium text-gray-500 block mb-2">Hóa đơn thanh toán</label>
+                <img
+                  src={transactionDetail.data.receiptImage}
+                  alt="Receipt"
+                  className="max-w-full h-auto rounded-lg border border-gray-200"
+                />
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Số tiền giảm</label>
-                <p className="text-base text-gray-900">{formatCurrency(transactionDetail.data.discountAmount)}</p>
+            )}
+            {/* Hiển thị thông báo nếu chưa đủ điều kiện để shipping */}
+            {transactionDetail.data.status === 'PAYMENT_CONFIRMED' && !canStartShipping(transactionDetail.data) && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                <p className="text-sm text-yellow-800">
+                  ⚠️ Chưa thể vận chuyển. Vui lòng đảm bảo đã có hợp đồng đã ký và hóa đơn thanh toán từ đại lý.
+                </p>
               </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Tổng giá trị</label>
-                <p className="text-base font-semibold text-blue-600">{formatCurrency(transactionDetail.data.totalPrice)}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Ngày đặt</label>
-                <p className="text-base text-gray-900">{formatDate(transactionDetail.data.orderDate)}</p>
-              </div>
-              {transactionDetail.data.deliveryDate && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Ngày giao</label>
-                  <p className="text-base text-gray-900">{formatDate(transactionDetail.data.deliveryDate)}</p>
-                </div>
-              )}
-              {transactionDetail.data.imageUrl && (
-                <div className="col-span-2">
-                  <label className="text-sm font-medium text-gray-500">Hình ảnh biên lai</label>
-                  <div className="mt-2">
-                    <img
-                      src={transactionDetail.data.imageUrl}
-                      alt="Biên lai"
-                      className="max-w-full h-auto rounded-lg border border-gray-200"
-                    />
-                  </div>
-                </div>
-              )}
+            )}
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">Không có dữ liệu</div>
+        )}
+      </Modal>
+
+      {/* Confirm Modal */}
+      <Modal
+        isOpen={confirmModal.isOpen}
+        onClose={() => setConfirmModal({ isOpen: false, message: '', onConfirm: null })}
+        title="Xác nhận"
+        size="sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-blue-600" />
+            </div>
+            <p className="text-gray-700">{confirmModal.message}</p>
+          </div>
+          <div className="flex justify-end gap-2 pt-4">
+            <Button
+              onClick={() => setConfirmModal({ isOpen: false, message: '', onConfirm: null })}
+              variant="outline"
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={() => {
+                if (confirmModal.onConfirm) {
+                  confirmModal.onConfirm();
+                }
+              }}
+              variant="primary"
+            >
+              Xác nhận
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* View Receipt Modal */}
+      <Modal
+        isOpen={isViewReceiptModalOpen}
+        onClose={() => {
+          setIsViewReceiptModalOpen(false);
+          setSelectedReceiptImage(null);
+        }}
+        title="Hóa Đơn Thanh Toán"
+        size="lg"
+      >
+        {selectedReceiptImage ? (
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <img
+                src={selectedReceiptImage}
+                alt="Hóa đơn thanh toán"
+                className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
+                onError={(e) => {
+                  e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%239ca3af" font-family="Arial" font-size="16"%3EKhông thể tải hình ảnh%3C/text%3E%3C/svg%3E';
+                }}
+              />
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsViewReceiptModalOpen(false);
+                  setSelectedReceiptImage(null);
+                }}
+              >
+                Đóng
+              </Button>
             </div>
           </div>
         ) : (
-          <div className="text-center text-gray-500 py-8">Không tìm thấy thông tin chi tiết</div>
+          <div className="text-center py-8 text-gray-500">
+            Không có hình ảnh hóa đơn
+          </div>
+        )}
+        </Modal>
+
+        {/* View Contract Modal */}
+        <Modal
+          isOpen={isViewContractModalOpen}
+          onClose={() => {
+            setIsViewContractModalOpen(false);
+            setSelectedContractImage(null);
+          }}
+          title="Hợp Đồng"
+          size="lg"
+        >
+          {selectedContractImage ? (
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <img
+                  src={selectedContractImage}
+                  alt="Hợp đồng"
+                  className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
+                  onError={(e) => {
+                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%239ca3af" font-family="Arial" font-size="16"%3EKhông thể tải hình ảnh%3C/text%3E%3C/svg%3E';
+                  }}
+                />
+              </div>
+              <div className="flex justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsViewContractModalOpen(false);
+                    setSelectedContractImage(null);
+                  }}
+                >
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              Không có hình ảnh hợp đồng
+            </div>
+          )}
+        </Modal>
+
+        {/* Payment Info Modal */}
+      <Modal
+        isOpen={isPaymentInfoModalOpen}
+        onClose={() => {
+          setIsPaymentInfoModalOpen(false);
+          setSelectedTransactionId(null);
+        }}
+        title="Thông Tin Chuyển Khoản"
+        size="lg"
+      >
+        {isLoadingPaymentInfo ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-gray-500">Đang tải thông tin thanh toán...</div>
+          </div>
+        ) : paymentInfoError ? (
+          <div className="flex flex-col items-center justify-center py-8 space-y-2">
+            <div className="text-red-500 font-semibold">Không thể tải thông tin thanh toán</div>
+            <div className="text-sm text-gray-500">
+              {paymentInfoError?.data?.message || paymentInfoError?.message || 'Có lỗi xảy ra khi tải thông tin thanh toán'}
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsPaymentInfoModalOpen(false);
+                setSelectedTransactionId(null);
+              }}
+              className="mt-4"
+            >
+              Đóng
+            </Button>
+          </div>
+        ) : paymentInfoData?.data ? (
+          <div className="space-y-4">
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <h3 className="text-lg font-semibold text-blue-900 mb-3">Thông tin tài khoản nhận tiền</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Ngân hàng:</span>
+                  <span className="font-semibold">{paymentInfoData.data.bankName || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Số tài khoản:</span>
+                  <span className="font-semibold font-mono">{paymentInfoData.data.accountNumber || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Chủ tài khoản:</span>
+                  <span className="font-semibold">{paymentInfoData.data.accountHolderName || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Số tiền:</span>
+                  <span className="font-semibold text-red-600">
+                    {paymentInfoData.data.totalAmount 
+                      ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(paymentInfoData.data.totalAmount)
+                      : 'N/A'}
+                  </span>
+                </div>
+                {paymentInfoData.data.transactionCode && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Mã giao dịch:</span>
+                    <span className="font-semibold font-mono">{paymentInfoData.data.transactionCode}</span>
+                  </div>
+                )}
+                {paymentInfoData.data.note && (
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <span className="text-gray-600">Ghi chú:</span>
+                    <p className="text-sm text-gray-700 mt-1">{paymentInfoData.data.note}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
+              <p className="text-sm text-yellow-800">
+                <strong>Lưu ý:</strong> Vui lòng kiểm tra thông tin thanh toán trước khi xác nhận.
+              </p>
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button
+                onClick={() => {
+                  setIsPaymentInfoModalOpen(false);
+                  setSelectedTransactionId(null);
+                }}
+              >
+                Đã hiểu
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8 space-y-2">
+            <div className="text-gray-500">Không có thông tin thanh toán</div>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsPaymentInfoModalOpen(false);
+                setSelectedTransactionId(null);
+              }}
+              className="mt-4"
+            >
+              Đóng
+            </Button>
+          </div>
         )}
       </Modal>
+
+      {/* Toast Notifications */}
+      <Toast toasts={toasts} removeToast={removeToast} />
     </EVMStaffLayout>
   );
 };
 
 export default DealerOrdersPage;
-

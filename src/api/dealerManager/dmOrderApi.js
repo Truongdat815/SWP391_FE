@@ -45,6 +45,38 @@ export const dmOrderApi = baseApi.injectEndpoints({
       query: () => '/orders/status',
       providesTags: ['Order'],
     }),
+    // Tạo draft order
+    createDraftOrder: builder.mutation({
+      query: (orderData) => ({
+        url: '/orders/create',
+        method: 'POST',
+        body: orderData,
+      }),
+      invalidatesTags: ['Order'],
+    }),
+    // Từ chối/hủy order
+    rejectOrder: builder.mutation({
+      query: (orderId) => ({
+        url: `/orders/${orderId}/reject`,
+        method: 'PUT',
+      }),
+      invalidatesTags: ['Order'],
+    }),
+    // Xuất báo cáo orders
+    exportOrders: builder.query({
+      query: (params) => ({
+        url: '/orders/export',
+        method: 'GET',
+        params,
+        responseHandler: async (response) => {
+          if (!response.ok) {
+            throw new Error('Failed to export orders');
+          }
+          const blob = await response.blob();
+          return blob;
+        },
+      }),
+    }),
   }),
 });
 
@@ -57,5 +89,8 @@ export const {
   useGetMonthlyRevenueQuery,
   useGetOrderDetailsQuery,
   useGetOrderStatusesQuery,
+  useCreateDraftOrderMutation,
+  useRejectOrderMutation,
+  useLazyExportOrdersQuery,
 } = dmOrderApi;
 

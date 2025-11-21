@@ -130,6 +130,60 @@ export const evmInventoryApi = baseApi.injectEndpoints({
       query: () => '/inventory-transactions/status',
       providesTags: ['Inventory'],
     }),
+    // Tạo contract cho inventory transaction
+    createContract: builder.mutation({
+      query: (inventoryId) => {
+        // Không set body field để RTK Query không gửi Content-Type header
+        const query = {
+          url: `/inventory-transactions/${inventoryId}/create-contract`,
+          method: 'POST',
+        };
+        // Không thêm body field
+        return query;
+      },
+      invalidatesTags: ['Inventory'],
+    }),
+    // Upload signature image
+    uploadSignatureImage: builder.mutation({
+      query: (file) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: '/upload/signature',
+          method: 'POST',
+          body: formData,
+        };
+      },
+    }),
+    // EVM ký hợp đồng (upload signature image)
+    signContract: builder.mutation({
+      query: ({ inventoryId, evmSignatureImageUrl }) => ({
+        url: `/inventory-transactions/${inventoryId}/sign-contract`,
+        method: 'POST',
+        body: { evmSignatureImageUrl },
+      }),
+      invalidatesTags: ['Inventory'],
+    }),
+    // Lấy thông tin contract
+    getContract: builder.query({
+      query: (inventoryId) => `/inventory-transactions/${inventoryId}/contract`,
+      providesTags: ['Inventory'],
+    }),
+    // Lấy contract HTML để xem
+    getContractHtml: builder.query({
+      query: (inventoryId) => ({
+        url: `/inventory-transactions/${inventoryId}/contract/html`,
+        responseHandler: async (response) => {
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Failed to fetch contract HTML');
+            throw new Error(errorText);
+          }
+          const text = await response.text();
+          return text; // Trả về HTML string trực tiếp
+        },
+      }),
+      providesTags: ['Inventory'],
+    }),
   }),
 });
 
@@ -151,5 +205,11 @@ export const {
   useCancelInventoryRequestMutation,
   useDeleteInventoryTransactionMutation,
   useGetInventoryTransactionStatusesQuery,
+  useCreateContractMutation,
+  useUploadSignatureImageMutation,
+  useSignContractMutation,
+  useGetContractQuery,
+  useGetContractHtmlQuery,
+  useGetPaymentInfoQuery,
 } = evmInventoryApi;
 
