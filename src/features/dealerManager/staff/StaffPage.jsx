@@ -86,6 +86,28 @@ const StaffPage = () => {
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.fullName?.trim()) {
+      setErrorModal({ isOpen: true, message: 'Vui lòng nhập họ và tên' });
+      return;
+    }
+    
+    if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setErrorModal({ isOpen: true, message: 'Email không hợp lệ' });
+      return;
+    }
+    
+    if (!formData.phone || !/^[0-9]{10,11}$/.test(formData.phone.replace(/\s/g, ''))) {
+      setErrorModal({ isOpen: true, message: 'Số điện thoại phải có 10-11 chữ số' });
+      return;
+    }
+    
+    if (!formData.password || formData.password.length < 6) {
+      setErrorModal({ isOpen: true, message: 'Mật khẩu phải có ít nhất 6 ký tự' });
+      return;
+    }
+    
     try {
       // Tìm roleId cho Dealer Staff
       const dealerStaffRole = roles.find(
@@ -143,10 +165,39 @@ const StaffPage = () => {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.fullName?.trim()) {
+      setErrorModal({ isOpen: true, message: 'Vui lòng nhập họ và tên' });
+      return;
+    }
+    
+    if (!formData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      setErrorModal({ isOpen: true, message: 'Email không hợp lệ' });
+      return;
+    }
+    
+    if (!formData.phone || !/^[0-9]{10,11}$/.test(formData.phone.replace(/\s/g, ''))) {
+      setErrorModal({ isOpen: true, message: 'Số điện thoại phải có 10-11 chữ số' });
+      return;
+    }
+    
+    // Password chỉ validate nếu có nhập (khi update có thể không đổi password)
+    if (formData.password && formData.password.length < 6) {
+      setErrorModal({ isOpen: true, message: 'Mật khẩu phải có ít nhất 6 ký tự' });
+      return;
+    }
+    
     try {
+      // Nếu không có password thì không gửi password field
+      const updateData = { ...formData };
+      if (!formData.password) {
+        delete updateData.password;
+      }
+      
       await updateStaff({
         userId: selectedStaff.userId,
-        ...formData,
+        ...updateData,
       }).unwrap();
       setIsEditModalOpen(false);
       setSelectedStaff(null);

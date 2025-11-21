@@ -338,25 +338,25 @@ const ReportsPage = () => {
 
   return (
     <DealerManagerLayout>
-      <div className="space-y-6 p-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+      <div className="h-[calc(100vh-80px)] flex flex-col p-4 overflow-hidden">
+        {/* Header - Compact */}
+        <div className="flex items-center justify-between mb-3">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Báo Cáo</h1>
-            <p className="text-gray-600 mt-1">Xem thống kê và báo cáo hiệu suất đại lý</p>
+            <h1 className="text-2xl font-bold text-gray-900">Báo Cáo</h1>
+            <p className="text-sm text-gray-600">Xem thống kê và báo cáo hiệu suất đại lý</p>
           </div>
-          <Button variant="outline">
-            <Download size={20} className="mr-2" />
+          <Button variant="outline" size="sm">
+            <Download size={16} className="mr-2" />
             Xuất Báo Cáo
           </Button>
         </div>
 
-        {/* Report Type Selector */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="flex gap-4 flex-wrap">
+        {/* Report Type Selector - Compact */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2 mb-3">
+          <div className="flex gap-2">
             <button
               onClick={() => setReportType('overview')}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 reportType === 'overview'
                   ? 'bg-blue-600 text-white'
                   : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
@@ -366,7 +366,7 @@ const ReportsPage = () => {
             </button>
             <button
               onClick={() => setReportType('staff')}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 reportType === 'staff'
                   ? 'bg-blue-600 text-white'
                   : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
@@ -376,7 +376,7 @@ const ReportsPage = () => {
             </button>
             <button
               onClick={() => setReportType('model')}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 reportType === 'model'
                   ? 'bg-blue-600 text-white'
                   : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
@@ -386,7 +386,7 @@ const ReportsPage = () => {
             </button>
             <button
               onClick={() => setReportType('orders')}
-              className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 reportType === 'orders'
                   ? 'bg-blue-600 text-white'
                   : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
@@ -397,9 +397,9 @@ const ReportsPage = () => {
           </div>
         </div>
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        {/* Filters - Compact */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3 mb-3">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <Input
               label="Từ ngày"
               type="date"
@@ -414,11 +414,11 @@ const ReportsPage = () => {
             />
             {reportType === 'staff' && (
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nhân viên</label>
+                <label className="block text-xs font-medium text-gray-700 mb-1">Nhân viên</label>
                 <select
                   value={selectedStaffId}
                   onChange={(e) => setSelectedStaffId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Tất cả nhân viên</option>
                   {staff.map((member) => (
@@ -432,80 +432,85 @@ const ReportsPage = () => {
           </div>
         </div>
 
-        {/* Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+        {/* Metrics - Compact */}
+        <div className="grid grid-cols-4 gap-3 mb-3">
           <Card>
-            <Card.Content className="p-6">
+            <Card.Content className="p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Doanh thu (khoảng thời gian)</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(totalRevenue)}</p>
+                  <p className="text-xs text-gray-600">Doanh thu (khoảng thời gian)</p>
+                  <p className="text-lg font-bold text-gray-900 mt-0.5">{formatCurrency(totalRevenue)}</p>
                 </div>
-                <DollarSign size={32} className="text-green-600" />
+                <DollarSign size={24} className="text-green-600" />
               </div>
             </Card.Content>
           </Card>
           <Card>
-            <Card.Content className="p-6">
+            <Card.Content className="p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Doanh thu tháng này</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{formatCurrency(currentMonthRevenue)}</p>
+                  <p className="text-xs text-gray-600">Doanh thu tháng này</p>
+                  <p className="text-lg font-bold text-gray-900 mt-0.5">{formatCurrency(currentMonthRevenue)}</p>
                 </div>
-                <TrendingUp size={32} className="text-blue-600" />
+                <TrendingUp size={24} className="text-blue-600" />
               </div>
             </Card.Content>
           </Card>
           <Card>
-            <Card.Content className="p-6">
+            <Card.Content className="p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Tổng Đơn hàng</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{totalOrders}</p>
+                  <p className="text-xs text-gray-600">Tổng Đơn hàng</p>
+                  <p className="text-lg font-bold text-gray-900 mt-0.5">{totalOrders}</p>
                 </div>
-                <ShoppingCart size={32} className="text-purple-600" />
+                <ShoppingCart size={24} className="text-purple-600" />
               </div>
             </Card.Content>
           </Card>
           <Card>
-            <Card.Content className="p-6">
+            <Card.Content className="p-3">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-gray-600">Đơn đã hoàn thành</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-1">{completedOrders}</p>
+                  <p className="text-xs text-gray-600">Đơn đã hoàn thành</p>
+                  <p className="text-lg font-bold text-gray-900 mt-0.5">{completedOrders}</p>
                 </div>
-                <Package size={32} className="text-orange-600" />
+                <Package size={24} className="text-orange-600" />
               </div>
             </Card.Content>
           </Card>
         </div>
 
-        {/* Report Content */}
+        {/* Report Content - Scrollable */}
+        <div className="flex-1 overflow-y-auto">
         {reportType === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card>
-              <Card.Header>
-                <Card.Title>Doanh số theo tháng</Card.Title>
-                <p className="text-sm text-gray-500 mt-1">6 tháng gần nhất</p>
+          <div className="grid grid-cols-2 gap-3 h-full">
+            <Card className="h-full flex flex-col">
+              <Card.Header className="pb-2">
+                <Card.Title className="text-base">Doanh số theo tháng</Card.Title>
+                <p className="text-xs text-gray-500">6 tháng gần nhất</p>
               </Card.Header>
-              <Card.Content>
-                <LineChart
-                  data={monthlyRevenueChart}
-                  dataKey="value"
-                  name="Doanh số (triệu VND)"
-                  color="#3B82F6"
-                />
+              <Card.Content className="flex-1 min-h-0">
+                <div className="h-full">
+                  <LineChart
+                    data={monthlyRevenueChart}
+                    dataKey="value"
+                    name="Doanh số (triệu VND)"
+                    color="#3B82F6"
+                  />
+                </div>
               </Card.Content>
             </Card>
 
-            <Card>
-              <Card.Header>
-                <Card.Title>Phân bố Đơn hàng</Card.Title>
-                <p className="text-sm text-gray-500 mt-1">Theo trạng thái</p>
+            <Card className="h-full flex flex-col">
+              <Card.Header className="pb-2">
+                <Card.Title className="text-base">Phân bố Đơn hàng</Card.Title>
+                <p className="text-xs text-gray-500">Theo trạng thái</p>
               </Card.Header>
-              <Card.Content>
+              <Card.Content className="flex-1 min-h-0">
                 {orderStatusData.length > 0 ? (
-                  <DonutChart data={orderStatusData} dataKey="value" nameKey="name" />
+                  <div className="h-full">
+                    <DonutChart data={orderStatusData} dataKey="value" nameKey="name" />
+                  </div>
                 ) : (
                   <div className="text-center py-8 text-gray-500">Chưa có dữ liệu</div>
                 )}
@@ -515,12 +520,12 @@ const ReportsPage = () => {
         )}
 
         {reportType === 'staff' && (
-          <div className="space-y-6">
+          <div className="space-y-3 h-full overflow-y-auto">
             {/* Bảng tổng hợp doanh số nhân viên */}
             <Card>
-              <Card.Header>
-                <Card.Title>Báo Cáo Doanh Số Nhân Viên</Card.Title>
-                <p className="text-sm text-gray-500 mt-1">Thống kê doanh số và sản phẩm bán được của từng nhân viên</p>
+              <Card.Header className="pb-2">
+                <Card.Title className="text-base">Báo Cáo Doanh Số Nhân Viên</Card.Title>
+                <p className="text-xs text-gray-500">Thống kê doanh số và sản phẩm bán được của từng nhân viên</p>
               </Card.Header>
               <Card.Content>
                 {staffRevenueData.length > 0 ? (
@@ -570,41 +575,41 @@ const ReportsPage = () => {
             </Card>
 
             {/* Card tổng quan */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-3 gap-3">
               <Card>
-                <Card.Content className="p-6">
+                <Card.Content className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600">Tổng nhân viên</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">{staffRevenueData.length}</p>
+                      <p className="text-xs text-gray-600">Tổng nhân viên</p>
+                      <p className="text-lg font-bold text-gray-900 mt-0.5">{staffRevenueData.length}</p>
                     </div>
-                    <Users size={32} className="text-blue-600" />
+                    <Users size={24} className="text-blue-600" />
                   </div>
                 </Card.Content>
               </Card>
               <Card>
-                <Card.Content className="p-6">
+                <Card.Content className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600">Tổng sản phẩm bán được</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">
+                      <p className="text-xs text-gray-600">Tổng sản phẩm bán được</p>
+                      <p className="text-lg font-bold text-gray-900 mt-0.5">
                         {staffRevenueData.reduce((sum, staff) => sum + staff.productCount, 0)}
                       </p>
                     </div>
-                    <Package size={32} className="text-purple-600" />
+                    <Package size={24} className="text-purple-600" />
                   </div>
                 </Card.Content>
               </Card>
               <Card>
-                <Card.Content className="p-6">
+                <Card.Content className="p-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm text-gray-600">Tổng doanh số</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1">
+                      <p className="text-xs text-gray-600">Tổng doanh số</p>
+                      <p className="text-lg font-bold text-gray-900 mt-0.5">
                         {formatCurrency(staffRevenueData.reduce((sum, staff) => sum + staff.revenue, 0))}
                       </p>
                     </div>
-                    <DollarSign size={32} className="text-green-600" />
+                    <DollarSign size={24} className="text-green-600" />
                   </div>
                 </Card.Content>
               </Card>
@@ -685,12 +690,12 @@ const ReportsPage = () => {
         )}
 
         {reportType === 'model' && (
-          <Card>
-            <Card.Header>
-              <Card.Title>Doanh số theo Model</Card.Title>
-              <p className="text-sm text-gray-500 mt-1">Top 5 model bán chạy</p>
+          <Card className="h-full flex flex-col">
+            <Card.Header className="pb-2">
+              <Card.Title className="text-base">Doanh số theo Model</Card.Title>
+              <p className="text-xs text-gray-500">Top 5 model bán chạy</p>
             </Card.Header>
-            <Card.Content>
+            <Card.Content className="flex-1 overflow-auto">
               {modelRevenueData.length > 0 ? (
                 <div className="space-y-4">
                   {modelRevenueData.map((item, index) => (
@@ -719,12 +724,12 @@ const ReportsPage = () => {
         )}
 
         {reportType === 'orders' && (
-          <Card>
-            <Card.Header>
-              <Card.Title>Chi Tiết Đơn Hàng</Card.Title>
-              <p className="text-sm text-gray-500 mt-1">Danh sách đơn hàng trong khoảng thời gian</p>
+          <Card className="h-full flex flex-col">
+            <Card.Header className="pb-2">
+              <Card.Title className="text-base">Chi Tiết Đơn Hàng</Card.Title>
+              <p className="text-xs text-gray-500">Danh sách đơn hàng trong khoảng thời gian</p>
             </Card.Header>
-            <Card.Content>
+            <Card.Content className="flex-1 overflow-auto">
               <div className="overflow-x-auto">
                 <Table>
                   <Table.Header>
@@ -761,6 +766,7 @@ const ReportsPage = () => {
             </Card.Content>
           </Card>
         )}
+        </div>
       </div>
     </DealerManagerLayout>
   );

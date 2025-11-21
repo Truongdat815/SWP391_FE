@@ -132,10 +132,15 @@ export const evmInventoryApi = baseApi.injectEndpoints({
     }),
     // Tạo contract cho inventory transaction
     createContract: builder.mutation({
-      query: (inventoryId) => ({
-        url: `/inventory-transactions/${inventoryId}/create-contract`,
-        method: 'POST',
-      }),
+      query: (inventoryId) => {
+        // Không set body field để RTK Query không gửi Content-Type header
+        const query = {
+          url: `/inventory-transactions/${inventoryId}/create-contract`,
+          method: 'POST',
+        };
+        // Không thêm body field
+        return query;
+      },
       invalidatesTags: ['Inventory'],
     }),
     // Upload signature image
@@ -164,6 +169,21 @@ export const evmInventoryApi = baseApi.injectEndpoints({
       query: (inventoryId) => `/inventory-transactions/${inventoryId}/contract`,
       providesTags: ['Inventory'],
     }),
+    // Lấy contract HTML để xem
+    getContractHtml: builder.query({
+      query: (inventoryId) => ({
+        url: `/inventory-transactions/${inventoryId}/contract/html`,
+        responseHandler: async (response) => {
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Failed to fetch contract HTML');
+            throw new Error(errorText);
+          }
+          const text = await response.text();
+          return text; // Trả về HTML string trực tiếp
+        },
+      }),
+      providesTags: ['Inventory'],
+    }),
   }),
 });
 
@@ -189,5 +209,7 @@ export const {
   useUploadSignatureImageMutation,
   useSignContractMutation,
   useGetContractQuery,
+  useGetContractHtmlQuery,
+  useGetPaymentInfoQuery,
 } = evmInventoryApi;
 

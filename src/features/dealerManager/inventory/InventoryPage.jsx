@@ -1,5 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
-import { Search, Filter, Download, Printer, Plus, Eye, Edit, Truck, Package, Clock, FileText, Upload, Receipt, AlertCircle } from 'lucide-react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { Search, Filter, Download, Printer, Plus, Eye, Edit, Package, Clock, FileText, Upload, Receipt, AlertCircle, CreditCard, Hash, Car, Palette, Calendar, DollarSign, FileText as FileTextIcon, StickyNote } from 'lucide-react';
 import DealerManagerLayout from '../../../components/layout/DealerManagerLayout';
 import SearchBar from '../../../components/shared/SearchBar';
 import MetricCard from '../../../components/shared/MetricCard';
@@ -23,22 +23,57 @@ import {
   useUploadReceiptMutation,
   useGetStoreStockByIdQuery,
   useGetInventoryTransactionByIdQuery,
-  useConfirmReceivingMutation,
+  useConfirmDeliveryMutation,
+  useGetPaymentInfoQuery,
   useGetContractQuery,
 } from '../../../api/dealerManager/inventoryApi';
+import { getAuthFromStorage } from '../../../utils/roleUtils';
 import { useGetAllModelsQuery } from '../../../api/admin/modelApi';
 import { useGetModelColorsByModelQuery } from '../../../api/dealerStaff/vehicleApi';
 import { useGetMyStoreQuery } from '../../../api/dealerManager/storeApi';
 
 const InventoryPage = () => {
-  const [activeTab, setActiveTab] = useState('inventory'); // 'inventory' or 'requests'
-  const [searchTerm, setSearchTerm] = useState('');
+  // Khôi phục trạng thái từ localStorage khi component mount
+  const getStoredState = () => {
+    try {
+      const stored = localStorage.getItem('inventoryPageState');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        return {
+          activeTab: parsed.activeTab || 'inventory',
+          currentPage: parsed.currentPage || 1,
+          searchTerm: parsed.searchTerm || '',
+        };
+      }
+    } catch (error) {
+      console.warn('Failed to load stored state:', error);
+    }
+    return {
+      activeTab: 'inventory',
+      currentPage: 1,
+      searchTerm: '',
+    };
+  };
+
+  const initialState = getStoredState();
+  const [activeTab, setActiveTab] = useState(initialState.activeTab); // 'inventory' or 'requests'
+  const [searchTerm, setSearchTerm] = useState(initialState.searchTerm);
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(initialState.currentPage);
   const [itemsPerPage] = useState(10);
+  
+  // Track xem đã load từ storage chưa để tránh reset page không cần thiết
+  const isInitialMount = useRef(true);
+  const prevActiveTab = useRef(initialState.activeTab);
+  const prevSearchTerm = useRef(initialState.searchTerm);
   const [isOrderModalOpen, setIsOrderModalOpen] = useState(false);
   const [isUploadContractModalOpen, setIsUploadContractModalOpen] = useState(false);
   const [isUploadReceiptModalOpen, setIsUploadReceiptModalOpen] = useState(false);
+  const [isPaymentInfoModalOpen, setIsPaymentInfoModalOpen] = useState(false);
+  const [isViewReceiptModalOpen, setIsViewReceiptModalOpen] = useState(false);
+  const [selectedReceiptImage, setSelectedReceiptImage] = useState(null);
+  const [isViewContractModalOpen, setIsViewContractModalOpen] = useState(false);
+  const [selectedContractImage, setSelectedContractImage] = useState(null);
   const [selectedTransactionId, setSelectedTransactionId] = useState(null);
   const [selectedStockId, setSelectedStockId] = useState(null);
   const [isStockDetailModalOpen, setIsStockDetailModalOpen] = useState(false);
@@ -59,14 +94,38 @@ const InventoryPage = () => {
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, message: '', onConfirm: null });
   const { toasts, showToast, removeToast } = useToast();
 
-  // Reset page when search or tab changes
+  // Lưu trạng thái vào localStorage khi thay đổi
   useEffect(() => {
-    setCurrentPage(1);
+    try {
+      localStorage.setItem('inventoryPageState', JSON.stringify({
+        activeTab,
+        currentPage,
+        searchTerm,
+      }));
+    } catch (error) {
+      console.warn('Failed to save state to localStorage:', error);
+    }
+  }, [activeTab, currentPage, searchTerm]);
+
+  // Reset page when search or tab changes (chỉ khi user thay đổi, không phải khi load từ storage)
+  useEffect(() => {
+    // Bỏ qua lần đầu mount (đã load từ storage)
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    // Chỉ reset nếu tab hoặc search term thay đổi thực sự
+    if (prevActiveTab.current !== activeTab || prevSearchTerm.current !== debouncedSearchTerm) {
+      setCurrentPage(1);
+      prevActiveTab.current = activeTab;
+      prevSearchTerm.current = debouncedSearchTerm;
+    }
   }, [debouncedSearchTerm, activeTab]);
 
   const { data: stocksData, isLoading, error } = useGetAllStoreStocksQuery();
   const { data: modelsData } = useGetAllModelsQuery();
-  const { data: transactionsData, isLoading: isLoadingTransactions } = useGetAllInventoryTransactionsQuery();
+  const { data: transactionsData, isLoading: isLoadingTransactions, refetch: refetchTransactions } = useGetAllInventoryTransactionsQuery();
   const { data: modelColorsData } = useGetModelColorsByModelQuery(selectedModelId, {
     skip: !selectedModelId,
   });
@@ -74,17 +133,21 @@ const InventoryPage = () => {
   const { data: stockDetailData, isLoading: isLoadingStockDetail } = useGetStoreStockByIdQuery(selectedStockId, {
     skip: !selectedStockId,
   });
-  const { data: transactionDetailData, isLoading: isLoadingTransactionDetail } = useGetInventoryTransactionByIdQuery(selectedTransactionId, {
+  // Fetch transaction detail khi có selectedTransactionId (để có data mới nhất sau khi upload contract)
+  const { data: transactionDetailData, isLoading: isLoadingTransactionDetail, refetch: refetchTransactionDetail } = useGetInventoryTransactionByIdQuery(selectedTransactionId, {
     skip: !selectedTransactionId,
   });
   const { data: contractData } = useGetContractQuery(selectedTransactionId, {
     skip: !selectedTransactionId,
   });
+  const { data: paymentInfoData, isLoading: isLoadingPaymentInfo, error: paymentInfoError } = useGetPaymentInfoQuery(selectedTransactionId, {
+    skip: !selectedTransactionId || !isPaymentInfoModalOpen,
+  });
   const [createTransaction, { isLoading: isCreating }] = useCreateInventoryTransactionMutation();
   const [downloadContractHtml] = useDownloadContractHtmlMutation();
   const [uploadContract, { isLoading: isUploadingContract }] = useUploadContractMutation();
   const [uploadReceipt, { isLoading: isUploadingReceipt }] = useUploadReceiptMutation();
-  const [confirmReceiving, { isLoading: isConfirmingReceiving }] = useConfirmReceivingMutation();
+  const [confirmDelivery, { isLoading: isConfirmingDelivery }] = useConfirmDeliveryMutation();
 
   const store = storeData?.data;
 
@@ -92,6 +155,27 @@ const InventoryPage = () => {
   const models = modelsData?.data || [];
   const transactions = transactionsData?.data || [];
   const modelColors = modelColorsData?.data || [];
+
+  // Debug: Log stock fields để kiểm tra các field ngày có sẵn
+  useEffect(() => {
+    if (stocks && stocks.length > 0 && import.meta.env.DEV) {
+      const sample = stocks[0];
+      console.log('Sample stock date fields:', {
+        stockedDate: sample.stockedDate,
+        receivedDate: sample.receivedDate,
+        importDate: sample.importDate,
+        stockDate: sample.stockDate,
+        dateStocked: sample.dateStocked,
+        receivedAt: sample.receivedAt,
+        dateReceived: sample.dateReceived,
+        createdAt: sample.createdAt,
+        createdDate: sample.createdDate,
+        dateCreated: sample.dateCreated,
+        updatedAt: sample.updatedAt,
+        allKeys: Object.keys(sample),
+      });
+    }
+  }, [stocks]);
 
   // Debug logging trong development
   if (import.meta.env.DEV && transactions.length > 0) {
@@ -118,23 +202,39 @@ const InventoryPage = () => {
   }
 
   // Tính toán metrics - Tính từ quantity thực tế của mỗi stock
-  const totalCars = stocks.reduce((sum, stock) => {
+  // Tổng số xe trong kho = chỉ tính xe còn trong kho (không tính đã bán)
+  const totalCars = stocks
+    .filter((stock) => stock.status !== 'SOLD')
+    .reduce((sum, stock) => {
     const quantity = parseInt(stock.quantity || stock.stockQuantity || 1);
     return sum + (isNaN(quantity) ? 1 : quantity);
   }, 0);
   
-  const arrivingCars = stocks
-    .filter((stock) => stock.status === 'IN_TRANSIT' || stock.status === 'ARRIVING')
-    .reduce((sum, stock) => {
-      const quantity = parseInt(stock.quantity || stock.stockQuantity || 1);
-      return sum + (isNaN(quantity) ? 1 : quantity);
+  // Xe sắp về = tổng số lượng từ các inventory transactions đang trong trạng thái vận chuyển
+  const arrivingCars = transactions
+    .filter((transaction) => {
+      const status = transaction.status;
+      // Các trạng thái cho biết xe đang được vận chuyển
+      return status === 'IN_TRANSIT' || 
+             status === 'PAYMENT_CONFIRMED'; // Đã thanh toán, đang chờ vận chuyển
+    })
+    .reduce((sum, transaction) => {
+      // Lấy số lượng từ transaction
+      const quantity = parseInt(
+        transaction.quantity || 
+        transaction.requestedQuantity || 
+        transaction.importQuantity ||
+        transaction.orderQuantity ||
+        0
+      );
+      return sum + (isNaN(quantity) ? 0 : quantity);
     }, 0);
   
-  const availableCars = stocks
-    .filter((stock) => stock.status === 'AVAILABLE')
-    .reduce((sum, stock) => {
-      const quantity = parseInt(stock.quantity || stock.stockQuantity || 1);
-      return sum + (isNaN(quantity) ? 1 : quantity);
+  // Xe có sẵn = tổng số lượng của tất cả các xe có quantity > 0 (có thể bán được)
+  const availableCars = stocks.reduce((sum, stock) => {
+    const quantity = parseInt(stock.quantity || stock.stockQuantity || 0);
+    // Chỉ tính những xe có số lượng > 0 (còn hàng)
+    return sum + (isNaN(quantity) || quantity <= 0 ? 0 : quantity);
     }, 0);
 
   // Filter stocks - sử dụng debounced search
@@ -193,6 +293,161 @@ const InventoryPage = () => {
     }
   };
 
+  // Helper component để hiển thị button với icon và tooltip
+  const IconButton = ({ icon: Icon, text, onClick, variant = "outline", size = "sm", disabled = false, className = "", ...props }) => {
+    return (
+      <div className="relative group inline-block">
+        <Button
+          size={size}
+          variant={variant}
+          onClick={onClick}
+          disabled={disabled}
+          className={`p-2 ${className}`}
+          {...props}
+        >
+          <Icon size={16} />
+        </Button>
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs text-white bg-gray-900 rounded whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50">
+          {text}
+          <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+        </div>
+      </div>
+    );
+  };
+
+  // Helper functions để tái sử dụng
+  // Kiểm tra transaction có hợp đồng, hợp đồng đã upload, và hóa đơn
+  const getTransactionChecks = (transaction) => {
+    // Kiểm tra xem có hợp đồng không
+    const hasContractFields = transaction.contractId || 
+                             transaction.contract ||
+                             transaction.contractFile ||
+                             transaction.contractPath ||
+                             transaction.contractUrl;
+    
+    const hasContractByStatus = transaction.status === 'EVM_SIGNED' ||
+                               transaction.status === 'CONFIRMED' ||
+                               transaction.status === 'SIGNED' ||
+                               transaction.status === 'CONTRACT_SIGNED' ||
+                               transaction.status === 'FILE_UPLOADED' ||
+                               transaction.status === 'PAYMENT_CONFIRMED' ||
+                               transaction.status === 'IN_TRANSIT' ||
+                               transaction.status === 'DELIVERED';
+    
+    const hasContract = hasContractFields || hasContractByStatus;
+    
+    // Kiểm tra xem Manager đã upload hợp đồng đã ký chưa
+    const hasUploadedContract = transaction.contractFile || 
+                               transaction.contractPath ||
+                               transaction.contractUrl ||
+                               transaction.status === 'SIGNED' ||
+                               transaction.status === 'CONTRACT_SIGNED' ||
+                               transaction.status === 'FILE_UPLOADED' ||
+                               transaction.status === 'PAYMENT_CONFIRMED' ||
+                               transaction.status === 'IN_TRANSIT' ||
+                               transaction.status === 'DELIVERED';
+    
+    // Kiểm tra xem có hóa đơn không
+    // imageUrl là của hóa đơn thanh toán
+    const hasReceipt = transaction.receiptImage || 
+                      transaction.receiptFile ||
+                      transaction.receiptPath ||
+                      transaction.receiptUrl ||
+                      transaction.imageUrl;
+    
+    // Kiểm tra xem Manager đã upload hóa đơn chưa
+    const hasUploadedReceipt = transaction.receiptImage || 
+                              transaction.receiptFile ||
+                              transaction.receiptPath ||
+                              transaction.receiptUrl ||
+                              transaction.imageUrl ||
+                              transaction.status === 'FILE_UPLOADED' ||
+                              transaction.status === 'PAYMENT_CONFIRMED';
+    
+    return { hasContract, hasUploadedContract, hasReceipt, hasUploadedReceipt };
+  };
+
+  // Lấy receipt image từ nhiều nguồn
+  const getReceiptImage = (transaction, transactionDetailData = null, refetchResult = null) => {
+    let receiptImage = null;
+    
+    // Ưu tiên 1: Từ refetchResult (data mới nhất)
+    if (refetchResult?.data?.data) {
+      receiptImage = refetchResult.data.data.receiptImage || 
+                    refetchResult.data.data.receiptFile || 
+                    refetchResult.data.data.receiptPath || 
+                    refetchResult.data.data.receiptUrl ||
+                    refetchResult.data.data.imageUrl;
+    }
+    
+    // Ưu tiên 2: Từ refetchResult.data (nếu không có trong data.data)
+    if (!receiptImage && refetchResult?.data) {
+      receiptImage = refetchResult.data.receiptImage || 
+                    refetchResult.data.receiptFile || 
+                    refetchResult.data.receiptPath || 
+                    refetchResult.data.receiptUrl ||
+                    refetchResult.data.imageUrl;
+    }
+    
+    // Ưu tiên 3: Từ transaction hiện tại
+    if (!receiptImage) {
+      receiptImage = transaction.receiptImage || 
+                    transaction.receiptFile || 
+                    transaction.receiptPath || 
+                    transaction.receiptUrl ||
+                    transaction.imageUrl;
+    }
+    
+    // Ưu tiên 4: Từ transactionDetailData (nếu đã có sẵn)
+    if (!receiptImage && transactionDetailData?.data) {
+      receiptImage = transactionDetailData.data.receiptImage || 
+                    transactionDetailData.data.receiptFile || 
+                    transactionDetailData.data.receiptPath || 
+                    transactionDetailData.data.receiptUrl ||
+                    transactionDetailData.data.imageUrl;
+    }
+    
+    // Ưu tiên 5: Từ transactionDetailData trực tiếp
+    if (!receiptImage && transactionDetailData) {
+      receiptImage = transactionDetailData.receiptImage || 
+                    transactionDetailData.receiptFile || 
+                    transactionDetailData.receiptPath || 
+                    transactionDetailData.receiptUrl ||
+                    transactionDetailData.imageUrl;
+    }
+    
+    return receiptImage;
+  };
+
+  // Handler để xem hóa đơn với logic lấy receipt image
+  const handleViewReceipt = async (transaction, shouldRefetch = false) => {
+    setSelectedTransactionId(transaction.inventoryId);
+    let receiptImage = null;
+    
+    if (shouldRefetch && transaction.inventoryId) {
+      try {
+        const result = await refetchTransactionDetail();
+        receiptImage = getReceiptImage(transaction, transactionDetailData, result);
+      } catch (err) {
+        if (import.meta.env.DEV) {
+          console.warn('Failed to refetch transaction detail:', err);
+        }
+        // Fallback to current data
+        receiptImage = getReceiptImage(transaction, transactionDetailData);
+      }
+    } else {
+      receiptImage = getReceiptImage(transaction, transactionDetailData);
+    }
+    
+    if (!receiptImage) {
+      showToast('Không tìm thấy hóa đơn. Vui lòng thử lại sau.', 'warning');
+      return;
+    }
+    
+    setSelectedReceiptImage(receiptImage);
+    setIsViewReceiptModalOpen(true);
+  };
+
   // Filter và sắp xếp transactions (mới nhất lên đầu) - sử dụng debounced search
   const filteredTransactions = useMemo(() => {
     const filtered = transactions.filter((transaction) => {
@@ -219,22 +474,17 @@ const InventoryPage = () => {
 
   const getTransactionStatusBadge = (status) => {
     const statusMap = {
-      PENDING: { variant: 'warning', label: 'Chờ EVM duyệt' },
-      ACCEPTED: { variant: 'info', label: 'Đã duyệt' },
+      PENDING: { variant: 'warning', label: 'Chờ duyệt' },
       CONFIRMED: { variant: 'info', label: 'Đã xác nhận' },
-      DRAFT: { variant: 'default', label: 'Nháp hợp đồng' },
-      EVM_SIGNED: { variant: 'info', label: 'Chờ ký hợp đồng' },
+        EVM_SIGNED: { variant: 'info', label: 'Chờ ký hợp đồng' },
       SIGNED: { variant: 'success', label: 'Đã ký hợp đồng' },
       CONTRACT_SIGNED: { variant: 'success', label: 'Đã ký hợp đồng' },
-      FILE_UPLOADED: { variant: 'info', label: 'Chờ upload hóa đơn' },
-      PAYMENT_CONFIRMED: { variant: 'info', label: 'Đã xác nhận thanh toán' },
-      PROCESSING: { variant: 'info', label: 'Đang chuẩn bị' },
-      SHIPPING: { variant: 'info', label: 'Đang vận chuyển' },
+        FILE_UPLOADED: { variant: 'info', label: 'Đã tải lên hóa đơn' },
+        PAYMENT_CONFIRMED: { variant: 'info', label: 'Đã xác nhận thanh toán' },
       IN_TRANSIT: { variant: 'info', label: 'Đang vận chuyển' },
-      DELIVERED: { variant: 'success', label: 'Đã nhận xe' },
-      COMPLETED: { variant: 'success', label: 'Hoàn thành' },
-      REJECTED: { variant: 'error', label: 'Đã từ chối' },
-      CANCELLED: { variant: 'default', label: 'Đã hủy' },
+        DELIVERED: { variant: 'success', label: 'Đã nhận xe' },
+        REJECTED: { variant: 'error', label: 'Đã từ chối' },
+        CANCELLED: { variant: 'default', label: 'Đã hủy đơn' },
     };
     const config = statusMap[status] || { variant: 'default', label: status || 'N/A' };
     return <Badge variant={config.variant}>{config.label}</Badge>;
@@ -268,8 +518,9 @@ const InventoryPage = () => {
     if (!formData.colorId) {
       errors.colorId = 'Vui lòng chọn màu sắc';
     }
-    if (!formData.quantity || formData.quantity < 1) {
-      errors.quantity = 'Số lượng phải lớn hơn 0';
+    const quantity = parseFloat(formData.quantity);
+    if (!formData.quantity || isNaN(quantity) || !Number.isInteger(quantity) || quantity < 1) {
+      errors.quantity = 'Số lượng phải là số nguyên dương lớn hơn 0';
     }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -351,10 +602,23 @@ const InventoryPage = () => {
       });
       
       if (!response.ok) {
-        throw new Error('Không thể tải hợp đồng');
+        // Kiểm tra status code để hiển thị thông báo phù hợp
+        if (response.status === 404) {
+          throw new Error('Hợp đồng chưa được tạo. Vui lòng đợi EVM Staff tạo hợp đồng.');
+        } else if (response.status === 403) {
+          throw new Error('Bạn không có quyền truy cập hợp đồng này.');
+        } else {
+          const errorText = await response.text().catch(() => '');
+          throw new Error(errorText || 'Không thể tải hợp đồng');
+        }
       }
       
       const htmlContent = await response.text();
+      
+      // Kiểm tra xem response có phải là HTML hợp lệ không
+      if (!htmlContent || htmlContent.trim().length === 0) {
+        throw new Error('Hợp đồng trống hoặc chưa được tạo.');
+      }
       
       // Tạo blob và download
       const blob = new Blob([htmlContent], { type: 'text/html' });
@@ -372,7 +636,7 @@ const InventoryPage = () => {
       const errorMessage = error?.message || 'Có lỗi xảy ra khi tải hợp đồng';
       showToast(errorMessage, 'error');
       if (import.meta.env.DEV) {
-        console.error(error);
+        console.error('Error downloading contract:', error);
       }
     }
   };
@@ -383,6 +647,21 @@ const InventoryPage = () => {
       showToast('Vui lòng chọn file hợp đồng', 'warning');
       return;
     }
+    
+    // Validate file type: chỉ cho phép PDF hoặc hình ảnh
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    const fileType = contractFile.type || '';
+    const fileName = contractFile.name || '';
+    const isValidType = allowedTypes.includes(fileType) || 
+                       fileName.toLowerCase().endsWith('.pdf') ||
+                       fileName.toLowerCase().endsWith('.jpg') ||
+                       fileName.toLowerCase().endsWith('.jpeg') ||
+                       fileName.toLowerCase().endsWith('.png');
+    
+    if (!isValidType) {
+      showToast('File phải là PDF hoặc hình ảnh (JPG, PNG)', 'error');
+      return;
+    }
     try {
       await uploadContract({
         inventoryId: selectedTransactionId,
@@ -391,7 +670,21 @@ const InventoryPage = () => {
       showToast('Upload hợp đồng thành công', 'success');
       setIsUploadContractModalOpen(false);
       setContractFile(null);
-      setSelectedTransactionId(null);
+      
+      // Sau khi upload contract thành công, tự động gọi payment-info và hiển thị modal
+      // Payment info sẽ được fetch tự động khi isPaymentInfoModalOpen = true
+      setIsPaymentInfoModalOpen(true);
+      
+      // Refresh transactions để có data mới nhất
+      try {
+        await refetchTransactions();
+      } catch (refetchError) {
+        // Ignore refetch error, invalidatesTags sẽ tự động refresh
+        if (import.meta.env.DEV) {
+          console.warn('Failed to refetch transactions:', refetchError);
+        }
+      }
+      // Không set selectedTransactionId = null để giữ lại cho payment info modal
     } catch (error) {
       showToast(error?.data?.message || 'Có lỗi xảy ra khi upload hợp đồng', 'error');
       if (import.meta.env.DEV) {
@@ -410,9 +703,6 @@ const InventoryPage = () => {
     setIsEditStockModalOpen(true);
   };
 
-  const handleViewShipping = (stock) => {
-    showToast('Tính năng vận chuyển đang được phát triển', 'info');
-  };
 
   const handleExportInventory = async () => {
     try {
@@ -484,7 +774,6 @@ const InventoryPage = () => {
                 <th>Màu sắc</th>
                 <th>Số lượng</th>
                 <th>Tình trạng</th>
-                <th>Ngày nhập kho</th>
               </tr>
             </thead>
             <tbody>
@@ -494,7 +783,6 @@ const InventoryPage = () => {
                   <td>${stock.colorName || 'N/A'}</td>
                   <td>${getStockQuantity(stock)}</td>
                   <td>${getStockStatusBadge(stock).props.children}</td>
-                  <td>${formatDate(stock.stockedDate || stock.receivedDate || stock.createdAt)}</td>
                 </tr>
               `).join('')}
             </tbody>
@@ -520,6 +808,35 @@ const InventoryPage = () => {
       showToast('Vui lòng chọn file biên lai', 'warning');
       return;
     }
+    
+    // Không cần validate contract ở đây vì:
+    // 1. UI đã kiểm tra và chỉ hiển thị nút khi có hợp đồng
+    // 2. Backend sẽ validate và trả về lỗi nếu chưa có hợp đồng
+    // 3. Validation client-side có thể không chính xác nếu data chưa được refresh
+    
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+    const fileType = receiptFile.type || '';
+    const fileName = receiptFile.name || '';
+    const isValidType = allowedTypes.includes(fileType) || 
+                       fileName.toLowerCase().endsWith('.pdf') ||
+                       fileName.toLowerCase().endsWith('.jpg') ||
+                       fileName.toLowerCase().endsWith('.jpeg') ||
+                       fileName.toLowerCase().endsWith('.png');
+    
+    if (!isValidType) {
+      showToast('File không hợp lệ. Vui lòng chọn file PDF, JPG, JPEG hoặc PNG', 'error');
+      return;
+    }
+    
+    // Validate file size (max 10MB)
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (receiptFile.size > maxSize) {
+      const fileSizeMB = (receiptFile.size / (1024 * 1024)).toFixed(2);
+      showToast(`File quá lớn (${fileSizeMB}MB). Vui lòng chọn file nhỏ hơn 10MB hoặc nén file trước khi upload.`, 'error');
+      return;
+    }
+    
     try {
       await uploadReceipt({
         inventoryId: selectedTransactionId,
@@ -530,20 +847,77 @@ const InventoryPage = () => {
       setReceiptFile(null);
       setSelectedTransactionId(null);
     } catch (error) {
-      showToast(error?.data?.message || 'Có lỗi xảy ra khi upload hóa đơn', 'error');
-      if (import.meta.env.DEV) {
-        console.error(error);
+      // Improved error handling
+      let errorMessage = 'Có lỗi xảy ra khi upload hóa đơn';
+      
+      // Check for specific error types
+      if (error?.status === 413) {
+        // 413 = Payload Too Large - Server reject file
+        const fileSizeMB = receiptFile ? (receiptFile.size / (1024 * 1024)).toFixed(2) : 'N/A';
+        errorMessage = `Server từ chối file vì quá lớn (${fileSizeMB}MB). Vui lòng chọn file nhỏ hơn 10MB hoặc nén file trước khi upload.`;
+      } else if (error?.status === 500 || error?.status === '500') {
+        // 500 = Internal Server Error
+        errorMessage = error?.data?.message || 
+                      error?.data?.error || 
+                      error?.data?.errorMessage ||
+                      'Lỗi hệ thống server. Vui lòng thử lại sau hoặc liên hệ quản trị viên.';
+      } else if (error?.status === 400 || error?.status === '400') {
+        // 400 Bad Request - có thể là field name không đúng hoặc validation error
+        errorMessage = error?.data?.message || 
+                      error?.data?.error || 
+                      error?.data?.errorMessage ||
+                      'Yêu cầu không hợp lệ. Vui lòng kiểm tra lại file và thử lại.';
+      } else if (error?.status === 'FETCH_ERROR' || error?.error === 'FETCH_ERROR' || error?.message?.includes('CORS') || error?.message?.includes('Failed to fetch') || error?.message?.includes('network') || error?.message?.includes('NetworkError')) {
+        // CORS hoặc network error
+        if (error?.message?.includes('CORS') || error?.message?.toLowerCase().includes('cors')) {
+          errorMessage = 'Lỗi CORS: Backend chưa cấu hình cho phép request từ localhost. Vui lòng liên hệ quản trị viên để cấu hình CORS.';
+        } else {
+          errorMessage = 'Lỗi kết nối đến server. Vui lòng kiểm tra kết nối mạng hoặc liên hệ quản trị viên.';
+        }
+      } else if (error?.data) {
+        // Hiển thị thông báo từ backend (có thể là validation error về contract)
+        errorMessage = error.data.message || 
+                      error.data.error || 
+                      error.data.errorMessage || 
+                      (typeof error.data === 'string' ? error.data : null) ||
+                      errorMessage;
+        
+        // Nếu backend báo lỗi về contract, hiển thị thông báo rõ ràng hơn
+        if (errorMessage && (errorMessage.includes('hợp đồng') || errorMessage.includes('contract') || errorMessage.includes('CONTRACT_SIGNED'))) {
+          errorMessage = 'Vui lòng upload hợp đồng trước khi upload biên lai thanh toán.';
+        }
+      } else if (error?.message) {
+        errorMessage = error.message;
       }
+      
+      // Log detailed error in development
+      if (import.meta.env.DEV) {
+        console.error('Upload receipt error:', error);
+        console.error('Error details:', {
+          status: error?.status,
+          data: error?.data,
+          message: error?.message,
+          inventoryId: selectedTransactionId,
+          fileName: receiptFile?.name,
+          fileSize: receiptFile?.size,
+          fileSizeMB: receiptFile ? (receiptFile.size / (1024 * 1024)).toFixed(2) : 'N/A',
+          fileType: receiptFile?.type,
+          fullError: error,
+          errorDataString: JSON.stringify(error?.data),
+        });
+      }
+      
+      showToast(errorMessage, 'error');
     }
   };
 
-  const handleConfirmReceiving = async (inventoryId) => {
+  const handleConfirmDelivery = async (inventoryId) => {
     setConfirmModal({
       isOpen: true,
       message: 'Bạn có chắc chắn đã nhận được xe?',
       onConfirm: async () => {
         try {
-          await confirmReceiving(inventoryId).unwrap();
+          await confirmDelivery(inventoryId).unwrap();
           setConfirmModal({ isOpen: false, message: '', onConfirm: null });
           showToast('Đã xác nhận nhận xe thành công!', 'success');
         } catch (error) {
@@ -553,6 +927,194 @@ const InventoryPage = () => {
         }
       },
     });
+  };
+  
+  const handleViewContract = async (inventoryId, transaction = null) => {
+    try {
+      if (!inventoryId) {
+        showToast('Không tìm thấy mã yêu cầu. Vui lòng thử lại sau.', 'error');
+        return;
+      }
+      
+      // Gọi API để lấy contract
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api';
+      const url = `${baseUrl}/inventory-transactions/${inventoryId}/contract`;
+      
+      const authData = getAuthFromStorage('dealerManager');
+      const token = authData?.token;
+      
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: headers,
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Failed to fetch contract');
+        showToast('Không thể tải hợp đồng: ' + errorText, 'error');
+        return;
+      }
+      
+      const data = await response.json();
+      
+      // Lấy contractFileUrl từ response
+      // Response có thể là { data: { contractFileUrl: ... } } hoặc { contractFileUrl: ... }
+      const contractFileUrl = data?.data?.contractFileUrl || data?.contractFileUrl;
+      
+      // Kiểm tra xem có HTML không (nếu không có contractFileUrl, có thể là HTML)
+      const contractHtml = data?.data?.html || data?.html;
+      
+      if (contractFileUrl) {
+        // Nếu có contractFileUrl (ảnh) → hiển thị trong modal
+        setSelectedContractImage(contractFileUrl);
+        setIsViewContractModalOpen(true);
+      } else if (contractHtml) {
+        // Nếu có HTML → mở trong tab mới
+        const fullHtml = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Hợp Đồng</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Times New Roman', serif;
+      padding: 20px;
+      background-color: #f5f5f5;
+      overflow-x: auto;
+    }
+    .contract-container {
+      max-width: 100%;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      .contract-container {
+        box-shadow: none;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="contract-container">
+    ${contractHtml}
+  </div>
+</body>
+</html>`;
+        
+        // Tạo blob URL và mở trong tab mới
+        const blob = new Blob([fullHtml], { type: 'text/html' });
+        const blobUrl = URL.createObjectURL(blob);
+        const newWindow = window.open(blobUrl, '_blank');
+        
+        // Cleanup blob URL sau khi window đóng
+        if (newWindow) {
+          newWindow.addEventListener('beforeunload', () => {
+            URL.revokeObjectURL(blobUrl);
+          });
+        } else {
+          // Nếu popup bị chặn, thử dùng cách khác
+          showToast('Popup bị chặn. Vui lòng cho phép popup để xem hợp đồng.', 'warning');
+          URL.revokeObjectURL(blobUrl);
+        }
+      } else {
+        // Nếu không có cả contractFileUrl và HTML, thử gọi API HTML
+        const htmlUrl = `${baseUrl}/inventory-transactions/${inventoryId}/contract/html`;
+        const htmlResponse = await fetch(htmlUrl, {
+          method: 'GET',
+          headers: headers,
+        });
+        
+        if (htmlResponse.ok) {
+          const htmlText = await htmlResponse.text();
+          const fullHtml = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Hợp Đồng</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Times New Roman', serif;
+      padding: 20px;
+      background-color: #f5f5f5;
+      overflow-x: auto;
+    }
+    .contract-container {
+      max-width: 100%;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      .contract-container {
+        box-shadow: none;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="contract-container">
+    ${htmlText}
+  </div>
+</body>
+</html>`;
+          
+          // Tạo blob URL và mở trong tab mới
+          const blob = new Blob([fullHtml], { type: 'text/html' });
+          const blobUrl = URL.createObjectURL(blob);
+          const newWindow = window.open(blobUrl, '_blank');
+          
+          // Cleanup blob URL sau khi window đóng
+          if (newWindow) {
+            newWindow.addEventListener('beforeunload', () => {
+              URL.revokeObjectURL(blobUrl);
+            });
+          } else {
+            showToast('Popup bị chặn. Vui lòng cho phép popup để xem hợp đồng.', 'warning');
+            URL.revokeObjectURL(blobUrl);
+          }
+        } else {
+          showToast('Không tìm thấy hợp đồng. Vui lòng thử lại sau.', 'error');
+        }
+      }
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('Error viewing contract:', error);
+      }
+      showToast('Có lỗi xảy ra khi xem hợp đồng', 'error');
+    }
   };
 
   // Reset page when switching tabs
@@ -748,7 +1310,6 @@ const InventoryPage = () => {
                         <Table.Head>MÀU SẮC</Table.Head>
                         <Table.Head>SỐ LƯỢNG</Table.Head>
                         <Table.Head>TÌNH TRẠNG</Table.Head>
-                        <Table.Head>NGÀY NHẬP KHO</Table.Head>
                         <Table.Head className="text-center">HÀNH ĐỘNG</Table.Head>
                       </Table.Row>
                     </Table.Header>
@@ -763,7 +1324,6 @@ const InventoryPage = () => {
                             <Table.Cell>{stock.colorName || 'N/A'}</Table.Cell>
                             <Table.Cell className="font-semibold">{quantity}</Table.Cell>
                             <Table.Cell>{getStockStatusBadge(stock)}</Table.Cell>
-                            <Table.Cell>{formatDate(stock.stockedDate || stock.receivedDate || stock.createdAt)}</Table.Cell>
                             <Table.Cell>
                               <div className="flex items-center justify-center gap-2">
                                 <button 
@@ -779,13 +1339,6 @@ const InventoryPage = () => {
                                   title="Chỉnh sửa"
                                 >
                                   <Edit size={16} />
-                                </button>
-                                <button 
-                                  onClick={() => handleViewShipping(stock)}
-                                  className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors"
-                                  title="Vận chuyển"
-                                >
-                                  <Truck size={16} />
                                 </button>
                               </div>
                             </Table.Cell>
@@ -932,78 +1485,236 @@ const InventoryPage = () => {
                             </Table.Cell>
                             <Table.Cell>
                               <div className="flex items-center justify-center gap-2">
-                                {/* EVM_SIGNED: Download contract HTML */}
-                                {transaction.status === 'EVM_SIGNED' && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleDownloadContract(transaction.inventoryId)}
-                                  >
-                                    <Download size={16} className="mr-1" />
-                                    Tải hợp đồng
-                                  </Button>
-                                )}
-                                {/* EVM_SIGNED: Upload signed contract */}
-                                {transaction.status === 'EVM_SIGNED' && (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => {
-                                      setSelectedTransactionId(transaction.inventoryId);
-                                      setIsUploadContractModalOpen(true);
-                                    }}
-                                  >
-                                    <Upload size={16} className="mr-1" />
-                                    Upload hợp đồng
-                                  </Button>
-                                )}
-                                {/* FILE_UPLOADED hoặc PAYMENT_CONFIRMED: Upload receipt nếu chưa upload */}
-                                {(transaction.status === 'FILE_UPLOADED' || transaction.status === 'PAYMENT_CONFIRMED') && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => {
-                                      setSelectedTransactionId(transaction.inventoryId);
-                                      setIsUploadReceiptModalOpen(true);
-                                    }}
-                                  >
-                                    <Receipt size={16} className="mr-1" />
-                                    Upload hóa đơn
-                                  </Button>
-                                )}
-                                {/* SHIPPING hoặc IN_TRANSIT: Nhận xe */}
-                                {(transaction.status === 'SHIPPING' || transaction.status === 'IN_TRANSIT') && (
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleConfirmReceiving(transaction.inventoryId)}
-                                    disabled={isConfirmingReceiving}
-                                    className="bg-green-600 hover:bg-green-700 text-white"
-                                  >
-                                    <Package size={16} className="mr-1" />
-                                    {isConfirmingReceiving ? 'Đang xác nhận...' : 'Nhận xe'}
-                                  </Button>
-                                )}
-                                {/* DELIVERED hoặc COMPLETED: Đã nhận */}
-                                {(transaction.status === 'DELIVERED' || transaction.status === 'COMPLETED') && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleViewTransactionDetail(transaction.inventoryId)}
-                                  >
-                                    <Eye size={16} className="mr-1" />
-                                    Chi tiết
-                                  </Button>
-                                )}
-                                {/* Các status khác: Xem chi tiết */}
-                                {!['SHIPPING', 'IN_TRANSIT', 'DELIVERED', 'COMPLETED', 'FILE_UPLOADED', 'PAYMENT_CONFIRMED'].includes(transaction.status) && (
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleViewTransactionDetail(transaction.inventoryId)}
-                                  >
-                                    <Eye size={16} className="mr-1" />
-                                    Chi tiết
-                                  </Button>
-                                )}
+                                {/* Flow mới theo yêu cầu */}
+                                {(() => {
+                                  // Nếu bị từ chối hoặc hủy → không có nút gì
+                                  if (transaction.status === 'REJECTED' || transaction.status === 'CANCELLED') {
+                                    return null;
+                                  }
+                                  
+                                  // Các status không hiển thị nút "Xem hóa đơn": PENDING, CONFIRMED, EVM_SIGNED, CONTRACT_SIGNED, REJECTED, CANCELLED
+                                  const hiddenReceiptStatuses = ['PENDING', 'CONFIRMED', 'EVM_SIGNED', 'CONTRACT_SIGNED', 'REJECTED', 'CANCELLED'];
+                                  const canViewReceipt = !hiddenReceiptStatuses.includes(transaction.status);
+                                  
+                                  // Sử dụng helper function để kiểm tra
+                                  const { hasContract, hasUploadedContract, hasReceipt, hasUploadedReceipt } = getTransactionChecks(transaction);
+                                  
+                                  // Giai đoạn 1: EVM đã ký hợp đồng (EVM_SIGNED) - Chờ Manager ký
+                                  // Không hiển thị "Upload hợp đồng" khi đã xác nhận (CONFIRMED) hoặc sau đó
+                                  const isStage1 = (transaction.status === 'EVM_SIGNED' || 
+                                                  (hasContract && !hasUploadedContract)) &&
+                                                  transaction.status !== 'CONFIRMED' &&
+                                                  transaction.status !== 'PAYMENT_CONFIRMED' &&
+                                                  transaction.status !== 'IN_TRANSIT' &&
+                                                  transaction.status !== 'DELIVERED';
+                                  
+                                  // Giai đoạn 2: Manager đã upload hợp đồng (SIGNED/CONTRACT_SIGNED) - Chờ upload hóa đơn
+                                  const isStage2 = (transaction.status === 'SIGNED' || 
+                                                   transaction.status === 'CONTRACT_SIGNED') &&
+                                                   !hasUploadedReceipt &&
+                                                   transaction.status !== 'CONFIRMED' &&
+                                                   transaction.status !== 'PAYMENT_CONFIRMED' &&
+                                                   transaction.status !== 'IN_TRANSIT' &&
+                                                   transaction.status !== 'DELIVERED';
+                                  
+                                  // Giai đoạn 3: Manager đã upload hóa đơn (FILE_UPLOADED) hoặc đã xác nhận thanh toán
+                                  const isStage3 = transaction.status === 'FILE_UPLOADED' || 
+                                                  transaction.status === 'PAYMENT_CONFIRMED' ||
+                                                  (hasUploadedReceipt && transaction.status !== 'IN_TRANSIT' && 
+                                                   transaction.status !== 'DELIVERED');
+                                  
+                                  return (
+                                    <>
+                                      {/* Giai đoạn 1: EVM đã ký hợp đồng - Chờ Manager ký */}
+                                      {isStage1 && (
+                                        <>
+                                          {/* Xem hợp đồng từ EVM */}
+                                          {hasContract && (
+                                            <IconButton
+                                              icon={FileText}
+                                              text="Xem hợp đồng"
+                                              onClick={() => handleViewContract(transaction.inventoryId, transaction)}
+                                            />
+                                          )}
+                                          {/* Upload hợp đồng đã ký */}
+                                          <IconButton
+                                            icon={Upload}
+                                            text="Upload hợp đồng"
+                                            onClick={() => {
+                                              setSelectedTransactionId(transaction.inventoryId);
+                                              setIsUploadContractModalOpen(true);
+                                            }}
+                                          />
+                                          {/* Xem chi tiết */}
+                                          <IconButton
+                                            icon={Eye}
+                                            text="Xem chi tiết"
+                                            onClick={() => handleViewTransactionDetail(transaction.inventoryId)}
+                                          />
+                                        </>
+                                      )}
+                                      
+                                      {/* Giai đoạn 2: Manager đã upload hợp đồng - Chờ upload hóa đơn */}
+                                      {isStage2 && (
+                                        <>
+                                          {/* Xem hợp đồng Manager đã upload */}
+                                          <IconButton
+                                            icon={FileText}
+                                            text="Xem hợp đồng"
+                                            onClick={() => handleViewContract(transaction.inventoryId, transaction)}
+                                          />
+                                          {/* Xem thông tin thanh toán */}
+                                          <IconButton
+                                            icon={CreditCard}
+                                            text="Xem thông tin thanh toán"
+                                            onClick={() => {
+                                              setSelectedTransactionId(transaction.inventoryId);
+                                              setIsPaymentInfoModalOpen(true);
+                                            }}
+                                          />
+                                          {/* Xem chi tiết */}
+                                          <IconButton
+                                            icon={Eye}
+                                            text="Xem chi tiết"
+                                            onClick={() => handleViewTransactionDetail(transaction.inventoryId)}
+                                          />
+                                          {/* Upload hóa đơn thanh toán */}
+                                          <IconButton
+                                            icon={Receipt}
+                                            text="Upload hóa đơn thanh toán"
+                                            onClick={async () => {
+                                              setSelectedTransactionId(transaction.inventoryId);
+                                              if (transaction.inventoryId) {
+                                                try {
+                                                  await refetchTransactionDetail();
+                                                } catch (err) {
+                                                  if (import.meta.env.DEV) {
+                                                    console.warn('Failed to refetch transaction detail:', err);
+                                                  }
+                                                }
+                                              }
+                                              setIsUploadReceiptModalOpen(true);
+                                            }}
+                                          />
+                                        </>
+                                      )}
+                                      
+                                      {/* Giai đoạn 3: Manager đã upload hóa đơn - Chỉ hiển thị xem, không có upload */}
+                                      {isStage3 && (
+                                        <>
+                                          {/* Xem hóa đơn đã upload - Luôn hiển thị khi status là FILE_UPLOADED */}
+                                          <IconButton
+                                            icon={Receipt}
+                                            text="Xem hóa đơn đã upload"
+                                            onClick={() => handleViewReceipt(transaction, true)}
+                                          />
+                                          {/* Xem hợp đồng Manager đã upload - Luôn hiển thị khi có hợp đồng hoặc status là PAYMENT_CONFIRMED */}
+                                          {(hasUploadedContract || hasContract || transaction.status === 'PAYMENT_CONFIRMED') && (
+                                            <IconButton
+                                              icon={FileText}
+                                              text="Xem hợp đồng"
+                                              onClick={() => handleViewContract(transaction.inventoryId, transaction)}
+                                            />
+                                          )}
+                                          {/* Xem chi tiết */}
+                                          <IconButton
+                                            icon={Eye}
+                                            text="Xem chi tiết"
+                                            onClick={() => handleViewTransactionDetail(transaction.inventoryId)}
+                                          />
+                                        </>
+                                      )}
+                                      
+                                      {/* Nút "Xem hóa đơn" cho các status khác (không phải PENDING, CONFIRMED, EVM_SIGNED, CONTRACT_SIGNED, REJECTED, CANCELLED) */}
+                                      {/* Chỉ hiển thị khi không phải các stage trên và không phải PAYMENT_CONFIRMED, IN_TRANSIT, DELIVERED */}
+                                      {canViewReceipt && hasReceipt && !isStage1 && !isStage2 && !isStage3 && 
+                                       transaction.status !== 'PAYMENT_CONFIRMED' &&
+                                       transaction.status !== 'IN_TRANSIT' &&
+                                       transaction.status !== 'DELIVERED' && (
+                                        <IconButton
+                                          icon={Receipt}
+                                          text="Xem hóa đơn"
+                                          onClick={() => handleViewReceipt(transaction, false)}
+                                        />
+                                      )}
+                                      
+                                      {/* Button "Xem chi tiết" chung - chỉ hiển thị khi không có trong các stage */}
+                                      {!isStage1 && !isStage2 && !isStage3 && 
+                                       transaction.status !== 'IN_TRANSIT' &&
+                                       transaction.status !== 'DELIVERED' && (
+                                        <IconButton
+                                          icon={Eye}
+                                          text="Xem chi tiết"
+                                          onClick={() => handleViewTransactionDetail(transaction.inventoryId)}
+                                        />
+                                      )}
+                                    </>
+                                  );
+                                })()}
+                                {/* DELIVERED: Xem hợp đồng, Xem hóa đơn, và Xem chi tiết */}
+                                {transaction.status === 'DELIVERED' && (() => {
+                                  const { hasContract, hasUploadedContract, hasReceipt } = getTransactionChecks(transaction);
+                                  
+                                  return (
+                                    <>
+                                      {/* Xem hợp đồng */}
+                                      {(hasUploadedContract || hasContract) && (
+                                        <IconButton
+                                          icon={FileText}
+                                          text="Xem hợp đồng"
+                                          onClick={() => handleViewContract(transaction.inventoryId, transaction)}
+                                        />
+                                      )}
+                                      {/* Xem hóa đơn đã upload */}
+                                      {hasReceipt && (
+                                        <IconButton
+                                          icon={Receipt}
+                                          text="Xem hóa đơn"
+                                          onClick={() => handleViewReceipt(transaction, false)}
+                                        />
+                                      )}
+                                      {/* Xem chi tiết */}
+                                      <IconButton
+                                        icon={Eye}
+                                        text="Xem chi tiết"
+                                        onClick={() => handleViewTransactionDetail(transaction.inventoryId)}
+                                      />
+                                    </>
+                                  );
+                                })()}
+                                {/* IN_TRANSIT: Xem hợp đồng, Xem hóa đơn, và Đã nhận được hàng */}
+                                {transaction.status === 'IN_TRANSIT' && (() => {
+                                  const { hasContract, hasUploadedContract, hasReceipt } = getTransactionChecks(transaction);
+                                  
+                                  return (
+                                    <>
+                                      {/* Xem hợp đồng */}
+                                      {(hasUploadedContract || hasContract) && (
+                                        <IconButton
+                                          icon={FileText}
+                                          text="Xem hợp đồng"
+                                          onClick={() => handleViewContract(transaction.inventoryId, transaction)}
+                                        />
+                                      )}
+                                      {/* Xem hóa đơn đã upload */}
+                                      {hasReceipt && (
+                                        <IconButton
+                                          icon={Receipt}
+                                          text="Xem hóa đơn"
+                                          onClick={() => handleViewReceipt(transaction, false)}
+                                        />
+                                      )}
+                                      {/* Đã nhận được hàng */}
+                                      <IconButton
+                                        icon={Package}
+                                        text={isConfirmingDelivery ? 'Đang xác nhận...' : 'Đã nhận được hàng'}
+                                        onClick={() => handleConfirmDelivery(transaction.inventoryId)}
+                                        disabled={isConfirmingDelivery}
+                                        className="bg-green-600 hover:bg-green-700 text-white"
+                                      />
+                                    </>
+                                  );
+                                })()}
                               </div>
                             </Table.Cell>
                           </Table.Row>
@@ -1117,11 +1828,11 @@ const InventoryPage = () => {
             )}
 
             <div>
-              <Input
-                label="Số lượng *"
-                type="number"
-                min="1"
-                value={formData.quantity}
+            <Input
+              label="Số lượng *"
+              type="number"
+              min="1"
+              value={formData.quantity}
                 onChange={(e) => {
                   const value = parseInt(e.target.value) || 1;
                   setFormData({ ...formData, quantity: value });
@@ -1129,8 +1840,8 @@ const InventoryPage = () => {
                     setFormErrors({ ...formErrors, quantity: '' });
                   }
                 }}
-                required
-              />
+              required
+            />
               {formErrors.quantity && (
                 <p className="text-sm text-red-600 mt-1">{formErrors.quantity}</p>
               )}
@@ -1232,17 +1943,39 @@ const InventoryPage = () => {
           <form onSubmit={handleUploadContract} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Chọn file hợp đồng đã ký (HTML hoặc PDF) *
+                Chọn file hợp đồng đã ký (PDF hoặc hình ảnh) *
               </label>
               <input
                 type="file"
-                accept=".html,.pdf"
-                onChange={(e) => setContractFile(e.target.files[0])}
+                accept=".pdf,.jpg,.jpeg,.png,image/*,application/pdf"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    // Validate file type: chỉ cho phép PDF hoặc hình ảnh
+                    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+                    const fileType = file.type || '';
+                    const fileName = file.name || '';
+                    const isValidType = allowedTypes.includes(fileType) || 
+                                       fileName.toLowerCase().endsWith('.pdf') ||
+                                       fileName.toLowerCase().endsWith('.jpg') ||
+                                       fileName.toLowerCase().endsWith('.jpeg') ||
+                                       fileName.toLowerCase().endsWith('.png');
+                    
+                    if (!isValidType) {
+                      showToast('File phải là PDF hoặc hình ảnh (JPG, PNG)', 'error');
+                      e.target.value = ''; // Reset input
+                      setContractFile(null);
+                      return;
+                    }
+                    
+                    setContractFile(file);
+                  }
+                }}
                 className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 required
               />
               <p className="mt-1 text-xs text-gray-500">
-                Vui lòng upload file hợp đồng đã được ký (HTML hoặc PDF)
+                Vui lòng upload file hợp đồng đã được ký (PDF hoặc hình ảnh: JPG, PNG)
               </p>
             </div>
             <div className="flex gap-4 pt-4">
@@ -1294,7 +2027,7 @@ const InventoryPage = () => {
                 required
               />
               <p className="mt-1 text-xs text-gray-500">
-                Vui lòng upload file biên lai thanh toán (PDF, JPG, PNG)
+                Vui lòng upload file biên lai thanh toán (PDF, JPG, PNG). Kích thước tối đa: 10MB.
               </p>
             </div>
             <div className="flex gap-4 pt-4">
@@ -1337,12 +2070,12 @@ const InventoryPage = () => {
               <div className="text-gray-500">Đang tải dữ liệu...</div>
             </div>
           ) : stockDetailData?.data ? (
-            <div className="space-y-4">
+          <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-gray-500">Mẫu xe</label>
                   <p className="text-base font-semibold text-gray-900">{stockDetailData.data.modelName || 'N/A'}</p>
-                </div>
+              </div>
                 <div>
                   <label className="text-sm font-medium text-gray-500">Màu sắc</label>
                   <p className="text-base text-gray-900">{stockDetailData.data.colorName || 'N/A'}</p>
@@ -1356,26 +2089,22 @@ const InventoryPage = () => {
                   <div className="mt-1">{getStockStatusBadge(stockDetailData.data)}</div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Ngày nhập kho</label>
-                  <p className="text-base text-gray-900">{formatDate(stockDetailData.data.stockedDate || stockDetailData.data.receivedDate || stockDetailData.data.createdAt)}</p>
-                </div>
-                <div>
                   <label className="text-sm font-medium text-gray-500">Trạng thái</label>
                   <div className="mt-1">{getStatusBadge(stockDetailData.data.status)}</div>
                 </div>
-              </div>
-              <div className="flex justify-end pt-4">
-                <Button
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button
                   variant="outline"
                   onClick={() => {
                     setIsStockDetailModalOpen(false);
                     setSelectedStockId(null);
                   }}
-                >
-                  Đóng
-                </Button>
-              </div>
+              >
+                Đóng
+              </Button>
             </div>
+          </div>
           ) : (
             <div className="text-center py-8 text-gray-500">Không có dữ liệu</div>
           )}
@@ -1388,7 +2117,7 @@ const InventoryPage = () => {
             setIsTransactionDetailModalOpen(false);
             setSelectedTransactionId(null);
           }}
-          title="Chi tiết Yêu cầu đặt xe"
+          title="Chi tiết yêu cầu đặt xe"
           size="lg"
         >
           {isLoadingTransactionDetail ? (
@@ -1396,26 +2125,31 @@ const InventoryPage = () => {
               <div className="text-gray-500">Đang tải dữ liệu...</div>
             </div>
           ) : transactionDetailData?.data ? (
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-5">
+              {/* Header đơn giản */}
+              <div className="flex items-center justify-between pb-4 border-b border-gray-200">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Mã yêu cầu</label>
-                  <p className="text-base font-semibold text-gray-900">#{transactionDetailData.data.inventoryId}</p>
+                  <p className="text-sm text-gray-500 mb-1">Mã yêu cầu</p>
+                  <p className="text-xl font-semibold text-gray-900">#{transactionDetailData.data.inventoryId}</p>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Trạng thái</label>
-                  <div className="mt-1">{getTransactionStatusBadge(transactionDetailData.data.status)}</div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-500 mb-2">Trạng thái</p>
+                  <div>{getTransactionStatusBadge(transactionDetailData.data.status)}</div>
                 </div>
+              </div>
+
+              {/* Thông tin chi tiết */}
+              <div className="grid grid-cols-2 gap-5">
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Model</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
                   <p className="text-base text-gray-900">{transactionDetailData.data.modelName || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Màu sắc</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Màu sắc</label>
                   <p className="text-base text-gray-900">{transactionDetailData.data.colorName || 'N/A'}</p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Số lượng</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Số lượng</label>
                   <p className="text-base text-gray-900">
                     {transactionDetailData.data.importQuantity || 
                      transactionDetailData.data.quantity || 
@@ -1424,14 +2158,20 @@ const InventoryPage = () => {
                   </p>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-gray-500">Ngày tạo</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Ngày tạo</label>
                   <p className="text-base text-gray-900">
-                    {formatDate(transactionDetailData.data.createdAt || transactionDetailData.data.requestDate)}
+                    {formatDate(
+                      transactionDetailData.data.createdAt || 
+                      transactionDetailData.data.requestDate || 
+                      transactionDetailData.data.createdDate || 
+                      transactionDetailData.data.dateCreated ||
+                      transactionDetailData.data.orderDate
+                    )}
                   </p>
                 </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-500">Tổng giá</label>
-                  <p className="text-base font-semibold text-gray-900">
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tổng giá</label>
+                  <p className="text-xl font-semibold text-gray-900">
                     {(() => {
                       const detail = transactionDetailData.data;
                       let totalPrice = detail.totalPrice || 
@@ -1458,20 +2198,22 @@ const InventoryPage = () => {
                 </div>
                 {transactionDetailData.data.notes && (
                   <div className="col-span-2">
-                    <label className="text-sm font-medium text-gray-500">Ghi chú</label>
-                    <p className="text-base text-gray-900">{transactionDetailData.data.notes}</p>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Ghi chú</label>
+                    <p className="text-base text-gray-900 bg-gray-50 p-3 rounded border border-gray-200">
+                      {transactionDetailData.data.notes}
+                    </p>
                   </div>
                 )}
-                {/* Hiển thị hợp đồng nếu có */}
+                {/* Hợp đồng */}
                 {(transactionDetailData.data.contractFile || transactionDetailData.data.contractPath) && (
                   <div className="col-span-2">
-                    <label className="text-sm font-medium text-gray-500 block mb-2">Hợp đồng</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Hợp đồng</label>
                     {transactionDetailData.data.contractFile ? (
                       <a
                         href={transactionDetailData.data.contractFile}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-blue-600 hover:underline"
+                        className="text-blue-600 hover:text-blue-700 hover:underline"
                       >
                         Xem hợp đồng
                       </a>
@@ -1480,19 +2222,21 @@ const InventoryPage = () => {
                     )}
                   </div>
                 )}
-                {/* Hiển thị hóa đơn nếu có */}
+                {/* Hóa đơn thanh toán */}
                 {transactionDetailData.data.receiptImage && (
                   <div className="col-span-2">
-                    <label className="text-sm font-medium text-gray-500 block mb-2">Hóa đơn thanh toán</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Hóa đơn thanh toán</label>
                     <img
                       src={transactionDetailData.data.receiptImage}
                       alt="Receipt"
-                      className="max-w-full h-auto rounded-lg border border-gray-200"
+                      className="max-w-full h-auto rounded border border-gray-200"
                     />
                   </div>
                 )}
               </div>
-              <div className="flex justify-end pt-4">
+              
+              {/* Footer buttons */}
+              <div className="flex justify-end pt-4 border-t border-gray-200">
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -1503,9 +2247,91 @@ const InventoryPage = () => {
                   Đóng
                 </Button>
               </div>
-            </div>
+          </div>
           ) : (
             <div className="text-center py-8 text-gray-500">Không có dữ liệu</div>
+          )}
+        </Modal>
+
+        {/* View Receipt Modal */}
+        <Modal
+          isOpen={isViewReceiptModalOpen}
+          onClose={() => {
+            setIsViewReceiptModalOpen(false);
+            setSelectedReceiptImage(null);
+          }}
+          title="Hóa Đơn Thanh Toán"
+          size="lg"
+        >
+          {selectedReceiptImage ? (
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <img
+                  src={selectedReceiptImage}
+                  alt="Hóa đơn thanh toán"
+                  className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
+                  onError={(e) => {
+                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%239ca3af" font-family="Arial" font-size="16"%3EKhông thể tải hình ảnh%3C/text%3E%3C/svg%3E';
+                  }}
+                />
+              </div>
+              <div className="flex justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsViewReceiptModalOpen(false);
+                    setSelectedReceiptImage(null);
+                  }}
+                >
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              Không có hình ảnh hóa đơn
+            </div>
+          )}
+        </Modal>
+
+        {/* View Contract Modal */}
+        <Modal
+          isOpen={isViewContractModalOpen}
+          onClose={() => {
+            setIsViewContractModalOpen(false);
+            setSelectedContractImage(null);
+          }}
+          title="Hợp Đồng"
+          size="lg"
+        >
+          {selectedContractImage ? (
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <img
+                  src={selectedContractImage}
+                  alt="Hợp đồng"
+                  className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
+                  onError={(e) => {
+                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%239ca3af" font-family="Arial" font-size="16"%3EKhông thể tải hình ảnh%3C/text%3E%3C/svg%3E';
+                  }}
+                />
+              </div>
+              <div className="flex justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsViewContractModalOpen(false);
+                    setSelectedContractImage(null);
+                  }}
+                >
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              Không có hình ảnh hợp đồng
+            </div>
           )}
         </Modal>
 
@@ -1587,6 +2413,122 @@ const InventoryPage = () => {
                 Xác nhận
               </Button>
             </div>
+          </div>
+        </Modal>
+
+        {/* Payment Info Modal - Hiển thị sau khi upload contract */}
+        <Modal
+          isOpen={isPaymentInfoModalOpen}
+          onClose={() => {
+            setIsPaymentInfoModalOpen(false);
+            setSelectedTransactionId(null);
+          }}
+          title="Thông Tin Chuyển Khoản"
+          size="lg"
+        >
+          {isLoadingPaymentInfo ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-gray-500">Đang tải thông tin thanh toán...</div>
+            </div>
+          ) : paymentInfoError ? (
+            <div className="flex flex-col items-center justify-center py-8 space-y-2">
+              <div className="text-red-500 font-semibold">Không thể tải thông tin thanh toán</div>
+              <div className="text-sm text-gray-500">
+                {paymentInfoError?.data?.message || paymentInfoError?.message || 'Có lỗi xảy ra khi tải thông tin thanh toán'}
+              </div>
+              {import.meta.env.DEV && (
+                <div className="text-xs text-gray-400 mt-2">
+                  Error: {JSON.stringify(paymentInfoError, null, 2)}
+                </div>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsPaymentInfoModalOpen(false);
+                  setSelectedTransactionId(null);
+                }}
+                className="mt-4"
+              >
+                Đóng
+              </Button>
+            </div>
+          ) : paymentInfoData?.data ? (
+            <div className="space-y-4">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <h3 className="text-lg font-semibold text-blue-900 mb-3">Thông tin tài khoản nhận tiền</h3>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Ngân hàng:</span>
+                    <span className="font-semibold">{paymentInfoData.data.bankName || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Số tài khoản:</span>
+                    <span className="font-semibold font-mono">{paymentInfoData.data.accountNumber || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Chủ tài khoản:</span>
+                    <span className="font-semibold">{paymentInfoData.data.accountHolderName || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Số tiền:</span>
+                    <span className="font-semibold text-red-600">
+                      {paymentInfoData.data.totalAmount 
+                        ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(paymentInfoData.data.totalAmount)
+                        : 'N/A'}
+                    </span>
+                  </div>
+                  {paymentInfoData.data.transactionCode && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Mã giao dịch:</span>
+                      <span className="font-semibold font-mono">{paymentInfoData.data.transactionCode}</span>
+                    </div>
+                  )}
+                  {paymentInfoData.data.note && (
+                    <div className="mt-3 pt-3 border-t border-blue-200">
+                      <span className="text-gray-600">Ghi chú:</span>
+                      <p className="text-sm text-gray-700 mt-1">{paymentInfoData.data.note}</p>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
+                <p className="text-sm text-yellow-800">
+                  <strong>Lưu ý:</strong> Vui lòng chuyển khoản đúng số tiền và ghi rõ mã giao dịch (nếu có) trong nội dung chuyển khoản.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 space-y-2">
+              <div className="text-gray-500">Không có thông tin thanh toán</div>
+              <div className="text-sm text-gray-400">
+                Vui lòng thử lại sau hoặc liên hệ quản trị viên
+              </div>
+              {import.meta.env.DEV && (
+                <div className="text-xs text-gray-400 mt-2">
+                  Debug: selectedTransactionId = {selectedTransactionId}, paymentInfoData = {JSON.stringify(paymentInfoData, null, 2)}
+                </div>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsPaymentInfoModalOpen(false);
+                  setSelectedTransactionId(null);
+                }}
+                className="mt-4"
+              >
+                Đóng
+              </Button>
+            </div>
+          )}
+          <div className="flex justify-end mt-4">
+            <Button
+              onClick={() => {
+                setIsPaymentInfoModalOpen(false);
+                setSelectedTransactionId(null);
+              }}
+            >
+              Đã hiểu
+            </Button>
           </div>
         </Modal>
 

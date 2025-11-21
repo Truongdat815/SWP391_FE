@@ -69,6 +69,8 @@ export const inventoryApi = baseApi.injectEndpoints({
     uploadReceipt: builder.mutation({
       query: ({ inventoryId, file }) => {
         const formData = new FormData();
+        // Thử "file" trước (giống như upload contract)
+        // Nếu backend yêu cầu "receipt", đổi lại
         formData.append('file', file);
         return {
           url: `/inventory-transactions/${inventoryId}/upload-receipt`,
@@ -85,6 +87,44 @@ export const inventoryApi = baseApi.injectEndpoints({
         method: 'PUT',
       }),
       invalidatesTags: ['Inventory'],
+    }),
+    // Xác nhận đã nhận hàng (confirm-delivery)
+    confirmDelivery: builder.mutation({
+      query: (inventoryId) => ({
+        url: `/inventory-transactions/confirm-delivery/${inventoryId}`,
+        method: 'PUT',
+      }),
+      invalidatesTags: ['Inventory'],
+    }),
+    // Lấy thông tin thanh toán (payment-info)
+    getPaymentInfo: builder.query({
+      query: (inventoryId) => `/inventory-transactions/${inventoryId}/payment-info`,
+      providesTags: ['Inventory'],
+      transformResponse: (response) => {
+        // API trả về { code, message, data }
+        // RTK Query sẽ tự động unwrap response.data nếu response có cấu trúc { data: ... }
+        // Nhưng nếu response là { code, message, data }, ta cần trả về response.data
+        if (response?.data !== undefined) {
+          return { data: response.data };
+        }
+        // Nếu response đã là data trực tiếp
+        return { data: response };
+      },
+    }),
+    // Lấy contract HTML để xem
+    getContractHtml: builder.query({
+      query: (inventoryId) => ({
+        url: `/inventory-transactions/${inventoryId}/contract/html`,
+        responseHandler: async (response) => {
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Failed to fetch contract HTML');
+            throw new Error(errorText);
+          }
+          const text = await response.text();
+          return text; // Trả về HTML string trực tiếp
+        },
+      }),
+      providesTags: ['Inventory'],
     }),
     // Lấy store stock theo ID
     getStoreStockById: builder.query({
@@ -132,6 +172,9 @@ export const {
   useGetInventoryTransactionByIdQuery,
   useLazyExportInventoryQuery,
   useConfirmReceivingMutation,
+  useConfirmDeliveryMutation,
+  useGetPaymentInfoQuery,
+  useGetContractHtmlQuery,
   useGetContractQuery,
 } = inventoryApi;
 

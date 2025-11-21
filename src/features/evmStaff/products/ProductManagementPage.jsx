@@ -147,6 +147,15 @@ const ProductManagementPage = () => {
       showNotification('Vui lòng nhập năm sản xuất hợp lệ', 'error');
       return;
     }
+    
+    // Validation năm sản xuất
+    const currentYear = new Date().getFullYear();
+    const modelYear = parseInt(modelFormData.modelYear);
+    if (modelYear < 2000 || modelYear > currentYear + 1) {
+      showNotification(`Năm sản xuất phải từ 2000 đến ${currentYear + 1}`, 'error');
+      return;
+    }
+    
     if (!modelFormData.bodyType) {
       showNotification('Vui lòng chọn kiểu dáng', 'error');
       return;
@@ -166,29 +175,55 @@ const ProductManagementPage = () => {
       return isNaN(parsed) ? null : parsed;
     };
 
+    // Validation các số liệu kỹ thuật >= 0
+    const batteryCapacity = parseNumber(modelFormData.batteryCapacity);
+    if (batteryCapacity !== null && batteryCapacity < 0) {
+      showNotification('Dung lượng pin phải >= 0', 'error');
+      return;
+    }
+
+    const range = parseNumber(modelFormData.range);
+    if (range !== null && range < 0) {
+      showNotification('Tầm hoạt động phải >= 0', 'error');
+      return;
+    }
+
+    const powerHp = parseNumber(modelFormData.powerHp);
+    if (powerHp !== null && powerHp < 0) {
+      showNotification('Công suất (HP) phải >= 0', 'error');
+      return;
+    }
+
+    const torqueNm = parseNumber(modelFormData.torqueNm);
+    if (torqueNm !== null && torqueNm < 0) {
+      showNotification('Mô-men xoắn (Nm) phải >= 0', 'error');
+      return;
+    }
+
+    const acceleration = parseNumber(modelFormData.acceleration);
+    if (acceleration !== null && acceleration < 0) {
+      showNotification('Gia tốc phải >= 0', 'error');
+      return;
+    }
+
+    const seatingCapacity = parseInteger(modelFormData.seatingCapacity);
+    if (seatingCapacity !== null && seatingCapacity < 0) {
+      showNotification('Số chỗ ngồi phải >= 0', 'error');
+      return;
+    }
+
     try {
       const createData = {
         modelName: modelFormData.modelName.trim(),
-        modelYear: parseInt(modelFormData.modelYear),
+        modelYear: modelYear,
         bodyType: modelFormData.bodyType,
       };
 
-      const batteryCapacity = parseNumber(modelFormData.batteryCapacity);
       if (batteryCapacity !== null) createData.batteryCapacity = batteryCapacity;
-
-      const range = parseNumber(modelFormData.range);
       if (range !== null) createData.range = range;
-
-      const powerHp = parseNumber(modelFormData.powerHp);
       if (powerHp !== null) createData.powerHp = powerHp;
-
-      const torqueNm = parseNumber(modelFormData.torqueNm);
       if (torqueNm !== null) createData.torqueNm = torqueNm;
-
-      const acceleration = parseNumber(modelFormData.acceleration);
       if (acceleration !== null) createData.acceleration = acceleration;
-
-      const seatingCapacity = parseInteger(modelFormData.seatingCapacity);
       if (seatingCapacity !== null) createData.seatingCapacity = seatingCapacity;
 
       if (modelFormData.description?.trim()) {
@@ -260,8 +295,68 @@ const ProductManagementPage = () => {
       showNotification('Vui lòng nhập năm sản xuất hợp lệ', 'error');
       return;
     }
+    
+    // Validation năm sản xuất
+    const currentYear = new Date().getFullYear();
+    const modelYear = parseInt(modelFormData.modelYear);
+    if (modelYear < 2000 || modelYear > currentYear + 1) {
+      showNotification(`Năm sản xuất phải từ 2000 đến ${currentYear + 1}`, 'error');
+      return;
+    }
+    
     if (!modelFormData.bodyType) {
       showNotification('Vui lòng chọn kiểu dáng', 'error');
+      return;
+    }
+
+    const parseNumber = (value) => {
+      if (!value || value === '') return null;
+      const normalized = String(value).replace(',', '.');
+      const parsed = parseFloat(normalized);
+      return isNaN(parsed) ? null : parsed;
+    };
+
+    const parseInteger = (value) => {
+      if (!value || value === '') return null;
+      const normalized = String(value).replace(',', '.');
+      const parsed = parseInt(normalized);
+      return isNaN(parsed) ? null : parsed;
+    };
+
+    // Validation các số liệu kỹ thuật >= 0
+    const batteryCapacity = parseNumber(modelFormData.batteryCapacity);
+    if (batteryCapacity !== null && batteryCapacity < 0) {
+      showNotification('Dung lượng pin phải >= 0', 'error');
+      return;
+    }
+
+    const range = parseNumber(modelFormData.range);
+    if (range !== null && range < 0) {
+      showNotification('Tầm hoạt động phải >= 0', 'error');
+      return;
+    }
+
+    const powerHp = parseNumber(modelFormData.powerHp);
+    if (powerHp !== null && powerHp < 0) {
+      showNotification('Công suất (HP) phải >= 0', 'error');
+      return;
+    }
+
+    const torqueNm = parseNumber(modelFormData.torqueNm);
+    if (torqueNm !== null && torqueNm < 0) {
+      showNotification('Mô-men xoắn (Nm) phải >= 0', 'error');
+      return;
+    }
+
+    const acceleration = parseNumber(modelFormData.acceleration);
+    if (acceleration !== null && acceleration < 0) {
+      showNotification('Gia tốc phải >= 0', 'error');
+      return;
+    }
+
+    const seatingCapacity = parseInteger(modelFormData.seatingCapacity);
+    if (seatingCapacity !== null && seatingCapacity < 0) {
+      showNotification('Số chỗ ngồi phải >= 0', 'error');
       return;
     }
 
@@ -269,40 +364,15 @@ const ProductManagementPage = () => {
       const updateData = {
         id: selectedModel.modelId,
         modelName: modelFormData.modelName.trim(),
-        modelYear: parseInt(modelFormData.modelYear),
+        modelYear: modelYear,
         bodyType: modelFormData.bodyType,
       };
 
-      const parseNumber = (value) => {
-        if (!value || value === '') return null;
-        const normalized = String(value).replace(',', '.');
-        const parsed = parseFloat(normalized);
-        return isNaN(parsed) ? null : parsed;
-      };
-
-      const parseInteger = (value) => {
-        if (!value || value === '') return null;
-        const normalized = String(value).replace(',', '.');
-        const parsed = parseInt(normalized);
-        return isNaN(parsed) ? null : parsed;
-      };
-
-      const batteryCapacity = parseNumber(modelFormData.batteryCapacity);
       if (batteryCapacity !== null) updateData.batteryCapacity = batteryCapacity;
-
-      const range = parseNumber(modelFormData.range);
       if (range !== null) updateData.range = range;
-
-      const powerHp = parseNumber(modelFormData.powerHp);
       if (powerHp !== null) updateData.powerHp = powerHp;
-
-      const torqueNm = parseNumber(modelFormData.torqueNm);
       if (torqueNm !== null) updateData.torqueNm = torqueNm;
-
-      const acceleration = parseNumber(modelFormData.acceleration);
       if (acceleration !== null) updateData.acceleration = acceleration;
-
-      const seatingCapacity = parseInteger(modelFormData.seatingCapacity);
       if (seatingCapacity !== null) updateData.seatingCapacity = seatingCapacity;
 
       if (modelFormData.description?.trim()) {
@@ -359,14 +429,27 @@ const ProductManagementPage = () => {
   const handleCreateColor = async (e) => {
     e.preventDefault();
     if (!selectedModel) {
-      alert('Vui lòng chọn model trước');
+      showNotification('Vui lòng chọn model trước', 'error');
       return;
     }
+    
+    // Validation
+    if (!colorFormData.colorId) {
+      showNotification('Vui lòng chọn màu sắc', 'error');
+      return;
+    }
+    
+    const price = parseFloat(colorFormData.price);
+    if (!colorFormData.price || isNaN(price) || price <= 0) {
+      showNotification('Giá phải là số lớn hơn 0', 'error');
+      return;
+    }
+    
     try {
       await createModelColor({
         modelId: selectedModel.modelId,
         colorId: parseInt(colorFormData.colorId),
-        price: parseFloat(colorFormData.price),
+        price: price,
       }).unwrap();
       setIsCreateColorModalOpen(false);
       setColorFormData({
@@ -374,8 +457,10 @@ const ProductManagementPage = () => {
         colorId: '',
         price: '',
       });
+      showNotification('Thêm màu cho model thành công!', 'success');
     } catch (error) {
-      alert('Có lỗi xảy ra khi tạo color variant');
+      const errorMessage = error?.data?.message || error?.data?.error || error?.message || 'Có lỗi xảy ra khi tạo color variant';
+      showNotification(errorMessage, 'error');
     }
   };
 

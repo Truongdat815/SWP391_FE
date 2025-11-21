@@ -120,6 +120,7 @@ const OrderManagementPage = () => {
       DELIVERING: { variant: 'info', label: 'Đang giao' },
       DELIVERED: { variant: 'success', label: 'Hoàn thành' },
       FULLY_PAID: { variant: 'success', label: 'Đã thanh toán' },
+      DEPOSIT_PAID: { variant: 'info', label: 'Đã đặt cọc' },
       CONTRACT_SIGNED: { variant: 'info', label: 'Đã ký hợp đồng' },
       CONTRACT_PENDING: { variant: 'warning', label: 'Chờ ký hợp đồng' },
       CANCELLED: { variant: 'error', label: 'Đã hủy' },
@@ -194,8 +195,9 @@ const OrderManagementPage = () => {
     if (!formData.colorId) {
       errors.colorId = 'Vui lòng chọn màu sắc';
     }
-    if (!formData.quantity || formData.quantity < 1) {
-      errors.quantity = 'Số lượng phải lớn hơn 0';
+    const quantity = parseFloat(formData.quantity);
+    if (!formData.quantity || isNaN(quantity) || !Number.isInteger(quantity) || quantity < 1) {
+      errors.quantity = 'Số lượng phải là số nguyên dương lớn hơn 0';
     }
     setFormErrors(errors);
     return Object.keys(errors).length === 0;

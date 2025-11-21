@@ -186,6 +186,22 @@ const StoreManagementPage = () => {
       return;
     }
 
+    // Validation
+    if (!formData.storeName?.trim()) {
+      setErrorModal({ isOpen: true, message: 'Vui lòng nhập tên đại lý' });
+      return;
+    }
+
+    if (formData.phone && !/^[0-9]{10,11}$/.test(formData.phone.replace(/\s/g, ''))) {
+      setErrorModal({ isOpen: true, message: 'Số điện thoại phải có 10-11 chữ số' });
+      return;
+    }
+
+    if (!formData.ownerName?.trim()) {
+      setErrorModal({ isOpen: true, message: 'Vui lòng nhập tên chủ sở hữu' });
+      return;
+    }
+
     // Validation: Ngày kết thúc phải sau ngày bắt đầu
     if (formData.contractStartDate && formData.contractEndDate) {
       const startDate = new Date(formData.contractStartDate);

@@ -72,6 +72,18 @@ const ColorManagementPage = () => {
 
   const handleCreate = async (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.colorName?.trim()) {
+      showNotification('Vui lòng nhập tên màu', 'error');
+      return;
+    }
+    
+    if (!formData.colorCode || !/^#[0-9A-Fa-f]{6}$/.test(formData.colorCode)) {
+      showNotification('Mã màu phải là hex code hợp lệ (ví dụ: #FFFFFF)', 'error');
+      return;
+    }
+    
     try {
       await createColor(formData).unwrap();
       setIsCreateModalOpen(false);
@@ -79,7 +91,8 @@ const ColorManagementPage = () => {
       setShowColorPicker(false);
       showNotification('Tạo màu mới thành công!', 'success');
     } catch (error) {
-      showNotification('Có lỗi xảy ra khi tạo màu', 'error');
+      const errorMessage = error?.data?.message || error?.data?.error || error?.message || 'Có lỗi xảy ra khi tạo màu';
+      showNotification(errorMessage, 'error');
     }
   };
 
@@ -95,13 +108,26 @@ const ColorManagementPage = () => {
 
   const handleUpdate = async (e) => {
     e.preventDefault();
+    
+    // Validation
+    if (!formData.colorName?.trim()) {
+      showNotification('Vui lòng nhập tên màu', 'error');
+      return;
+    }
+    
+    if (!formData.colorCode || !/^#[0-9A-Fa-f]{6}$/.test(formData.colorCode)) {
+      showNotification('Mã màu phải là hex code hợp lệ (ví dụ: #FFFFFF)', 'error');
+      return;
+    }
+    
     try {
       await updateColor({ id: selectedColor.colorId, ...formData }).unwrap();
       setIsEditModalOpen(false);
       setSelectedColor(null);
       showNotification('Cập nhật màu thành công!', 'success');
     } catch (error) {
-      showNotification('Có lỗi xảy ra khi cập nhật màu', 'error');
+      const errorMessage = error?.data?.message || error?.data?.error || error?.message || 'Có lỗi xảy ra khi cập nhật màu';
+      showNotification(errorMessage, 'error');
     }
   };
 

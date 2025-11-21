@@ -10,8 +10,8 @@ import {
   Calendar,
   AlertCircle,
   FileText,
-  PenTool,
-  Upload
+  Eye,
+  Receipt,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import EVMStaffLayout from '../../../components/layout/EVMStaffLayout';
@@ -36,11 +36,10 @@ import {
   useStartShippingMutation,
   useConfirmPaymentMutation,
   useCancelInventoryRequestMutation,
-  useCreateContractMutation,
-  useUploadSignatureImageMutation,
-  useSignContractMutation,
   useGetContractQuery,
+  useGetPaymentInfoQuery,
 } from '../../../api/evmStaff/inventoryApi';
+import { getAuthFromStorage } from '../../../utils/roleUtils';
 
 const DealerOrdersPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -52,9 +51,11 @@ const DealerOrdersPage = () => {
   const [itemsPerPage] = useState(10);
   const [selectedTransactionId, setSelectedTransactionId] = useState(null);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
-  const [isSignContractModalOpen, setIsSignContractModalOpen] = useState(false);
-  const [signatureFile, setSignatureFile] = useState(null);
-  const [signaturePreview, setSignaturePreview] = useState(null);
+  const [isViewReceiptModalOpen, setIsViewReceiptModalOpen] = useState(false);
+  const [isPaymentInfoModalOpen, setIsPaymentInfoModalOpen] = useState(false);
+  const [selectedReceiptImage, setSelectedReceiptImage] = useState(null);
+  const [isViewContractModalOpen, setIsViewContractModalOpen] = useState(false);
+  const [selectedContractImage, setSelectedContractImage] = useState(null);
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, message: '', onConfirm: null });
   const { toasts, showToast, removeToast } = useToast();
 
@@ -63,7 +64,7 @@ const DealerOrdersPage = () => {
     setCurrentPage(1);
   }, [debouncedSearchTerm, statusFilter, dealerFilter, timeRangeFilter]);
 
-  const { data: transactionsData, isLoading, error } = useGetAllInventoryTransactionsQuery();
+  const { data: transactionsData, isLoading, error, refetch: refetchTransactions } = useGetAllInventoryTransactionsQuery();
   const { data: storesData, isLoading: isLoadingStores, error: storesError } = useGetAllStoresQuery();
   const { data: statusesData } = useGetInventoryTransactionStatusesQuery();
   const { data: transactionDetail, isLoading: isLoadingDetail } = useGetInventoryTransactionByIdQuery(
@@ -77,12 +78,204 @@ const DealerOrdersPage = () => {
   const [startShipping] = useStartShippingMutation();
   const [confirmPayment] = useConfirmPaymentMutation();
   const [cancelRequest] = useCancelInventoryRequestMutation();
-  const [createContract, { isLoading: isCreatingContract }] = useCreateContractMutation();
-  const [uploadSignatureImage] = useUploadSignatureImageMutation();
-  const [signContract, { isLoading: isSigningContract }] = useSignContractMutation();
+  const [isCreatingContract, setIsCreatingContract] = useState(false);
   const { data: contractData } = useGetContractQuery(selectedTransactionId, {
     skip: !selectedTransactionId,
   });
+  const { data: paymentInfoData, isLoading: isLoadingPaymentInfo, error: paymentInfoError } = useGetPaymentInfoQuery(selectedTransactionId, {
+    skip: !selectedTransactionId || !isPaymentInfoModalOpen,
+  });
+  // Hàm mở hợp đồng trong tab mới hoặc modal
+  const handleViewContract = async (inventoryId, transaction = null) => {
+    try {
+      if (!inventoryId) {
+        showToast('Không tìm thấy mã yêu cầu. Vui lòng thử lại sau.', 'error');
+        return;
+      }
+      
+      // Gọi API để lấy contract
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api';
+      const url = `${baseUrl}/inventory-transactions/${inventoryId}/contract`;
+      
+      const authData = getAuthFromStorage('evmStaff');
+      const token = authData?.token;
+      
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: headers,
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => 'Failed to fetch contract');
+        showToast('Không thể tải hợp đồng: ' + errorText, 'error');
+        return;
+      }
+      
+      const data = await response.json();
+      
+      // Lấy contractFileUrl từ response
+      // Response có thể là { data: { contractFileUrl: ... } } hoặc { contractFileUrl: ... }
+      const contractFileUrl = data?.data?.contractFileUrl || data?.contractFileUrl;
+      
+      // Kiểm tra xem có HTML không (nếu không có contractFileUrl, có thể là HTML)
+      const contractHtml = data?.data?.html || data?.html;
+      
+      // Nếu status là FILE_UPLOADED → luôn hiển thị modal (hợp đồng Manager đã upload)
+      const isFileUploaded = transaction?.status === 'FILE_UPLOADED';
+      
+      if (contractFileUrl) {
+        // Nếu có contractFileUrl (ảnh) → hiển thị trong modal
+        setSelectedContractImage(contractFileUrl);
+        setIsViewContractModalOpen(true);
+      } else if (contractHtml && !isFileUploaded) {
+        // Nếu có HTML → mở trong tab mới
+        const fullHtml = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Hợp Đồng</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Times New Roman', serif;
+      padding: 20px;
+      background-color: #f5f5f5;
+      overflow-x: auto;
+    }
+    .contract-container {
+      max-width: 100%;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      .contract-container {
+        box-shadow: none;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="contract-container">
+    ${contractHtml}
+  </div>
+</body>
+</html>`;
+        
+        // Tạo blob URL và mở trong tab mới
+        const blob = new Blob([fullHtml], { type: 'text/html' });
+        const blobUrl = URL.createObjectURL(blob);
+        const newWindow = window.open(blobUrl, '_blank');
+        
+        // Cleanup blob URL sau khi window đóng
+        if (newWindow) {
+          newWindow.addEventListener('beforeunload', () => {
+            URL.revokeObjectURL(blobUrl);
+          });
+        } else {
+          // Nếu popup bị chặn, thử dùng cách khác
+          showToast('Popup bị chặn. Vui lòng cho phép popup để xem hợp đồng.', 'warning');
+          URL.revokeObjectURL(blobUrl);
+        }
+      } else {
+        // Nếu không có cả contractFileUrl và HTML, thử gọi API HTML
+        const htmlUrl = `${baseUrl}/inventory-transactions/${inventoryId}/contract/html`;
+        const htmlResponse = await fetch(htmlUrl, {
+          method: 'GET',
+          headers: headers,
+        });
+        
+        if (htmlResponse.ok) {
+          const htmlText = await htmlResponse.text();
+          const fullHtml = `
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Hợp Đồng</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Times New Roman', serif;
+      padding: 20px;
+      background-color: #f5f5f5;
+      overflow-x: auto;
+    }
+    .contract-container {
+      max-width: 100%;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    @media print {
+      body {
+        background: white;
+        padding: 0;
+      }
+      .contract-container {
+        box-shadow: none;
+        padding: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="contract-container">
+    ${htmlText}
+  </div>
+</body>
+</html>`;
+          
+          // Tạo blob URL và mở trong tab mới
+          const blob = new Blob([fullHtml], { type: 'text/html' });
+          const blobUrl = URL.createObjectURL(blob);
+          const newWindow = window.open(blobUrl, '_blank');
+          
+          // Cleanup blob URL sau khi window đóng
+          if (newWindow) {
+            newWindow.addEventListener('beforeunload', () => {
+              URL.revokeObjectURL(blobUrl);
+            });
+          } else {
+            showToast('Popup bị chặn. Vui lòng cho phép popup để xem hợp đồng.', 'warning');
+            URL.revokeObjectURL(blobUrl);
+          }
+        } else {
+          showToast('Không tìm thấy hợp đồng. Vui lòng thử lại sau.', 'error');
+        }
+      }
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.error('Error viewing contract:', error);
+      }
+      showToast('Có lỗi xảy ra khi xem hợp đồng', 'error');
+    }
+  };
 
   const isStoreNotFoundError = (err) => {
     return (
@@ -197,7 +390,13 @@ const DealerOrdersPage = () => {
       PENDING: { variant: 'warning', label: 'Chờ xử lý' },
       CONFIRMED: { variant: 'info', label: 'Đã xác nhận' },
       ACCEPTED: { variant: 'info', label: 'Đã chấp nhận' },
+      EVM_SIGNED: { variant: 'info', label: 'Chờ ký hợp đồng' },
+      SIGNED: { variant: 'success', label: 'Đã ký hợp đồng' },
+      CONTRACT_SIGNED: { variant: 'success', label: 'Đã ký hợp đồng' },
+      FILE_UPLOADED: { variant: 'info', label: 'Đã upload hóa đơn' },
+      PAYMENT_CONFIRMED: { variant: 'info', label: 'Đã xác nhận thanh toán' },
       PROCESSING: { variant: 'info', label: 'Đang xử lý' },
+      IN_TRANSIT: { variant: 'info', label: 'Đang vận chuyển' },
       SHIPPING: { variant: 'info', label: 'Đang vận chuyển' },
       DELIVERED: { variant: 'success', label: 'Đã giao' },
       COMPLETED: { variant: 'success', label: 'Hoàn thành' },
@@ -234,62 +433,169 @@ const DealerOrdersPage = () => {
     }));
   };
 
-  const getActionButton = (status, transaction) => {
-    if (status === 'PENDING' || status === 'DRAFT') return { text: 'Chấp nhận', type: 'accept' };
+  const getActionButtons = (status, transaction) => {
+    const buttons = [];
+    
+    // Nếu bị từ chối → không có nút gì
+    if (status === 'REJECTED') {
+      return buttons;
+    }
+    
+    // Giai đoạn 1: Manager gửi yêu cầu (PENDING/DRAFT)
+    if (status === 'PENDING' || status === 'DRAFT') {
+      buttons.push({ text: 'Chấp nhận', type: 'accept' });
+      return buttons;
+    }
+    
+    // Giai đoạn 2: EVM đã duyệt (ACCEPTED/CONFIRMED) - Chờ tạo hợp đồng
     if (status === 'ACCEPTED' || status === 'CONFIRMED') {
-      // Sau khi accept, EVM cần tạo hợp đồng
-      // Kiểm tra xem đã có contract chưa
-      // Nếu đang xem detail của transaction này, dùng contractData
       const isViewingDetail = selectedTransactionId === transaction.inventoryId;
       const contractInfo = isViewingDetail && contractData?.data 
         ? contractData.data 
         : null;
       
-      const hasContract = contractInfo || transaction.contractId;
+      const hasContract = contractInfo || 
+                         transaction.contractId || 
+                         transaction.contractFile || 
+                         transaction.contractPath ||
+                         transaction.contractUrl ||
+                         transaction.contract;
       
       if (!hasContract) {
-        // Chưa có contract, hiển thị nút "Tạo hợp đồng"
-        return { text: 'Tạo hợp đồng', type: 'createContract' };
+        buttons.push({ text: 'Tạo hợp đồng', type: 'createContract' });
+      } else {
+        buttons.push({ text: 'Xem hợp đồng', type: 'viewContract' });
       }
-      
-      // Đã có contract, kiểm tra xem đã ký chưa
-      const contractStatus = contractInfo?.status || transaction.contractStatus;
-      const hasSignature = contractInfo?.evmSignatureUrl || transaction.evmSignatureUrl;
-      
-      // Nếu contract status là DRAFT hoặc chưa có signature, hiển thị nút "Ký hợp đồng"
-      if (contractStatus === 'DRAFT' || !hasSignature) {
-        return { text: 'Ký hợp đồng', type: 'signContract' };
-      }
-      
-      // Đã ký, chờ manager upload hợp đồng đã ký và hóa đơn
-      return null;
+      return buttons;
     }
+    
+    // Giai đoạn 3: EVM đã tạo hợp đồng (EVM_SIGNED) - Chờ Manager ký
     if (status === 'EVM_SIGNED') {
-      // EVM đã ký, chờ manager ký và upload lại
-      return null;
+      buttons.push({ text: 'Xem hợp đồng', type: 'viewContract' });
+      return buttons;
     }
-    if (status === 'FILE_UPLOADED' || status === 'SIGNED' || status === 'CONTRACT_SIGNED') {
-      // Manager đã upload hợp đồng đã ký, chờ upload hóa đơn
-      return null;
+    
+    // Giai đoạn 4: Manager đã upload hợp đồng (SIGNED/CONTRACT_SIGNED) - Chờ upload hóa đơn
+    // Lưu ý: "Xem thông tin thanh toán" chỉ hiển thị ở Manager, không hiển thị ở EVM Staff
+    if (status === 'SIGNED' || status === 'CONTRACT_SIGNED') {
+      buttons.push({ text: 'Xem hợp đồng', type: 'viewContract' });
+      return buttons;
     }
+    
+    // Giai đoạn 5: Manager đã upload hóa đơn (FILE_UPLOADED)
+    if (status === 'FILE_UPLOADED') {
+      // Luôn hiển thị nút "Xem hóa đơn đã thanh toán" khi status là FILE_UPLOADED
+      // imageUrl là của hóa đơn thanh toán
+      const hasReceipt = transaction.receiptImage ||
+                        transaction.receiptPath ||
+                        transaction.receiptUrl ||
+                        transaction.receiptFile ||
+                        transaction.receipt ||
+                        transaction.imageUrl;
+      
+      if (hasReceipt) {
+        buttons.push({ text: 'Xem hóa đơn đã thanh toán', type: 'viewReceipt' });
+      }
+      
+      // Luôn hiển thị nút "Xem hợp đồng" (hợp đồng Manager đã upload) khi status là FILE_UPLOADED
+      // Gọi API /inventory-transactions/{inventoryId}/contract để lấy contractFileUrl
+      buttons.push({ text: 'Xem hợp đồng', type: 'viewContract' });
+      
+      // Kiểm tra có cả contract và receipt để xác nhận thanh toán
+      if (hasReceipt) {
+        buttons.push({ text: 'Xác nhận đã thanh toán', type: 'confirmPayment' });
+      }
+      
+      return buttons;
+    }
+    
+    // Giai đoạn 6: EVM đã xác nhận thanh toán (PAYMENT_CONFIRMED) - Chờ vận chuyển
     if (status === 'PAYMENT_CONFIRMED') {
-      // Đã có cả hợp đồng và hóa đơn, có thể gửi xe
-      return { text: 'Bắt đầu vận chuyển', type: 'startShipping' };
+      // Luôn hiển thị nút "Xem hợp đồng" (hợp đồng Manager đã upload)
+      buttons.push({ text: 'Xem hợp đồng', type: 'viewContract' });
+      
+      // Luôn hiển thị nút "Xem hóa đơn thanh toán" khi status là PAYMENT_CONFIRMED
+      // imageUrl là của hóa đơn thanh toán
+      const hasReceipt = transaction.receiptImage ||
+                        transaction.receiptPath ||
+                        transaction.receiptUrl ||
+                        transaction.receiptFile ||
+                        transaction.receipt ||
+                        transaction.imageUrl;
+      
+      if (hasReceipt) {
+        buttons.push({ text: 'Xem hóa đơn thanh toán', type: 'viewReceipt' });
+      }
+      
+      // Nút "Bắt đầu vận chuyển"
+      buttons.push({ text: 'Bắt đầu vận chuyển', type: 'startShipping' });
+      return buttons;
     }
-    if (status === 'PROCESSING' || status === 'SHIPPING') {
-      // Đang vận chuyển, chờ manager nhận xe
-      return null;
+    
+    // Giai đoạn 7: Đang vận chuyển (SHIPPING/IN_TRANSIT)
+    if (status === 'SHIPPING' || status === 'IN_TRANSIT') {
+      // Luôn hiển thị nút "Xem hợp đồng" (hợp đồng Manager đã upload)
+      buttons.push({ text: 'Xem hợp đồng', type: 'viewContract' });
+      
+      // Luôn hiển thị nút "Xem hóa đơn thanh toán"
+      // imageUrl là của hóa đơn thanh toán
+      const hasReceipt = transaction.receiptImage ||
+                        transaction.receiptPath ||
+                        transaction.receiptUrl ||
+                        transaction.receiptFile ||
+                        transaction.receipt ||
+                        transaction.imageUrl;
+      
+      if (hasReceipt) {
+        buttons.push({ text: 'Xem hóa đơn thanh toán', type: 'viewReceipt' });
+      }
+      
+      return buttons;
     }
-    if (status === 'DELIVERED' || status === 'COMPLETED') return null;
-    return null;
+    
+    // Giai đoạn 8: Đã giao (DELIVERED/COMPLETED)
+    if (status === 'DELIVERED' || status === 'COMPLETED') {
+      // Luôn hiển thị nút "Xem hợp đồng" (hợp đồng Manager đã upload)
+      buttons.push({ text: 'Xem hợp đồng', type: 'viewContract' });
+      
+      // Luôn hiển thị nút "Xem hóa đơn thanh toán"
+      // imageUrl là của hóa đơn thanh toán
+      const hasReceipt = transaction.receiptImage ||
+                        transaction.receiptPath ||
+                        transaction.receiptUrl ||
+                        transaction.receiptFile ||
+                        transaction.receipt ||
+                        transaction.imageUrl;
+      
+      if (hasReceipt) {
+        buttons.push({ text: 'Xem hóa đơn thanh toán', type: 'viewReceipt' });
+      }
+      
+      return buttons;
+    }
+    
+    // Các status khác không có nút action đặc biệt
+    return buttons;
   };
 
   const canStartShipping = (transaction) => {
     // Chỉ có thể start shipping khi:
     // 1. Status = PAYMENT_CONFIRMED (đã có hợp đồng và hóa đơn)
-    // 2. Hoặc kiểm tra có contractFile và receiptImage
+    // 2. Hoặc kiểm tra có contractFile/contractPath/contractUrl và receiptImage/receiptPath/receiptUrl
+    const hasContract = transaction.contractFile || 
+                       transaction.contractPath ||
+                       transaction.contractUrl ||
+                       transaction.contractId ||
+                       transaction.contract;
+    
+    const hasReceipt = transaction.receiptImage ||
+                      transaction.receiptPath ||
+                      transaction.receiptUrl ||
+                      transaction.receiptFile ||
+                      transaction.receipt;
+    
     return transaction.status === 'PAYMENT_CONFIRMED' ||
-           (transaction.contractFile && transaction.receiptImage);
+           (hasContract && hasReceipt);
   };
 
   const formatCurrency = (amount) => {
@@ -386,16 +692,90 @@ const DealerOrdersPage = () => {
   };
 
   const handleCreateContract = async (inventoryId) => {
+    // Kiểm tra xem transaction đã có contract chưa
+    const transaction = transactions.find(t => t.inventoryId === inventoryId);
+    if (transaction) {
+      const hasContract = transaction.contractId || 
+                         transaction.contractFile || 
+                         transaction.contractPath ||
+                         transaction.contractUrl ||
+                         transaction.contract;
+      
+      if (hasContract) {
+        showToast('Hợp đồng cho giao dịch tồn kho này đã tồn tại', 'error');
+        return;
+      }
+    }
+
     setConfirmModal({
       isOpen: true,
       message: 'Bạn có chắc chắn muốn tạo hợp đồng cho yêu cầu này?',
       onConfirm: async () => {
+        setIsCreatingContract(true);
         try {
-          await createContract(inventoryId).unwrap();
+          // Sử dụng fetch trực tiếp để tránh RTK Query tự động thêm Content-Type header
+          const baseUrl = import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api';
+          const url = `${baseUrl}/inventory-transactions/${inventoryId}/create-contract`;
+          
+          // Lấy token từ sessionStorage
+          const authData = getAuthFromStorage('evmStaff');
+          const token = authData?.token;
+          
+          const headers = {};
+          if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+          }
+          // KHÔNG thêm Content-Type header
+          
+          const response = await fetch(url, {
+            method: 'POST',
+            headers: headers,
+            // KHÔNG có body
+          });
+          
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: 'Failed to create contract' }));
+            throw { status: response.status, data: errorData };
+          }
+          
+          const result = await response.json();
           setConfirmModal({ isOpen: false, message: '', onConfirm: null });
-          showToast('Đã tạo hợp đồng thành công! Vui lòng ký hợp đồng.', 'success');
+          setIsCreatingContract(false);
+          showToast('Đã tạo hợp đồng thành công! Hợp đồng đã được ký và gửi tới Manager.', 'success');
+          
+          // Refresh transactions để cập nhật UI (status sẽ chuyển thành EVM_SIGNED)
+          try {
+            await refetchTransactions();
+          } catch (refetchError) {
+            // Ignore refetch error, invalidatesTags sẽ tự động refresh
+            if (import.meta.env.DEV) {
+              console.warn('Failed to refetch transactions:', refetchError);
+            }
+          }
+          
+          // Đợi một chút để đảm bảo hợp đồng đã được tạo xong trên server
+          // Sau đó mở hợp đồng trong tab mới
+          setTimeout(() => {
+            handleViewContract(inventoryId);
+            
+            // Log để debug (nếu cần)
+            if (import.meta.env.DEV) {
+              console.log('Contract created successfully:', result);
+              console.log('Opening contract view for inventoryId:', inventoryId);
+            }
+          }, 500); // Đợi 500ms để server xử lý xong
         } catch (error) {
+          setIsCreatingContract(false);
           setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          // Log chi tiết lỗi để debug
+          if (import.meta.env.DEV) {
+            console.error('Error creating contract:', error);
+            console.error('Error details:', {
+              status: error?.status,
+              data: error?.data,
+              message: error?.message,
+            });
+          }
           const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi tạo hợp đồng';
           showToast(errorMessage, 'error');
         }
@@ -403,72 +783,6 @@ const DealerOrdersPage = () => {
     });
   };
 
-  const handleSignContract = async (inventoryId) => {
-    if (!signatureFile) {
-      showToast('Vui lòng chọn file ảnh chữ ký', 'warning');
-      return;
-    }
-
-    try {
-      // Upload signature image lên cloudinary hoặc server trước
-      // Ở đây giả sử backend sẽ xử lý upload, ta chỉ cần gửi URL
-      // Hoặc có thể upload file trực tiếp nếu API hỗ trợ
-      const baseUrl = import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api';
-      const token = localStorage.getItem('accessToken');
-      
-      // Upload signature image
-      const formData = new FormData();
-      formData.append('file', signatureFile);
-      
-      const uploadResponse = await fetch(`${baseUrl}/upload/signature`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      if (!uploadResponse.ok) {
-        throw new Error('Không thể upload ảnh chữ ký');
-      }
-
-      const uploadData = await uploadResponse.json();
-      const signatureUrl = uploadData.url || uploadData.data?.url;
-
-      if (!signatureUrl) {
-        throw new Error('Không nhận được URL ảnh chữ ký');
-      }
-
-      // Ký hợp đồng với URL signature
-      await signContract({
-        inventoryId,
-        evmSignatureImageUrl: signatureUrl,
-      }).unwrap();
-
-      setIsSignContractModalOpen(false);
-      setSignatureFile(null);
-      setSignaturePreview(null);
-      showToast('Đã ký hợp đồng thành công! Hợp đồng đã được gửi tới Manager.', 'success');
-    } catch (error) {
-      const errorMessage = error?.data?.message || error?.message || 'Có lỗi xảy ra khi ký hợp đồng';
-      showToast(errorMessage, 'error');
-      if (import.meta.env.DEV) {
-        console.error('Sign contract error:', error);
-      }
-    }
-  };
-
-  const handleSignatureFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setSignatureFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSignaturePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
 
   const handleConfirmPayment = async (inventoryId) => {
     setConfirmModal({
@@ -688,7 +1002,7 @@ const DealerOrdersPage = () => {
                   <tbody className="divide-y divide-gray-100">
                     {paginatedTransactions.map((transaction, index) => {
                       const progressSteps = getProgressSteps(transaction.status);
-                      const actionButtonText = getActionButton(transaction.status, transaction);
+                      const actionButtons = getActionButtons(transaction.status, transaction);
 
                       return (
                         <motion.tr
@@ -810,56 +1124,59 @@ const DealerOrdersPage = () => {
                             {getStatusBadge(transaction.status)}
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center justify-center gap-2">
-                              {actionButtonText && transaction.status !== 'COMPLETED' && transaction.status !== 'DELIVERED' && (
-                                <>
-                                  {actionButtonText.type === 'accept' && (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => handleAcceptTransaction(transaction.inventoryId)}
-                                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1"
-                                    >
-                                      {actionButtonText.text}
-                                    </Button>
-                                  )}
-                                  {actionButtonText.type === 'createContract' && (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => handleCreateContract(transaction.inventoryId)}
-                                      disabled={isCreatingContract}
-                                      className="bg-green-600 hover:bg-green-700 text-white text-xs px-3 py-1 disabled:opacity-50"
-                                    >
-                                      <FileText size={14} className="mr-1" />
-                                      {isCreatingContract ? 'Đang tạo...' : actionButtonText.text}
-                                    </Button>
-                                  )}
-                                  {actionButtonText.type === 'signContract' && (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => {
-                                        setSelectedTransactionId(transaction.inventoryId);
-                                        setIsSignContractModalOpen(true);
-                                      }}
-                                      className="bg-purple-600 hover:bg-purple-700 text-white text-xs px-3 py-1"
-                                    >
-                                      <PenTool size={14} className="mr-1" />
-                                      {actionButtonText.text}
-                                    </Button>
-                                  )}
-                                  {actionButtonText.type === 'startShipping' && (
-                                    <Button
-                                      size="sm"
-                                      onClick={() => handleStartShipping(transaction.inventoryId, transaction)}
-                                      disabled={!canStartShipping(transaction)}
-                                      className="bg-blue-600 hover:bg-blue-700 text-white text-xs px-3 py-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                                      title={!canStartShipping(transaction) ? 'Chưa có đủ hợp đồng và hóa đơn' : ''}
-                                    >
-                                      <Truck size={14} className="mr-1" />
-                                      {actionButtonText.text}
-                                    </Button>
-                                  )}
-                                </>
-                              )}
+                            <div className="flex items-center justify-center gap-2 flex-wrap">
+                              {actionButtons.map((btn, idx) => (
+                                <Button
+                                  key={idx}
+                                  size="sm"
+                                  onClick={() => {
+                                    if (btn.type === 'accept') {
+                                      handleAcceptTransaction(transaction.inventoryId);
+                                    } else if (btn.type === 'createContract') {
+                                      handleCreateContract(transaction.inventoryId);
+                                    } else if (btn.type === 'viewContract') {
+                                      handleViewContract(transaction.inventoryId, transaction);
+                                    } else if (btn.type === 'viewPaymentInfo') {
+                                      setSelectedTransactionId(transaction.inventoryId);
+                                      setIsPaymentInfoModalOpen(true);
+                                    } else if (btn.type === 'viewReceipt') {
+                                      // imageUrl là của hóa đơn thanh toán
+                                      const receiptImage = transaction.receiptImage || 
+                                                         transaction.receiptFile || 
+                                                         transaction.receiptPath || 
+                                                         transaction.receiptUrl ||
+                                                         transaction.imageUrl;
+                                      setSelectedReceiptImage(receiptImage);
+                                      setIsViewReceiptModalOpen(true);
+                                    } else if (btn.type === 'confirmPayment') {
+                                      handleConfirmPayment(transaction.inventoryId);
+                                    } else if (btn.type === 'startShipping') {
+                                      handleStartShipping(transaction.inventoryId, transaction);
+                                    }
+                                  }}
+                                  disabled={btn.type === 'createContract' && isCreatingContract}
+                                  className={`
+                                    text-xs px-3 py-1
+                                    ${btn.type === 'accept' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
+                                    ${btn.type === 'createContract' ? 'bg-green-600 hover:bg-green-700 text-white disabled:opacity-50' : ''}
+                                    ${btn.type === 'viewContract' ? 'bg-purple-600 hover:bg-purple-700 text-white' : ''}
+                                    ${btn.type === 'viewPaymentInfo' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}
+                                    ${btn.type === 'viewReceipt' ? 'bg-cyan-600 hover:bg-cyan-700 text-white' : ''}
+                                    ${btn.type === 'confirmPayment' ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : ''}
+                                    ${btn.type === 'startShipping' ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed' : ''}
+                                  `}
+                                  title={btn.type === 'startShipping' && !canStartShipping(transaction) ? 'Chưa có đủ hợp đồng và hóa đơn' : ''}
+                                >
+                                  {btn.type === 'accept' && <CheckCircle2 size={14} className="mr-1" />}
+                                  {btn.type === 'createContract' && <FileText size={14} className="mr-1" />}
+                                  {btn.type === 'viewContract' && <FileText size={14} className="mr-1" />}
+                                  {btn.type === 'viewPaymentInfo' && <CreditCard size={14} className="mr-1" />}
+                                  {btn.type === 'viewReceipt' && <Receipt size={14} className="mr-1" />}
+                                  {btn.type === 'confirmPayment' && <CreditCard size={14} className="mr-1" />}
+                                  {btn.type === 'startShipping' && <Truck size={14} className="mr-1" />}
+                                  {btn.type === 'createContract' ? (isCreatingContract ? 'Đang tạo...' : btn.text) : btn.text}
+                                </Button>
+                              ))}
                               {(transaction.status === 'PENDING' || transaction.status === 'DRAFT') && (
                                 <Button
                                   size="sm"
@@ -877,7 +1194,7 @@ const DealerOrdersPage = () => {
                                 className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                 title="Xem chi tiết"
                               >
-                                <ChevronRight size={16} />
+                                <Eye size={16} />
                               </button>
                             </div>
                           </td>
@@ -1071,87 +1388,6 @@ const DealerOrdersPage = () => {
         )}
       </Modal>
 
-      {/* Sign Contract Modal */}
-      <Modal
-        isOpen={isSignContractModalOpen}
-        onClose={() => {
-          setIsSignContractModalOpen(false);
-          setSignatureFile(null);
-          setSignaturePreview(null);
-        }}
-        title="Ký hợp đồng"
-        size="md"
-      >
-        <div className="space-y-4">
-          <div className="text-sm text-gray-600">
-            Vui lòng upload ảnh chữ ký của bạn để ký hợp đồng. Ảnh sẽ được sử dụng để ký hợp đồng cho giao dịch này.
-          </div>
-          
-          <div className="space-y-2">
-            <label className="block text-sm font-medium text-gray-700">
-              Ảnh chữ ký <span className="text-red-500">*</span>
-            </label>
-            <div className="mt-1">
-              <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-gray-300 border-dashed rounded-lg cursor-pointer bg-gray-50 hover:bg-gray-100 transition-colors">
-                {signaturePreview ? (
-                  <div className="relative w-full h-full">
-                    <img
-                      src={signaturePreview}
-                      alt="Signature preview"
-                      className="w-full h-full object-contain rounded-lg"
-                    />
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setSignatureFile(null);
-                        setSignaturePreview(null);
-                      }}
-                      className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
-                    >
-                      <span className="text-xs">×</span>
-                    </button>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <Upload className="w-8 h-8 text-gray-400 mb-2" />
-                    <p className="mb-2 text-sm text-gray-500">
-                      <span className="font-semibold">Click để chọn</span> hoặc kéo thả file
-                    </p>
-                    <p className="text-xs text-gray-500">PNG, JPG, GIF (MAX. 5MB)</p>
-                  </div>
-                )}
-                <input
-                  type="file"
-                  className="hidden"
-                  accept="image/*"
-                  onChange={handleSignatureFileChange}
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-4">
-            <Button
-              onClick={() => {
-                setIsSignContractModalOpen(false);
-                setSignatureFile(null);
-                setSignaturePreview(null);
-              }}
-              variant="outline"
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={() => handleSignContract(selectedTransactionId)}
-              variant="primary"
-              disabled={!signatureFile || isSigningContract}
-            >
-              {isSigningContract ? 'Đang ký...' : 'Ký hợp đồng'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
-
       {/* Confirm Modal */}
       <Modal
         isOpen={confirmModal.isOpen}
@@ -1185,6 +1421,191 @@ const DealerOrdersPage = () => {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* View Receipt Modal */}
+      <Modal
+        isOpen={isViewReceiptModalOpen}
+        onClose={() => {
+          setIsViewReceiptModalOpen(false);
+          setSelectedReceiptImage(null);
+        }}
+        title="Hóa Đơn Thanh Toán"
+        size="lg"
+      >
+        {selectedReceiptImage ? (
+          <div className="space-y-4">
+            <div className="flex justify-center">
+              <img
+                src={selectedReceiptImage}
+                alt="Hóa đơn thanh toán"
+                className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
+                onError={(e) => {
+                  e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%239ca3af" font-family="Arial" font-size="16"%3EKhông thể tải hình ảnh%3C/text%3E%3C/svg%3E';
+                }}
+              />
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsViewReceiptModalOpen(false);
+                  setSelectedReceiptImage(null);
+                }}
+              >
+                Đóng
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="text-center py-8 text-gray-500">
+            Không có hình ảnh hóa đơn
+          </div>
+        )}
+        </Modal>
+
+        {/* View Contract Modal */}
+        <Modal
+          isOpen={isViewContractModalOpen}
+          onClose={() => {
+            setIsViewContractModalOpen(false);
+            setSelectedContractImage(null);
+          }}
+          title="Hợp Đồng"
+          size="lg"
+        >
+          {selectedContractImage ? (
+            <div className="space-y-4">
+              <div className="flex justify-center">
+                <img
+                  src={selectedContractImage}
+                  alt="Hợp đồng"
+                  className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm"
+                  onError={(e) => {
+                    e.target.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"%3E%3Crect fill="%23f3f4f6" width="400" height="300"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%239ca3af" font-family="Arial" font-size="16"%3EKhông thể tải hình ảnh%3C/text%3E%3C/svg%3E';
+                  }}
+                />
+              </div>
+              <div className="flex justify-end pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsViewContractModalOpen(false);
+                    setSelectedContractImage(null);
+                  }}
+                >
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              Không có hình ảnh hợp đồng
+            </div>
+          )}
+        </Modal>
+
+        {/* Payment Info Modal */}
+      <Modal
+        isOpen={isPaymentInfoModalOpen}
+        onClose={() => {
+          setIsPaymentInfoModalOpen(false);
+          setSelectedTransactionId(null);
+        }}
+        title="Thông Tin Chuyển Khoản"
+        size="lg"
+      >
+        {isLoadingPaymentInfo ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="text-gray-500">Đang tải thông tin thanh toán...</div>
+          </div>
+        ) : paymentInfoError ? (
+          <div className="flex flex-col items-center justify-center py-8 space-y-2">
+            <div className="text-red-500 font-semibold">Không thể tải thông tin thanh toán</div>
+            <div className="text-sm text-gray-500">
+              {paymentInfoError?.data?.message || paymentInfoError?.message || 'Có lỗi xảy ra khi tải thông tin thanh toán'}
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsPaymentInfoModalOpen(false);
+                setSelectedTransactionId(null);
+              }}
+              className="mt-4"
+            >
+              Đóng
+            </Button>
+          </div>
+        ) : paymentInfoData?.data ? (
+          <div className="space-y-4">
+            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+              <h3 className="text-lg font-semibold text-blue-900 mb-3">Thông tin tài khoản nhận tiền</h3>
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Ngân hàng:</span>
+                  <span className="font-semibold">{paymentInfoData.data.bankName || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Số tài khoản:</span>
+                  <span className="font-semibold font-mono">{paymentInfoData.data.accountNumber || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Chủ tài khoản:</span>
+                  <span className="font-semibold">{paymentInfoData.data.accountHolderName || 'N/A'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-gray-600">Số tiền:</span>
+                  <span className="font-semibold text-red-600">
+                    {paymentInfoData.data.totalAmount 
+                      ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(paymentInfoData.data.totalAmount)
+                      : 'N/A'}
+                  </span>
+                </div>
+                {paymentInfoData.data.transactionCode && (
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Mã giao dịch:</span>
+                    <span className="font-semibold font-mono">{paymentInfoData.data.transactionCode}</span>
+                  </div>
+                )}
+                {paymentInfoData.data.note && (
+                  <div className="mt-3 pt-3 border-t border-blue-200">
+                    <span className="text-gray-600">Ghi chú:</span>
+                    <p className="text-sm text-gray-700 mt-1">{paymentInfoData.data.note}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="bg-yellow-50 p-3 rounded border border-yellow-200">
+              <p className="text-sm text-yellow-800">
+                <strong>Lưu ý:</strong> Vui lòng kiểm tra thông tin thanh toán trước khi xác nhận.
+              </p>
+            </div>
+            <div className="flex justify-end pt-4">
+              <Button
+                onClick={() => {
+                  setIsPaymentInfoModalOpen(false);
+                  setSelectedTransactionId(null);
+                }}
+              >
+                Đã hiểu
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8 space-y-2">
+            <div className="text-gray-500">Không có thông tin thanh toán</div>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsPaymentInfoModalOpen(false);
+                setSelectedTransactionId(null);
+              }}
+              className="mt-4"
+            >
+              Đóng
+            </Button>
+          </div>
+        )}
       </Modal>
 
       {/* Toast Notifications */}
