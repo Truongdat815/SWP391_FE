@@ -24,10 +24,93 @@ const PaymentManagementPage = () => {
   const location = useLocation();
   const toast = useToast();
 
+  // Helper functions for date formatting and validation
+  const formatDateToInput = (dateString) => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    return date.toISOString().split('T')[0];
+  };
+
+
+  const getTodayString = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0];
+  };
+
+  const validateDateRange = (startDate, endDate) => {
+    if (!startDate || !endDate) return true;
+    return new Date(startDate) <= new Date(endDate);
+  };
+
+  const validateValueRange = (minValue, maxValue) => {
+    if (!minValue || !maxValue) return true;
+    const min = parseFloat(minValue);
+    const max = parseFloat(maxValue);
+    return min <= max;
+  };
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [dateRange, setDateRange] = useState({ start: '', end: '' });
   const [totalValueFilter, setTotalValueFilter] = useState({ min: '', max: '' });
+
+  // Handle date range changes with validation
+  const handleStartDateChange = (value) => {
+    const newDateRange = { ...dateRange, start: value };
+    
+    // If end date exists and new start date is after end date, clear end date
+    if (newDateRange.end && !validateDateRange(value, newDateRange.end)) {
+      newDateRange.end = '';
+      toast.warning('Đã xóa ngày kết thúc vì ngày bắt đầu phải trước ngày kết thúc');
+    }
+    
+    setDateRange(newDateRange);
+  };
+
+  const handleEndDateChange = (value) => {
+    // Validate that end date is after start date
+    if (dateRange.start && !validateDateRange(dateRange.start, value)) {
+      toast.error('Ngày kết thúc phải sau ngày bắt đầu');
+      return;
+    }
+    
+    setDateRange({ ...dateRange, end: value });
+  };
+
+  // Handle value range changes with validation
+  const handleMinValueChange = (value) => {
+    // Prevent negative values
+    if (parseFloat(value) < 0) {
+      toast.error('Giá trị không được âm');
+      return;
+    }
+
+    const newValueFilter = { ...totalValueFilter, min: value };
+    
+    // If max value exists and new min is greater than max, show warning
+    if (newValueFilter.max && !validateValueRange(value, newValueFilter.max)) {
+      toast.error('Giá trị từ phải nhỏ hơn giá trị đến');
+      return;
+    }
+    
+    setTotalValueFilter(newValueFilter);
+  };
+
+  const handleMaxValueChange = (value) => {
+    // Prevent negative values
+    if (parseFloat(value) < 0) {
+      toast.error('Giá trị không được âm');
+      return;
+    }
+
+    // Validate that max value is greater than min value
+    if (totalValueFilter.min && !validateValueRange(totalValueFilter.min, value)) {
+      toast.error('Giá trị đến phải lớn hơn giá trị từ');
+      return;
+    }
+    
+    setTotalValueFilter({ ...totalValueFilter, max: value });
+  };
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
@@ -228,10 +311,46 @@ const PaymentManagementPage = () => {
         payment.paymentId?.toString().includes(searchTerm) ||
         payment.paymentCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         payment.contractCode?.toLowerCase().includes(searchTerm.toLowerCase());
+      
       const matchesStatus = statusFilter === 'all' || payment.status === statusFilter;
-      return matchesSearch && matchesStatus;
+
+      // Date range filter with validation
+      let matchesDateRange = true;
+      if (dateRange.start || dateRange.end) {
+        const paymentDate = new Date(payment.createdAt || payment.paymentDate);
+        if (dateRange.start) {
+          const startDate = new Date(dateRange.start);
+          matchesDateRange = matchesDateRange && paymentDate >= startDate;
+        }
+        if (dateRange.end) {
+          const endDate = new Date(dateRange.end);
+          // Set end date to end of day for inclusive filtering
+          endDate.setHours(23, 59, 59, 999);
+          matchesDateRange = matchesDateRange && paymentDate <= endDate;
+        }
+      }
+
+      // Total value filter with validation
+      let matchesTotalValue = true;
+      if (totalValueFilter.min || totalValueFilter.max) {
+        const paymentAmount = payment.amount || payment.totalAmount || 0;
+        if (totalValueFilter.min) {
+          const minValue = parseFloat(totalValueFilter.min);
+          if (!isNaN(minValue) && minValue >= 0) {
+            matchesTotalValue = matchesTotalValue && paymentAmount >= minValue;
+          }
+        }
+        if (totalValueFilter.max) {
+          const maxValue = parseFloat(totalValueFilter.max);
+          if (!isNaN(maxValue) && maxValue >= 0) {
+            matchesTotalValue = matchesTotalValue && paymentAmount <= maxValue;
+          }
+        }
+      }
+
+      return matchesSearch && matchesStatus && matchesDateRange && matchesTotalValue;
     });
-  }, [payments, searchTerm, statusFilter]);
+  }, [payments, searchTerm, statusFilter, dateRange, totalValueFilter]);
 
 
   // Pagination for contracts only
@@ -389,43 +508,63 @@ const PaymentManagementPage = () => {
           </div>
 
           {/* Additional Filters Row */}
-          <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-slate-200">
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-start gap-4 mt-3 pt-3 border-t border-slate-200 pb-2">
+            <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-slate-700">Từ ngày:</label>
               <input
                 type="date"
                 value={dateRange.start}
-                onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                max={getTodayString()}
+                onChange={(e) => handleStartDateChange(e.target.value)}
                 className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"
+                title="Chọn ngày (không được sau hôm nay)"
               />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-slate-700">Đến ngày:</label>
               <input
                 type="date"
                 value={dateRange.end}
-                onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
-                className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"
+                min={dateRange.start || undefined}
+                onChange={(e) => handleEndDateChange(e.target.value)}
+                disabled={!dateRange.start}
+                className={`h-10 rounded-lg border border-slate-300 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary ${
+                  !dateRange.start 
+                    ? 'bg-slate-100 cursor-not-allowed text-slate-400' 
+                    : 'bg-slate-50'
+                }`}
+                title={!dateRange.start ? "Vui lòng chọn ngày bắt đầu trước" : "Chọn ngày kết thúc"}
               />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-slate-700">Giá trị từ:</label>
               <input
                 type="number"
+                min="0"
+                step="1000"
                 value={totalValueFilter.min}
-                onChange={(e) => setTotalValueFilter({ ...totalValueFilter, min: e.target.value })}
+                onChange={(e) => handleMinValueChange(e.target.value)}
                 placeholder="0"
                 className="h-10 w-32 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"
+                title="Nhập giá trị tối thiểu (không âm)"
               />
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-col gap-1">
               <label className="text-sm font-medium text-slate-700">Đến:</label>
               <input
                 type="number"
+                min={totalValueFilter.min || "0"}
+                step="1000"
                 value={totalValueFilter.max}
-                onChange={(e) => setTotalValueFilter({ ...totalValueFilter, max: e.target.value })}
+                onChange={(e) => handleMaxValueChange(e.target.value)}
                 placeholder="∞"
-                className="h-10 w-32 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"
+                disabled={!totalValueFilter.min}
+                className={`h-10 w-32 rounded-lg border border-slate-300 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary ${
+                  !totalValueFilter.min 
+                    ? 'bg-slate-100 cursor-not-allowed text-slate-400' 
+                    : 'bg-slate-50'
+                }`}
+                title={!totalValueFilter.min ? "Vui lòng nhập giá trị từ trước" : "Nhập giá trị tối đa"}
               />
             </div>
             {(dateRange.start || dateRange.end || totalValueFilter.min || totalValueFilter.max) && (
@@ -1114,45 +1253,35 @@ const PaymentManagementPage = () => {
         </div>
       </Modal>
 
-      {/* Payment History Modal */}
+      {/* Payment History Modal - Simple List */}
       <Modal
         isOpen={isPaymentHistoryModalOpen}
         onClose={handleClosePaymentHistory}
         title="Lịch sử thanh toán"
-        size="xl"
+        size="lg"
       >
         {selectedContractForHistory && (
           <div className="space-y-4">
-            {/* Contract Info Header - Compact */}
-            <div className="p-4 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="space-y-0.5">
-                  <p className="text-xs text-slate-600 font-medium uppercase tracking-wide">Mã hợp đồng</p>
-                  <p className="text-sm font-bold text-slate-900">{selectedContractForHistory.contractCode}</p>
+            {/* Contract Info - Simple */}
+            <div className="p-3 bg-slate-50 rounded-lg border">
+              <div className="flex justify-between items-center">
+                <div>
+                  <span className="text-sm text-slate-600">Hợp đồng: </span>
+                  <span className="font-semibold">{selectedContractForHistory.contractCode}</span>
+                  <span className="text-sm text-slate-600 ml-3">Khách hàng: </span>
+                  <span className="font-semibold">{selectedContractForHistory.customerName}</span>
                 </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs text-slate-600 font-medium uppercase tracking-wide">Khách hàng</p>
-                  <p className="text-sm font-semibold text-slate-900">{selectedContractForHistory.customerName}</p>
-                </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs text-slate-600 font-medium uppercase tracking-wide">Tổng giá trị</p>
-                  <p className="text-sm font-bold text-blue-600">{formatCurrency(selectedContractForHistory.totalPayment)}</p>
-                </div>
-                <div className="space-y-0.5">
-                  <p className="text-xs text-slate-600 font-medium uppercase tracking-wide">Còn lại</p>
-                  <p className="text-sm font-bold text-orange-600">{formatCurrency(getEffectiveRemainingAmount(selectedContractForHistory))}</p>
+                <div className="text-right">
+                  <div className="text-sm text-slate-600">Còn lại: <span className="font-bold text-orange-600">{formatCurrency(getEffectiveRemainingAmount(selectedContractForHistory))}</span></div>
                 </div>
               </div>
             </div>
 
-            {/* Payment History Timeline/Cards */}
+            {/* Payment List - Simple */}
             <div className="space-y-2">
-              <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
-                <Calendar size={18} className="text-blue-600" />
-                Danh sách thanh toán
-              </h3>
-
-              <div className="max-h-[400px] overflow-y-auto space-y-2 pr-2">
+              <h3 className="text-sm font-semibold text-slate-700">Danh sách thanh toán</h3>
+              
+              <div className="max-h-[400px] overflow-y-auto">
                 {(() => {
                   const contractPayments = payments.filter(payment =>
                     payment.contractCode === selectedContractForHistory.contractCode
@@ -1160,91 +1289,52 @@ const PaymentManagementPage = () => {
 
                   if (contractPayments.length === 0) {
                     return (
-                      <div className="p-8 text-center rounded-lg bg-slate-50 border-2 border-dashed border-slate-200">
-                        <div className="flex flex-col items-center gap-2">
-                          <div className="p-3 rounded-full bg-slate-100">
-                            <Calendar size={24} className="text-slate-400" />
-                          </div>
-                          <p className="text-sm text-slate-500 font-medium">Chưa có lịch sử thanh toán nào</p>
-                        </div>
+                      <div className="p-6 text-center text-slate-500">
+                        Chưa có lịch sử thanh toán nào
                       </div>
                     );
                   }
 
-                  return contractPayments.map((payment, index) => (
-                    <motion.div
-                      key={payment.paymentId}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="p-3 rounded-lg border-2 border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm transition-all"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        {/* Left Section - Main Info */}
-                        <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <h4 className="text-sm font-bold text-slate-900">{payment.paymentCode}</h4>
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${payment.status === 'COMPLETED' || payment.status === 'SUCCESS'
-                                ? 'bg-green-100 text-green-700 ring-1 ring-green-600/20'
-                                : payment.status === 'PENDING'
-                                  ? 'bg-yellow-100 text-yellow-700 ring-1 ring-yellow-600/20'
-                                  : payment.status === 'FAILED'
-                                    ? 'bg-red-100 text-red-700 ring-1 ring-red-600/20'
-                                    : 'bg-gray-100 text-gray-700 ring-1 ring-gray-600/20'
-                              }`}>
-                              {payment.status === 'COMPLETED' ? '✓ Hoàn thành' :
-                                payment.status === 'SUCCESS' ? '✓ Thành công' :
-                                  payment.status === 'PENDING' ? '⏳ Chờ xử lý' :
-                                    payment.status === 'FAILED' ? '✕ Thất bại' :
-                                      payment.status}
-                            </span>
-                          </div>
-
-                          <div className="grid grid-cols-2 gap-2">
-                            <div className="flex items-center gap-1.5 text-xs">
-                              <Calendar size={14} className="text-slate-400" />
-                              <span className="text-slate-600">{formatDate(payment.createdAt)}</span>
-                            </div>
-
-                            <div className="flex items-center gap-1.5 text-xs">
-                              {payment.paymentMethod === 'VNPAY' ? (
-                                <>
-                                  <CreditCard size={14} className="text-blue-600" />
-                                  <span className="font-medium text-blue-700">VNPay</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Banknote size={14} className="text-green-600" />
-                                  <span className="font-medium text-green-700">Tiền mặt</span>
-                                </>
-                              )}
-                            </div>
-
-                            <div className="flex items-center gap-1.5 col-span-2">
-                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${payment.paymentType === 'DEPOSIT'
-                                  ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-600/20'
-                                  : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20'
+                  return (
+                    <ul className="space-y-2">
+                      {contractPayments.map((payment, index) => (
+                        <li key={payment.paymentId} className="p-3 bg-white border border-slate-200 rounded-lg">
+                          <div className="flex justify-between items-start">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-medium text-slate-900">{payment.paymentCode}</span>
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                  payment.status === 'COMPLETED' || payment.status === 'SUCCESS'
+                                    ? 'bg-green-100 text-green-700'
+                                    : payment.status === 'PENDING'
+                                      ? 'bg-yellow-100 text-yellow-700'
+                                      : payment.status === 'FAILED'
+                                        ? 'bg-red-100 text-red-700'
+                                        : 'bg-gray-100 text-gray-700'
                                 }`}>
-                                {payment.paymentType === 'DEPOSIT' ? '📥 Đặt cọc' : '💰 Thanh toán số dư'}
-                              </span>
+                                  {payment.status === 'COMPLETED' ? 'Hoàn thành' :
+                                   payment.status === 'SUCCESS' ? 'Thành công' :
+                                   payment.status === 'PENDING' ? 'Chờ xử lý' :
+                                   payment.status === 'FAILED' ? 'Thất bại' : payment.status}
+                                </span>
+                              </div>
+                              <div className="text-sm text-slate-600">
+                                <span>{formatDate(payment.createdAt)}</span>
+                                <span className="mx-2">•</span>
+                                <span>{payment.paymentMethod === 'VNPAY' ? 'VNPay' : 'Tiền mặt'}</span>
+                                <span className="mx-2">•</span>
+                                <span>{payment.paymentType === 'DEPOSIT' ? 'Đặt cọc' : 'Thanh toán số dư'}</span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <div className="font-bold text-green-600">{formatCurrency(payment.amount)}</div>
+                              
                             </div>
                           </div>
-                        </div>
-
-                        {/* Right Section - Amount Info */}
-                        <div className="text-right space-y-1.5">
-                          <div>
-                            <p className="text-xs text-slate-500 font-medium mb-0.5">Số tiền</p>
-                            <p className="text-lg font-bold text-green-600">{formatCurrency(payment.amount)}</p>
-                          </div>
-                          <div className="pt-1.5 border-t border-slate-200">
-                            <p className="text-xs text-slate-500 font-medium mb-0.5">Còn lại</p>
-                            <p className="text-base font-bold text-orange-600">{formatCurrency(payment.remainPrice)}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ));
+                        </li>
+                      ))}
+                    </ul>
+                  );
                 })()}
               </div>
             </div>

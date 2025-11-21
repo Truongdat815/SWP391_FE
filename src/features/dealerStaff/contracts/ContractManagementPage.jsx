@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, Filter, Plus, Calendar, Download, Eye, Upload, FileText, CheckCircle, CreditCard, Banknote, DollarSign, TrendingUp } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import DealerStaffLayout from '../../../components/layout/DealerStaffLayout';
 import Button from '../../../components/ui/Button';
@@ -16,12 +16,15 @@ import { getAuthFromStorage, getRoleFromPath } from '../../../utils/roleUtils';
 
 const ContractManagementPage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
+  const [highlightContractId, setHighlightContractId] = useState(null);
+  const toastShownRef = useRef(false);
 
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -29,6 +32,8 @@ const ContractManagementPage = () => {
   const [selectedContract, setSelectedContract] = useState(null);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [uploadFile, setUploadFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [showPreview, setShowPreview] = useState(false);
 
   const { data: contractsData, isLoading, error } = useGetAllContractsQuery();
   const { data: ordersData } = useGetAllOrdersQuery();
@@ -37,6 +42,29 @@ const ContractManagementPage = () => {
 
   const contracts = Array.isArray(contractsData?.data) ? contractsData.data : [];
   const orders = Array.isArray(ordersData?.data) ? ordersData.data : [];
+
+  // Handle highlighting from navigation state
+  useEffect(() => {
+    if (location.state?.highlightContractId && !toastShownRef.current) {
+      setHighlightContractId(location.state.highlightContractId);
+      
+      // Show success toast for new contract (only once)
+      if (location.state?.newContract) {
+        toast.success('Đã tạo hợp đồng thành công!');
+        toastShownRef.current = true;
+      }
+      
+      // Clear highlight after 3 seconds
+      const timer = setTimeout(() => {
+        setHighlightContractId(null);
+        toastShownRef.current = false;
+        // Clear navigation state
+        navigate(location.pathname, { replace: true, state: {} });
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [location.state?.highlightContractId, location.state?.newContract, navigate, location.pathname, toast]);
 
   // Filter orders that can create contract (CONFIRMED status and no contract yet)
   const availableOrders = useMemo(() => {
@@ -91,6 +119,14 @@ const ContractManagementPage = () => {
         {config.label}
       </span>
     );
+  };
+
+  // Helper function to check if contract has been uploaded
+  const hasUploadedContract = (contract) => {
+    const signedContractFileUrl = contract?.contractFileUrl || contract?.signedContractFileUrl;
+    return signedContractFileUrl && 
+           typeof signedContractFileUrl === 'string' && 
+           signedContractFileUrl.trim().length > 0;
   };
 
   const handleCreateContract = async () => {
@@ -214,6 +250,11 @@ const ContractManagementPage = () => {
       setIsUploadModalOpen(false);
       setSelectedContract(null);
       setUploadFile(null);
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+      setPreviewUrl(null);
+      setShowPreview(false);
     } catch (error) {
       console.error('Error uploading contract:', error);
       toast.error(error?.data?.message || 'Có lỗi xảy ra khi upload hợp đồng');
@@ -234,14 +275,44 @@ const ContractManagementPage = () => {
         toast.error('Kích thước file không được vượt quá 10MB');
         return;
       }
+      
       setUploadFile(file);
+      
+      // Create preview URL
+      const url = URL.createObjectURL(file);
+      setPreviewUrl(url);
+      setShowPreview(true);
     }
+  };
+
+  const handleCancelPreview = () => {
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    setUploadFile(null);
+    setPreviewUrl(null);
+    setShowPreview(false);
+    // Reset file input
+    const fileInput = document.getElementById('contract-upload');
+    if (fileInput) {
+      fileInput.value = '';
+    }
+  };
+
+  const handleConfirmPreview = () => {
+    setShowPreview(false);
   };
 
   const handleOpenPaymentModal = (contract) => {
     // Kiểm tra xem có cần thanh toán không
     if (!isPaymentRequired(contract.totalPayment)) {
       toast.error('Hợp đồng có tổng giá trị <= 5₫ không cần thanh toán');
+      return;
+    }
+
+    // Kiểm tra xem hợp đồng đã được upload chưa
+    if (!hasUploadedContract(contract)) {
+      toast.error('Chỉ có thể tạo thanh toán khi hợp đồng đã được upload');
       return;
     }
 
@@ -396,12 +467,21 @@ const ContractManagementPage = () => {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white ">
-                      {paginatedContracts.map((contract) => (
+                      {paginatedContracts.map((contract) => {
+                        const isHighlighted = highlightContractId === contract.contractId;
+                        return (
                         <motion.tr
                           key={contract.contractId}
                           initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="hover:bg-slate-50 transition-colors"
+                          animate={{ 
+                            opacity: 1,
+                            backgroundColor: isHighlighted ? '#fef3c7' : 'transparent'
+                          }}
+                          className={`transition-colors ${
+                            isHighlighted 
+                              ? 'bg-yellow-100 border-l-4 border-l-yellow-500 shadow-md' 
+                              : 'hover:bg-slate-50'
+                          }`}
                         >
                           <td className="whitespace-nowrap py-4 pl-4 pr-3 text-sm font-medium text-slate-900 sm:pl-6">
                             <button
@@ -457,14 +537,21 @@ const ContractManagementPage = () => {
                               </button>
                               <button
                                 onClick={() => {
-                                  handleOpenUploadModal(contract);
+                                  if (!hasUploadedContract(contract)) {
+                                    handleOpenUploadModal(contract);
+                                  }
                                 }}
-                                className="p-2 text-slate-600 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition-colors"
-                                title="Upload hợp đồng đã ký"
+                                disabled={hasUploadedContract(contract)}
+                                className={`p-2 rounded-lg transition-colors ${
+                                  hasUploadedContract(contract)
+                                    ? 'text-gray-400 cursor-not-allowed bg-gray-50'
+                                    : 'text-slate-600 hover:text-slate-800 hover:bg-slate-100'
+                                }`}
+                                title={hasUploadedContract(contract) ? "Hợp đồng đã được upload" : "Upload hợp đồng đã ký"}
                               >
                                 <Upload size={18} />
                               </button>
-                              {isPaymentRequired(contract.totalPayment) && getEffectiveRemainingAmount(contract) > 0 && (
+                              {isPaymentRequired(contract.totalPayment) && getEffectiveRemainingAmount(contract) > 0 && hasUploadedContract(contract) && (
                                 <button
                                   onClick={() => {
                                     handleOpenPaymentModal(contract);
@@ -478,7 +565,7 @@ const ContractManagementPage = () => {
                             </div>
                           </td>
                         </motion.tr>
-                      ))}
+                      )})}
                     </tbody>
                   </table>
                 )}
@@ -598,41 +685,114 @@ const ContractManagementPage = () => {
           setIsUploadModalOpen(false);
           setSelectedContract(null);
           setUploadFile(null);
+          if (previewUrl) {
+            URL.revokeObjectURL(previewUrl);
+          }
+          setPreviewUrl(null);
+          setShowPreview(false);
         }}
         title="Upload hợp đồng đã ký"
         size="lg"
       >
         <div className="space-y-4">
-          <p className="text-sm text-slate-600 ">
+          <p className="text-sm text-slate-600">
             Upload file hợp đồng đã ký bởi khách hàng (PDF hoặc hình ảnh)
           </p>
 
-          <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
-            <Upload className="mx-auto text-slate-400 mb-4" size={48} />
-            <input
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png"
-              onChange={handleFileChange}
-              className="hidden"
-              id="contract-upload"
-            />
-            <label
-              htmlFor="contract-upload"
-              className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
-            >
-              Chọn file
-            </label>
-            <p className="text-sm text-slate-500 mt-2">
-              PDF, JPG, PNG (tối đa 10MB)
-            </p>
-            {uploadFile && (
-              <div className="mt-4 p-3 bg-green-50 rounded-lg">
-                <p className="text-sm font-medium text-green-800 ">
-                  Đã chọn: {uploadFile.name}
-                </p>
+          {!showPreview ? (
+            // File Selection Step
+            <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
+              <Upload className="mx-auto text-slate-400 mb-4" size={48} />
+              <input
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png"
+                onChange={handleFileChange}
+                className="hidden"
+                id="contract-upload"
+              />
+              <label
+                htmlFor="contract-upload"
+                className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Chọn file
+              </label>
+              <p className="text-sm text-slate-500 mt-2">
+                PDF, JPG, PNG (tối đa 10MB)
+              </p>
+            </div>
+          ) : (
+            // Preview Step
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-sm font-medium text-slate-900">Xem trước file đã chọn:</h4>
+                <p className="text-sm text-slate-600">{uploadFile?.name}</p>
               </div>
-            )}
-          </div>
+              
+              <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
+                {uploadFile?.type === 'application/pdf' ? (
+                  // PDF Preview
+                  <div className="text-center py-8">
+                    <FileText size={64} className="mx-auto text-slate-400 mb-4" />
+                    <p className="text-sm font-medium text-slate-700">File PDF</p>
+                    <p className="text-xs text-slate-500 mt-1">{uploadFile.name}</p>
+                    <p className="text-xs text-slate-500">
+                      Kích thước: {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                    </p>
+                  </div>
+                ) : (
+                  // Image Preview
+                  <div className="flex justify-center">
+                    <img
+                      src={previewUrl}
+                      alt="Preview"
+                      className="max-w-full max-h-96 rounded-lg shadow-sm"
+                      style={{ objectFit: 'contain' }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-between gap-3">
+                <Button
+                  variant="outline"
+                  onClick={handleCancelPreview}
+                  className="flex-1"
+                >
+                  Chọn file khác
+                </Button>
+                <Button
+                  onClick={handleConfirmPreview}
+                  className="flex-1"
+                >
+                  Xác nhận file này
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Upload confirmation step */}
+          {uploadFile && !showPreview && (
+            <div className="mt-4 p-3 bg-green-50 rounded-lg border border-green-200">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-800">
+                    File đã được xác nhận: {uploadFile.name}
+                  </p>
+                  <p className="text-xs text-green-600 mt-1">
+                    Kích thước: {(uploadFile.size / 1024 / 1024).toFixed(2)} MB
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancelPreview}
+                  className="text-slate-600 hover:text-slate-800"
+                >
+                  Thay đổi
+                </Button>
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end gap-3 pt-4">
             <Button
@@ -641,13 +801,18 @@ const ContractManagementPage = () => {
                 setIsUploadModalOpen(false);
                 setSelectedContract(null);
                 setUploadFile(null);
+                if (previewUrl) {
+                  URL.revokeObjectURL(previewUrl);
+                }
+                setPreviewUrl(null);
+                setShowPreview(false);
               }}
             >
               Hủy
             </Button>
             <Button
               onClick={handleUploadContract}
-              disabled={!uploadFile || uploadingContract}
+              disabled={!uploadFile || uploadingContract || showPreview}
             >
               {uploadingContract ? 'Đang upload...' : 'Upload'}
             </Button>

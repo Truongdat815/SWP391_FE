@@ -53,6 +53,15 @@ export const feedbackApi = baseApi.injectEndpoints({
       query: () => '/feedbacks/categories',
       providesTags: ['Feedback'],
     }),
+    // Tạo feedback detail
+    createFeedbackDetail: builder.mutation({
+      query: (detailData) => ({
+        url: '/feedback-details/create',
+        method: 'POST',
+        body: detailData,
+      }),
+      invalidatesTags: ['Feedback'],
+    }),
   }),
 });
 
@@ -65,5 +74,6 @@ export const {
   useDeleteFeedbackMutation,
   useGetFeedbackStatusesQuery,
   useGetFeedbackCategoriesQuery,
+  useCreateFeedbackDetailMutation,
 } = feedbackApi;
 

@@ -124,6 +124,54 @@ const CustomerManagementPage = () => {
     loadWards();
   }, [selectedDistrictCode]);
 
+  // Load districts when province is selected (edit modal)
+  useEffect(() => {
+    const loadEditDistricts = async () => {
+      if (editSelectedProvinceCode) {
+        try {
+          const province = await provincesApi.getProvinceWithDistricts(editSelectedProvinceCode);
+          setEditDistricts(province.districts || []);
+          // Only reset if this is a user selection, not initial load
+          if (editSelectedDistrictCode && !province.districts?.find(d => d.code.toString() === editSelectedDistrictCode)) {
+            setEditWards([]);
+            setEditSelectedDistrictCode('');
+            setEditSelectedWardCode('');
+          }
+        } catch (error) {
+          console.error('Error loading edit districts:', error);
+        }
+      } else {
+        setEditDistricts([]);
+        setEditWards([]);
+        setEditSelectedDistrictCode('');
+        setEditSelectedWardCode('');
+      }
+    };
+    loadEditDistricts();
+  }, [editSelectedProvinceCode]);
+
+  // Load wards when district is selected (edit modal)
+  useEffect(() => {
+    const loadEditWards = async () => {
+      if (editSelectedDistrictCode) {
+        try {
+          const district = await provincesApi.getDistrictWithWards(editSelectedDistrictCode);
+          setEditWards(district.wards || []);
+          // Only reset if this is a user selection, not initial load
+          if (editSelectedWardCode && !district.wards?.find(w => w.code.toString() === editSelectedWardCode)) {
+            setEditSelectedWardCode('');
+          }
+        } catch (error) {
+          console.error('Error loading edit wards:', error);
+        }
+      } else {
+        setEditWards([]);
+        setEditSelectedWardCode('');
+      }
+    };
+    loadEditWards();
+  }, [editSelectedDistrictCode]);
+
   // Update address when selections change (create modal)
   useEffect(() => {
     const selectedProvince = provinces.find(p => p.code === parseInt(selectedProvinceCode));
@@ -145,12 +193,11 @@ const CustomerManagementPage = () => {
       fullAddress = addressParts.join(', ');
     }
 
-    if (fullAddress) {
-      setFormData(prev => ({
-        ...prev,
-        address: fullAddress,
-      }));
-    }
+    // Always update address, even if empty
+    setFormData(prev => ({
+      ...prev,
+      address: fullAddress,
+    }));
   }, [selectedProvinceCode, selectedDistrictCode, selectedWardCode, detailedAddress, provinces, districts, wards]);
 
   // Load edit districts when province is selected (edit modal)
@@ -216,12 +263,11 @@ const CustomerManagementPage = () => {
       fullAddress = addressParts.join(', ');
     }
 
-    if (fullAddress) {
-      setFormData(prev => ({
-        ...prev,
-        address: fullAddress,
-      }));
-    }
+    // Always update address, even if empty
+    setFormData(prev => ({
+      ...prev,
+      address: fullAddress,
+    }));
   }, [editSelectedProvinceCode, editSelectedDistrictCode, editSelectedWardCode, editDetailedAddress, provinces, editDistricts, editWards]);
 
   // Filter and sort customers by join date (newest first)
@@ -274,7 +320,84 @@ const CustomerManagementPage = () => {
     setSelectedCustomer(customer);
 
     // Parse existing address to populate dropdowns if possible
-    setEditDetailedAddress(customer.address || '');
+    const existingAddress = customer.address || '';
+    
+    // Try to parse address components (this is a basic implementation)
+    // Format: "Detailed Address, Ward, District, Province"
+    const addressParts = existingAddress.split(', ');
+    
+    // Reset dropdown states first
+    setEditSelectedProvinceCode('');
+    setEditSelectedDistrictCode('');
+    setEditSelectedWardCode('');
+    setEditDetailedAddress('');
+    setEditDistricts([]);
+    setEditWards([]);
+
+    // If we have address parts, try to match them
+    if (addressParts.length >= 2) {
+      const detailedAddr = addressParts[0] || '';
+      const wardName = addressParts[1] || '';
+      const districtName = addressParts[2] || '';
+      const provinceName = addressParts[3] || '';
+
+      setEditDetailedAddress(detailedAddr);
+
+      // Try to find matching province
+      if (provinceName && provinces.length > 0) {
+        const matchingProvince = provinces.find(p => 
+          p.name.toLowerCase().includes(provinceName.toLowerCase()) ||
+          provinceName.toLowerCase().includes(p.name.toLowerCase())
+        );
+        
+        if (matchingProvince) {
+          setEditSelectedProvinceCode(matchingProvince.code.toString());
+          
+          // Load districts for this province
+          try {
+            const provinceWithDistricts = await provincesApi.getProvinceWithDistricts(matchingProvince.code);
+            setEditDistricts(provinceWithDistricts.districts || []);
+            
+            // Try to find matching district
+            if (districtName) {
+              const matchingDistrict = (provinceWithDistricts.districts || []).find(d => 
+                d.name.toLowerCase().includes(districtName.toLowerCase()) ||
+                districtName.toLowerCase().includes(d.name.toLowerCase())
+              );
+              
+              if (matchingDistrict) {
+                setEditSelectedDistrictCode(matchingDistrict.code.toString());
+                
+                // Load wards for this district
+                try {
+                  const districtWithWards = await provincesApi.getDistrictWithWards(matchingDistrict.code);
+                  setEditWards(districtWithWards.wards || []);
+                  
+                  // Try to find matching ward
+                  if (wardName) {
+                    const matchingWard = (districtWithWards.wards || []).find(w => 
+                      w.name.toLowerCase().includes(wardName.toLowerCase()) ||
+                      wardName.toLowerCase().includes(w.name.toLowerCase())
+                    );
+                    
+                    if (matchingWard) {
+                      setEditSelectedWardCode(matchingWard.code.toString());
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error loading wards for edit:', error);
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Error loading districts for edit:', error);
+          }
+        }
+      }
+    } else {
+      // If can't parse, just set the whole address as detailed address
+      setEditDetailedAddress(existingAddress);
+    }
 
     setFormData({
       fullName: customer.fullName || '',
@@ -506,7 +629,7 @@ const CustomerManagementPage = () => {
           setDetailedAddress('');
         }}
         title="Thêm Khách Hàng Mới"
-        size="lg"
+        size="xl"
       >
         <form onSubmit={handleCreate} className="space-y-5">
          
@@ -568,6 +691,15 @@ const CustomerManagementPage = () => {
             required
           />
 
+          {/* Auto-generated full address display */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Địa chỉ đầy đủ (Tự động tạo)
+            </label>
+            <div className="w-full px-3 py-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-700 text-sm min-h-[42px] flex items-center">
+              {formData.address || 'Địa chỉ sẽ được tạo tự động khi bạn chọn tỉnh/thành phố, quận/huyện, phường/xã'}
+            </div>
+          </div>
 
           <Input
             label="Họ và tên"
@@ -633,7 +765,7 @@ const CustomerManagementPage = () => {
           setEditDetailedAddress('');
         }}
         title="Chỉnh sửa Khách Hàng"
-        size="lg"
+        size="xl"
       >
         <form onSubmit={handleUpdate} className="space-y-5">
          
@@ -695,7 +827,15 @@ const CustomerManagementPage = () => {
             required
           />
 
-          
+          {/* Auto-generated full address display for edit */}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1.5">
+              Địa chỉ đầy đủ (Tự động tạo)
+            </label>
+            <div className="w-full px-3 py-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-700 text-sm min-h-[42px] flex items-center">
+              {formData.address || 'Địa chỉ sẽ được tạo tự động khi bạn chọn tỉnh/thành phố, quận/huyện, phường/xã'}
+            </div>
+          </div>
 
           <Input
             label="Họ và tên"
