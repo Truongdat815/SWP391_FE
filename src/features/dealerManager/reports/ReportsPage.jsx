@@ -33,9 +33,9 @@ const ReportsPage = () => {
   const [selectedStaffId, setSelectedStaffId] = useState('');
 
   const { data: ordersData, isLoading: isLoadingOrders, error: ordersError } = useGetAllOrdersQuery();
-  const { data: revenueData, isLoading: isLoadingRevenue } = useGetMonthlyRevenueQuery();
-  const { data: stocksData } = useGetAllStoreStocksQuery();
-  const { data: staffData } = useGetAllStaffQuery();
+  const { data: revenueData, isLoading: isLoadingRevenue, error: revenueError } = useGetMonthlyRevenueQuery();
+  const { data: stocksData, error: stocksError } = useGetAllStoreStocksQuery();
+  const { data: staffData, error: staffError } = useGetAllStaffQuery();
 
   const orders = ordersData?.data || [];
   const monthlyRevenue = revenueData?.data || [];
@@ -44,6 +44,7 @@ const ReportsPage = () => {
 
   // Filter chỉ lấy Dealer Staff
   const staff = useMemo(() => {
+    if (!Array.isArray(allStaff)) return [];
     return allStaff.filter((user) => {
       const roleName = user.roleName || '';
       return (
@@ -73,6 +74,7 @@ const ReportsPage = () => {
 
   // Filter orders by date range
   const filteredOrders = useMemo(() => {
+    if (!Array.isArray(orders)) return [];
     return orders.filter((order) => {
       const orderDate = new Date(order.createdAt || order.orderDate);
       const start = new Date(finalStartDate);
@@ -143,6 +145,7 @@ const ReportsPage = () => {
       DELIVERING: 0,
     };
 
+    if (!Array.isArray(filteredOrders)) return [];
     filteredOrders.forEach((order) => {
       const status = order.status || 'DRAFT';
       if (statusCounts.hasOwnProperty(status)) {
@@ -160,6 +163,7 @@ const ReportsPage = () => {
 
   // Tính toán doanh số theo model
   const modelRevenueData = useMemo(() => {
+    if (!Array.isArray(filteredOrders)) return [];
     const modelMap = {};
     filteredOrders
       .filter((order) => 
@@ -184,6 +188,7 @@ const ReportsPage = () => {
 
   // Tính toán doanh số và số sản phẩm theo nhân viên
   const staffRevenueData = useMemo(() => {
+    if (!Array.isArray(filteredOrders)) return [];
     const staffMap = {};
     filteredOrders
       .filter((order) => 
@@ -237,6 +242,7 @@ const ReportsPage = () => {
 
   const currentMonthRevenue = useMemo(() => {
     // Tính từ orders của tháng hiện tại (giống Dashboard)
+    if (!Array.isArray(orders)) return 0;
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     const monthOrders = orders.filter((order) => {
@@ -268,9 +274,9 @@ const ReportsPage = () => {
     return total;
   }, [orders]);
 
-  const totalOrders = filteredOrders.length;
-  const completedOrders = filteredOrders.filter((o) => o.status === 'DELIVERED').length;
-  const availableCars = stocks.filter((stock) => stock.status === 'AVAILABLE').length;
+  const totalOrders = Array.isArray(filteredOrders) ? filteredOrders.length : 0;
+  const completedOrders = Array.isArray(filteredOrders) ? filteredOrders.filter((o) => o.status === 'DELIVERED').length : 0;
+  const availableCars = Array.isArray(stocks) ? stocks.filter((stock) => stock.status === 'AVAILABLE').length : 0;
 
   const formatCurrency = (amount) => {
     if (!amount) return '0₫';
@@ -303,7 +309,11 @@ const ReportsPage = () => {
   }
 
   // Kiểm tra lỗi 401 (Unauthorized)
-  const isUnauthorized = ordersError?.status === 401;
+  const isUnauthorized = 
+    ordersError?.status === 401 || 
+    revenueError?.status === 401 || 
+    stocksError?.status === 401 ||
+    staffError?.status === 401;
   
   if (isUnauthorized) {
     return (
@@ -326,7 +336,12 @@ const ReportsPage = () => {
     );
   }
 
-  if (ordersError) {
+  const hasError = (ordersError && ordersError.status !== 401) || 
+                   (revenueError && revenueError.status !== 401) ||
+                   (stocksError && stocksError.status !== 401) ||
+                   (staffError && staffError.status !== 401);
+
+  if (hasError) {
     return (
       <DealerManagerLayout>
         <div className="flex items-center justify-center h-64">
@@ -421,7 +436,7 @@ const ReportsPage = () => {
                   className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Tất cả nhân viên</option>
-                  {staff.map((member) => (
+                  {(Array.isArray(staff) ? staff : []).map((member) => (
                     <option key={member.userId} value={member.userId}>
                       {member.fullName || member.email}
                     </option>
@@ -542,7 +557,7 @@ const ReportsPage = () => {
                         </Table.Row>
                       </Table.Header>
                       <Table.Body>
-                        {staffRevenueData.map((staff, index) => (
+                        {(Array.isArray(staffRevenueData) ? staffRevenueData : []).map((staff, index) => (
                           <Table.Row key={staff.id}>
                             <Table.Cell className="font-medium">{index + 1}</Table.Cell>
                             <Table.Cell>
@@ -593,7 +608,7 @@ const ReportsPage = () => {
                     <div>
                       <p className="text-xs text-gray-600">Tổng sản phẩm bán được</p>
                       <p className="text-lg font-bold text-gray-900 mt-0.5">
-                        {staffRevenueData.reduce((sum, staff) => sum + staff.productCount, 0)}
+                        {Array.isArray(staffRevenueData) ? staffRevenueData.reduce((sum, staff) => sum + (staff.productCount || 0), 0) : 0}
                       </p>
                     </div>
                     <Package size={24} className="text-purple-600" />
@@ -606,7 +621,7 @@ const ReportsPage = () => {
                     <div>
                       <p className="text-xs text-gray-600">Tổng doanh số</p>
                       <p className="text-lg font-bold text-gray-900 mt-0.5">
-                        {formatCurrency(staffRevenueData.reduce((sum, staff) => sum + staff.revenue, 0))}
+                        {formatCurrency(Array.isArray(staffRevenueData) ? staffRevenueData.reduce((sum, staff) => sum + (staff.revenue || 0), 0) : 0)}
                       </p>
                     </div>
                     <DollarSign size={24} className="text-green-600" />
@@ -620,10 +635,10 @@ const ReportsPage = () => {
               <Card>
                 <Card.Header>
                   <Card.Title>
-                    Chi Tiết Đơn Hàng - {staff.find((s) => s.userId?.toString() === selectedStaffId)?.fullName || staffRevenueData.find((s) => s.id === selectedStaffId)?.name || 'Nhân viên'}
+                    Chi Tiết Đơn Hàng - {(Array.isArray(staff) ? staff.find((s) => s.userId?.toString() === selectedStaffId) : null)?.fullName || (Array.isArray(staffRevenueData) ? staffRevenueData.find((s) => s.id === selectedStaffId) : null)?.name || 'Nhân viên'}
                   </Card.Title>
                   <p className="text-sm text-gray-500 mt-1">
-                    {staffOrders.filter((o) => o.status === 'DELIVERED' || o.status === 'FULLY_PAID' || o.status === 'CONFIRMED').length} đơn đã hoàn thành | Tổng doanh số: {formatCurrency(staffOrders.filter((o) => o.status === 'DELIVERED' || o.status === 'FULLY_PAID' || o.status === 'CONFIRMED').reduce((sum, o) => sum + (parseFloat(o.totalAmount || o.totalPrice) || 0), 0))}
+                    {Array.isArray(staffOrders) ? staffOrders.filter((o) => o.status === 'DELIVERED' || o.status === 'FULLY_PAID' || o.status === 'CONFIRMED').length : 0} đơn đã hoàn thành | Tổng doanh số: {formatCurrency(Array.isArray(staffOrders) ? staffOrders.filter((o) => o.status === 'DELIVERED' || o.status === 'FULLY_PAID' || o.status === 'CONFIRMED').reduce((sum, o) => sum + (parseFloat(o.totalAmount || o.totalPrice) || 0), 0) : 0)}
                   </p>
                 </Card.Header>
                 <Card.Content>
@@ -640,7 +655,7 @@ const ReportsPage = () => {
                         </Table.Row>
                       </Table.Header>
                       <Table.Body>
-                        {staffOrders.length > 0 ? (
+                        {Array.isArray(staffOrders) && staffOrders.length > 0 ? (
                           staffOrders.map((order) => (
                             <Table.Row key={order.orderId}>
                               <Table.Cell className="font-mono">#{order.orderId}</Table.Cell>
@@ -696,7 +711,7 @@ const ReportsPage = () => {
               <p className="text-xs text-gray-500">Top 5 model bán chạy</p>
             </Card.Header>
             <Card.Content className="flex-1 overflow-auto">
-              {modelRevenueData.length > 0 ? (
+              {Array.isArray(modelRevenueData) && modelRevenueData.length > 0 ? (
                 <div className="space-y-4">
                   {modelRevenueData.map((item, index) => (
                     <div key={index} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -744,7 +759,7 @@ const ReportsPage = () => {
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
-                    {filteredOrders.slice(0, 20).map((order) => (
+                    {(Array.isArray(filteredOrders) ? filteredOrders.slice(0, 20) : []).map((order) => (
                       <Table.Row key={order.orderId}>
                         <Table.Cell className="font-mono">#{order.orderId}</Table.Cell>
                         <Table.Cell>{order.customerName || 'N/A'}</Table.Cell>

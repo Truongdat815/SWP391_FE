@@ -5,15 +5,19 @@ import MetricCard from '../../../components/shared/MetricCard';
 import Card from '../../../components/ui/Card';
 import Table from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
+import Modal from '../../../components/ui/Modal';
 import LineChart from '../../../components/charts/LineChart';
 import BarChart from '../../../components/charts/BarChart';
 import { useGetAllOrdersQuery } from '../../../api/dealerManager/dmOrderApi';
 import { useGetAllStoreStocksQuery } from '../../../api/dealerManager/inventoryApi';
 import { useGetMonthlyRevenueQuery } from '../../../api/dealerManager/storeApi';
 import { useGetAllStaffQuery } from '../../../api/dealerManager/staffApi';
+import { getModelImageUrl } from '../../../utils/modelImageHelper';
 
 const DealerManagerDashboard = () => {
+  const [dashboardPage, setDashboardPage] = useState(1); // Trang dashboard: 1 = KPI + Charts, 2 = Chi tiết
   const [currentPage, setCurrentPage] = useState(1);
+  const [isAllOrdersModalOpen, setIsAllOrdersModalOpen] = useState(false);
   const ordersPerPage = 5;
   
   const { data: ordersData, isLoading: isLoadingOrders, error: ordersError } = useGetAllOrdersQuery();
@@ -253,12 +257,13 @@ const DealerManagerDashboard = () => {
   }, [orders, ordersData]);
 
   const formatRevenue = (amount) => {
+    if (!amount || amount === 0) return '0₫';
     if (amount >= 1000000000) {
       return `${(amount / 1000000000).toFixed(1)} Tỷ`;
     } else if (amount >= 1000000) {
-      return `${(amount / 1000000).toFixed(0)} Triệu`;
+      return `${Math.round(amount / 1000000)} Triệu`;
     }
-    return new Intl.NumberFormat('vi-VN').format(amount) + '₫';
+    return new Intl.NumberFormat('vi-VN').format(Math.round(amount)) + '₫';
   };
 
   const formatCurrency = (amount) => {
@@ -316,21 +321,40 @@ const DealerManagerDashboard = () => {
     }
   };
 
+  // Helper function để lấy tên nhân viên từ order
+  const getStaffName = (order) => {
+    if (order.staffName) {
+      return order.staffName;
+    }
+    const staffId = order.staffId?.toString() || order.createdBy?.toString();
+    if (staffId) {
+      const staff = allStaff.find(s => s.userId?.toString() === staffId);
+      if (staff?.fullName) {
+        return staff.fullName;
+      }
+    }
+    return 'Không xác định';
+  };
+
   const getStatusBadge = (status) => {
     const statusMap = {
-      PENDING: { variant: 'warning', label: 'Chờ duyệt' },
-      CONFIRMED: { variant: 'info', label: 'Đã xác nhận' },
-      DELIVERING: { variant: 'info', label: 'Đang giao' },
-      DELIVERED: { variant: 'success', label: 'Hoàn thành' },
-      FULLY_PAID: { variant: 'success', label: 'Đã thanh toán' },
-      DEPOSIT_PAID: { variant: 'info', label: 'Đã đặt cọc' },
-      CONTRACT_SIGNED: { variant: 'info', label: 'Đã ký hợp đồng' },
-      CONTRACT_PENDING: { variant: 'warning', label: 'Chờ ký hợp đồng' },
-      CANCELLED: { variant: 'error', label: 'Đã hủy' },
-      DRAFT: { variant: 'default', label: 'Nháp' },
+      PENDING: { variant: 'warning', label: 'Chờ duyệt', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+      CONFIRMED: { variant: 'info', label: 'Đã xác nhận', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+      DELIVERING: { variant: 'info', label: 'Đang giao', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+      DELIVERED: { variant: 'success', label: 'Hoàn thành', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+      FULLY_PAID: { variant: 'success', label: 'Đã thanh toán', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+      DEPOSIT_PAID: { variant: 'info', label: 'Đã đặt cọc', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+      CONTRACT_SIGNED: { variant: 'info', label: 'Đã ký hợp đồng', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+      CONTRACT_PENDING: { variant: 'warning', label: 'Chờ ký hợp đồng', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+      CANCELLED: { variant: 'error', label: 'Đã hủy', color: 'bg-red-50 text-red-700 border-red-200' },
+      DRAFT: { variant: 'default', label: 'Nháp', color: 'bg-gray-50 text-gray-700 border-gray-200' },
     };
-    const config = statusMap[status] || { variant: 'default', label: status || 'N/A' };
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    const config = statusMap[status] || { variant: 'default', label: status || 'N/A', color: 'bg-gray-50 text-gray-700 border-gray-200' };
+    return (
+      <span className={`inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold ${config.color}`}>
+        {config.label}
+      </span>
+    );
   };
 
   // Lấy các đơn hàng mới nhất (sắp xếp theo ngày tạo, mới nhất trước)
@@ -403,83 +427,177 @@ const DealerManagerDashboard = () => {
 
   return (
     <DealerManagerLayout>
-      <div className="p-3 h-[calc(100vh-80px)] overflow-hidden flex flex-col">
+      <div className="p-4 min-h-[calc(100vh-80px)] flex flex-col">
         {/* Header */}
-        <div className="mb-2">
-          <h1 className="text-xl font-bold text-gray-900">Tổng quan</h1>
-          <p className="text-gray-600 text-xs">Xem tổng quan hoạt động của đại lý</p>
+        <div className="mb-4 flex-shrink-0">
+          <h1 className="text-2xl font-bold text-gray-900 mb-1">Tổng quan</h1>
+          <p className="text-gray-600 text-sm">Xem tổng quan hoạt động của đại lý</p>
         </div>
 
-        <div className="flex-1 overflow-y-auto space-y-2">
-        {/* Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
-          <MetricCard
-            title="Tổng Doanh Thu (Tháng)"
-            value={formatRevenue(currentMonthRevenue)}
-            icon={DollarSign}
-          />
-          <MetricCard
-            title="Đơn Hàng Chờ Duyệt"
-            value={pendingOrders}
-            icon={ShoppingCart}
-          />
-          <MetricCard
-            title="Tổng Số Đơn Hàng (Tháng)"
-            value={totalOrdersThisMonth}
-            icon={TrendingUp}
-          />
-          <MetricCard
-            title="Tổng Số Xe"
-            value={totalCars}
-            icon={Package}
-          />
+        {/* Tabs phân trang */}
+        <div className="flex gap-2 mb-4 border-b border-gray-200">
+          <button
+            onClick={() => setDashboardPage(1)}
+            className={`px-4 py-2 font-medium text-sm transition-colors ${
+              dashboardPage === 1
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Tổng quan
+          </button>
+          <button
+            onClick={() => setDashboardPage(2)}
+            className={`px-4 py-2 font-medium text-sm transition-colors ${
+              dashboardPage === 2
+                ? 'text-blue-600 border-b-2 border-blue-600'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            Chi tiết
+          </button>
         </div>
 
-        {/* Layout 2 cột: Trái là chi tiết số xe, Phải là các phần còn lại */}
-        <div className="grid grid-cols-1 lg:grid-cols-[420px_1fr] gap-2">
-          {/* Chi tiết số xe theo mẫu và màu - Bên trái */}
-          <Card className="h-full flex flex-col">
-            <Card.Header className="pb-1 flex-shrink-0">
-              <Card.Title className="text-sm font-semibold">Chi Tiết Số Xe Trong Kho</Card.Title>
+        <div className={`flex-1 ${dashboardPage === 2 ? 'overflow-hidden' : 'space-y-4 overflow-y-auto'}`}>
+        {/* Trang 1: KPI + Charts */}
+        {dashboardPage === 1 && (
+          <>
+            {/* Metrics - KPI Cards - Ưu tiên cao nhất */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <MetricCard
+                title="Tổng Doanh Thu (Tháng)"
+                value={formatRevenue(currentMonthRevenue)}
+                icon={DollarSign}
+              />
+              <MetricCard
+                title="Đơn Hàng Chờ Duyệt"
+                value={pendingOrders}
+                icon={ShoppingCart}
+              />
+              <MetricCard
+                title="Tổng Số Đơn Hàng (Tháng)"
+                value={totalOrdersThisMonth}
+                icon={TrendingUp}
+              />
+              <MetricCard
+                title="Tổng Số Xe"
+                value={totalCars}
+                icon={Package}
+              />
+            </div>
+
+            {/* Charts - Ưu tiên thứ 2 - Đặt ngang */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card className="flex flex-col shadow-sm">
+                <Card.Header className="pb-2 flex-shrink-0 border-b border-gray-100">
+                  <Card.Title className="text-base font-semibold text-gray-900">Doanh Thu Theo Tuần</Card.Title>
+                </Card.Header>
+                <Card.Content className="p-4 flex-1 flex items-center justify-center min-h-[300px]">
+                  {revenueChartData && revenueChartData.length > 0 && revenueChartData.some(d => d.value > 0) ? (
+                    <LineChart
+                      data={revenueChartData}
+                      dataKey="value"
+                      name="Doanh thu (triệu VND)"
+                      color="#3B82F6"
+                      height={300}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                      <TrendingUp size={48} className="mb-2 opacity-50" />
+                      <p className="text-sm">Chưa có dữ liệu để hiển thị</p>
+                    </div>
+                  )}
+                </Card.Content>
+              </Card>
+
+              <Card className="flex flex-col shadow-sm">
+                <Card.Header className="pb-2 flex-shrink-0 border-b border-gray-100">
+                  <Card.Title className="text-base font-semibold text-gray-900">Doanh Số Theo Nhân Viên</Card.Title>
+                </Card.Header>
+                <Card.Content className="p-4 flex-1 flex items-center justify-center min-h-[300px]">
+                  {staffRevenueData && staffRevenueData.length > 0 ? (
+                    <BarChart
+                      data={staffRevenueData}
+                      dataKey="value"
+                      name="Doanh số (triệu VND)"
+                      color="#3B82F6"
+                      height={300}
+                    />
+                  ) : (
+                    <div className="flex flex-col items-center justify-center h-full text-gray-400">
+                      <TrendingUp size={48} className="mb-2 opacity-50" />
+                      <p className="text-sm">Chưa có dữ liệu để hiển thị</p>
+                    </div>
+                  )}
+                </Card.Content>
+              </Card>
+            </div>
+          </>
+        )}
+
+        {/* Trang 2: Chi tiết số xe + Thống kê đơn hàng + Đơn hàng gần đây */}
+        {dashboardPage === 2 && (
+          <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-4 h-full overflow-hidden">
+          {/* Chi tiết số xe theo mẫu và màu - Bên trái - Scroll trong card */}
+          <Card className="flex flex-col shadow-sm h-full overflow-hidden">
+            <Card.Header className="pb-2 flex-shrink-0 border-b border-gray-100">
+              <Card.Title className="text-base font-semibold text-gray-900">Chi Tiết Số Xe Trong Kho</Card.Title>
             </Card.Header>
-            <Card.Content className="p-2 flex-1 overflow-hidden flex flex-col">
+            <Card.Content className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
               {stockSummary.length === 0 ? (
-                <div className="text-center py-4 text-gray-500 text-xs">Chưa có xe nào trong kho</div>
+                <div className="text-center py-8 text-gray-500 text-sm p-4">Chưa có xe nào trong kho</div>
               ) : (
-                <div className="overflow-y-auto flex-1">
+                <div className="overflow-y-auto flex-1 min-h-0 p-2">
                   <Table>
                     <Table.Header>
                       <Table.Row>
-                        <Table.Head className="text-xs py-1">Mẫu Xe</Table.Head>
-                        <Table.Head className="text-xs py-1">Màu Sắc</Table.Head>
-                        <Table.Head className="text-xs text-right py-1">Số Lượng</Table.Head>
+                        <Table.Head className="text-sm py-2 font-semibold">Mẫu Xe</Table.Head>
+                        <Table.Head className="text-sm py-2 font-semibold">Màu Sắc</Table.Head>
+                        <Table.Head className="text-sm text-right py-2 font-semibold">Số Lượng</Table.Head>
                       </Table.Row>
                     </Table.Header>
                     <Table.Body>
-                      {stockSummary.map((item, index) => (
-                        <Table.Row key={`${item.modelName}-${item.colorName}-${index}`}>
-                          <Table.Cell className="font-medium text-xs py-1 whitespace-nowrap">
-                            {item.modelName}
+                      {stockSummary.map((item, index) => {
+                        const modelImageUrl = getModelImageUrl(item.modelName);
+                        return (
+                        <Table.Row 
+                          key={`${item.modelName}-${item.colorName}-${index}`}
+                          className="hover:bg-gray-50"
+                        >
+                          <Table.Cell className="font-medium text-sm py-2 whitespace-nowrap">
+                            <div className="flex items-center gap-2" title={`${item.modelName} - ${item.colorName}`}>
+                              {modelImageUrl && (
+                                <img
+                                  src={modelImageUrl}
+                                  alt={item.modelName}
+                                  className="w-10 h-10 object-cover rounded border border-gray-200"
+                                  onError={(e) => {
+                                    e.target.style.display = 'none';
+                                  }}
+                                />
+                              )}
+                              <span>{item.modelName}</span>
+                            </div>
                           </Table.Cell>
-                          <Table.Cell className="text-xs py-1 whitespace-nowrap">
-                            <div className="flex items-center gap-1.5">
+                          <Table.Cell className="text-sm py-2 whitespace-nowrap">
+                            <div className="flex items-center gap-2" title={item.colorName}>
                               {(item.colorCode || (item.colorName && /^#[0-9A-Fa-f]{6}$/.test(item.colorName))) && (
                                 <div
-                                  className="w-3 h-3 rounded-full border border-gray-300 flex-shrink-0"
+                                  className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0"
                                   style={{
                                     backgroundColor: item.colorCode || item.colorName,
                                   }}
-                                  title={item.colorName}
                                 />
                               )}
-                              <span className="text-xs">{item.colorName}</span>
+                              <span>{item.colorName}</span>
                             </div>
                           </Table.Cell>
-                          <Table.Cell className="text-right font-semibold text-xs py-1 whitespace-nowrap">
+                          <Table.Cell className="text-right font-semibold text-sm py-2 whitespace-nowrap">
                             {item.quantity}
                           </Table.Cell>
                         </Table.Row>
-                      ))}
+                        );
+                      })}
                     </Table.Body>
                   </Table>
                 </div>
@@ -487,142 +605,159 @@ const DealerManagerDashboard = () => {
             </Card.Content>
           </Card>
 
-          {/* Bên phải: Charts và các phần còn lại */}
-          <div className="space-y-2 flex flex-col h-full">
-            {/* Charts ở giữa - Doanh Thu và Doanh Số */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 flex-1">
-              <Card className="flex flex-col">
-                <Card.Header className="pb-1 flex-shrink-0">
-                  <Card.Title className="text-sm font-semibold">Doanh Thu Theo Tuần</Card.Title>
-                </Card.Header>
-                <Card.Content className="p-2 flex-1 flex items-center justify-center">
-                  {revenueChartData && revenueChartData.length > 0 ? (
-                    <LineChart
-                      data={revenueChartData}
-                      dataKey="value"
-                      name="Doanh thu (triệu VND)"
-                      color="#3B82F6"
-                      height={280}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500 text-xs">
-                      Chưa có dữ liệu để hiển thị
-                    </div>
-                  )}
-                </Card.Content>
-              </Card>
-
-              <Card className="flex flex-col">
-                <Card.Header className="pb-1 flex-shrink-0">
-                  <Card.Title className="text-sm font-semibold">Doanh Số Theo Nhân Viên</Card.Title>
-                </Card.Header>
-                <Card.Content className="p-2 flex-1 flex items-center justify-center">
-                  {staffRevenueData && staffRevenueData.length > 0 ? (
-                    <BarChart
-                      data={staffRevenueData}
-                      dataKey="value"
-                      name="Doanh số (triệu VND)"
-                      color="#10B981"
-                      height={280}
-                    />
-                  ) : (
-                    <div className="flex items-center justify-center h-full text-gray-500 text-xs">
-                      Chưa có dữ liệu để hiển thị
-                    </div>
-                  )}
-                </Card.Content>
-              </Card>
-            </div>
-
-            {/* Thống kê đơn hàng và Đơn hàng gần đây - 2 cột nhỏ */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 flex-shrink-0">
-              <Card>
-                <Card.Header className="pb-1">
-                  <Card.Title className="text-sm font-semibold">Thống Kê Đơn Hàng</Card.Title>
-                </Card.Header>
-                <Card.Content className="p-2">
-                  <div className="space-y-1">
-                    <div className="flex items-center justify-between p-1.5 bg-gray-50 rounded">
-                      <span className="text-gray-700 text-xs">Đơn hàng mới hôm nay</span>
-                      <span className="text-base font-bold text-blue-600">
-                        {orders.filter((order) => {
-                          const orderDate = new Date(order.createdAt || order.orderDate);
-                          const today = new Date();
-                          return (
-                            orderDate.getDate() === today.getDate() &&
-                            orderDate.getMonth() === today.getMonth() &&
-                            orderDate.getFullYear() === today.getFullYear()
-                          );
-                        }).length}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between p-1.5 bg-gray-50 rounded">
-                      <span className="text-gray-700 text-xs">Đơn hàng đang giao</span>
-                      <span className="text-base font-bold text-green-600">
-                        {orders.filter((order) => order.status === 'DELIVERING').length}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between p-1.5 bg-gray-50 rounded">
-                      <span className="text-gray-700 text-xs">Đơn hàng đã hoàn thành</span>
-                      <span className="text-base font-bold text-purple-600">
-                        {orders.filter((order) => order.status === 'DELIVERED').length}
-                      </span>
-                    </div>
+          {/* Bên phải: Thống kê đơn hàng và Đơn hàng gần đây */}
+          <div className="space-y-3 flex flex-col h-full overflow-hidden">
+            {/* Thống kê đơn hàng */}
+            <Card className="shadow-sm flex-shrink-0">
+              <Card.Header className="pb-2 flex-shrink-0 border-b border-gray-100">
+                <Card.Title className="text-base font-semibold text-gray-900">Thống Kê Đơn Hàng</Card.Title>
+              </Card.Header>
+              <Card.Content className="p-3">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
+                    <span className="text-gray-700 text-sm font-medium">Đơn hàng mới hôm nay</span>
+                    <span className="text-xl font-bold text-blue-600">
+                      {orders.filter((order) => {
+                        const orderDate = new Date(order.createdAt || order.orderDate);
+                        const today = new Date();
+                        return (
+                          orderDate.getDate() === today.getDate() &&
+                          orderDate.getMonth() === today.getMonth() &&
+                          orderDate.getFullYear() === today.getFullYear()
+                        );
+                      }).length}
+                    </span>
                   </div>
-                </Card.Content>
-              </Card>
+                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">
+                    <span className="text-gray-700 text-sm font-medium">Đơn hàng đang giao</span>
+                    <span className="text-xl font-bold text-green-600">
+                      {orders.filter((order) => order.status === 'DELIVERING').length}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-100">
+                    <span className="text-gray-700 text-sm font-medium">Đơn hàng đã hoàn thành</span>
+                    <span className="text-xl font-bold text-purple-600">
+                      {orders.filter((order) => order.status === 'DELIVERED').length}
+                    </span>
+                  </div>
+                </div>
+              </Card.Content>
+            </Card>
 
-              {/* Recent Orders Table - Chỉ hiển thị 3 đơn hàng gần đây nhất */}
-              <Card>
-                <Card.Header className="pb-1">
-                  <Card.Title className="text-sm font-semibold">Đơn Hàng Gần Đây</Card.Title>
-                </Card.Header>
-                <Card.Content className="p-2">
-                  {recentOrders.length === 0 ? (
-                    <div className="text-center py-4 text-gray-500 text-xs">Chưa có đơn hàng nào</div>
-                  ) : (
-                    <div className="overflow-y-auto">
-                      <Table>
-                        <Table.Header>
-                          <Table.Row>
-                            <Table.Head className="text-xs py-1">Mã đơn</Table.Head>
-                            <Table.Head className="text-xs py-1">Khách hàng</Table.Head>
-                            <Table.Head className="text-xs py-1">Ngày</Table.Head>
-                            <Table.Head className="text-xs py-1">Giá trị</Table.Head>
-                            <Table.Head className="text-xs py-1">Trạng thái</Table.Head>
+            {/* Recent Orders Table - Giới hạn 5 dòng */}
+            <Card className="flex-1 shadow-sm overflow-hidden flex flex-col min-h-0">
+              <Card.Header className="pb-2 flex-shrink-0 border-b border-gray-100 flex items-center justify-between">
+                <Card.Title className="text-base font-semibold text-gray-900">Đơn Hàng Gần Đây</Card.Title>
+                {recentOrders.length > 5 && (
+                  <button 
+                    onClick={() => setIsAllOrdersModalOpen(true)}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                  >
+                    Xem tất cả
+                  </button>
+                )}
+              </Card.Header>
+              <Card.Content className="p-3 flex-1 overflow-hidden flex flex-col min-h-0">
+                {recentOrders.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 text-sm">Chưa có đơn hàng nào</div>
+                ) : (
+                  <div className="overflow-y-auto flex-1 min-h-0">
+                    <Table>
+                      <Table.Header>
+                        <Table.Row>
+                          <Table.Head className="text-sm py-2 font-semibold">Mã đơn</Table.Head>
+                          <Table.Head className="text-sm py-2 font-semibold">Khách hàng</Table.Head>
+                          <Table.Head className="text-sm py-2 font-semibold">Nhân viên</Table.Head>
+                          <Table.Head className="text-sm py-2 font-semibold">Ngày</Table.Head>
+                          <Table.Head className="text-sm py-2 font-semibold">Giá trị</Table.Head>
+                          <Table.Head className="text-sm py-2 font-semibold">Trạng thái</Table.Head>
+                        </Table.Row>
+                      </Table.Header>
+                      <Table.Body>
+                        {recentOrders.slice(0, 5).map((order) => (
+                          <Table.Row key={order.orderId} className="hover:bg-gray-50">
+                            <Table.Cell className="font-mono text-sm py-2">
+                              #{order.orderId || `ELEC-${order.orderId}`}
+                            </Table.Cell>
+                            <Table.Cell className="font-medium text-sm py-2">
+                              {order.customerName || 'N/A'}
+                            </Table.Cell>
+                            <Table.Cell className="text-sm py-2">
+                              {getStaffName(order)}
+                            </Table.Cell>
+                            <Table.Cell className="text-sm py-2">
+                              {formatDate(order.createdAt || order.orderDate)}
+                            </Table.Cell>
+                            <Table.Cell className="font-semibold text-sm py-2">
+                              {formatCurrency(order.totalAmount || order.totalPrice || 0)}
+                            </Table.Cell>
+                            <Table.Cell className="text-sm py-2">
+                              {getStatusBadge(order.status)}
+                            </Table.Cell>
                           </Table.Row>
-                        </Table.Header>
-                        <Table.Body>
-                          {recentOrders.slice(0, 3).map((order) => (
-                            <Table.Row key={order.orderId}>
-                              <Table.Cell className="font-mono text-xs py-1">
-                                #{order.orderId || `ELEC-${order.orderId}`}
-                              </Table.Cell>
-                              <Table.Cell className="font-medium text-xs py-1">
-                                {order.customerName || 'N/A'}
-                              </Table.Cell>
-                              <Table.Cell className="text-xs py-1">
-                                {formatDate(order.createdAt || order.orderDate)}
-                              </Table.Cell>
-                              <Table.Cell className="font-semibold text-xs py-1">
-                                {formatCurrency(order.totalAmount || order.totalPrice || 0)}
-                              </Table.Cell>
-                              <Table.Cell className="text-xs py-1">
-                                {getStatusBadge(order.status)}
-                              </Table.Cell>
-                            </Table.Row>
-                          ))}
-                        </Table.Body>
-                      </Table>
-                    </div>
-                  )}
-                </Card.Content>
-              </Card>
-            </div>
+                        ))}
+                      </Table.Body>
+                    </Table>
+                  </div>
+                )}
+              </Card.Content>
+            </Card>
           </div>
         </div>
+        )}
         </div>
       </div>
+
+      {/* Modal hiển thị toàn bộ đơn hàng */}
+      <Modal
+        isOpen={isAllOrdersModalOpen}
+        onClose={() => setIsAllOrdersModalOpen(false)}
+        title="Tất Cả Đơn Hàng"
+        size="2xl"
+      >
+        <div className="max-h-[70vh] overflow-y-auto">
+          {recentOrders.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 text-sm">Chưa có đơn hàng nào</div>
+          ) : (
+            <Table>
+              <Table.Header>
+                <Table.Row>
+                  <Table.Head className="text-sm py-2 font-semibold">Mã đơn</Table.Head>
+                  <Table.Head className="text-sm py-2 font-semibold">Khách hàng</Table.Head>
+                  <Table.Head className="text-sm py-2 font-semibold">Nhân viên</Table.Head>
+                  <Table.Head className="text-sm py-2 font-semibold">Ngày</Table.Head>
+                  <Table.Head className="text-sm py-2 font-semibold">Giá trị</Table.Head>
+                  <Table.Head className="text-sm py-2 font-semibold">Trạng thái</Table.Head>
+                </Table.Row>
+              </Table.Header>
+              <Table.Body>
+                {recentOrders.map((order) => (
+                  <Table.Row key={order.orderId} className="hover:bg-gray-50">
+                    <Table.Cell className="font-mono text-sm py-2">
+                      #{order.orderId || `ELEC-${order.orderId}`}
+                    </Table.Cell>
+                    <Table.Cell className="font-medium text-sm py-2">
+                      {order.customerName || 'N/A'}
+                    </Table.Cell>
+                    <Table.Cell className="text-sm py-2">
+                      {getStaffName(order)}
+                    </Table.Cell>
+                    <Table.Cell className="text-sm py-2">
+                      {formatDate(order.createdAt || order.orderDate)}
+                    </Table.Cell>
+                    <Table.Cell className="font-semibold text-sm py-2">
+                      {formatCurrency(order.totalAmount || order.totalPrice || 0)}
+                    </Table.Cell>
+                    <Table.Cell className="text-sm py-2">
+                      {getStatusBadge(order.status)}
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table>
+          )}
+        </div>
+      </Modal>
     </DealerManagerLayout>
   );
 };

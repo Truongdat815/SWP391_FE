@@ -2,20 +2,20 @@ import { cn } from '../../utils/cn';
 
 const Badge = ({ children, variant = 'default', className, ...props }) => {
   const variants = {
-    default: 'bg-gray-100 text-gray-800',
-    success: 'bg-green-100 text-green-800',
-    warning: 'bg-yellow-100 text-yellow-800',
-    error: 'bg-red-100 text-red-800',
-    info: 'bg-blue-100 text-blue-800',
-    primary: 'bg-blue-600 text-white',
-    secondary: 'bg-purple-100 text-purple-800',
-    tertiary: 'bg-pink-100 text-pink-800',
+    default: 'bg-gray-50 text-gray-700 border border-gray-200',
+    success: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    warning: 'bg-amber-50 text-amber-700 border border-amber-200',
+    error: 'bg-red-50 text-red-700 border border-red-200',
+    info: 'bg-blue-50 text-blue-700 border border-blue-200',
+    primary: 'bg-blue-600 text-white border border-blue-700',
+    secondary: 'bg-purple-50 text-purple-700 border border-purple-200',
+    tertiary: 'bg-pink-50 text-pink-700 border border-pink-200',
   };
 
   return (
     <span
       className={cn(
-        'inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium',
+        'inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold',
         variants[variant],
         className
       )}
