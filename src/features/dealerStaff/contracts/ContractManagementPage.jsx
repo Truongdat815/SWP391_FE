@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Filter, Plus, Calendar, Download, Eye, Upload, FileText, CheckCircle, CreditCard, Banknote } from 'lucide-react';
+import { Search, Filter, Plus, Calendar, Download, Eye, Upload, FileText, CheckCircle, CreditCard, Banknote, DollarSign, TrendingUp } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import DealerStaffLayout from '../../../components/layout/DealerStaffLayout';
@@ -8,6 +8,7 @@ import Badge from '../../../components/ui/Badge';
 import Modal from '../../../components/ui/Modal';
 import { useToast } from '../../../components/ui/Toast';
 import LoadingSkeleton from '../../../components/shared/LoadingSkeleton';
+import MetricCard from '../../../components/shared/MetricCard';
 import { useGetAllContractsQuery, useCreateContractMutation, useUploadSignedContractMutation, useGetContractDetailQuery } from '../../../api/dealerStaff/contractApi';
 import { useGetAllOrdersQuery } from '../../../api/dealerStaff/orderApi';
 import { formatCurrency, formatDate, getContractStatusConfig, getEffectiveContractStatus, getEffectiveRemainingAmount, isPaymentRequired } from '../../../utils/formatters';
@@ -16,12 +17,12 @@ import { getAuthFromStorage, getRoleFromPath } from '../../../utils/roleUtils';
 const ContractManagementPage = () => {
   const navigate = useNavigate();
   const toast = useToast();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  
+
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
@@ -39,8 +40,8 @@ const ContractManagementPage = () => {
 
   // Filter orders that can create contract (CONFIRMED status and no contract yet)
   const availableOrders = useMemo(() => {
-    return orders.filter(order => 
-      (order.status === 'CONFIRMED' || order.status === 'APPROVED') && 
+    return orders.filter(order =>
+      (order.status === 'CONFIRMED' || order.status === 'APPROVED') &&
       !order.contractId &&
       !contracts.some(c => c.orderId === order.orderId)
     );
@@ -57,14 +58,24 @@ const ContractManagementPage = () => {
       const matchesStatus = statusFilter === 'all' || contract.status === statusFilter;
       return matchesSearch && matchesStatus;
     });
-    
-    // Sort by date (newest first)
+
+    // Sort by contractId descending (newest first - higher ID = newer)
     return filtered.sort((a, b) => {
-      const dateA = new Date(a.contractDate || a.createdAt || 0);
-      const dateB = new Date(b.contractDate || b.createdAt || 0);
-      return dateB - dateA; // Descending order (newest first)
+      return (b.contractId || 0) - (a.contractId || 0);
     });
   }, [contracts, searchTerm, statusFilter]);
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    const total = contracts.length;
+    const signed = contracts.filter(c => c.status === 'SIGNED').length;
+    const fullyPaid = contracts.filter(c => c.status === 'FULLY_PAID').length;
+    const totalRevenue = contracts
+      .filter(c => ['FULLY_PAID', 'COMPLETED'].includes(c.status))
+      .reduce((sum, c) => sum + (c.totalPayment || 0), 0);
+
+    return { total, signed, fullyPaid, totalRevenue };
+  }, [contracts]);
 
   // Pagination
   const totalPages = Math.ceil(filteredContracts.length / itemsPerPage);
@@ -93,7 +104,7 @@ const ContractManagementPage = () => {
       toast.success('Đã tạo hợp đồng thành công!');
       setIsCreateModalOpen(false);
       setSelectedOrder(null);
-      
+
       // Đã ở trang hợp đồng rồi, không cần điều hướng
       // Data sẽ tự động refresh do invalidatesTags
     } catch (error) {
@@ -105,21 +116,21 @@ const ContractManagementPage = () => {
   const handleViewContract = async (contract) => {
     const contractId = typeof contract === 'object' ? contract.contractId : contract;
     const contractObj = typeof contract === 'object' ? contract : null;
-    
+
     try {
       const baseUrl = import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api';
       const apiUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
-      
+
       // Get auth token
       const currentPath = window.location.pathname;
       const roleFromPath = getRoleFromPath(currentPath);
       let token = null;
-      
+
       if (roleFromPath) {
         const authData = getAuthFromStorage(roleFromPath);
         token = authData?.token;
       }
-      
+
       // Always fetch contract detail to get latest signedContractFileUrl
       const detailResponse = await fetch(`${apiUrl}/contracts/detail/${contractId}`, {
         method: 'GET',
@@ -127,27 +138,27 @@ const ContractManagementPage = () => {
           'Authorization': token ? `Bearer ${token}` : '',
         },
       });
-      
+
       let signedContractFileUrl = null;
-      
+
       if (detailResponse.ok) {
         const detailData = await detailResponse.json();
         const contractDetail = detailData?.data || detailData;
         // Check both contractFileUrl and signedContractFileUrl for compatibility
         signedContractFileUrl = contractDetail?.contractFileUrl || contractDetail?.signedContractFileUrl || null;
-        
+
         // Check if signedContractFileUrl is a valid non-empty string
-        const hasSignedContract = signedContractFileUrl && 
-                                  typeof signedContractFileUrl === 'string' && 
-                                  signedContractFileUrl.trim().length > 0;
-        
+        const hasSignedContract = signedContractFileUrl &&
+          typeof signedContractFileUrl === 'string' &&
+          signedContractFileUrl.trim().length > 0;
+
         // If contract has signed file, open image in new tab
         if (hasSignedContract) {
           window.open(signedContractFileUrl, '_blank');
           return;
         }
       }
-      
+
       // If no signed contract, fetch HTML and open in new tab
       const response = await fetch(`${apiUrl}/contracts/${contractId}`, {
         method: 'GET',
@@ -155,18 +166,18 @@ const ContractManagementPage = () => {
           'Authorization': token ? `Bearer ${token}` : '',
         },
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to fetch contract');
       }
-      
+
       const htmlContent = await response.text();
-      
+
       // Create blob URL and open in new tab
       const blob = new Blob([htmlContent], { type: 'text/html' });
       const url = URL.createObjectURL(blob);
       const newWindow = window.open(url, '_blank');
-      
+
       // Clean up blob URL after window opens
       if (newWindow) {
         newWindow.onload = () => {
@@ -197,7 +208,7 @@ const ContractManagementPage = () => {
         contractId: selectedContract.contractId,
         file: uploadFile,
       }).unwrap();
-      
+
       const uploadData = response?.data || response;
       toast.success(uploadData?.message || 'Đã upload hợp đồng thành công!');
       setIsUploadModalOpen(false);
@@ -233,20 +244,23 @@ const ContractManagementPage = () => {
       toast.error('Hợp đồng có tổng giá trị <= 5₫ không cần thanh toán');
       return;
     }
-    
+
     // Chỉ cho phép tạo thanh toán khi hợp đồng đã ký
     if (contract.status !== 'SIGNED') {
       toast.error('Chỉ có thể tạo thanh toán khi hợp đồng đã được ký');
       return;
     }
-    
+
     // Điều hướng đến trang thanh toán với contractId
     navigate('/dealer-staff/payments', { state: { contractId: contract.contractId } });
   };
 
   if (isLoading) {
     return (
-      <DealerStaffLayout>
+      <DealerStaffLayout
+        title="Quản lý Hợp đồng"
+        description="Xem, tải lên và quản lý trạng thái các hợp đồng bán xe."
+      >
         <div className="flex items-center justify-center h-64">
           <LoadingSkeleton className="w-20 h-20" variant="circle" />
         </div>
@@ -256,7 +270,10 @@ const ContractManagementPage = () => {
 
   if (error) {
     return (
-      <DealerStaffLayout>
+      <DealerStaffLayout
+        title="Quản lý Hợp đồng"
+        description="Xem, tải lên và quản lý trạng thái các hợp đồng bán xe."
+      >
         <div className="flex items-center justify-center h-64">
           <div className="text-red-500">Có lỗi xảy ra khi tải dữ liệu.</div>
         </div>
@@ -265,37 +282,37 @@ const ContractManagementPage = () => {
   }
 
   return (
-    <DealerStaffLayout>
+    <DealerStaffLayout
+      title="Quản lý Hợp đồng"
+      description="Xem, tải lên và quản lý trạng thái các hợp đồng bán xe."
+    >
       <div className="mx-auto max-w-[90rem] px-0 py-4 pl-10 pr-10 pt-8 space-y-4">
-        {/* Breadcrumbs */}
-        <div className="flex flex-wrap gap-2 pb-4">
-          <button 
-            onClick={() => navigate('/dealer-staff/dashboard')}
-            className="text-slate-500 text-sm font-medium hover:text-primary transition-colors"
-          >
-            Dashboard
-          </button>
-          <span className="text-slate-500 text-sm font-medium">/</span>
-          <span className="text-slate-800 text-sm font-medium">Quản lý hợp đồng</span>
-        </div>
-
-        {/* Page Heading */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-6">
-          <div className="flex min-w-72 flex-col gap-1">
-            <p className="text-slate-900 text-3xl font-bold leading-tight">
-              Quản lý hợp đồng
-            </p>
-            <p className="text-slate-500 text-base font-normal leading-normal">
-              Xem, tải lên và quản lý trạng thái các hợp đồng bán xe.
-            </p>
-          </div>
-          <Button
-            onClick={() => setIsCreateModalOpen(true)}
-            className="flex items-center gap-2"
-          >
-            <Plus size={20} />
-            <span>Tạo hợp đồng mới</span>
-          </Button>
+        {/* Stats Cards */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <MetricCard
+            title="Tổng hợp đồng"
+            value={stats.total}
+            icon={FileText}
+            className="border-l-4 border-l-blue-500"
+          />
+          <MetricCard
+            title="Đã ký"
+            value={stats.signed}
+            icon={CheckCircle}
+            className="border-l-4 border-l-green-500"
+          />
+          <MetricCard
+            title="Đã thanh toán"
+            value={stats.fullyPaid}
+            icon={CreditCard}
+            className="border-l-4 border-l-purple-500"
+          />
+          <MetricCard
+            title="Doanh thu"
+            value={formatCurrency(stats.totalRevenue)}
+            icon={DollarSign}
+            className="border-l-4 border-l-orange-500"
+          />
         </div>
 
         {/* Toolbar & SearchBar */}
@@ -331,10 +348,6 @@ const ContractManagementPage = () => {
               </select>
               <button className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 transition-colors">
                 <Calendar size={20} />
-              </button>
-              <button className="flex items-center gap-2 h-10 px-4 rounded-lg bg-slate-800 text-white hover:bg-slate-700 transition-colors">
-                <Download size={18} />
-                <span className="text-sm font-bold">Xuất báo cáo</span>
               </button>
             </div>
           </div>
@@ -384,7 +397,7 @@ const ContractManagementPage = () => {
                     </thead>
                     <tbody className="divide-y divide-slate-200 bg-white ">
                       {paginatedContracts.map((contract) => (
-                        <motion.tr 
+                        <motion.tr
                           key={contract.contractId}
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
@@ -402,12 +415,12 @@ const ContractManagementPage = () => {
                             {contract.customerName || 'N/A'}
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm">
-                            <button 
-                              onClick={() => navigate('/dealer-staff/orders', { 
-                                state: { 
+                            <button
+                              onClick={() => navigate('/dealer-staff/orders', {
+                                state: {
                                   orderId: contract.orderId,
-                                  openOrderDetail: true 
-                                } 
+                                  openOrderDetail: true
+                                }
                               })}
                               className="text-primary hover:underline font-medium"
                               title="Xem chi tiết đơn hàng"
@@ -476,22 +489,18 @@ const ContractManagementPage = () => {
 
         {/* Pagination */}
         {totalPages > 1 && (
-          <nav
-            aria-label="Pagination"
-            className="mt-6 flex items-center justify-between border-t border-slate-200 px-4 pt-4 sm:px-0 "
-          >
-            <div className="hidden sm:block">
-              <p className="text-sm text-slate-700 ">
-                Hiển thị <span className="font-medium">{startIndex + 1}</span> đến{' '}
-                <span className="font-medium">{Math.min(endIndex, filteredContracts.length)}</span> của{' '}
-                <span className="font-medium">{filteredContracts.length}</span> kết quả
-              </p>
+          <div className="mt-6 px-4 py-3 border-t border-slate-200 flex items-center justify-between bg-slate-50/50">
+            <div className="text-sm text-slate-500">
+              Hiển thị <span className="font-medium text-slate-900">{startIndex + 1}</span> đến{' '}
+              <span className="font-medium text-slate-900">{Math.min(endIndex, filteredContracts.length)}</span> của{' '}
+              <span className="font-medium text-slate-900">{filteredContracts.length}</span> kết quả
             </div>
-            <div className="flex flex-1 justify-between sm:justify-end gap-2">
+            <div className="flex gap-2">
               <Button
                 onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
                 disabled={currentPage === 1}
                 variant="outline"
+                size="sm"
               >
                 Trang trước
               </Button>
@@ -499,11 +508,12 @@ const ContractManagementPage = () => {
                 onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
                 disabled={currentPage === totalPages}
                 variant="outline"
+                size="sm"
               >
                 Trang sau
               </Button>
             </div>
-          </nav>
+          </div>
         )}
       </div>
 
@@ -521,7 +531,7 @@ const ContractManagementPage = () => {
           <p className="text-sm text-slate-600 ">
             Chọn đơn hàng đã được xác nhận để tạo hợp đồng
           </p>
-          
+
           {availableOrders.length === 0 ? (
             <div className="text-center py-8 text-slate-500">
               Không có đơn hàng nào sẵn sàng để tạo hợp đồng
@@ -533,11 +543,10 @@ const ContractManagementPage = () => {
                   key={order.orderId}
                   onClick={() => setSelectedOrder(order)}
                   whileHover={{ scale: 1.01 }}
-                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                    selectedOrder?.orderId === order.orderId
-                      ? 'border-primary bg-primary/5'
-                      : 'border-slate-200 hover:border-primary/50'
-                  }`}
+                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedOrder?.orderId === order.orderId
+                    ? 'border-primary bg-primary/5'
+                    : 'border-slate-200 hover:border-primary/50'
+                    }`}
                 >
                   <div className="flex justify-between items-start">
                     <div>
@@ -597,7 +606,7 @@ const ContractManagementPage = () => {
           <p className="text-sm text-slate-600 ">
             Upload file hợp đồng đã ký bởi khách hàng (PDF hoặc hình ảnh)
           </p>
-          
+
           <div className="border-2 border-dashed border-slate-300 rounded-lg p-8 text-center">
             <Upload className="mx-auto text-slate-400 mb-4" size={48} />
             <input

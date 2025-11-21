@@ -23,23 +23,25 @@ const PaymentManagementPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const toast = useToast();
-  
+
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dateRange, setDateRange] = useState({ start: '', end: '' });
+  const [totalValueFilter, setTotalValueFilter] = useState({ min: '', max: '' });
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
-  
+
   // Payment history modal state
   const [isPaymentHistoryModalOpen, setIsPaymentHistoryModalOpen] = useState(false);
   const [selectedContractForHistory, setSelectedContractForHistory] = useState(null);
-  
+
   // Create Payment Modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [paymentStep, setPaymentStep] = useState(1);
   const [selectedContract, setSelectedContract] = useState(null);
   const [paymentType, setPaymentType] = useState('DEPOSIT'); // Mặc định là DEPOSIT
   const [paymentMethod, setPaymentMethod] = useState('VNPAY'); // Mặc định là VNPAY
-  
+
   // View Payment Detail Dropdown
   const [openDropdownId, setOpenDropdownId] = useState(null);
 
@@ -68,8 +70,8 @@ const PaymentManagementPage = () => {
 
   // Filter contracts that can create payment (only SIGNED status and payment required)
   const availableContracts = useMemo(() => {
-    return contracts.filter(contract => 
-      contract.status === 'SIGNED' && 
+    return contracts.filter(contract =>
+      contract.status === 'SIGNED' &&
       isPaymentRequired(contract.totalPayment) &&
       getEffectiveRemainingAmount(contract) > 0
     );
@@ -77,35 +79,35 @@ const PaymentManagementPage = () => {
 
   // Filter contracts for display (need payment)
   const contractsNeedPayment = useMemo(() => {
-    console.log('All contracts:', contracts.map(c => ({ 
-      id: c.contractId, 
-      status: c.status, 
+    console.log('All contracts:', contracts.map(c => ({
+      id: c.contractId,
+      status: c.status,
       remainingAmount: c.remainingAmountToPay,
       totalPayment: c.totalPayment,
       effectiveStatus: getEffectiveContractStatus(c),
       effectiveRemaining: getEffectiveRemainingAmount(c)
     })));
-    
-    // Show all contracts but with effective status and remaining amounts
-    const filtered = contracts;
-    
-    console.log('Filtered contracts for payment:', filtered.map(c => ({ 
-      id: c.contractId, 
-      status: c.status, 
+
+    // Filter out DRAFT status contracts
+    const filtered = contracts.filter(c => c.status !== 'DRAFT');
+
+    console.log('Filtered contracts for payment:', filtered.map(c => ({
+      id: c.contractId,
+      status: c.status,
       remainingAmount: c.remainingAmountToPay,
       effectiveStatus: getEffectiveContractStatus(c),
       effectiveRemaining: getEffectiveRemainingAmount(c)
     })));
-    
-    // Sort contracts by date (newest first) - create a copy first
+
+    // Sort contracts by contract code (descending - large to small)
     return [...filtered].sort((a, b) => {
-      const dateA = new Date(a.contractDate || a.createdAt || 0);
-      const dateB = new Date(b.contractDate || b.createdAt || 0);
-      return dateB - dateA; // Descending order (newest first)
+      const codeA = a.contractCode || '';
+      const codeB = b.contractCode || '';
+      return codeB.localeCompare(codeA); // Reversed for descending order
     });
   }, [contracts]);
 
-  // Filter contracts based on search and status
+  // Filter contracts based on search, status, date range, and total value
   const filteredContracts = useMemo(() => {
     if (!Array.isArray(contractsNeedPayment)) return [];
     return contractsNeedPayment.filter((contract) => {
@@ -115,22 +117,47 @@ const PaymentManagementPage = () => {
         contract.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         contract.orderId?.toString().includes(searchTerm);
       const matchesStatus = statusFilter === 'all' || contract.status === statusFilter;
-      return matchesSearch && matchesStatus;
+
+      // Date range filter
+      let matchesDateRange = true;
+      if (dateRange.start || dateRange.end) {
+        const contractDate = new Date(contract.contractDate);
+        if (dateRange.start) {
+          matchesDateRange = matchesDateRange && contractDate >= new Date(dateRange.start);
+        }
+        if (dateRange.end) {
+          matchesDateRange = matchesDateRange && contractDate <= new Date(dateRange.end);
+        }
+      }
+
+      // Total value filter
+      let matchesTotalValue = true;
+      if (totalValueFilter.min || totalValueFilter.max) {
+        const totalPayment = contract.totalPayment || 0;
+        if (totalValueFilter.min) {
+          matchesTotalValue = matchesTotalValue && totalPayment >= parseFloat(totalValueFilter.min);
+        }
+        if (totalValueFilter.max) {
+          matchesTotalValue = matchesTotalValue && totalPayment <= parseFloat(totalValueFilter.max);
+        }
+      }
+
+      return matchesSearch && matchesStatus && matchesDateRange && matchesTotalValue;
     });
-  }, [contractsNeedPayment, searchTerm, statusFilter]);
+  }, [contractsNeedPayment, searchTerm, statusFilter, dateRange, totalValueFilter]);
 
   // Check if contract from route state
   useEffect(() => {
     if (contractIdFromRoute && contractDetailData && !isLoadingContractDetail) {
       const contractDetail = contractDetailData?.data || contractDetailData;
-      
+
       // Check if payment is required
       if (!isPaymentRequired(contractDetail?.totalPayment)) {
         toast.error('Hợp đồng có tổng giá trị <= 5₫ không cần thanh toán');
         window.history.replaceState({}, document.title);
         return;
       }
-      
+
       // Check if contract is SIGNED
       if (contractDetail?.status === 'SIGNED') {
         setSelectedContract(contractDetail);
@@ -156,7 +183,7 @@ const PaymentManagementPage = () => {
     const urlParams = new URLSearchParams(location.search);
     const vnpResponseCode = urlParams.get('vnp_ResponseCode');
     const paymentId = urlParams.get('paymentId');
-    
+
     if (location.pathname.includes('/payments/callback') && vnpResponseCode) {
       if (vnpResponseCode === '00') {
         // Payment successful
@@ -195,7 +222,7 @@ const PaymentManagementPage = () => {
       const dateB = new Date(b.createdAt || 0);
       return dateB - dateA; // Descending order (newest first)
     });
-    
+
     return sortedPayments.filter((payment) => {
       const matchesSearch =
         payment.paymentId?.toString().includes(searchTerm) ||
@@ -324,44 +351,29 @@ const PaymentManagementPage = () => {
   }
 
   return (
-    <DealerStaffLayout>
+    <DealerStaffLayout
+      title="Quản lý Thanh toán"
+      description="Xem, tạo và quản lý các giao dịch thanh toán"
+    >
       <div className="mx-auto max-w-[90rem] px-0 py-4 pl-10 pr-10 pt-8 space-y-4">
-          {/* PageHeading */}
-          <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-            <div className="flex min-w-72 flex-col gap-2">
-              <h1 className="text-slate-900 text-3xl font-black leading-tight tracking-tight">
-                Quản lý Thanh toán
-              </h1>
-              <p className="text-slate-500 text-base font-normal leading-normal">
-                Xem, tạo và quản lý các giao dịch thanh toán
-              </p>
-            </div>
-            <Button
-              onClick={() => setIsCreateModalOpen(true)}
-              className="flex items-center gap-2"
-            >
-              <Plus size={16} />
-              <span>Tạo Thanh toán</span>
-            </Button>
-          </div>
 
-          {/* Toolbar and Filters */}
-          <div className="mb-6 p-4 rounded-xl border border-slate-200 bg-white ">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div className="flex items-center gap-3 flex-1 min-w-[300px]">
-                <div className="relative w-full">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
-                    <Search size={20} />
-                  </span>
-                  <input
-                    className="w-full h-10 pl-10 pr-4 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 focus:ring-2 focus:ring-primary focus:border-primary"
-                    placeholder="Tìm theo mã thanh toán, hợp đồng, khách hàng..."
-                    type="text"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                  />
-                </div>
+        {/* Toolbar and Filters */}
+        <div className="mb-6 p-4 rounded-xl border border-slate-200 bg-white ">
+          <div className="flex flex-wrap items-center justify-between gap-4">
+            <div className="flex items-center gap-3 flex-1 min-w-[300px]">
+              <div className="relative w-full">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  <Search size={20} />
+                </span>
+                <input
+                  className="w-full h-10 pl-10 pr-4 rounded-lg border border-slate-300 bg-slate-50 text-slate-900 focus:ring-2 focus:ring-primary focus:border-primary"
+                  placeholder="Tìm theo mã thanh toán, hợp đồng, khách hàng..."
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
               </div>
+            </div>
             <div className="flex items-center gap-2">
               <select
                 value={statusFilter}
@@ -373,175 +385,224 @@ const PaymentManagementPage = () => {
                 <option value="DEPOSIT_PAID">Đã đặt cọc</option>
                 <option value="FULLY_PAID">Đã thanh toán đủ</option>
               </select>
-                <button className="flex items-center gap-2 h-10 px-4 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors">
-                  <RefreshCw size={16} />
-                  <span className="text-sm font-medium">Làm mới</span>
-                </button>
-              </div>
             </div>
           </div>
 
-
-          {/* Table */}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white ">
-            {paginatedContracts.length === 0 ? (
-              <div className="p-8 text-center text-slate-500">
-                {searchTerm || statusFilter !== 'all' 
-                  ? 'Không tìm thấy hợp đồng' 
-                  : 'Chưa có hợp đồng nào'}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full">
-                  <thead className="bg-slate-50">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                        Mã Hợp đồng
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                        Ngày hợp đồng
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                        Khách hàng
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                        Tổng giá trị
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                        Đặt cọc
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                        Còn lại thanh toán
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                        Trạng thái
-                      </th>
-                      <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                        Thao tác
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-200">
-                    {paginatedContracts.flatMap((contract) => {
-                      // Get payments for this contract
-                      const contractPayments = payments.filter(payment => 
-                        payment.contractCode === contract.contractCode
-                      );
-                      
-                      const contractRow = (
-                        <motion.tr
-                          key={contract.contractId}
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          className="hover:bg-slate-50 transition-colors"
-                        >
-                          <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
-                            {contract.contractCode}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-600">
-                            {formatDate(contract.contractDate)}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-600">
-                            {contract.customerName}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">
-                            {formatCurrency(contract.totalPayment)}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">
-                            {formatCurrency(contract.depositPrice)}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-orange-600">
-                            {formatCurrency(getEffectiveRemainingAmount(contract))}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm">
-                            {getStatusBadge(contract.status, true, contract)}
-                          </td>
-                          <td className="px-4 py-4 whitespace-nowrap text-sm">
-                            <div className="flex items-center gap-2">
-                              <Button
-                                onClick={() => {
-                                  setSelectedContract(contract);
-                                  setIsCreateModalOpen(true);
-                                  setPaymentStep(2); // Skip step 1 since contract is already selected
-                                  // Set payment type based on contract status
-                                  if (contract.status === 'SIGNED' && (contract.remainingAmountToPay === contract.totalPayment)) {
-                                    setPaymentType('DEPOSIT');
-                                  } else {
-                                    setPaymentType('BALANCE');
-                                  }
-                                  setPaymentMethod('VNPAY'); // Set default payment method
-                                }}
-                                size="sm"
-                                disabled={getEffectiveRemainingAmount(contract) === 0 || !isPaymentRequired(contract.totalPayment)}
-                                className="bg-primary hover:bg-primary/90 text-white disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
-                                title={
-                                  !isPaymentRequired(contract.totalPayment) 
-                                    ? 'Hợp đồng có tổng giá trị <= 5₫ không cần thanh toán' 
-                                    : getEffectiveRemainingAmount(contract) === 0 
-                                    ? 'Hợp đồng đã thanh toán đủ' 
-                                    : ''
-                                }
-                              >
-                                Tạo thanh toán
-                              </Button>
-                              
-                              {/* Payment History Button */}
-                              {contractPayments.length > 0 && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenPaymentHistory(contract);
-                                  }}
-                                  className="flex items-center gap-1 px-3 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium"
-                                >
-                                  <span>Lịch sử ({contractPayments.length})</span>
-                                </button>
-                              )}
-                            </div>
-                          </td>
-                        </motion.tr>
-                      );
-
-                      return contractRow;
-                    })}
-                  </tbody>
-                </table>
-              </div>
+          {/* Additional Filters Row */}
+          <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-slate-200">
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700">Từ ngày:</label>
+              <input
+                type="date"
+                value={dateRange.start}
+                onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+                className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700">Đến ngày:</label>
+              <input
+                type="date"
+                value={dateRange.end}
+                onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+                className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700">Giá trị từ:</label>
+              <input
+                type="number"
+                value={totalValueFilter.min}
+                onChange={(e) => setTotalValueFilter({ ...totalValueFilter, min: e.target.value })}
+                placeholder="0"
+                className="h-10 w-32 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-slate-700">Đến:</label>
+              <input
+                type="number"
+                value={totalValueFilter.max}
+                onChange={(e) => setTotalValueFilter({ ...totalValueFilter, max: e.target.value })}
+                placeholder="∞"
+                className="h-10 w-32 rounded-lg border border-slate-300 bg-slate-50 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+            {(dateRange.start || dateRange.end || totalValueFilter.min || totalValueFilter.max) && (
+              <button
+                onClick={() => {
+                  setDateRange({ start: '', end: '' });
+                  setTotalValueFilter({ min: '', max: '' });
+                }}
+                className="h-10 px-4 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 transition-colors text-sm font-medium"
+              >
+                Xóa bộ lọc
+              </button>
             )}
           </div>
+        </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="mt-6 flex items-center justify-between">
-              <p className="text-sm text-slate-600 ">
-                Hiển thị <span className="font-medium">{startIndex + 1}</span> đến{' '}
-                <span className="font-medium">{Math.min(endIndex, filteredContracts.length)}</span> của{' '}
-                <span className="font-medium">{filteredContracts.length}</span> kết quả
-              </p>
-              <div className="flex items-center gap-2">
-                <Button
-                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                  disabled={currentPage === 1}
-                  variant="outline"
-                  className="h-9 w-9 p-0"
-                >
-                  ←
-                </Button>
-                <span className="px-3 py-1 text-sm font-medium">
-                  {currentPage} / {totalPages}
-                </span>
-                <Button
-                  onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
-                  disabled={currentPage === totalPages}
-                  variant="outline"
-                  className="h-9 w-9 p-0"
-                >
-                  →
-                </Button>
-              </div>
+
+        {/* Table */}
+        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white ">
+          {paginatedContracts.length === 0 ? (
+            <div className="p-8 text-center text-slate-500">
+              {searchTerm || statusFilter !== 'all'
+                ? 'Không tìm thấy hợp đồng'
+                : 'Chưa có hợp đồng nào'}
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="min-w-full">
+                <thead className="bg-slate-50">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Mã Hợp đồng
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Ngày hợp đồng
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Khách hàng
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Tổng giá trị
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Đặt cọc
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Còn lại thanh toán
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Trạng thái
+                    </th>
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
+                      Thao tác
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-200">
+                  {paginatedContracts.flatMap((contract) => {
+                    // Get payments for this contract
+                    const contractPayments = payments.filter(payment =>
+                      payment.contractCode === contract.contractCode
+                    );
+
+                    const contractRow = (
+                      <motion.tr
+                        key={contract.contractId}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="hover:bg-slate-50 transition-colors"
+                      >
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
+                          {contract.contractCode}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-600">
+                          {formatDate(contract.contractDate)}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-600">
+                          {contract.customerName}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">
+                          {formatCurrency(contract.totalPayment)}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">
+                          {formatCurrency(contract.depositPrice)}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-orange-600">
+                          {formatCurrency(getEffectiveRemainingAmount(contract))}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm">
+                          {getStatusBadge(contract.status, true, contract)}
+                        </td>
+                        <td className="px-4 py-4 whitespace-nowrap text-sm">
+                          <div className="flex items-center gap-2">
+                            <Button
+                              onClick={() => {
+                                setSelectedContract(contract);
+                                setIsCreateModalOpen(true);
+                                setPaymentStep(2); // Skip step 1 since contract is already selected
+                                // Set payment type based on contract status
+                                if (contract.status === 'SIGNED' && (contract.remainingAmountToPay === contract.totalPayment)) {
+                                  setPaymentType('DEPOSIT');
+                                } else {
+                                  setPaymentType('BALANCE');
+                                }
+                                setPaymentMethod('VNPAY'); // Set default payment method
+                              }}
+                              size="sm"
+                              disabled={getEffectiveRemainingAmount(contract) === 0 || !isPaymentRequired(contract.totalPayment)}
+                              className="bg-primary hover:bg-primary/90 text-white disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
+                              title={
+                                !isPaymentRequired(contract.totalPayment)
+                                  ? 'Hợp đồng có tổng giá trị <= 5₫ không cần thanh toán'
+                                  : getEffectiveRemainingAmount(contract) === 0
+                                    ? 'Hợp đồng đã thanh toán đủ'
+                                    : ''
+                              }
+                            >
+                              Tạo thanh toán
+                            </Button>
+
+                            {/* Payment History Button */}
+                            {contractPayments.length > 0 && (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenPaymentHistory(contract);
+                                }}
+                                className="flex items-center gap-1 px-3 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium"
+                              >
+                                <span>Lịch sử ({contractPayments.length})</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </motion.tr>
+                    );
+
+                    return contractRow;
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {totalPages > 1 && (
+          <div className="mt-6 flex items-center justify-between">
+            <p className="text-sm text-slate-600 ">
+              Hiển thị <span className="font-medium">{startIndex + 1}</span> đến{' '}
+              <span className="font-medium">{Math.min(endIndex, filteredContracts.length)}</span> của{' '}
+              <span className="font-medium">{filteredContracts.length}</span> kết quả
+            </p>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                disabled={currentPage === 1}
+                variant="outline"
+                className="h-9 w-9 p-0"
+              >
+                ←
+              </Button>
+              <span className="px-3 py-1 text-sm font-medium">
+                {currentPage} / {totalPages}
+              </span>
+              <Button
+                onClick={() => setCurrentPage(Math.min(totalPages, currentPage + 1))}
+                disabled={currentPage === totalPages}
+                variant="outline"
+                className="h-9 w-9 p-0"
+              >
+                →
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Create Payment Modal */}
       <Modal
@@ -602,11 +663,10 @@ const PaymentManagementPage = () => {
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                     disabled={getPaidAmount(selectedContract) > 0}
-                    className={`p-3 rounded-lg border-2 transition-all text-left ${
-                      paymentType === 'DEPOSIT'
-                        ? 'border-blue-600 bg-blue-50 text-blue-700'
-                        : 'border-slate-200 hover:border-blue-300 bg-white text-slate-700'
-                    } ${getPaidAmount(selectedContract) > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`p-3 rounded-lg border-2 transition-all text-left ${paymentType === 'DEPOSIT'
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-slate-200 hover:border-blue-300 bg-white text-slate-700'
+                      } ${getPaidAmount(selectedContract) > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <AlertCircle size={18} className={paymentType === 'DEPOSIT' ? 'text-blue-600' : 'text-slate-400'} />
@@ -619,11 +679,10 @@ const PaymentManagementPage = () => {
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                     disabled={getPaidAmount(selectedContract) === 0}
-                    className={`p-3 rounded-lg border-2 transition-all text-left ${
-                      paymentType === 'BALANCE'
-                        ? 'border-blue-600 bg-blue-50 text-blue-700'
-                        : 'border-slate-200 hover:border-blue-300 bg-white text-slate-700'
-                    } ${getPaidAmount(selectedContract) === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`p-3 rounded-lg border-2 transition-all text-left ${paymentType === 'BALANCE'
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-slate-200 hover:border-blue-300 bg-white text-slate-700'
+                      } ${getPaidAmount(selectedContract) === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <CheckCircle size={18} className={paymentType === 'BALANCE' ? 'text-blue-600' : 'text-slate-400'} />
@@ -645,7 +704,7 @@ const PaymentManagementPage = () => {
                     <p className="text-xs text-slate-500">Số tiền thanh toán</p>
                     <p className="font-bold text-lg text-blue-600">
                       {formatCurrency(
-                        paymentType === 'DEPOSIT' 
+                        paymentType === 'DEPOSIT'
                           ? (selectedContract.depositPrice || 0)
                           : (getEffectiveRemainingAmount(selectedContract) || 0)
                       )}
@@ -716,11 +775,10 @@ const PaymentManagementPage = () => {
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                     disabled={getPaidAmount(selectedContract) > 0}
-                    className={`p-3 rounded-lg border-2 transition-all text-left ${
-                      paymentType === 'DEPOSIT'
-                        ? 'border-blue-600 bg-blue-50 text-blue-700'
-                        : 'border-slate-200 hover:border-blue-300 bg-white text-slate-700'
-                    } ${getPaidAmount(selectedContract) > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`p-3 rounded-lg border-2 transition-all text-left ${paymentType === 'DEPOSIT'
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-slate-200 hover:border-blue-300 bg-white text-slate-700'
+                      } ${getPaidAmount(selectedContract) > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <AlertCircle size={18} className={paymentType === 'DEPOSIT' ? 'text-blue-600' : 'text-slate-400'} />
@@ -733,11 +791,10 @@ const PaymentManagementPage = () => {
                     whileHover={{ scale: 1.01 }}
                     whileTap={{ scale: 0.99 }}
                     disabled={getPaidAmount(selectedContract) === 0}
-                    className={`p-3 rounded-lg border-2 transition-all text-left ${
-                      paymentType === 'BALANCE'
-                        ? 'border-blue-600 bg-blue-50 text-blue-700'
-                        : 'border-slate-200 hover:border-blue-300 bg-white text-slate-700'
-                    } ${getPaidAmount(selectedContract) === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    className={`p-3 rounded-lg border-2 transition-all text-left ${paymentType === 'BALANCE'
+                      ? 'border-blue-600 bg-blue-50 text-blue-700'
+                      : 'border-slate-200 hover:border-blue-300 bg-white text-slate-700'
+                      } ${getPaidAmount(selectedContract) === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <CheckCircle size={18} className={paymentType === 'BALANCE' ? 'text-blue-600' : 'text-slate-400'} />
@@ -759,7 +816,7 @@ const PaymentManagementPage = () => {
                     <p className="text-xs text-slate-500">Số tiền thanh toán</p>
                     <p className="font-bold text-lg text-blue-600">
                       {formatCurrency(
-                        paymentType === 'DEPOSIT' 
+                        paymentType === 'DEPOSIT'
                           ? (selectedContract.depositPrice || 0)
                           : (getEffectiveRemainingAmount(selectedContract) || 0)
                       )}
@@ -795,237 +852,232 @@ const PaymentManagementPage = () => {
               <div className="min-h-[300px]">
                 {/* STEP 1: Select Contract */}
                 {paymentStep === 1 && (
-              <motion.div
-                key="payment-step-1"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="space-y-4"
-              >
-                <h3 className="text-lg font-semibold text-slate-900 ">
-                  Chọn hợp đồng cần thanh toán
-                </h3>
-                
-                {availableContracts.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500">
-                    Không có hợp đồng nào cần thanh toán
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-96 overflow-y-auto">
-                    {availableContracts.map((contract) => (
+                  <motion.div
+                    key="payment-step-1"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="space-y-4"
+                  >
+                    <h3 className="text-lg font-semibold text-slate-900 ">
+                      Chọn hợp đồng cần thanh toán
+                    </h3>
+
+                    {availableContracts.length === 0 ? (
+                      <div className="text-center py-8 text-slate-500">
+                        Không có hợp đồng nào cần thanh toán
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-96 overflow-y-auto">
+                        {availableContracts.map((contract) => (
+                          <motion.div
+                            key={contract.contractId}
+                            onClick={() => setSelectedContract(contract)}
+                            whileHover={{ scale: 1.01 }}
+                            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedContract?.contractId === contract.contractId
+                              ? 'border-primary bg-primary/5'
+                              : 'border-slate-200 hover:border-primary/50'
+                              }`}
+                          >
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-semibold text-slate-900 ">
+                                  Hợp đồng HD-{contract.contractId}
+                                </p>
+                                <p className="text-sm text-slate-600 ">
+                                  {contract.customerName} • Đơn hàng #{contract.orderId}
+                                </p>
+                                <p className="text-sm text-slate-500 mt-1">
+                                  Ngày tạo: {formatDate(contract.createdAt)}
+                                </p>
+                              </div>
+                              <div className="text-right">
+                                <p className="font-semibold text-primary text-lg">
+                                  {formatCurrency(contract.totalValue || contract.totalAmount)}
+                                </p>
+                                {getStatusBadge(contract.status)}
+                              </div>
+                            </div>
+                          </motion.div>
+                        ))}
+                      </div>
+                    )}
+                  </motion.div>
+                )}
+
+                {/* STEP 2: Select Payment Type */}
+                {paymentStep === 2 && (
+                  <motion.div
+                    key="payment-step-2"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="space-y-4"
+                  >
+                    <h3 className="text-lg font-semibold text-slate-900 ">
+                      Chọn loại thanh toán
+                    </h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <motion.div
-                        key={contract.contractId}
-                        onClick={() => setSelectedContract(contract)}
-                        whileHover={{ scale: 1.01 }}
-                        className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
-                          selectedContract?.contractId === contract.contractId
-                            ? 'border-primary bg-primary/5'
-                            : 'border-slate-200 hover:border-primary/50'
-                        }`}
+                        onClick={() => setPaymentType('DEPOSIT')}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`p-6 border-2 rounded-xl cursor-pointer transition-all ${paymentType === 'DEPOSIT'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-slate-200 hover:border-primary/50'
+                          }`}
                       >
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <p className="font-semibold text-slate-900 ">
-                              Hợp đồng HD-{contract.contractId}
-                            </p>
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center">
+                            <AlertCircle className="text-orange-600 " size={24} />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-slate-900 mb-1">
+                              Đặt cọc
+                            </h4>
                             <p className="text-sm text-slate-600 ">
-                              {contract.customerName} • Đơn hàng #{contract.orderId}
-                            </p>
-                            <p className="text-sm text-slate-500 mt-1">
-                              Ngày tạo: {formatDate(contract.createdAt)}
+                              Thanh toán trước một phần (thường 30% tổng giá trị hợp đồng)
                             </p>
                           </div>
-                          <div className="text-right">
-                            <p className="font-semibold text-primary text-lg">
-                              {formatCurrency(contract.totalValue || contract.totalAmount)}
-                            </p>
-                            {getStatusBadge(contract.status)}
-                          </div>
+                          {paymentType === 'DEPOSIT' && (
+                            <CheckCircle className="text-primary" size={24} />
+                          )}
                         </div>
                       </motion.div>
-                    ))}
-                  </div>
+
+                      <motion.div
+                        onClick={() => setPaymentType('BALANCE')}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`p-6 border-2 rounded-xl cursor-pointer transition-all ${paymentType === 'BALANCE'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-slate-200 hover:border-primary/50'
+                          }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
+                            <CheckCircle className="text-green-600 " size={24} />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-slate-900 mb-1">
+                              Thanh toán còn lại
+                            </h4>
+                            <p className="text-sm text-slate-600 ">
+                              Thanh toán phần còn lại sau khi đã đặt cọc
+                            </p>
+                          </div>
+                          {paymentType === 'BALANCE' && (
+                            <CheckCircle className="text-primary" size={24} />
+                          )}
+                        </div>
+                      </motion.div>
+                    </div>
+                  </motion.div>
                 )}
-              </motion.div>
-            )}
 
-            {/* STEP 2: Select Payment Type */}
-            {paymentStep === 2 && (
-              <motion.div
-                key="payment-step-2"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="space-y-4"
-              >
-                <h3 className="text-lg font-semibold text-slate-900 ">
-                  Chọn loại thanh toán
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* STEP 3: Select Payment Method */}
+                {paymentStep === 3 && (
                   <motion.div
-                    onClick={() => setPaymentType('DEPOSIT')}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className={`p-6 border-2 rounded-xl cursor-pointer transition-all ${
-                      paymentType === 'DEPOSIT'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-slate-200 hover:border-primary/50'
-                    }`}
+                    key="payment-step-3"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    className="space-y-4"
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-orange-100 flex items-center justify-center">
-                        <AlertCircle className="text-orange-600 " size={24} />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-slate-900 mb-1">
-                          Đặt cọc
-                        </h4>
-                        <p className="text-sm text-slate-600 ">
-                          Thanh toán trước một phần (thường 30% tổng giá trị hợp đồng)
-                        </p>
-                      </div>
-                      {paymentType === 'DEPOSIT' && (
-                        <CheckCircle className="text-primary" size={24} />
-                      )}
-                    </div>
-                  </motion.div>
+                    <h3 className="text-lg font-semibold text-slate-900 ">
+                      Chọn phương thức thanh toán
+                    </h3>
 
-                  <motion.div
-                    onClick={() => setPaymentType('BALANCE')}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className={`p-6 border-2 rounded-xl cursor-pointer transition-all ${
-                      paymentType === 'BALANCE'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-slate-200 hover:border-primary/50'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
-                        <CheckCircle className="text-green-600 " size={24} />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-slate-900 mb-1">
-                          Thanh toán còn lại
-                        </h4>
-                        <p className="text-sm text-slate-600 ">
-                          Thanh toán phần còn lại sau khi đã đặt cọc
-                        </p>
-                      </div>
-                      {paymentType === 'BALANCE' && (
-                        <CheckCircle className="text-primary" size={24} />
-                      )}
-                    </div>
-                  </motion.div>
-                </div>
-              </motion.div>
-            )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <motion.div
+                        onClick={() => setPaymentMethod('VNPAY')}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`p-6 border-2 rounded-xl cursor-pointer transition-all ${paymentMethod === 'VNPAY'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-slate-200 hover:border-primary/50'
+                          }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
+                            <CreditCard className="text-blue-600 " size={24} />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-slate-900 mb-1">
+                              VNPay
+                            </h4>
+                            <p className="text-sm text-slate-600 ">
+                              Thanh toán online qua cổng VNPay
+                            </p>
+                          </div>
+                          {paymentMethod === 'VNPAY' && (
+                            <CheckCircle className="text-primary" size={24} />
+                          )}
+                        </div>
+                      </motion.div>
 
-            {/* STEP 3: Select Payment Method */}
-            {paymentStep === 3 && (
-              <motion.div
-                key="payment-step-3"
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 20 }}
-                className="space-y-4"
-              >
-                <h3 className="text-lg font-semibold text-slate-900 ">
-                  Chọn phương thức thanh toán
-                </h3>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <motion.div
-                    onClick={() => setPaymentMethod('VNPAY')}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className={`p-6 border-2 rounded-xl cursor-pointer transition-all ${
-                      paymentMethod === 'VNPAY'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-slate-200 hover:border-primary/50'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-blue-100 flex items-center justify-center">
-                        <CreditCard className="text-blue-600 " size={24} />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-slate-900 mb-1">
-                          VNPay
-                        </h4>
-                        <p className="text-sm text-slate-600 ">
-                          Thanh toán online qua cổng VNPay
-                        </p>
-                      </div>
-                      {paymentMethod === 'VNPAY' && (
-                        <CheckCircle className="text-primary" size={24} />
-                      )}
+                      <motion.div
+                        onClick={() => setPaymentMethod('CASH')}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        className={`p-6 border-2 rounded-xl cursor-pointer transition-all ${paymentMethod === 'CASH'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-slate-200 hover:border-primary/50'
+                          }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
+                            <Banknote className="text-green-600 " size={24} />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-slate-900 mb-1">
+                              Tiền mặt
+                            </h4>
+                            <p className="text-sm text-slate-600 ">
+                              Thanh toán trực tiếp tại cửa hàng
+                            </p>
+                          </div>
+                          {paymentMethod === 'CASH' && (
+                            <CheckCircle className="text-primary" size={24} />
+                          )}
+                        </div>
+                      </motion.div>
                     </div>
-                  </motion.div>
 
-                  <motion.div
-                    onClick={() => setPaymentMethod('CASH')}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className={`p-6 border-2 rounded-xl cursor-pointer transition-all ${
-                      paymentMethod === 'CASH'
-                        ? 'border-primary bg-primary/5'
-                        : 'border-slate-200 hover:border-primary/50'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-green-100 flex items-center justify-center">
-                        <Banknote className="text-green-600 " size={24} />
-                      </div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-slate-900 mb-1">
-                          Tiền mặt
+                    {/* Summary */}
+                    {selectedContract && paymentType && paymentMethod && (
+                      <div className="mt-6 p-4 bg-slate-50 rounded-lg">
+                        <h4 className="font-semibold text-slate-900 mb-3">
+                          Tóm tắt thanh toán
                         </h4>
-                        <p className="text-sm text-slate-600 ">
-                          Thanh toán trực tiếp tại cửa hàng
-                        </p>
-                      </div>
-                      {paymentMethod === 'CASH' && (
-                        <CheckCircle className="text-primary" size={24} />
-                      )}
-                    </div>
-                  </motion.div>
-                </div>
-
-                {/* Summary */}
-                {selectedContract && paymentType && paymentMethod && (
-                  <div className="mt-6 p-4 bg-slate-50 rounded-lg">
-                    <h4 className="font-semibold text-slate-900 mb-3">
-                      Tóm tắt thanh toán
-                    </h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-slate-600 ">Hợp đồng:</span>
-                        <span className="font-medium">HD-{selectedContract.contractId}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-600 ">Loại thanh toán:</span>
-                        <span className="font-medium">{getPaymentTypeLabel(paymentType)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-600 ">Phương thức:</span>
-                        <span className="font-medium">{getPaymentMethodLabel(paymentMethod)}</span>
-                      </div>
-                      <div className="pt-2 border-t border-slate-300 ">
-                        <div className="flex justify-between">
-                          <span className="font-semibold">Tổng giá trị hợp đồng:</span>
-                          <span className="font-bold text-primary">
-                            {formatCurrency(selectedContract.totalValue || selectedContract.totalAmount)}
-                          </span>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-slate-600 ">Hợp đồng:</span>
+                            <span className="font-medium">HD-{selectedContract.contractId}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600 ">Loại thanh toán:</span>
+                            <span className="font-medium">{getPaymentTypeLabel(paymentType)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-600 ">Phương thức:</span>
+                            <span className="font-medium">{getPaymentMethodLabel(paymentMethod)}</span>
+                          </div>
+                          <div className="pt-2 border-t border-slate-300 ">
+                            <div className="flex justify-between">
+                              <span className="font-semibold">Tổng giá trị hợp đồng:</span>
+                              <span className="font-bold text-primary">
+                                {formatCurrency(selectedContract.totalValue || selectedContract.totalAmount)}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
+                    )}
+                  </motion.div>
                 )}
-              </motion.div>
-            )}
-          </div>
+              </div>
 
               {/* Actions */}
               <div className="flex justify-between pt-4 border-t border-slate-200 ">
@@ -1066,150 +1118,136 @@ const PaymentManagementPage = () => {
       <Modal
         isOpen={isPaymentHistoryModalOpen}
         onClose={handleClosePaymentHistory}
-        title={`Lịch sử thanh toán - ${selectedContractForHistory?.contractCode || ''}`}
-        className="w-[1200px] max-w-[95vw] h-[700px] max-h-[90vh]"
+        title="Lịch sử thanh toán"
+        size="xl"
       >
         {selectedContractForHistory && (
-          <div className="space-y-4 h-full overflow-y-auto">
-            {/* Contract Info Header */}
-            <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="text-xs text-slate-500 mb-0.5">Mã hợp đồng</p>
-                  <p className="font-semibold text-slate-900">{selectedContractForHistory.contractCode}</p>
+          <div className="space-y-4">
+            {/* Contract Info Header - Compact */}
+            <div className="p-4 rounded-lg bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <div className="space-y-0.5">
+                  <p className="text-xs text-slate-600 font-medium uppercase tracking-wide">Mã hợp đồng</p>
+                  <p className="text-sm font-bold text-slate-900">{selectedContractForHistory.contractCode}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-500 mb-0.5">Khách hàng</p>
-                  <p className="font-semibold text-slate-900">{selectedContractForHistory.customerName}</p>
+                <div className="space-y-0.5">
+                  <p className="text-xs text-slate-600 font-medium uppercase tracking-wide">Khách hàng</p>
+                  <p className="text-sm font-semibold text-slate-900">{selectedContractForHistory.customerName}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-500 mb-0.5">Tổng giá trị hợp đồng</p>
-                  <p className="font-semibold text-slate-900">{formatCurrency(selectedContractForHistory.totalPayment)}</p>
+                <div className="space-y-0.5">
+                  <p className="text-xs text-slate-600 font-medium uppercase tracking-wide">Tổng giá trị</p>
+                  <p className="text-sm font-bold text-blue-600">{formatCurrency(selectedContractForHistory.totalPayment)}</p>
                 </div>
-                <div>
-                  <p className="text-xs text-slate-500 mb-0.5">Còn lại thanh toán</p>
-                  <p className="font-semibold text-orange-600">{formatCurrency(getEffectiveRemainingAmount(selectedContractForHistory))}</p>
+                <div className="space-y-0.5">
+                  <p className="text-xs text-slate-600 font-medium uppercase tracking-wide">Còn lại</p>
+                  <p className="text-sm font-bold text-orange-600">{formatCurrency(getEffectiveRemainingAmount(selectedContractForHistory))}</p>
                 </div>
               </div>
             </div>
 
-            {/* Payment History Table */}
-            <div className="overflow-auto rounded-lg border border-slate-200 max-h-96">
-              {(() => {
-                const contractPayments = payments.filter(payment => 
-                  payment.contractCode === selectedContractForHistory.contractCode
-                );
+            {/* Payment History Timeline/Cards */}
+            <div className="space-y-2">
+              <h3 className="text-base font-semibold text-slate-900 flex items-center gap-2">
+                <Calendar size={18} className="text-blue-600" />
+                Danh sách thanh toán
+              </h3>
 
-                if (contractPayments.length === 0) {
-                  return (
-                    <div className="p-8 text-center text-slate-500">
-                      Chưa có lịch sử thanh toán nào
-                    </div>
-                  );
-                }
+              <div className="max-h-[400px] overflow-y-auto space-y-2 pr-2">
+                {(() => {
+                  const contractPayments = payments.filter(payment =>
+                    payment.contractCode === selectedContractForHistory.contractCode
+                  ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
 
-                return (
-                  <table className="min-w-full table-fixed">
-                    <colgroup>
-                      <col className="w-[15%]" />
-                      <col className="w-[15%]" />
-                      <col className="w-[12%]" />
-                      <col className="w-[12%]" />
-                      <col className="w-[15%]" />
-                      <col className="w-[16%]" />
-                      <col className="w-[15%]" />
-                    </colgroup>
-                    <thead className="bg-slate-50">
-                      <tr>
-                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 truncate">
-                          Mã thanh toán
-                        </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 truncate">
-                          Ngày thanh toán
-                        </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 truncate">
-                          Loại thanh toán
-                        </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 truncate">
-                          Phương thức
-                        </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 truncate">
-                          Số tiền
-                        </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 truncate">
-                          Còn lại
-                        </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500 truncate">
-                          Trạng thái
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-slate-200">
-                      {contractPayments.map((payment) => (
-                        <tr key={payment.paymentId} className="hover:bg-slate-50">
-                          <td className="px-3 py-3 text-sm font-medium text-slate-900 truncate">
-                            {payment.paymentCode}
-                          </td>
-                          <td className="px-3 py-3 text-sm text-slate-600">
-                            <div className="flex items-center gap-1">
-                              <Calendar size={12} className="text-slate-400 flex-shrink-0" />
-                              <span className="truncate">{formatDate(payment.createdAt)}</span>
-                            </div>
-                          </td>
-                          <td className="px-3 py-3 text-sm">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              payment.paymentType === 'DEPOSIT' 
-                                ? 'bg-orange-100 text-orange-800' 
-                                : 'bg-green-100 text-green-800'
-                            }`}>
-                              {payment.paymentType === 'DEPOSIT' ? 'Đặt cọc' : 'Số dư'}
+                  if (contractPayments.length === 0) {
+                    return (
+                      <div className="p-8 text-center rounded-lg bg-slate-50 border-2 border-dashed border-slate-200">
+                        <div className="flex flex-col items-center gap-2">
+                          <div className="p-3 rounded-full bg-slate-100">
+                            <Calendar size={24} className="text-slate-400" />
+                          </div>
+                          <p className="text-sm text-slate-500 font-medium">Chưa có lịch sử thanh toán nào</p>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return contractPayments.map((payment, index) => (
+                    <motion.div
+                      key={payment.paymentId}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="p-3 rounded-lg border-2 border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm transition-all"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        {/* Left Section - Main Info */}
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <h4 className="text-sm font-bold text-slate-900">{payment.paymentCode}</h4>
+                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold ${payment.status === 'COMPLETED' || payment.status === 'SUCCESS'
+                                ? 'bg-green-100 text-green-700 ring-1 ring-green-600/20'
+                                : payment.status === 'PENDING'
+                                  ? 'bg-yellow-100 text-yellow-700 ring-1 ring-yellow-600/20'
+                                  : payment.status === 'FAILED'
+                                    ? 'bg-red-100 text-red-700 ring-1 ring-red-600/20'
+                                    : 'bg-gray-100 text-gray-700 ring-1 ring-gray-600/20'
+                              }`}>
+                              {payment.status === 'COMPLETED' ? '✓ Hoàn thành' :
+                                payment.status === 'SUCCESS' ? '✓ Thành công' :
+                                  payment.status === 'PENDING' ? '⏳ Chờ xử lý' :
+                                    payment.status === 'FAILED' ? '✕ Thất bại' :
+                                      payment.status}
                             </span>
-                          </td>
-                          <td className="px-3 py-3 text-sm text-slate-600">
-                            <div className="flex items-center gap-1">
+                          </div>
+
+                          <div className="grid grid-cols-2 gap-2">
+                            <div className="flex items-center gap-1.5 text-xs">
+                              <Calendar size={14} className="text-slate-400" />
+                              <span className="text-slate-600">{formatDate(payment.createdAt)}</span>
+                            </div>
+
+                            <div className="flex items-center gap-1.5 text-xs">
                               {payment.paymentMethod === 'VNPAY' ? (
-                                <CreditCard size={12} className="text-blue-600 flex-shrink-0" />
+                                <>
+                                  <CreditCard size={14} className="text-blue-600" />
+                                  <span className="font-medium text-blue-700">VNPay</span>
+                                </>
                               ) : (
-                                <Banknote size={12} className="text-green-600 flex-shrink-0" />
+                                <>
+                                  <Banknote size={14} className="text-green-600" />
+                                  <span className="font-medium text-green-700">Tiền mặt</span>
+                                </>
                               )}
-                              <span className="font-medium text-slate-700 truncate">
-                                {payment.paymentMethod}
+                            </div>
+
+                            <div className="flex items-center gap-1.5 col-span-2">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${payment.paymentType === 'DEPOSIT'
+                                  ? 'bg-orange-50 text-orange-700 ring-1 ring-orange-600/20'
+                                  : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20'
+                                }`}>
+                                {payment.paymentType === 'DEPOSIT' ? '📥 Đặt cọc' : '💰 Thanh toán số dư'}
                               </span>
                             </div>
-                          </td>
-                          <td className="px-3 py-3 text-sm font-semibold text-green-600 truncate">
-                            {formatCurrency(payment.amount)}
-                          </td>
-                          <td className="px-3 py-3 text-sm font-semibold text-orange-600 truncate">
-                            {formatCurrency(payment.remainPrice)}
-                          </td>
-                          <td className="px-3 py-3 text-sm">
-                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                              payment.status === 'COMPLETED' 
-                                ? 'bg-green-100 text-green-800'
-                                : payment.status === 'SUCCESS'
-                                ? 'bg-green-100 text-green-800'
-                                : payment.status === 'PENDING'
-                                ? 'bg-yellow-100 text-yellow-800'
-                                : payment.status === 'FAILED'
-                                ? 'bg-red-100 text-red-800'
-                                : 'bg-gray-100 text-gray-800'
-                            }`}>
-                              {payment.status === 'COMPLETED' ? 'Hoàn thành' : 
-                               payment.status === 'SUCCESS' ? 'Thành công' :
-                               payment.status === 'PENDING' ? 'Chờ xử lý' : 
-                               payment.status === 'FAILED' ? 'Thất bại' :
-                               payment.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                );
-              })()}
-            </div>
+                          </div>
+                        </div>
 
+                        {/* Right Section - Amount Info */}
+                        <div className="text-right space-y-1.5">
+                          <div>
+                            <p className="text-xs text-slate-500 font-medium mb-0.5">Số tiền</p>
+                            <p className="text-lg font-bold text-green-600">{formatCurrency(payment.amount)}</p>
+                          </div>
+                          <div className="pt-1.5 border-t border-slate-200">
+                            <p className="text-xs text-slate-500 font-medium mb-0.5">Còn lại</p>
+                            <p className="text-base font-bold text-orange-600">{formatCurrency(payment.remainPrice)}</p>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  ));
+                })()}
+              </div>
+            </div>
           </div>
         )}
       </Modal>
