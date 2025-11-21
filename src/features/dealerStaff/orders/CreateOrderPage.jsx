@@ -38,6 +38,7 @@ const CreateOrderPage = () => {
   // Step management
   const [currentStep, setCurrentStep] = useState(startStep);
   const [orderId, setOrderId] = useState(existingOrderId);
+  const [orderCode, setOrderCode] = useState(null);
   
   // Step 1: Customer selection with pagination
   const [searchTerm, setSearchTerm] = useState('');
@@ -146,15 +147,24 @@ const CreateOrderPage = () => {
       
       // Load existing products into local state
       if (orderData.getOrderDetailsResponses && orderData.getOrderDetailsResponses.length > 0) {
-        const loadedOrderDetails = orderData.getOrderDetailsResponses.map(detail => ({
-          modelId: detail.modelId,
-          colorId: detail.colorId,
-          quantity: detail.quantity,
-          promotionId: detail.promotionId || 0,
-          modelName: detail.modelName,
-          colorName: detail.colorName,
-          price: detail.unitPrice
-        }));
+        const loadedOrderDetails = orderData.getOrderDetailsResponses.map(detail => {
+          // Tìm giá tại cửa hàng từ storeStocks
+          const storeStock = storeStocks.find(s => 
+            s.modelId === detail.modelId && 
+            (s.colorId === detail.colorId || s.color?.id === detail.colorId || s.color?.colorId === detail.colorId)
+          );
+          const storePrice = storeStock?.priceOfStore || detail.unitPrice || 0;
+          
+          return {
+            modelId: detail.modelId,
+            colorId: detail.colorId,
+            quantity: detail.quantity,
+            promotionId: detail.promotionId || 0,
+            modelName: detail.modelName,
+            colorName: detail.colorName,
+            price: storePrice
+          };
+        });
         setOrderDetails(loadedOrderDetails);
       }
       
@@ -164,7 +174,7 @@ const CreateOrderPage = () => {
       
      
     }
-  }, [editMode, location.state?.orderData, customers]);
+  }, [editMode, location.state?.orderData, customers, storeStocks]);
   
   // Set customer when customers data loads (for edit mode)
   useEffect(() => {
@@ -305,11 +315,18 @@ const CreateOrderPage = () => {
       toast.success(`Đã tăng số lượng sản phẩm (${newTotalQuantity} xe)`);
     } else {
       // Product doesn't exist, add new product
+      // Tìm giá tại cửa hàng từ storeStocks
+      const storeStock = storeStocks.find(s => 
+        s.modelId === currentProduct.modelId && 
+        (s.colorId === currentProduct.colorId || s.color?.id === currentProduct.colorId || s.color?.colorId === currentProduct.colorId)
+      );
+      const storePrice = storeStock?.priceOfStore || selectedColor?.price || 0;
+      
       const newProduct = {
         ...currentProduct,
         modelName: selectedModel?.modelName,
         colorName: selectedColor?.colorName || selectedColor?.name,
-        price: selectedColor?.price
+        price: storePrice
       };
       setOrderDetails([...orderDetails, newProduct]);
       toast.success('Đã thêm sản phẩm vào đơn');
@@ -361,7 +378,15 @@ const CreateOrderPage = () => {
       }
       
       // Store the pricing info from backend
-      setOrderSummary(response?.data || response);
+      const summaryData = response?.data || response;
+      setOrderSummary(summaryData);
+      
+      // Lưu orderCode nếu có trong response
+      const responseOrderCode = summaryData?.orderCode;
+      if (responseOrderCode) {
+        setOrderCode(responseOrderCode);
+      }
+      
       setCurrentStep(3);
     } catch (error) {
       console.error('Error creating quote:', error);
@@ -418,7 +443,12 @@ const CreateOrderPage = () => {
   // Step 3: Confirm Order
   const handleConfirmOrder = async () => {
     try {
-      await confirmOrder(orderId).unwrap();
+      const response = await confirmOrder(orderId).unwrap();
+      // Lưu orderCode từ response
+      const confirmedOrderCode = response?.data?.orderCode || response?.orderCode;
+      if (confirmedOrderCode) {
+        setOrderCode(confirmedOrderCode);
+      }
       setCurrentStep(4);
       toast.success('Đã xác nhận đơn hàng thành công!');
     } catch (error) {
@@ -438,6 +468,7 @@ const CreateOrderPage = () => {
         setOrderDetails([]);
         setSelectedCustomer(null);
         setOrderId(null);
+        setOrderCode(null);
         setCurrentProduct({
           modelId: null,
           colorId: null,
@@ -468,8 +499,13 @@ const CreateOrderPage = () => {
       
       if (contractId) {
         toast.success(contractData?.message || 'Đã tạo hợp đồng thành công!');
-        // Navigate to contracts page with contractId
-        navigate(`/dealer-staff/contracts?contractId=${contractId}`);
+        // Navigate to contracts page with contractId for highlighting
+        navigate('/dealer-staff/contracts', { 
+          state: { 
+            highlightContractId: contractId,
+            newContract: true 
+          } 
+        });
       } else {
         throw new Error('Không nhận được contractId từ server');
       }
@@ -483,6 +519,7 @@ const CreateOrderPage = () => {
     // Reset all state
     setCurrentStep(1);
     setOrderId(null);
+    setOrderCode(null);
     setSelectedCustomer(null);
     setOrderDetails([]);
     setCurrentProduct({
@@ -658,89 +695,110 @@ const CreateOrderPage = () => {
                         </h2>
                     
                     <div className="mt-6 space-y-4">
-                      {/* Model Selection */}
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Mẫu xe <span className="text-red-500">*</span>
-                        </label>
-                        <select
-                          className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                          value={currentProduct.modelId || ''}
-                          onChange={(e) => {
-                            setCurrentProduct({
-                              ...currentProduct,
-                              modelId: parseInt(e.target.value) || null,
-                              colorId: null,
-                            });
-                          }}
-                        >
-                          <option value="">-- Chọn mẫu xe --</option>
-                          {models.map((model) => (
-                            <option key={model.modelId} value={model.modelId}>
-                              {model.modelName}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      {/* First Row: Model and Color */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Model Selection */}
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
+                            Mẫu xe <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            value={currentProduct.modelId || ''}
+                            onChange={(e) => {
+                              setCurrentProduct({
+                                ...currentProduct,
+                                modelId: parseInt(e.target.value) || null,
+                                colorId: null,
+                              });
+                            }}
+                          >
+                            <option value="">-- Chọn mẫu xe --</option>
+                            {models.map((model) => (
+                              <option key={model.modelId} value={model.modelId}>
+                                {model.modelName}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
 
-                      {/* Color Selection */}
-                      {currentProduct.modelId && (
-                        <motion.div
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          transition={{ duration: 0.3 }}
-                        >
+                        {/* Color Selection */}
+                        <div>
                           <label className="block text-sm font-medium text-slate-700 mb-2">
                             Màu sắc <span className="text-red-500">*</span>
                           </label>
-                          {availableColors.length === 0 ? (
-                            <div className="text-center py-4 text-slate-500">
-                              Không có màu nào cho mẫu xe này
+                          {!currentProduct.modelId ? (
+                            <div className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-slate-100 text-slate-500 text-center">
+                              Chọn mẫu xe trước
+                            </div>
+                          ) : availableColors.length === 0 ? (
+                            <div className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-slate-100 text-slate-500 text-center">
+                              Không có màu nào
                             </div>
                           ) : (
-                            <div className="grid grid-cols-2 gap-3">
+                            <select
+                              className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                              value={currentProduct.colorId || ''}
+                              onChange={(e) => {
+                                setCurrentProduct({ ...currentProduct, colorId: parseInt(e.target.value) || null });
+                              }}
+                            >
+                              <option value="">-- Chọn màu sắc --</option>
                               {availableColors.map((color) => {
                                 const colorId = color.id || color.colorId;
-                                const isSelected = currentProduct.colorId === colorId;
+                                // Tìm giá tại cửa hàng từ storeStocks
+                                const storeStock = storeStocks.find(s => 
+                                  s.modelId === currentProduct.modelId && 
+                                  (s.colorId === colorId || s.color?.id === colorId || s.color?.colorId === colorId)
+                                );
+                                const storePrice = storeStock?.priceOfStore || color.price || 0;
                                 return (
-                                  <motion.div
-                                    key={colorId}
-                                    onClick={() => {
-                                      setCurrentProduct({ ...currentProduct, colorId: colorId });
-                                    }}
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                    className={cn(
-                                      "p-4 border-2 rounded-lg cursor-pointer transition-all",
-                                      isSelected
-                                        ? 'border-blue-600 bg-blue-50 shadow-md ring-2 ring-blue-200'
-                                        : 'border-slate-200 hover:border-blue-300'
-                                    )}
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <div
-                                        className="w-10 h-10 rounded-full border-2 border-slate-300 flex-shrink-0"
-                                        style={{ backgroundColor: color.colorCode || color.hexCode || '#ccc' }}
-                                      />
-                                      <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-slate-900">
-                                          {color.colorName || color.name}
-                                        </p>
-                                        <p className="text-sm text-slate-600">
-                                          {formatCurrency(color.price)}
-                                        </p>
-                                      </div>
-                                      {isSelected && (
-                                        <CheckCircle className="text-blue-600 flex-shrink-0" size={20} />
-                                      )}
-                                    </div>
-                                  </motion.div>
+                                  <option key={colorId} value={colorId}>
+                                    {color.colorName || color.name} - {formatCurrency(storePrice)}
+                                  </option>
                                 );
                               })}
-                            </div>
+                            </select>
                           )}
-                        </motion.div>
-                      )}
+                        </div>
+                      </div>
+
+                      {/* Second Row: Quantity and Promotion */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Quantity */}
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
+                            Số lượng <span className="text-red-500">*</span>
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={stockInfo?.quantity || 999}
+                            value={currentProduct.quantity}
+                            onChange={(e) => setCurrentProduct({ ...currentProduct, quantity: parseInt(e.target.value) || 1 })}
+                            className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                          />
+                        </div>
+
+                        {/* Promotion (Optional) */}
+                        <div>
+                          <label className="block text-sm font-medium text-slate-700 mb-2">
+                            Khuyến mãi (tùy chọn)
+                          </label>
+                          <select
+                            className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            value={currentProduct.promotionId || 0}
+                            onChange={(e) => setCurrentProduct({ ...currentProduct, promotionId: parseInt(e.target.value) || 0 })}
+                          >
+                            <option value={0}>-- Không áp dụng khuyến mãi --</option>
+                            {availablePromotions.map((promo) => (
+                              <option key={promo.promotionId} value={promo.promotionId}>
+                                {promo.promotionName || promo.name} - {promo.discountPercentage}%
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
 
                       {/* Stock Info */}
                       {stockInfo && (
@@ -772,40 +830,6 @@ const CreateOrderPage = () => {
                         </motion.div>
                       )}
 
-                      {/* Quantity */}
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Số lượng <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max={stockInfo?.quantity || 999}
-                          value={currentProduct.quantity}
-                          onChange={(e) => setCurrentProduct({ ...currentProduct, quantity: parseInt(e.target.value) || 1 })}
-                          className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                        />
-                      </div>
-
-                      {/* Promotion (Optional) */}
-                      <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-2">
-                          Khuyến mãi (tùy chọn)
-                        </label>
-                        <select
-                          className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                          value={currentProduct.promotionId || 0}
-                          onChange={(e) => setCurrentProduct({ ...currentProduct, promotionId: parseInt(e.target.value) || 0 })}
-                        >
-                          <option value={0}>-- Không áp dụng khuyến mãi --</option>
-                          {availablePromotions.map((promo) => (
-                            <option key={promo.promotionId} value={promo.promotionId}>
-                              {promo.promotionName || promo.name} - {promo.discountPercentage}%
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
                       
                       {/* Add Product Button */}
                       <button
@@ -824,47 +848,10 @@ const CreateOrderPage = () => {
                     </div>
                   </div>
 
-                  {/* Added Products List */}
+                  {/* License Plate Service */}
                   {orderDetails.length > 0 && (
                     <div className="bg-white p-6 rounded-xl shadow-sm">
-                      <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-200">
-                        <h3 className="text-lg font-bold text-slate-900">
-                          Sản phẩm đã thêm ({orderDetails.length})
-                        
-                        </h3>
-                      </div>
-                      
-                      
-                      
-                      <div className="space-y-3">
-                        {orderDetails.map((detail, index) => (
-                          <motion.div
-                            key={index}
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="flex items-center gap-4 p-4 border border-slate-200 rounded-lg"
-                          >
-                            <div className="flex-1">
-                              <p className="font-semibold text-slate-900">
-                                {detail.modelName}
-                              </p>
-                              <p className="text-sm text-slate-600">
-                                Màu: {detail.colorName} • SL: {detail.quantity}
-                                {detail.price && ` • ${formatCurrency(detail.price)}`}
-                              </p>
-                            </div>
-                            <button
-                              onClick={() => handleRemoveProduct(index)}
-                              className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                            >
-                              <Trash2 size={18} />
-                            </button>
-                          </motion.div>
-                        ))}
-                      </div>
-
-                      {/* License Plate Service */}
-                      <div className="mt-4 pt-4 border-t border-slate-200">
+                      <div className="pt-4 border-t border-slate-200">
                         <label className="flex items-center gap-3 cursor-pointer">
                           <input
                             type="checkbox"
@@ -991,7 +978,7 @@ const CreateOrderPage = () => {
                     Đơn hàng đã được tạo thành công!
                   </h2>
                   <p className="text-slate-600 mb-8">
-                    Mã đơn hàng: <span className="font-semibold">#{orderId}</span>
+                    Mã đơn hàng: <span className="font-semibold">#{orderCode || orderId}</span>
                   </p>
 
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -1012,7 +999,7 @@ const CreateOrderPage = () => {
           </div>
 
           {/* Right Column: Order Summary Sidebar */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 space-y-6">
             <div className="bg-white p-6 rounded-xl shadow-sm sticky top-8">
               <div className="flex items-center gap-2 mb-4">
                 <ShoppingCart className="text-primary" size={24} />
@@ -1140,6 +1127,44 @@ const CreateOrderPage = () => {
                 )}
               </div>
             </div>
+
+            {/* Added Products List - Below Sidebar */}
+            {currentStep === 2 && orderDetails.length > 0 && (
+              <div className="bg-white p-6 rounded-xl shadow-sm">
+                <div className="flex items-center justify-between mb-4 pb-4 border-b border-slate-200">
+                  <h3 className="text-lg font-bold text-slate-900">
+                    Sản phẩm đã thêm ({orderDetails.length})
+                  </h3>
+                </div>
+                
+                <div className="space-y-3">
+                  {orderDetails.map((detail, index) => (
+                    <motion.div
+                      key={index}
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="flex items-center gap-4 p-4 border border-slate-200 rounded-lg"
+                    >
+                      <div className="flex-1">
+                        <p className="font-semibold text-slate-900">
+                          {detail.modelName}
+                        </p>
+                        <p className="text-sm text-slate-600">
+                          Màu: {detail.colorName} • SL: {detail.quantity}
+                          {detail.price && ` • ${formatCurrency(detail.price)}`}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => handleRemoveProduct(index)}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

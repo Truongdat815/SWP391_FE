@@ -46,6 +46,7 @@ const OrderDetailsExpanded = ({ order, onViewContract }) => {
               <p className="text-xs text-slate-500">Số điện thoại</p>
               <p className="text-sm text-slate-700">{order.customerPhone || 'N/A'}</p>
             </div>
+           
           </div>
         </div>
 
@@ -69,12 +70,12 @@ const OrderDetailsExpanded = ({ order, onViewContract }) => {
       </div>
 
       {/* Contract Info */}
-      {(order.contractId && order.contractId > 0) && (
-        <div className="bg-white rounded-lg border border-slate-200 p-4">
-          <h4 className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-2">
-            <FileText size={16} className="text-purple-600" />
-            Hợp đồng
-          </h4>
+      <div className="bg-white rounded-lg border border-slate-200 p-4">
+        <h4 className="text-sm font-semibold text-slate-900 mb-2 flex items-center gap-2">
+          <FileText size={16} className="text-purple-600" />
+          Hợp đồng
+        </h4>
+        {(order.contractId && order.contractId > 0) ? (
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-600">#{order.contractCode}</p>
             <button
@@ -84,8 +85,12 @@ const OrderDetailsExpanded = ({ order, onViewContract }) => {
               Xem chi tiết
             </button>
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="flex items-center justify-center py-2">
+            <p className="text-sm text-slate-500 italic">Chưa có</p>
+          </div>
+        )}
+      </div>
 
       {/* Product Details */}
       <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
@@ -122,10 +127,37 @@ const OrderDetailsExpanded = ({ order, onViewContract }) => {
             </div>
           ))}
           
-          {/* Total */}
-          <div className="flex justify-between items-center pt-3 border-t border-slate-200">
-            <span className="text-sm font-semibold text-slate-900">Tổng cộng:</span>
-            <span className="text-lg font-bold text-primary">{formatCurrency(order.totalPayment)}</span>
+          {/* Pricing Details */}
+          <div className="pt-3 border-t border-slate-200 space-y-2">
+            {/* Total Tax Price */}
+            {order.totalTaxPrice > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-600">Tổng thuế:</span>
+                <span className="text-sm font-medium text-slate-900">{formatCurrency(order.totalTaxPrice)}</span>
+              </div>
+            )}
+            
+            {/* Total Price (before discount) */}
+            {order.totalPrice && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-600">Tổng tiền hàng:</span>
+                <span className="text-sm font-medium text-slate-900">{formatCurrency(order.totalPrice)}</span>
+              </div>
+            )}
+            
+            {/* Total Promotion Amount */}
+            {order.totalPromotionAmount > 0 && (
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-slate-600">Tổng giảm giá:</span>
+                <span className="text-sm font-medium text-green-600">-{formatCurrency(order.totalPromotionAmount)}</span>
+              </div>
+            )}
+            
+            {/* Total Payment */}
+            <div className="flex justify-between items-center pt-2 border-t border-slate-100">
+              <span className="text-sm font-semibold text-slate-900">Tổng thanh toán:</span>
+              <span className="text-lg font-bold text-primary">{formatCurrency(order.totalPayment)}</span>
+            </div>
           </div>
         </div>
       </div>

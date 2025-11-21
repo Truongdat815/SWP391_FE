@@ -20,6 +20,7 @@ import {
   ChevronRight,
   Plus,
   Package,
+  MessageSquare,
 } from 'lucide-react';
 import { useLogoutMutation } from '../../api/auth/authApi';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
@@ -64,13 +65,12 @@ const DealerStaffLayout = ({ children, title, description }) => {
         { icon: Plus, label: 'Tạo đơn hàng mới', path: '/dealer-staff/orders/create' },
       ]
     },
+
     { icon: FileText, label: 'Hợp đồng', path: '/dealer-staff/contracts' },
     { icon: CreditCard, label: 'Thanh toán', path: '/dealer-staff/payments' },
     { icon: Users, label: 'Khách hàng', path: '/dealer-staff/customers' },
-    { icon: Calendar, label: 'Lịch hẹn', path: '/dealer-staff/appointments' },
     { icon: Car, label: 'Sản phẩm', path: '/dealer-staff/products' },
     { icon: Package, label: 'Kho hàng', path: '/dealer-staff/storestock' },
-    { icon: BarChart3, label: 'Báo cáo', path: '/dealer-staff/reports' },
   ];
 
   const getGreeting = () => {
