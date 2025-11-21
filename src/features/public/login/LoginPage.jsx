@@ -26,6 +26,7 @@ const LoginPage = () => {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
+    rememberMe: true, // Default to true for better UX
   });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -79,6 +80,7 @@ const LoginPage = () => {
             refreshToken,
             user,
             role: normalizedRole,
+            rememberMe: formData.rememberMe,
           })
         );
         
@@ -125,6 +127,7 @@ const LoginPage = () => {
               refreshToken,
               user: userInfo,
               role: normalizedRole,
+              rememberMe: formData.rememberMe,
             })
           );
           
@@ -211,6 +214,22 @@ const LoginPage = () => {
             }
             required
           />
+
+          <div className="flex items-center justify-between">
+            <label className="flex items-center">
+              <input
+                type="checkbox"
+                checked={formData.rememberMe}
+                onChange={(e) =>
+                  setFormData({ ...formData, rememberMe: e.target.checked })
+                }
+                className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
+              />
+              <span className="ml-2 text-sm text-gray-600">
+                Ghi nhớ đăng nhập (30 ngày)
+              </span>
+            </label>
+          </div>
 
           <Button
             type="submit"

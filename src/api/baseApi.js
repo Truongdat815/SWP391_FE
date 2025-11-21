@@ -31,7 +31,7 @@ const baseQuery = fetchBaseQuery({
     let token = state?.auth?.token;
     let role = state?.auth?.role;
 
-    // If no token in state, try to get from sessionStorage based on current path
+    // If no token in state, try to get from localStorage based on current path
     if (!token) {
       const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
       const roleFromPath = getRoleFromPath(currentPath);
@@ -45,10 +45,10 @@ const baseQuery = fetchBaseQuery({
       }
     }
 
-    // Fallback: try to get from any role in sessionStorage
+    // Fallback: try to get from any role in localStorage
     if (!token && typeof window !== 'undefined') {
-      for (let i = 0; i < sessionStorage.length; i++) {
-        const key = sessionStorage.key(i);
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
         if (key && key.startsWith('auth_')) {
           const authData = getAuthFromStorage(key.replace('auth_', ''));
           if (authData && authData.token) {
@@ -105,7 +105,7 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
       refreshToken = localStorage.getItem('refreshToken');
     }
 
-    // Fallback: try to get refresh token from sessionStorage based on role
+    // Fallback: try to get refresh token from localStorage based on role
     if (!refreshToken && role && typeof window !== 'undefined') {
       const authData = getAuthFromStorage(role);
       if (authData?.refreshToken) {
@@ -225,7 +225,7 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
                 role,
               }));
 
-              // Update sessionStorage
+              // Update localStorage
               if (role) {
                 setAuthToStorage(role, {
                   user,

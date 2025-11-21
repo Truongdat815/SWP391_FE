@@ -121,7 +121,7 @@ export const getRoleFromPath = (pathname) => {
 };
 
 /**
- * SessionStorage utility functions for role-based auth
+ * LocalStorage utility functions for role-based auth with expiration
  */
 export const getAuthStorageKey = (role) => {
   const normalizedRole = normalizeRole(role);
@@ -130,34 +130,97 @@ export const getAuthStorageKey = (role) => {
 
 export const getAuthFromStorage = (role) => {
   const key = getAuthStorageKey(role);
-  const data = sessionStorage.getItem(key);
+  const data = localStorage.getItem(key);
   if (!data) return null;
+  
   try {
-    return JSON.parse(data);
+    const authData = JSON.parse(data);
+    
+    // Check if token has expiration and if it's expired
+    if (authData.expiresAt && Date.now() > authData.expiresAt) {
+      // Token expired, remove it
+      removeAuthFromStorage(role);
+      return null;
+    }
+    
+    return authData;
   } catch {
     return null;
   }
 };
 
-export const setAuthToStorage = (role, authData) => {
+export const setAuthToStorage = (role, authData, rememberMe = true) => {
   const key = getAuthStorageKey(role);
-  sessionStorage.setItem(key, JSON.stringify(authData));
+  
+  // Add expiration time based on rememberMe option
+  const expirationTime = rememberMe 
+    ? 30 * 24 * 60 * 60 * 1000  // 30 days for "Remember Me"
+    : 24 * 60 * 60 * 1000;      // 24 hours for regular login
+  
+  const dataToStore = {
+    ...authData,
+    expiresAt: Date.now() + expirationTime,
+    rememberMe
+  };
+  
+  localStorage.setItem(key, JSON.stringify(dataToStore));
 };
 
 export const removeAuthFromStorage = (role) => {
   const key = getAuthStorageKey(role);
-  sessionStorage.removeItem(key);
+  localStorage.removeItem(key);
 };
 
 export const getAllAuthRoles = () => {
   const roles = [];
-  for (let i = 0; i < sessionStorage.length; i++) {
-    const key = sessionStorage.key(i);
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
     if (key && key.startsWith('auth_')) {
       const role = key.replace('auth_', '');
       roles.push(role);
     }
   }
   return roles;
+};
+
+/**
+ * Check if any stored auth tokens are expired and clean them up
+ */
+export const cleanupExpiredTokens = () => {
+  const roles = getAllAuthRoles();
+  roles.forEach(role => {
+    const authData = getAuthFromStorage(role);
+    // getAuthFromStorage already handles cleanup of expired tokens
+  });
+};
+
+/**
+ * Get token expiration info
+ */
+export const getTokenExpirationInfo = (role) => {
+  const key = getAuthStorageKey(role);
+  const data = localStorage.getItem(key);
+  if (!data) return null;
+  
+  try {
+    const authData = JSON.parse(data);
+    if (authData.expiresAt) {
+      const now = Date.now();
+      const expiresAt = authData.expiresAt;
+      const isExpired = now > expiresAt;
+      const timeUntilExpiry = expiresAt - now;
+      
+      return {
+        expiresAt,
+        isExpired,
+        timeUntilExpiry,
+        rememberMe: authData.rememberMe || false
+      };
+    }
+  } catch {
+    return null;
+  }
+  
+  return null;
 };
 

@@ -73,6 +73,14 @@ export const getOrderStatusConfig = (status) => {
       color: 'bg-red-100 text-red-800',
       label: 'Đã hủy'
     },
+    CONTRACT_PENDING: {
+      color: 'bg-orange-100 text-orange-800',
+      label: 'Hợp đồng'
+    },
+    CONTRACT_SIGNED: {
+      color: 'bg-indigo-100 text-indigo-800',
+      label: 'Đã ký'
+    },
   };
   return statusMap[status] || { color: 'bg-gray-100 text-gray-800', label: status || 'N/A' };
 };

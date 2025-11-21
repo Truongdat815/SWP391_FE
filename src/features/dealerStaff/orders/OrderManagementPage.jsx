@@ -425,6 +425,8 @@ const OrderManagementPage = () => {
                   <option value="all">Tất cả trạng thái</option>
                   <option value="DRAFT">Nháp</option>
                   <option value="CONFIRMED">Đã xác nhận</option>
+                  <option value="CONTRACT_PENDING">Hợp đồng</option>
+                  <option value="CONTRACT_SIGNED">Đã ký</option>
                   <option value="FULLY_PAID">Đã thanh toán đủ</option>
                   <option value="DELIVERED">Đã giao</option>
                   <option value="CANCELLED">Đã hủy</option>

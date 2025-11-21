@@ -69,7 +69,7 @@ const DealerStaffLayout = ({ children, title, description }) => {
     { icon: Users, label: 'Khách hàng', path: '/dealer-staff/customers' },
     { icon: Calendar, label: 'Lịch hẹn', path: '/dealer-staff/appointments' },
     { icon: Car, label: 'Sản phẩm', path: '/dealer-staff/products' },
-    { icon: Package, label: 'Kho hàng', path: '/dealer-staff/store-stock' },
+    { icon: Package, label: 'Kho hàng', path: '/dealer-staff/storestock' },
     { icon: BarChart3, label: 'Báo cáo', path: '/dealer-staff/reports' },
   ];
 

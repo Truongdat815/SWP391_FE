@@ -22,6 +22,7 @@ import CustomerManagementPage from '../features/dealerStaff/customers/CustomerMa
 import AppointmentsPage from '../features/dealerStaff/appointments/AppointmentsPage';
 import QuotationPage from '../features/dealerStaff/quotation/QuotationPage';
 import ProductsPage from '../features/dealerStaff/products/ProductsPage';
+import StoreStockPage from '../features/dealerStaff/storeStock/StoreStockPage';
 import ReportsPage from '../features/dealerStaff/reports/ReportsPage';
 
 // Dealer Manager routes
@@ -90,6 +91,7 @@ function AppRouter() {
                 <Route path="appointments" element={<AppointmentsPage />} />
                 <Route path="quotation" element={<QuotationPage />} />
                 <Route path="products" element={<ProductsPage />} />
+                <Route path="storestock" element={<StoreStockPage />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="" element={<Navigate to="/dealer-staff/dashboard" replace />} />
               </Routes>

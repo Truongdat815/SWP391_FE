@@ -5,7 +5,6 @@ import DealerStaffLayout from '../../../components/layout/DealerStaffLayout';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import LineChart from '../../../components/charts/LineChart';
-import LogoutTester from '../../../components/shared/LogoutTester';
 import { useGetMyOrdersQuery, useGetOrdersByStaffIdQuery } from '../../../api/dealerStaff/orderApi';
 import { useGetAllCustomersQuery } from '../../../api/dealerStaff/customerApi';
 import { useGetAllAppointmentsQuery } from '../../../api/public/appointmentApi';
@@ -16,38 +15,52 @@ import { formatCurrency } from '../../../utils/formatters';
 const DealerStaffDashboard = () => {
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
-  const staffId = user?.staffId || user?.id;
+  const staffId = user?.userId || user?.staffId || user?.id;
+  
+  // Debug: Log user và staffId
+  console.log('user:', user);
+  console.log('staffId:', staffId);
 
   const { data: ordersData, isLoading: isLoadingOrders } = useGetMyOrdersQuery();
-  const { data: staffOrdersData, isLoading: isLoadingStaffOrders } = useGetOrdersByStaffIdQuery(staffId, {
+  const { data: staffOrdersData, isLoading: isLoadingStaffOrders, error: staffOrdersError } = useGetOrdersByStaffIdQuery(staffId, {
     skip: !staffId,
   });
+  
+  // Debug: Log error nếu có
+  if (staffOrdersError) {
+    console.error('staffOrdersError:', staffOrdersError);
+  }
   const { data: customersData, isLoading: isLoadingCustomers } = useGetAllCustomersQuery();
   const { data: appointmentsData, isLoading: isLoadingAppointments } = useGetAllAppointmentsQuery();
   const { data: feedbackData, isLoading: isLoadingFeedback } = useGetAllFeedbacksQuery();
 
   // Đảm bảo orders, customers, appointments luôn là array
-  const orders = Array.isArray(ordersData?.data) ? ordersData.data : [];
+  // Ưu tiên sử dụng orders từ staffOrdersData vì có đầy đủ thông tin hơn
+  const orders = Array.isArray(staffOrdersData?.orders) ? staffOrdersData.orders :
+                 Array.isArray(staffOrdersData?.data?.orders) ? staffOrdersData.data.orders : 
+                 Array.isArray(ordersData?.data) ? ordersData.data : [];
   const customers = Array.isArray(customersData?.data) ? customersData.data : [];
   const appointments = Array.isArray(appointmentsData?.data) ? appointmentsData.data : [];
   const feedbacks = Array.isArray(feedbackData?.data) ? feedbackData.data : [];
 
-  // Lấy dữ liệu từ API /orders/staff/{staffId}
-  const totalOrders = staffOrdersData?.data?.totalOrders || 0;
-  const monthlyRevenue = staffOrdersData?.data?.monthlyRevenue || 0;
+  // Sử dụng dữ liệu từ API /orders/staff/{staffId} - thử các cách truy cập khác nhau
+  const totalOrders = staffOrdersData?.totalOrders || staffOrdersData?.data?.totalOrders || 0;
+  const monthlyRevenue = staffOrdersData?.monthlyRevenue || staffOrdersData?.data?.monthlyRevenue || 0;
+
+  // Debug: Log dữ liệu quan trọng
+  console.log('staffOrdersData:', staffOrdersData);
+  console.log('totalOrders:', totalOrders);
+  console.log('monthlyRevenue:', monthlyRevenue);
 
   const isLoading = isLoadingOrders || isLoadingStaffOrders || isLoadingCustomers || isLoadingAppointments || isLoadingFeedback;
 
-  // Tính toán metrics
+  // Tính toán metrics cho hiển thị chart - sử dụng monthlyRevenue từ API
   const totalRevenue = useMemo(() => {
-    if (!Array.isArray(orders)) return '0 Triệu';
-    const completed = orders.filter((o) => o.status === 'DELIVERED');
-    const total = completed.reduce((sum, order) => sum + (parseFloat(order.totalAmount || order.totalPrice) || 0), 0);
-    if (total >= 1000000000) {
-      return `${(total / 1000000000).toFixed(2)} Tỷ`;
+    if (monthlyRevenue >= 1000000000) {
+      return `${(monthlyRevenue / 1000000000).toFixed(2)} Tỷ`;
     }
-    return `${(total / 1000000).toFixed(0)} Triệu`;
-  }, [orders]);
+    return `${(monthlyRevenue / 1000000).toFixed(0)} Triệu`;
+  }, [monthlyRevenue]);
 
   const carsSold = Array.isArray(orders) ? orders.filter((o) => o.status === 'DELIVERED').length : 0;
   const newCustomers = Array.isArray(customers) ? customers.filter((c) => {
@@ -63,26 +76,29 @@ const DealerStaffDashboard = () => {
   const pendingDelivery = Array.isArray(orders) ? orders.filter((o) => o.status === 'READY_FOR_DELIVERY').length : 0;
   const completed = Array.isArray(orders) ? orders.filter((o) => o.status === 'DELIVERED').length : 0;
 
-  // Doanh số theo tháng (6 tháng gần nhất)
-  const monthlyRevenueData = useMemo(() => {
+  // Doanh số theo tháng (6 tháng gần nhất) - tính hoàn toàn từ orders data
+  const monthlyRevenueChartData = useMemo(() => {
     const months = [];
     const now = new Date();
+    const revenueStatuses = ['DEPOSITED', 'FULLY_PAID', 'DELIVERED'];
+    
     for (let i = 5; i >= 0; i--) {
       const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthName = monthDate.toLocaleDateString('vi-VN', { month: 'short' });
 
+      // Tính từ orders data - sử dụng cùng logic với trang quản lý đơn hàng
       const monthOrders = Array.isArray(orders) ? orders.filter((order) => {
         if (!order.createdAt && !order.orderDate) return false;
         const orderDate = new Date(order.createdAt || order.orderDate);
         return (
           orderDate.getMonth() === monthDate.getMonth() &&
           orderDate.getFullYear() === monthDate.getFullYear() &&
-          order.status === 'DELIVERED'
+          revenueStatuses.includes(order.status)
         );
       }) : [];
 
       const total = monthOrders.reduce(
-        (sum, order) => sum + (parseFloat(order.totalAmount || order.totalPrice) || 0),
+        (sum, order) => sum + (order.totalPayment || 0),
         0
       );
 
@@ -266,7 +282,9 @@ const DealerStaffDashboard = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card className="flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
             <p className="text-slate-600 text-base font-medium">Tổng Đơn Hàng</p>
-            <p className="text-slate-900 text-3xl font-bold tracking-tight">{totalOrders}</p>
+            <p className="text-slate-900 text-3xl font-bold tracking-tight">
+              {isLoadingStaffOrders ? 'Đang tải...' : (totalOrders || 'N/A')}
+            </p>
             <div className="flex items-center gap-1 text-green-600">
               <TrendingUp size={16} />
               <p className="text-sm font-medium">+15% so với tháng trước</p>
@@ -274,7 +292,9 @@ const DealerStaffDashboard = () => {
           </Card>
           <Card className="flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
             <p className="text-slate-600 text-base font-medium">Tổng Doanh Thu (Tháng này)</p>
-            <p className="text-slate-900 text-3xl font-bold tracking-tight">{formatCurrency(monthlyRevenue)}</p>
+            <p className="text-slate-900 text-3xl font-bold tracking-tight">
+              {isLoadingStaffOrders ? 'Đang tải...' : (monthlyRevenue ? formatCurrency(monthlyRevenue) : 'N/A')}
+            </p>
             <div className="flex items-center gap-1 text-green-600">
               <TrendingUp size={16} />
               <p className="text-sm font-medium">+8.5% so với tháng trước</p>
@@ -301,7 +321,7 @@ const DealerStaffDashboard = () => {
             </div>
             <div className="flex min-h-[220px] flex-1 flex-col pt-4">
               <LineChart
-                data={monthlyRevenueData}
+                data={monthlyRevenueChartData}
                 dataKey="value"
                 name="Doanh số (triệu VND)"
                 color="#1392ec"
@@ -396,12 +416,6 @@ const DealerStaffDashboard = () => {
           </div>
         </Card>
 
-        {/* Logout Tester - chỉ hiển thị trong development */}
-        {import.meta.env.DEV && (
-          <div className="mt-6">
-            <LogoutTester />
-          </div>
-        )}
       </div>
     </DealerStaffLayout>
   );
