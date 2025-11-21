@@ -13,7 +13,24 @@ export const contractApi = baseApi.injectEndpoints({
     }),
     // Xem hợp đồng (HTML)
     getContract: builder.query({
-      query: (id) => `/contracts/${id}`,
+      query: (id) => ({
+        url: `/contracts/${id}`,
+        responseHandler: async (response) => {
+          const text = await response.text();
+          return text;
+        },
+      }),
+      providesTags: ['Contract'],
+    }),
+    // Lấy HTML hợp đồng bằng contractId
+    getContractHtml: builder.query({
+      query: (contractId) => ({
+        url: `/contracts/contracts?contractId=${contractId}`,
+        responseHandler: async (response) => {
+          const text = await response.text();
+          return text;
+        },
+      }),
       providesTags: ['Contract'],
     }),
     // Upload hợp đồng đã ký
@@ -50,6 +67,7 @@ export const contractApi = baseApi.injectEndpoints({
 export const {
   useCreateContractMutation,
   useGetContractQuery,
+  useGetContractHtmlQuery,
   useUploadSignedContractMutation,
   useGetAllContractsQuery,
   useGetContractDetailQuery,

@@ -14,41 +14,62 @@ import {
   Bell,
   HelpCircle,
   Search,
+  FileText,
+  CreditCard,
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Package,
 } from 'lucide-react';
 import { useLogoutMutation } from '../../api/auth/authApi';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { logout } from '../../store/slices/authSlice';
 import SearchBar from '../shared/SearchBar';
 
-const DealerStaffLayout = ({ children }) => {
+const DealerStaffLayout = ({ children, title, description }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useAppDispatch();
   const [logoutMutation] = useLogoutMutation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [expandedMenu, setExpandedMenu] = useState('orders'); // Track which submenu is expanded
 
   const handleLogout = async () => {
     try {
+      // Gọi logout API với token để revoke token trên server
       await logoutMutation().unwrap();
+      console.log('✅ Logout API successful - token revoked on server');
     } catch (error) {
       if (import.meta.env.DEV) {
-        console.error('Logout error:', error);
+        console.error('❌ Logout API error:', error);
       }
+      // Vẫn tiếp tục logout locally dù API fail
     } finally {
+      // Clear auth state và storage
       dispatch(logout());
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      navigate('/login');
+      // Redirect to login
+      navigate('/login', { replace: true });
     }
   };
 
   const menuItems = [
     { icon: LayoutDashboard, label: 'Dashboard', path: '/dealer-staff/dashboard' },
-    { icon: ShoppingCart, label: 'Đơn hàng', path: '/dealer-staff/orders' },
+    {
+      icon: ShoppingCart,
+      label: 'Đơn hàng',
+      path: '/dealer-staff/orders',
+      submenu: [
+        { icon: ShoppingCart, label: 'Danh sách đơn hàng', path: '/dealer-staff/orders' },
+        { icon: Plus, label: 'Tạo đơn hàng mới', path: '/dealer-staff/orders/create' },
+      ]
+    },
+    { icon: FileText, label: 'Hợp đồng', path: '/dealer-staff/contracts' },
+    { icon: CreditCard, label: 'Thanh toán', path: '/dealer-staff/payments' },
     { icon: Users, label: 'Khách hàng', path: '/dealer-staff/customers' },
     { icon: Calendar, label: 'Lịch hẹn', path: '/dealer-staff/appointments' },
     { icon: Car, label: 'Sản phẩm', path: '/dealer-staff/products' },
+    { icon: Package, label: 'Kho hàng', path: '/dealer-staff/store-stock' },
     { icon: BarChart3, label: 'Báo cáo', path: '/dealer-staff/reports' },
   ];
 
@@ -59,13 +80,17 @@ const DealerStaffLayout = ({ children }) => {
     return 'Chào buổi tối';
   };
 
+  // Determine title: prop > menu match > default
+  const pageTitle = title || menuItems.find((item) => item.path === location.pathname)?.label ||
+    menuItems.flatMap(i => i.submenu || []).find(sub => sub.path === location.pathname)?.label ||
+    'Dashboard';
+
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
       <aside
-        className={`${
-          isSidebarOpen ? 'w-64' : 'w-0'
-        } bg-white border-r border-gray-200 transition-all duration-300 overflow-hidden flex flex-col`}
+        className={`${isSidebarOpen ? 'w-64' : 'w-0'
+          } bg-white border-r border-gray-200 transition-all duration-300 overflow-hidden flex flex-col`}
       >
         {/* User Profile */}
         <div className="p-6 border-b border-gray-200">
@@ -82,23 +107,66 @@ const DealerStaffLayout = ({ children }) => {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto p-4">
-          <ul className="space-y-2">
+          <ul className="space-y-1">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = location.pathname === item.path;
+              const hasSubmenu = item.submenu && item.submenu.length > 0;
+              const isExpanded = expandedMenu === item.path.split('/').pop();
+              const isSubmenuActive = hasSubmenu && item.submenu.some(sub => location.pathname === sub.path);
+
               return (
                 <li key={item.path}>
-                  <Link
-                    to={item.path}
-                    className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                      isActive
+                  {hasSubmenu ? (
+                    <>
+                      <button
+                        onClick={() => setExpandedMenu(isExpanded ? null : item.path.split('/').pop())}
+                        className={`w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg transition-colors ${isSubmenuActive
+                          ? 'bg-blue-50 text-blue-600 font-medium'
+                          : 'text-gray-700 hover:bg-gray-100'
+                          }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <Icon size={20} />
+                          <span>{item.label}</span>
+                        </div>
+                        {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                      </button>
+                      {isExpanded && (
+                        <ul className="mt-1 ml-4 space-y-1">
+                          {item.submenu.map((subItem) => {
+                            const SubIcon = subItem.icon;
+                            const isSubActive = location.pathname === subItem.path;
+                            return (
+                              <li key={subItem.path}>
+                                <Link
+                                  to={subItem.path}
+                                  className={`flex items-center gap-3 px-4 py-2 rounded-lg transition-colors text-sm ${isSubActive
+                                    ? 'bg-blue-100 text-blue-700 font-medium'
+                                    : 'text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                >
+                                  <SubIcon size={16} />
+                                  <span>{subItem.label}</span>
+                                </Link>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )}
+                    </>
+                  ) : (
+                    <Link
+                      to={item.path}
+                      className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
                         ? 'bg-blue-50 text-blue-600 font-medium'
                         : 'text-gray-700 hover:bg-gray-100'
-                    }`}
-                  >
-                    <Icon size={20} />
-                    <span>{item.label}</span>
-                  </Link>
+                        }`}
+                    >
+                      <Icon size={20} />
+                      <span>{item.label}</span>
+                    </Link>
+                  )}
                 </li>
               );
             })}
@@ -124,8 +192,11 @@ const DealerStaffLayout = ({ children }) => {
           <div className="flex items-center justify-between">
             <div className="flex-1">
               <h1 className="text-2xl font-bold text-gray-900">
-                {menuItems.find((item) => item.path === location.pathname)?.label || 'Dashboard'}
+                {pageTitle}
               </h1>
+              {description && (
+                <p className="text-sm text-gray-500 mt-1">{description}</p>
+              )}
             </div>
             <div className="flex items-center gap-4 flex-1 justify-end">
               <div className="flex-1 max-w-md">

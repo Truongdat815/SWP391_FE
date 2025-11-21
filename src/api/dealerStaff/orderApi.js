@@ -47,6 +47,11 @@ export const dsOrderApi = baseApi.injectEndpoints({
       query: () => '/orders/staff',
       providesTags: ['Order'],
     }),
+    // Lấy orders và thống kê theo staffId
+    getOrdersByStaffId: builder.query({
+      query: (staffId) => `/orders/staff/${staffId}`,
+      providesTags: ['Order'],
+    }),
     // Lấy order details
     getOrderDetails: builder.query({
       query: (orderId) => `/orders/${orderId}/order-details`,
@@ -76,6 +81,7 @@ export const {
   useDeliverOrderMutation,
   useGetOrdersByCustomerQuery,
   useGetMyOrdersQuery,
+  useGetOrdersByStaffIdQuery,
   useGetOrderDetailsQuery,
   useGetOrderStatusesQuery,
   useDeleteOrderMutation,

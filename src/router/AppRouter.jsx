@@ -16,6 +16,7 @@ import DealerStaffDashboard from '../features/dealerStaff/dashboard/DashboardPag
 import DealerStaffOrderManagementPage from '../features/dealerStaff/orders/OrderManagementPage';
 import CreateOrderPage from '../features/dealerStaff/orders/CreateOrderPage';
 import ContractManagementPage from '../features/dealerStaff/contracts/ContractManagementPage';
+import ViewContractPage from '../features/dealerStaff/contracts/ViewContractPage';
 import PaymentManagementPage from '../features/dealerStaff/payments/PaymentManagementPage';
 import CustomerManagementPage from '../features/dealerStaff/customers/CustomerManagementPage';
 import AppointmentsPage from '../features/dealerStaff/appointments/AppointmentsPage';
@@ -82,7 +83,9 @@ function AppRouter() {
                 <Route path="orders" element={<DealerStaffOrderManagementPage />} />
                 <Route path="orders/create" element={<CreateOrderPage />} />
                 <Route path="contracts" element={<ContractManagementPage />} />
+                <Route path="contracts/:contractId/view" element={<ViewContractPage />} />
                 <Route path="payments" element={<PaymentManagementPage />} />
+                <Route path="payments/callback" element={<PaymentManagementPage />} />
                 <Route path="customers" element={<CustomerManagementPage />} />
                 <Route path="appointments" element={<AppointmentsPage />} />
                 <Route path="quotation" element={<QuotationPage />} />

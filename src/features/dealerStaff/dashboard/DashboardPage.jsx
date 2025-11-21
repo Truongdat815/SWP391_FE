@@ -5,14 +5,23 @@ import DealerStaffLayout from '../../../components/layout/DealerStaffLayout';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import LineChart from '../../../components/charts/LineChart';
-import { useGetMyOrdersQuery } from '../../../api/dealerStaff/orderApi';
+import LogoutTester from '../../../components/shared/LogoutTester';
+import { useGetMyOrdersQuery, useGetOrdersByStaffIdQuery } from '../../../api/dealerStaff/orderApi';
 import { useGetAllCustomersQuery } from '../../../api/dealerStaff/customerApi';
 import { useGetAllAppointmentsQuery } from '../../../api/public/appointmentApi';
 import { useGetAllFeedbacksQuery } from '../../../api/dealerStaff/feedbackApi';
+import { useAppSelector } from '../../../hooks/useAppSelector';
+import { formatCurrency } from '../../../utils/formatters';
 
 const DealerStaffDashboard = () => {
   const navigate = useNavigate();
+  const user = useAppSelector((state) => state.auth.user);
+  const staffId = user?.staffId || user?.id;
+
   const { data: ordersData, isLoading: isLoadingOrders } = useGetMyOrdersQuery();
+  const { data: staffOrdersData, isLoading: isLoadingStaffOrders } = useGetOrdersByStaffIdQuery(staffId, {
+    skip: !staffId,
+  });
   const { data: customersData, isLoading: isLoadingCustomers } = useGetAllCustomersQuery();
   const { data: appointmentsData, isLoading: isLoadingAppointments } = useGetAllAppointmentsQuery();
   const { data: feedbackData, isLoading: isLoadingFeedback } = useGetAllFeedbacksQuery();
@@ -23,7 +32,11 @@ const DealerStaffDashboard = () => {
   const appointments = Array.isArray(appointmentsData?.data) ? appointmentsData.data : [];
   const feedbacks = Array.isArray(feedbackData?.data) ? feedbackData.data : [];
 
-  const isLoading = isLoadingOrders || isLoadingCustomers || isLoadingAppointments || isLoadingFeedback;
+  // Lấy dữ liệu từ API /orders/staff/{staffId}
+  const totalOrders = staffOrdersData?.data?.totalOrders || 0;
+  const monthlyRevenue = staffOrdersData?.data?.monthlyRevenue || 0;
+
+  const isLoading = isLoadingOrders || isLoadingStaffOrders || isLoadingCustomers || isLoadingAppointments || isLoadingFeedback;
 
   // Tính toán metrics
   const totalRevenue = useMemo(() => {
@@ -57,7 +70,7 @@ const DealerStaffDashboard = () => {
     for (let i = 5; i >= 0; i--) {
       const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
       const monthName = monthDate.toLocaleDateString('vi-VN', { month: 'short' });
-      
+
       const monthOrders = Array.isArray(orders) ? orders.filter((order) => {
         if (!order.createdAt && !order.orderDate) return false;
         const orderDate = new Date(order.createdAt || order.orderDate);
@@ -67,12 +80,12 @@ const DealerStaffDashboard = () => {
           order.status === 'DELIVERED'
         );
       }) : [];
-      
+
       const total = monthOrders.reduce(
         (sum, order) => sum + (parseFloat(order.totalAmount || order.totalPrice) || 0),
         0
       );
-      
+
       months.push({
         name: monthName,
         value: Math.round(total / 1000000), // Convert to millions
@@ -110,10 +123,10 @@ const DealerStaffDashboard = () => {
       .filter(([_, count]) => count > 0)
       .map(([status, count]) => ({
         name: status === 'DELIVERED' ? 'Hoàn thành' :
-              status === 'CONFIRMED' ? 'Đã xác nhận' :
-              status === 'PENDING' ? 'Chờ duyệt' :
+          status === 'CONFIRMED' ? 'Đã xác nhận' :
+            status === 'PENDING' ? 'Chờ duyệt' :
               status === 'DRAFT' ? 'Nháp' :
-              status === 'CANCELLED' ? 'Đã hủy' : status,
+                status === 'CANCELLED' ? 'Đã hủy' : status,
         value: count,
       }));
   }, [orders]);
@@ -137,7 +150,7 @@ const DealerStaffDashboard = () => {
           const diffMins = Math.floor(diffMs / 60000);
           const diffHours = Math.floor(diffMs / 3600000);
           const diffDays = Math.floor(diffMs / 86400000);
-          
+
           if (diffMins < 60) return `${diffMins} phút trước`;
           if (diffHours < 24) return `${diffHours} giờ trước`;
           return `${diffDays} ngày trước`;
@@ -145,17 +158,17 @@ const DealerStaffDashboard = () => {
 
         return {
           type: order.status === 'DELIVERED' ? 'order_completed' :
-                order.status === 'CONFIRMED' ? 'order_approved' :
-                'order_created',
-          message: order.status === 'DELIVERED' 
+            order.status === 'CONFIRMED' ? 'order_approved' :
+              'order_created',
+          message: order.status === 'DELIVERED'
             ? `Đơn hàng #${order.orderId} đã hoàn thành.`
             : order.status === 'CONFIRMED'
-            ? `Đơn hàng #${order.orderId} đã được duyệt.`
-            : `Đơn hàng #${order.orderId} đã được tạo.`,
+              ? `Đơn hàng #${order.orderId} đã được duyệt.`
+              : `Đơn hàng #${order.orderId} đã được tạo.`,
           time: timeAgo,
           icon: order.status === 'DELIVERED' ? 'check' :
-                order.status === 'CONFIRMED' ? 'check' :
-                'file',
+            order.status === 'CONFIRMED' ? 'check' :
+              'file',
         };
       });
   }, [orders]);
@@ -241,35 +254,19 @@ const DealerStaffDashboard = () => {
   }
 
   return (
-    <DealerStaffLayout>
-      <div className="p-6 space-y-6">
-        {/* Greeting & Actions */}
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-slate-900 text-3xl font-bold tracking-tight">
-              Dashboard - Tổng quan hiệu suất
-            </h2>
-            <p className="text-slate-500 text-base font-normal mt-1">
-              Chào mừng trở lại, cùng xem hiệu suất của bạn hôm nay.
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <button className="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white border border-slate-200 shadow-sm pl-4 pr-3 text-slate-700 hover:bg-slate-50">
-              <p className="text-sm font-medium leading-normal">Tháng này</p>
-              <span className="text-lg">▼</span>
-            </button>
-            <button className="flex h-9 shrink-0 items-center justify-center gap-x-2 rounded-lg bg-white border border-slate-200 shadow-sm pl-4 pr-3 text-slate-700 hover:bg-slate-50">
-              <p className="text-sm font-medium leading-normal">3 tháng qua</p>
-              <span className="text-lg">▼</span>
-            </button>
-          </div>
-        </div>
+    <DealerStaffLayout
+      title="Dashboard - Tổng quan hiệu suất"
+      description="Chào mừng trở lại, cùng xem hiệu suất của bạn hôm nay."
+    >
+      <div className="mx-auto max-w-[90rem] px-0 py-4 pl-10 pr-10 pt-8 space-y-4">
+        {/* Filter Actions */}
+        
 
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <Card className="flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
             <p className="text-slate-600 text-base font-medium">Tổng Đơn Hàng</p>
-            <p className="text-slate-900 text-3xl font-bold tracking-tight">{orders.length}</p>
+            <p className="text-slate-900 text-3xl font-bold tracking-tight">{totalOrders}</p>
             <div className="flex items-center gap-1 text-green-600">
               <TrendingUp size={16} />
               <p className="text-sm font-medium">+15% so với tháng trước</p>
@@ -277,7 +274,7 @@ const DealerStaffDashboard = () => {
           </Card>
           <Card className="flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
             <p className="text-slate-600 text-base font-medium">Tổng Doanh Thu (Tháng này)</p>
-            <p className="text-slate-900 text-3xl font-bold tracking-tight">{totalRevenue} VNĐ</p>
+            <p className="text-slate-900 text-3xl font-bold tracking-tight">{formatCurrency(monthlyRevenue)}</p>
             <div className="flex items-center gap-1 text-green-600">
               <TrendingUp size={16} />
               <p className="text-sm font-medium">+8.5% so với tháng trước</p>
@@ -325,7 +322,7 @@ const DealerStaffDashboard = () => {
                 const height = (count / maxCount) * 90;
                 return (
                   <div key={index} className="contents">
-                    <div 
+                    <div
                       className={`w-full rounded-t ${index === 4 ? 'bg-primary' : 'bg-primary/20'}`}
                       style={{ height: `${height}%` }}
                     />
@@ -398,6 +395,13 @@ const DealerStaffDashboard = () => {
             </div>
           </div>
         </Card>
+
+        {/* Logout Tester - chỉ hiển thị trong development */}
+        {import.meta.env.DEV && (
+          <div className="mt-6">
+            <LogoutTester />
+          </div>
+        )}
       </div>
     </DealerStaffLayout>
   );

@@ -16,11 +16,21 @@ export const quotationApi = baseApi.injectEndpoints({
       query: (orderId) => `/orders/${orderId}/quote`,
       providesTags: ['Quotation'],
     }),
+    // Cập nhật báo giá
+    updateQuote: builder.mutation({
+      query: ({ orderId, ...quoteData }) => ({
+        url: `/order-details/quote/${orderId}`,
+        method: 'PUT',
+        body: quoteData,
+      }),
+      invalidatesTags: ['Quotation', 'Order'],
+    }),
   }),
 });
 
 export const {
   useCreateQuoteMutation,
   useGetQuoteByOrderIdQuery,
+  useUpdateQuoteMutation,
 } = quotationApi;
 

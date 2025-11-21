@@ -32,13 +32,16 @@ const Header = () => {
 
   const handleLogout = async () => {
     try {
-      // Call logout API
+      // Gọi logout API với token để revoke token trên server
       await logoutApi().unwrap();
+      console.log('✅ Logout API successful - token revoked on server');
     } catch (error) {
-      // Even if API call fails, logout locally
-      console.error('Logout API error:', error);
+      if (import.meta.env.DEV) {
+        console.error('❌ Logout API error:', error);
+      }
+      // Vẫn tiếp tục logout locally dù API fail
     } finally {
-      // Clear auth state
+      // Clear auth state và storage
       dispatch(logout());
       // Redirect to login
       navigate('/login', { replace: true });

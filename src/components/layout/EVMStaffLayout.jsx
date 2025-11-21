@@ -27,16 +27,19 @@ const EVMStaffLayout = ({ children }) => {
 
   const handleLogout = async () => {
     try {
+      // Gọi logout API với token để revoke token trên server
       await logoutMutation().unwrap();
+      console.log('✅ Logout API successful - token revoked on server');
     } catch (error) {
       if (import.meta.env.DEV) {
-        console.error('Logout error:', error);
+        console.error('❌ Logout API error:', error);
       }
+      // Vẫn tiếp tục logout locally dù API fail
     } finally {
+      // Clear auth state và storage
       dispatch(logout());
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      navigate('/login');
+      // Redirect to login
+      navigate('/login', { replace: true });
     }
   };
 
