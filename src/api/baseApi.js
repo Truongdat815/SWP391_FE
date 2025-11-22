@@ -5,6 +5,9 @@ import { setCredentials } from '../store/slices/authSlice';
 // Mutex để tránh multiple refresh calls đồng thời
 let isRefreshing = false;
 let refreshPromise = null;
+let failedQueue = [];
+let lastRefreshTime = 0;
+const REFRESH_COOLDOWN = 30000; // 30 seconds cooldown
 
 // Đảm bảo baseUrl luôn có /api ở cuối và không có trailing slash
 const getBaseUrl = () => {
@@ -64,8 +67,18 @@ const baseQuery = fetchBaseQuery({
       headers.set('Authorization', `Bearer ${token}`);
     }
 
-    // Set Content-Type for JSON requests (chỉ khi chưa có Content-Type)
-    if (!headers.get('Content-Type')) {
+    // Check if this is a FormData upload request
+    // Don't set Content-Type for upload endpoints - browser will set it automatically with boundary
+    const isUploadRequest = typeof endpoint === 'string' && (
+      endpoint.includes('upload-signed') || 
+      endpoint.includes('upload-contract') ||
+      endpoint.includes('upload-receipt') ||
+      endpoint.includes('upload-image') ||
+      endpoint.includes('upload-model-color-image')
+    );
+
+    // Set Content-Type for JSON requests (chỉ khi chưa có Content-Type và không phải upload request)
+    if (!headers.get('Content-Type') && !isUploadRequest) {
       headers.set('Content-Type', 'application/json');
     }
 
@@ -101,6 +114,25 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
       let result = await baseQuery(modifiedArgs, api, extraOptions);
       return result;
     }
+  }
+
+  // Xử lý đặc biệt cho FormData upload (upload-signed, upload-contract, etc.)
+  // Xóa Content-Type header để browser tự động set với boundary cho FormData
+  if (typeof args === 'object' && args?.body instanceof FormData) {
+    const modifiedArgs = {
+      ...args,
+      headers: {
+        ...args.headers,
+      },
+    };
+    // Xóa Content-Type nếu có để browser tự động set
+    if (modifiedArgs.headers) {
+      delete modifiedArgs.headers['Content-Type'];
+      delete modifiedArgs.headers['content-type'];
+    }
+    // Gọi baseQuery với args đã được modify
+    let result = await baseQuery(modifiedArgs, api, extraOptions);
+    return result;
   }
   
   let result = await baseQuery(args, api, extraOptions);
@@ -148,19 +180,38 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 
     // Nếu có refreshToken, thử refresh
     if (refreshToken) {
-      // Nếu đang refresh, đợi refresh xong
-      if (isRefreshing && refreshPromise) {
+      // Kiểm tra cooldown để tránh refresh quá thường xuyên
+      const now = Date.now();
+      if (now - lastRefreshTime < REFRESH_COOLDOWN) {
         if (import.meta.env.DEV) {
-          console.log('⏳ Waiting for ongoing refresh...');
+          console.log('🚫 Refresh cooldown active, skipping refresh');
         }
-        await refreshPromise;
-        // Sau khi refresh xong, retry request gốc
-        result = await baseQuery(args, api, extraOptions);
         return result;
+      }
+      // Nếu đang refresh, thêm request vào queue và đợi
+      if (isRefreshing) {
+        if (import.meta.env.DEV) {
+          console.log('⏳ Adding request to queue, waiting for ongoing refresh...');
+        }
+        
+        return new Promise((resolve) => {
+          failedQueue.push({
+            resolve: (token) => {
+              if (token) {
+                // Retry với token mới
+                baseQuery(args, api, extraOptions).then(resolve);
+              } else {
+                // Refresh thất bại
+                resolve(result);
+              }
+            }
+          });
+        });
       }
 
       // Bắt đầu refresh
       isRefreshing = true;
+      lastRefreshTime = now;
       refreshPromise = (async () => {
         try {
           if (import.meta.env.DEV) {
@@ -303,11 +354,19 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
 
       const refreshSuccess = await refreshPromise;
 
+      // Xử lý tất cả requests trong queue
       if (refreshSuccess) {
+        // Thông báo cho tất cả requests trong queue
+        failedQueue.forEach(({ resolve }) => resolve(true));
+        failedQueue = [];
+        
         // Retry request gốc với token mới
         result = await baseQuery(args, api, extraOptions);
         return result;
       } else {
+        // Thông báo refresh thất bại cho tất cả requests trong queue
+        failedQueue.forEach(({ resolve }) => resolve(false));
+        failedQueue = [];
         // Refresh thất bại → Logout
         if (import.meta.env.DEV) {
           console.log('🚪 Refresh failed, logging out...');

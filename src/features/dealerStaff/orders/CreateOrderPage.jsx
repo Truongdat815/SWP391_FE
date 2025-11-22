@@ -70,7 +70,7 @@ const CreateOrderPage = () => {
   const { data: customersData, isLoading: loadingCustomers } = useGetAllCustomersQuery();
   const { data: modelsData } = useGetAllModelsQuery();
   const { data: modelColorsData } = useGetAllModelColorsQuery();
-  const { data: promotionsData } = useGetAllPromotionsQuery();
+  const { data: promotionsData, isLoading: loadingPromotions } = useGetAllPromotionsQuery();
   const { data: storeStocksData } = useGetAllStoreStocksQuery();
 
   // API mutations
@@ -102,7 +102,19 @@ const CreateOrderPage = () => {
   const customers = Array.isArray(customersData?.data) ? customersData.data : [];
   const models = Array.isArray(modelsData?.data) ? modelsData.data : [];
   const modelColors = Array.isArray(modelColorsData?.data) ? modelColorsData.data : [];
-  const promotions = Array.isArray(promotionsData?.data) ? promotionsData.data : [];
+  // Handle response format: { code: 200, data: [...] }
+  // RTK Query wraps: { data: { code: 200, message: "...", data: [...] } }
+  // Use same parsing as PromotionPage.jsx: promotionsData?.data?.data
+  let promotions = [];
+  if (promotionsData) {
+    if (Array.isArray(promotionsData?.data?.data)) {
+      promotions = promotionsData.data.data;
+    } else if (Array.isArray(promotionsData?.data)) {
+      promotions = promotionsData.data;
+    } else if (Array.isArray(promotionsData)) {
+      promotions = promotionsData;
+    }
+  }
   const storeStocks = Array.isArray(storeStocksData?.data) ? storeStocksData.data : [];
 
   // Filter and sort customers (newest first)
@@ -197,10 +209,30 @@ const CreateOrderPage = () => {
     return modelColors.filter(mc => mc.modelId === currentProduct.modelId);
   }, [currentProduct.modelId, modelColors]);
 
-  // Get available promotions (filter active only)
+  // Get available promotions (filter active only, optionally filter by model if selected)
+  // Note: promotionType can be null - we'll infer it from amount if needed
   const availablePromotions = useMemo(() => {
-    return promotions.filter(p => p.status === 'ACTIVE' || p.isActive);
-  }, [promotions]);
+    if (!promotions || promotions.length === 0) {
+      return [];
+    }
+    
+    const filtered = promotions.filter(p => {
+      // Check if promotion is active
+      const isActive = p.active === true && p.manuallyDisabled === false;
+      
+      // If model is selected, show promotions for that model; otherwise show all active promotions
+      if (currentProduct.modelId) {
+        // Convert both to numbers for comparison (handle string/number mismatch)
+        const promotionModelId = Number(p.modelId);
+        const selectedModelId = Number(currentProduct.modelId);
+        return isActive && promotionModelId === selectedModelId;
+      }
+      // No model selected - show all active promotions
+      return isActive;
+    });
+    
+    return filtered;
+  }, [promotions, currentProduct.modelId]);
 
   // Get selected model info
   const selectedModel = useMemo(() => {
@@ -294,6 +326,15 @@ const CreateOrderPage = () => {
       return;
     }
 
+    // Validate promotion if selected (promotionType can be null, so we just check if promotion exists)
+    if (currentProduct.promotionId && currentProduct.promotionId !== 0) {
+      const selectedPromotion = promotions.find(p => p.promotionId === currentProduct.promotionId);
+      if (!selectedPromotion) {
+        toast.error('Khuyến mãi được chọn không hợp lệ. Vui lòng chọn lại khuyến mãi.');
+        return;
+      }
+    }
+
     // Check if product with same model and color already exists
     const existingProductIndex = orderDetails.findIndex(
       item => item.modelId === currentProduct.modelId && item.colorId === currentProduct.colorId
@@ -358,15 +399,42 @@ const CreateOrderPage = () => {
       return;
     }
 
+    // Validate and clean promotions before sending to API
+    // Backend throws error if promotionType is null, so we need to filter those out
+    let hasInvalidPromotions = false;
+    const cleanedOrderDetails = orderDetails.map(item => {
+      if (item.promotionId && item.promotionId !== 0) {
+        // Try to find promotion in current list (for current model)
+        const promotion = promotions.find(p => p.promotionId === item.promotionId);
+        // If not found in current list, it might be from a different model
+        if (!promotion) {
+          hasInvalidPromotions = true;
+          return { ...item, promotionId: 0 };
+        }
+        // Backend requires promotionType to be non-null, so filter out null promotionType
+        if (!promotion.promotionType || promotion.promotionType === '') {
+          hasInvalidPromotions = true;
+          return { ...item, promotionId: 0 };
+        }
+        // Valid promotion with promotionType - keep it
+        return item;
+      }
+      return item;
+    });
+    
+    if (hasInvalidPromotions) {
+      toast.warning('Một số khuyến mãi không hợp lệ (thiếu loại khuyến mãi) đã được xóa để tránh lỗi.');
+    }
+
     try {
-      // Prepare data for API
+      // Prepare data for API - use cleaned order details
       const quoteData = {
         orderId,
-        orderDetails: orderDetails.map(item => ({
+        orderDetails: cleanedOrderDetails.map(item => ({
           modelId: item.modelId,
           colorId: item.colorId,
           quantity: item.quantity,
-          promotionId: item.promotionId || 0
+          promotionId: (item.promotionId && item.promotionId !== 0) ? item.promotionId : 0
         })),
         includeLicensePlateService: includeLicensePlate,
       };
@@ -733,6 +801,7 @@ const CreateOrderPage = () => {
                                     ...currentProduct,
                                     modelId: parseInt(e.target.value) || null,
                                     colorId: null,
+                                    promotionId: 0, // Reset promotion when model changes
                                   });
                                 }}
                               >
@@ -808,18 +877,43 @@ const CreateOrderPage = () => {
                               <label className="block text-sm font-medium text-slate-700 mb-2">
                                 Khuyến mãi (tùy chọn)
                               </label>
-                              <select
-                                className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50"
-                                value={currentProduct.promotionId || 0}
-                                onChange={(e) => setCurrentProduct({ ...currentProduct, promotionId: parseInt(e.target.value) || 0 })}
-                              >
-                                <option value={0}>-- Không áp dụng khuyến mãi --</option>
-                                {availablePromotions.map((promo) => (
-                                  <option key={promo.promotionId} value={promo.promotionId}>
-                                    {promo.promotionName || promo.name} - {promo.discountPercentage}%
-                                  </option>
-                                ))}
-                              </select>
+                              {loadingPromotions ? (
+                                <div className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-slate-100 text-slate-500 text-center">
+                                  Đang tải khuyến mãi...
+                                </div>
+                              ) : availablePromotions.length === 0 ? (
+                                <select
+                                  className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                  value={currentProduct.promotionId || 0}
+                                  onChange={(e) => setCurrentProduct({ ...currentProduct, promotionId: parseInt(e.target.value) || 0 })}
+                                >
+                                  <option value={0}>-- Không có khuyến mãi --</option>
+                                </select>
+                              ) : (
+                                <select
+                                  className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50"
+                                  value={currentProduct.promotionId || 0}
+                                  onChange={(e) => setCurrentProduct({ ...currentProduct, promotionId: parseInt(e.target.value) || 0 })}
+                                >
+                                  <option value={0}>-- Không áp dụng khuyến mãi --</option>
+                                  {availablePromotions.map((promo) => {
+                                    // Infer promotionType from amount if null
+                                    // If amount <= 100, treat as percentage; otherwise as fixed amount
+                                    const isPercentage = promo.promotionType === 'PERCENTAGE' || 
+                                                         (promo.promotionType == null && promo.amount <= 100);
+                                    const discountText = isPercentage
+                                      ? `${promo.amount}%`
+                                      : formatCurrency(promo.amount);
+                                    // Show model name if available to help user identify which model the promotion is for
+                                    const modelInfo = promo.modelName ? ` (${promo.modelName})` : '';
+                                    return (
+                                      <option key={promo.promotionId} value={promo.promotionId}>
+                                        {promo.promotionName}{modelInfo} - {discountText}
+                                      </option>
+                                    );
+                                  })}
+                                </select>
+                              )}
                             </div>
                           </div>
 
