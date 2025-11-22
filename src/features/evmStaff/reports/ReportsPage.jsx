@@ -65,58 +65,6 @@ const ReportsPage = () => {
     setEndDate(newEndDate);
   };
 
-  // Tính toán min date cho endDate (startDate + 1 ngày)
-  const getMinEndDate = () => {
-    if (!startDate) return '';
-    const start = new Date(startDate);
-    start.setDate(start.getDate() + 1);
-    return start.toISOString().split('T')[0];
-  };
-  
-  const minEndDate = getMinEndDate();
-  
-  // Xử lý khi startDate thay đổi
-  const handleStartDateChange = (e) => {
-    const newStartDate = e.target.value;
-    setStartDate(newStartDate);
-    
-    // Nếu endDate nhỏ hơn hoặc bằng startDate, tự động cập nhật endDate
-    if (endDate && newStartDate) {
-      const start = new Date(newStartDate);
-      const end = new Date(endDate);
-      start.setDate(start.getDate() + 1); // Thêm 1 ngày vào startDate
-      
-      if (end <= start) {
-        // Cập nhật endDate thành startDate + 1 ngày
-        setEndDate(start.toISOString().split('T')[0]);
-      }
-    }
-  };
-  
-  // Xử lý khi endDate thay đổi với validation
-  const handleEndDateChange = (e) => {
-    const newEndDate = e.target.value;
-    
-    if (!startDate) {
-      // Nếu chưa chọn startDate, cho phép chọn bất kỳ
-      setEndDate(newEndDate);
-      return;
-    }
-    
-    const start = new Date(startDate);
-    const end = new Date(newEndDate);
-    start.setDate(start.getDate() + 1); // Thêm 1 ngày vào startDate
-    
-    // Kiểm tra nếu endDate nhỏ hơn hoặc bằng startDate + 1 ngày
-    if (end <= start) {
-      // Không cho phép chọn, hiển thị cảnh báo
-      alert('Ngày kết thúc phải sau ngày bắt đầu ít nhất 1 ngày');
-      return;
-    }
-    
-    setEndDate(newEndDate);
-  };
-
   // Set default date range (last 30 days)
   const getDefaultDates = () => {
     const end = new Date();
@@ -319,21 +267,13 @@ const ReportsPage = () => {
                       <div className="p-4 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600">Tổng doanh thu</p>
                         <p className="text-2xl font-bold text-gray-900">
-<<<<<<< HEAD
-                          {formatCurrency(salesReport?.data?.totalRevenue || 0)}
-=======
                           {formatCurrency(salesReport?.data?.totalRevenue || salesReport?.totalRevenue || 0)}
->>>>>>> ee25d2d9 (lam trang home, chinh sua tao mau sac trong evm staff)
                         </p>
                       </div>
                       <div className="p-4 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600">Tổng số đơn hàng</p>
                         <p className="text-2xl font-bold text-gray-900">
-<<<<<<< HEAD
-                          {salesReport?.data?.totalOrders || 0}
-=======
                           {salesReport?.data?.totalOrders || salesReport?.totalOrders || 0}
->>>>>>> ee25d2d9 (lam trang home, chinh sua tao mau sac trong evm staff)
                         </p>
                       </div>
                     </div>
@@ -353,21 +293,13 @@ const ReportsPage = () => {
                       <div className="p-4 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600">Doanh thu đại lý</p>
                         <p className="text-2xl font-bold text-gray-900">
-<<<<<<< HEAD
-                          {formatCurrency(dealerReport?.data?.totalRevenue || 0)}
-=======
                           {formatCurrency(dealerReport?.data?.totalRevenue || dealerReport?.totalRevenue || 0)}
->>>>>>> ee25d2d9 (lam trang home, chinh sua tao mau sac trong evm staff)
                         </p>
                       </div>
                       <div className="p-4 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600">Số đơn hàng</p>
                         <p className="text-2xl font-bold text-gray-900">
-<<<<<<< HEAD
-                          {dealerReport?.data?.totalOrders || 0}
-=======
                           {dealerReport?.data?.totalOrders || dealerReport?.totalOrders || 0}
->>>>>>> ee25d2d9 (lam trang home, chinh sua tao mau sac trong evm staff)
                         </p>
                       </div>
                     </div>
@@ -390,15 +322,14 @@ const ReportsPage = () => {
                     <div className="space-y-4">
                       <div className="p-4 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600">Doanh thu mẫu xe</p>
-<<<<<<< HEAD
                         <p className="text-2xl font-bold text-gray-900">
-                          {formatCurrency(modelReport?.data?.totalRevenue || 0)}
+                          {formatCurrency(modelReport?.data?.totalRevenue || modelReport?.totalRevenue || 0)}
                         </p>
                       </div>
                       <div className="p-4 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600">Số lượng bán</p>
                         <p className="text-2xl font-bold text-gray-900">
-                          {modelReport?.data?.totalSold || 0}
+                          {modelReport?.data?.totalSold || modelReport?.totalSold || 0}
                         </p>
                       </div>
                     </div>
@@ -406,23 +337,6 @@ const ReportsPage = () => {
                     <div className="text-center text-gray-500 py-8">
                       Vui lòng nhập mã mẫu xe
                     </div>
-=======
-                      <p className="text-2xl font-bold text-gray-900">
-                        {formatCurrency(modelReport?.data?.totalRevenue || modelReport?.totalRevenue || 0)}
-                      </p>
-                    </div>
-                    <div className="p-4 bg-gray-50 rounded-lg">
-                      <p className="text-sm text-gray-600">Số lượng bán</p>
-                      <p className="text-2xl font-bold text-gray-900">
-                        {modelReport?.data?.totalSold || modelReport?.totalSold || 0}
-                      </p>
-                      </div>
-                    </div>
-                  ) : !modelId ? (
-                    <div className="text-center text-gray-500 py-8">
-                      Vui lòng nhập mã mẫu xe
-                    </div>
->>>>>>> ee25d2d9 (lam trang home, chinh sua tao mau sac trong evm staff)
                   ) : (
                     <div className="text-center text-gray-500 py-8">
                       Không có dữ liệu
