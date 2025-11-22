@@ -435,7 +435,7 @@ const OrderManagementPage = () => {
           <MetricCard
             title="Doanh thu"
             value={formatCurrency(stats.revenue)}
-            icon={DollarSign}
+            
             className="border-l-4 border-l-purple-500"
           />
         </div>
@@ -713,9 +713,9 @@ const OrderManagementPage = () => {
               {/* Pagination */}
               <div className="px-4 py-3 border-t border-slate-200 flex items-center justify-between bg-slate-50/50">
                 <div className="text-sm text-slate-500">
-                  Hiển thị {' '}
+              
                   
-                  <span className="font-medium text-slate-900">{filteredOrders.length}</span> kết quả
+                  <span className="font-medium text-slate-900">{filteredOrders.length}</span> đơn hàng
                 </div>
                 <div className="flex gap-2">
                   <Button

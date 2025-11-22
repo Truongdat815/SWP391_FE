@@ -3,6 +3,21 @@ import { getAuthFromStorage, getRoleFromPath, setAuthToStorage, removeAuthFromSt
 
 // Get initial auth state from localStorage
 const getInitialAuth = () => {
+  // Check if there's a logout flag - if yes, don't restore any auth state
+  const logoutFlag = localStorage.getItem('_logout_flag');
+  if (logoutFlag) {
+    // Clear the flag and return empty state
+    localStorage.removeItem('_logout_flag');
+    return {
+      user: null,
+      token: null,
+      refreshToken: null,
+      role: null,
+      isAuthenticated: false,
+      rememberMe: false,
+    };
+  }
+  
   // Clean up any expired tokens first
   try {
     const { cleanupExpiredTokens } = require('../../utils/roleUtils');
@@ -11,8 +26,20 @@ const getInitialAuth = () => {
     console.warn('Could not cleanup expired tokens:', error);
   }
   
-  // Try to get role from current path (if available)
+  // If we're on login page, don't restore any auth state to prevent issues
   const currentPath = window.location.pathname;
+  if (currentPath === '/login' || currentPath === '/') {
+    return {
+      user: null,
+      token: null,
+      refreshToken: null,
+      role: null,
+      isAuthenticated: false,
+      rememberMe: false,
+    };
+  }
+  
+  // Try to get role from current path (if available)
   const roleFromPath = getRoleFromPath(currentPath);
   
   if (roleFromPath) {
@@ -29,7 +56,7 @@ const getInitialAuth = () => {
     }
   }
   
-  // Fallback: check all roles in localStorage
+  // Fallback: check all roles in localStorage (only if not on login page)
   for (let i = 0; i < localStorage.length; i++) {
     const key = localStorage.key(i);
     if (key && key.startsWith('auth_')) {
@@ -102,21 +129,62 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       state.rememberMe = false;
       
-      // Remove from localStorage
+      // Set logout flag to prevent auto-restore
+      localStorage.setItem('_logout_flag', Date.now().toString());
+      
+      // Remove from localStorage - clear ALL auth data
       if (role) {
         removeAuthFromStorage(role);
       }
       
+      // Clear ALL possible auth keys to prevent cross-contamination
+      const allRoles = ['ADMIN', 'DEALER_STAFF', 'DEALER_MANAGER', 'EVM_STAFF'];
+      allRoles.forEach(r => {
+        localStorage.removeItem(`auth_${r}`);
+      });
+      
       // Also clear old localStorage keys for backward compatibility
       localStorage.removeItem('accessToken');
       localStorage.removeItem('refreshToken');
+      localStorage.removeItem('auth_default');
+      
+      // Clear sessionStorage as well
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        sessionStorage.clear();
+      }
     },
     updateUser: (state, action) => {
       state.user = { ...state.user, ...action.payload };
     },
+    clearAllAuth: (state) => {
+      // Force clear all auth state and storage
+      state.user = null;
+      state.token = null;
+      state.refreshToken = null;
+      state.role = null;
+      state.isAuthenticated = false;
+      state.rememberMe = false;
+      
+      // Set logout flag to prevent auto-restore
+      localStorage.setItem('_logout_flag', Date.now().toString());
+      
+      // Clear ALL possible auth keys
+      const allRoles = ['ADMIN', 'DEALER_STAFF', 'DEALER_MANAGER', 'EVM_STAFF'];
+      allRoles.forEach(r => {
+        localStorage.removeItem(`auth_${r}`);
+      });
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('auth_default');
+      
+      // Clear sessionStorage as well
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        sessionStorage.clear();
+      }
+    },
   },
 });
 
-export const { setCredentials, logout, updateUser } = authSlice.actions;
+export const { setCredentials, logout, updateUser, clearAllAuth } = authSlice.actions;
 export default authSlice.reducer;
 

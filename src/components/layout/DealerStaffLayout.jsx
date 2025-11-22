@@ -26,6 +26,7 @@ import { useLogoutMutation } from '../../api/auth/authApi';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { logout } from '../../store/slices/authSlice';
 import SearchBar from '../shared/SearchBar';
+import UserProfileAvatar from '../shared/UserProfileAvatar';
 
 const DealerStaffLayout = ({ children, title, description }) => {
   const navigate = useNavigate();
@@ -94,15 +95,7 @@ const DealerStaffLayout = ({ children, title, description }) => {
       >
         {/* User Profile */}
         <div className="p-6 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-full bg-gray-300 flex items-center justify-center">
-              <Users size={24} className="text-gray-600" />
-            </div>
-            <div>
-              <p className="font-medium text-gray-900">Anh A</p>
-              <p className="text-sm text-gray-500">Dealer Staff</p>
-            </div>
-          </div>
+          <UserProfileAvatar size="default" />
         </div>
 
         {/* Navigation */}

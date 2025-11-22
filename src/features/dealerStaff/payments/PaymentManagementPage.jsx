@@ -978,7 +978,7 @@ const PaymentManagementPage = () => {
                   disabled={!paymentType || creatingPayment}
                   className="bg-blue-600 hover:bg-blue-700 text-white px-6 font-semibold"
                 >
-                  {creatingPayment ? 'Đang xử lý...' : 'Chuyển đến VNPay'}
+                  {creatingPayment ? 'Đang xử lý...' : 'Thanh toán'}
                 </Button>
               </div>
             </div>
