@@ -800,6 +800,25 @@ const CreateOrderPage = () => {
                         </div>
                       </div>
 
+                      {/* License Plate Service */}
+                      <div className="mt-4">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={includeLicensePlate}
+                            onChange={(e) => setIncludeLicensePlate(e.target.checked)}
+                            className="w-4 h-4 text-primary bg-white border-slate-300 rounded focus:ring-primary/50 focus:ring-2"
+                          />
+                          <span className="text-sm font-medium text-slate-700">
+                            Bao gồm dịch vụ đăng ký biển số
+                          </span>
+                         
+                        </label>
+                        <p className="text-xs text-slate-400 mt-1 ml-7">
+                          Dịch vụ hỗ trợ làm thủ tục đăng ký biển số xe
+                        </p>
+                      </div>
+
                       {/* Stock Info */}
                       {stockInfo && (
                         <motion.div
@@ -849,23 +868,7 @@ const CreateOrderPage = () => {
                   </div>
 
                   {/* License Plate Service */}
-                  {orderDetails.length > 0 && (
-                    <div className="bg-white p-6 rounded-xl shadow-sm">
-                      <div className="pt-4 border-t border-slate-200">
-                        <label className="flex items-center gap-3 cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={includeLicensePlate}
-                            onChange={(e) => setIncludeLicensePlate(e.target.checked)}
-                            className="w-5 h-5 rounded border-slate-300 text-primary focus:ring-primary"
-                          />
-                          <span className="text-sm font-medium text-slate-700">
-                            Bao gồm dịch vụ đăng ký biển số
-                          </span>
-                        </label>
-                      </div>
-                    </div>
-                  )}
+                
                     </>
                   )}
                 </motion.div>
