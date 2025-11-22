@@ -90,6 +90,7 @@ const PromotionPage = () => {
 
   // Filter promotions
   const filteredPromotions = useMemo(() => {
+    if (!Array.isArray(promotions)) return [];
     return promotions.filter((promo) => {
       const matchesSearch =
         promo.promotionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -106,12 +107,6 @@ const PromotionPage = () => {
       return matchesSearch && matchesStatus && matchesType;
     });
   }, [promotions, searchTerm, statusFilter, typeFilter]);
-
-  // Pagination
-  const totalPages = Math.ceil(filteredPromotions.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
-  const paginatedPromotions = filteredPromotions.slice(startIndex, endIndex);
 
   const getStatusBadge = (isActive, startDate, endDate) => {
     if (!startDate || !endDate) {
@@ -516,6 +511,49 @@ const PromotionPage = () => {
     setIsDetailModalOpen(true);
   };
 
+  // Pagination
+  const totalPages = Math.ceil(filteredPromotions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const paginatedPromotions = filteredPromotions.slice(startIndex, endIndex);
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      // Chọn tất cả promotions trong trang hiện tại
+      setSelectedPromotions(paginatedPromotions.map(p => p.promotionId));
+    } else {
+      // Bỏ chọn tất cả
+      setSelectedPromotions([]);
+    }
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedPromotions.length === 0) return;
+    
+    setConfirmModal({
+      isOpen: true,
+      message: `Bạn có chắc chắn muốn xóa ${selectedPromotions.length} khuyến mãi đã chọn?`,
+      onConfirm: async () => {
+        try {
+          // Xóa từng promotion
+          const deletePromises = selectedPromotions.map(id => deletePromotion(id).unwrap());
+          await Promise.all(deletePromises);
+          
+          setSelectedPromotions([]);
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          setSuccessModal({ isOpen: true, message: `Đã xóa thành công ${selectedPromotions.length} khuyến mãi!` });
+        } catch (error) {
+          const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi xóa khuyến mãi';
+          setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          setErrorModal({ isOpen: true, message: errorMessage });
+          if (import.meta.env.DEV) {
+            console.error(error);
+          }
+        }
+      },
+    });
+  };
+
   if (isLoading) {
     return (
       <DealerManagerLayout>
@@ -562,7 +600,7 @@ const PromotionPage = () => {
 
   return (
     <DealerManagerLayout>
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 p-6 overflow-x-hidden">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
@@ -599,7 +637,7 @@ const PromotionPage = () => {
             <Dropdown
               options={[
                 { value: 'all', label: 'Loại khuyến mãi' },
-                ...types.map((type) => ({ value: type, label: type })),
+                ...(Array.isArray(types) ? types.map((type) => ({ value: type, label: type })) : []),
               ]}
               value={typeFilter}
               onChange={setTypeFilter}
@@ -629,8 +667,8 @@ const PromotionPage = () => {
             <div className="p-8 text-center text-gray-500">Không có dữ liệu</div>
           ) : (
             <>
-              <div className="overflow-x-auto">
-                <Table>
+              <div className="overflow-x-auto overflow-y-visible">
+                <Table className="w-full table-auto">
                   <Table.Header>
                     <Table.Row>
                       <Table.Head className="w-12">
@@ -655,7 +693,13 @@ const PromotionPage = () => {
                           <input
                             type="checkbox"
                             checked={selectedPromotions.includes(promo.promotionId)}
-                            onChange={() => handleSelectPromotion(promo.promotionId)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedPromotions([...selectedPromotions, promo.promotionId]);
+                              } else {
+                                setSelectedPromotions(selectedPromotions.filter(id => id !== promo.promotionId));
+                              }
+                            }}
                             className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
                           />
                         </Table.Cell>
@@ -848,7 +892,7 @@ const PromotionPage = () => {
                       />
                       <span className="text-sm text-gray-900">Tất cả các model</span>
                     </label>
-                    {models.map((model) => {
+                    {(Array.isArray(models) ? models : []).map((model) => {
                       const isSelected = formData.selectedModelIds.includes(model.modelId);
                       return (
                         <label

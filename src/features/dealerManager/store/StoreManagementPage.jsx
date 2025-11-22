@@ -108,7 +108,7 @@ const StoreManagementPage = () => {
       });
 
       // Try to set province, district, ward from address
-      if (store.provinceName) {
+      if (store.provinceName && Array.isArray(provinces)) {
         const province = provinces.find(p => p.name === store.provinceName);
         if (province) {
           setSelectedProvinceCode(province.code.toString());
@@ -119,9 +119,9 @@ const StoreManagementPage = () => {
 
   // Update address and provinceName when selections change
   useEffect(() => {
-    const selectedProvince = provinces.find(p => p.code === parseInt(selectedProvinceCode));
-    const selectedDistrict = districts.find(d => d.code === parseInt(selectedDistrictCode));
-    const selectedWard = wards.find(w => w.code === parseInt(selectedWardCode));
+    const selectedProvince = Array.isArray(provinces) ? provinces.find(p => p.code === parseInt(selectedProvinceCode)) : null;
+    const selectedDistrict = Array.isArray(districts) ? districts.find(d => d.code === parseInt(selectedDistrictCode)) : null;
+    const selectedWard = Array.isArray(wards) ? wards.find(w => w.code === parseInt(selectedWardCode)) : null;
 
     if (selectedProvince) {
       setFormData(prev => ({
@@ -239,6 +239,30 @@ const StoreManagementPage = () => {
       <DealerManagerLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-gray-500">Đang tải dữ liệu...</div>
+        </div>
+      </DealerManagerLayout>
+    );
+  }
+
+  // Kiểm tra lỗi 401 (Unauthorized)
+  const isUnauthorized = error?.status === 401;
+  
+  if (isUnauthorized) {
+    return (
+      <DealerManagerLayout>
+        <div className="flex flex-col items-center justify-center h-64 space-y-4">
+          <div className="text-yellow-600 text-lg font-medium">
+            ⚠️ Bạn chưa đăng nhập hoặc token đã hết hạn
+          </div>
+          <div className="text-gray-600 text-sm">
+            Vui lòng đăng nhập để truy cập các tính năng này.
+          </div>
+          <a
+            href="/login"
+            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Đi đến trang đăng nhập
+          </a>
         </div>
       </DealerManagerLayout>
     );
@@ -392,7 +416,7 @@ const StoreManagementPage = () => {
               Tỉnh/Thành phố *
             </label>
             <Dropdown
-              options={provinces.map((province) => ({
+              options={(Array.isArray(provinces) ? provinces : []).map((province) => ({
                 value: province.code.toString(),
                 label: province.name,
               }))}
@@ -408,7 +432,7 @@ const StoreManagementPage = () => {
                 Quận/Huyện *
               </label>
               <Dropdown
-                options={districts.map((district) => ({
+                options={(Array.isArray(districts) ? districts : []).map((district) => ({
                   value: district.code.toString(),
                   label: district.name,
                 }))}
@@ -425,7 +449,7 @@ const StoreManagementPage = () => {
                 Phường/Xã *
               </label>
               <Dropdown
-                options={wards.map((ward) => ({
+                options={(Array.isArray(wards) ? wards : []).map((ward) => ({
                   value: ward.code.toString(),
                   label: ward.name,
                 }))}

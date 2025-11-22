@@ -60,7 +60,8 @@ const InventoryPage = () => {
   const [searchTerm, setSearchTerm] = useState(initialState.searchTerm);
   const debouncedSearchTerm = useDebounce(searchTerm, 300);
   const [currentPage, setCurrentPage] = useState(initialState.currentPage);
-  const [itemsPerPage] = useState(10);
+  const [inventoryItemsPerPage] = useState(5); // 5 mẫu mỗi trang cho kho xe
+  const [transactionItemsPerPage] = useState(10); // 10 mẫu mỗi trang cho yêu cầu đặt xe
   
   // Track xem đã load từ storage chưa để tránh reset page không cần thiết
   const isInitialMount = useRef(true);
@@ -248,9 +249,9 @@ const InventoryPage = () => {
   }, [stocks, debouncedSearchTerm]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredStocks.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const endIndex = startIndex + itemsPerPage;
+  const totalPages = Math.ceil(filteredStocks.length / inventoryItemsPerPage);
+  const startIndex = (currentPage - 1) * inventoryItemsPerPage;
+  const endIndex = startIndex + inventoryItemsPerPage;
   const paginatedStocks = filteredStocks.slice(startIndex, endIndex);
 
   // Hàm lấy số lượng từ stock
@@ -467,9 +468,9 @@ const InventoryPage = () => {
   }, [transactions, debouncedSearchTerm]);
 
   // Pagination for transactions
-  const transactionPages = Math.ceil(filteredTransactions.length / itemsPerPage);
-  const transactionStartIndex = (currentPage - 1) * itemsPerPage;
-  const transactionEndIndex = transactionStartIndex + itemsPerPage;
+  const transactionPages = Math.ceil(filteredTransactions.length / transactionItemsPerPage);
+  const transactionStartIndex = (currentPage - 1) * transactionItemsPerPage;
+  const transactionEndIndex = transactionStartIndex + transactionItemsPerPage;
   const paginatedTransactions = filteredTransactions.slice(transactionStartIndex, transactionEndIndex);
 
   const getTransactionStatusBadge = (status) => {
@@ -1175,12 +1176,12 @@ const InventoryPage = () => {
 
   return (
     <DealerManagerLayout>
-      <div className="space-y-6 p-6">
+      <div className="space-y-3 p-4">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Quản lý Kho xe</h1>
-            <p className="text-gray-600 mt-1">
+            <h1 className="text-2xl font-bold text-gray-900">Quản lý Kho xe</h1>
+            <p className="text-gray-600 text-sm mt-0.5">
               Xem và quản lý tất cả các xe có trong kho của bạn.
             </p>
           </div>
@@ -1197,27 +1198,27 @@ const InventoryPage = () => {
           <div className="flex border-b border-gray-200">
             <button
               onClick={() => setActiveTab('inventory')}
-              className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
+              className={`flex-1 px-4 py-2 text-center font-medium transition-colors ${
                 activeTab === 'inventory'
                   ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
               <div className="flex items-center justify-center gap-2">
-                <Package size={20} />
+                <Package size={18} />
                 <span>Kho xe</span>
               </div>
             </button>
             <button
               onClick={() => setActiveTab('requests')}
-              className={`flex-1 px-6 py-4 text-center font-medium transition-colors ${
+              className={`flex-1 px-4 py-2 text-center font-medium transition-colors ${
                 activeTab === 'requests'
                   ? 'text-blue-600 border-b-2 border-blue-600'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
               <div className="flex items-center justify-center gap-2">
-                <Clock size={20} />
+                <Clock size={18} />
                 <span>Yêu cầu đặt xe</span>
                 {transactions.filter((t) => t.status === 'PENDING').length > 0 && (
                   <Badge variant="warning">
@@ -1232,30 +1233,24 @@ const InventoryPage = () => {
         {activeTab === 'inventory' && (
           <>
             {/* Summary Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <MetricCard
-                title="Tổng số xe trong kho"
-                value={totalCars}
-                change=""
-                changeType="neutral"
-              />
-              <MetricCard
-                title="Xe sắp về"
-                value={arrivingCars}
-                change=""
-                changeType="neutral"
-              />
-              <MetricCard
-                title="Xe có sẵn"
-                value={availableCars}
-                change=""
-                changeType="neutral"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2">
+                <p className="text-xs font-medium text-gray-600 mb-0.5">Tổng số xe trong kho</p>
+                <p className="text-xl font-bold text-gray-900">{totalCars}</p>
+              </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2">
+                <p className="text-xs font-medium text-gray-600 mb-0.5">Xe sắp về</p>
+                <p className="text-xl font-bold text-gray-900">{arrivingCars}</p>
+              </div>
+              <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-2">
+                <p className="text-xs font-medium text-gray-600 mb-0.5">Xe có sẵn</p>
+                <p className="text-xl font-bold text-gray-900">{availableCars}</p>
+              </div>
             </div>
 
             {/* Action Bar */}
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
-              <div className="flex items-center gap-4">
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-3">
+              <div className="flex items-center gap-3">
                 <div className="flex-1">
                   <SearchBar
                     placeholder="Tìm kiếm theo Mẫu xe, Màu sắc..."

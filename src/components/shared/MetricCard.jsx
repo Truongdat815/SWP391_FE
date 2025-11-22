@@ -5,15 +5,15 @@ import Card from '../ui/Card';
 const MetricCard = ({ title, value, change, changeType = 'positive', icon: Icon, className }) => {
   const isGradient = className?.includes('gradient');
   return (
-    <Card className={cn('', className, isGradient && 'border-0')}>
-      <div className="flex items-center justify-between">
+    <Card className={cn('hover:shadow-md transition-shadow', className, isGradient && 'border-0')}>
+      <div className="flex items-center justify-between p-4">
         <div className="flex-1">
           <p className={cn(
-            'text-sm font-medium mb-1',
+            'text-sm font-medium mb-2',
             isGradient ? 'text-white/90' : 'text-gray-600'
           )}>{title}</p>
           <p className={cn(
-            'text-2xl font-bold',
+            'text-3xl font-bold',
             isGradient ? 'text-white' : 'text-gray-900'
           )}>{value}</p>
           {change !== undefined && (
@@ -36,10 +36,10 @@ const MetricCard = ({ title, value, change, changeType = 'positive', icon: Icon,
         </div>
         {Icon && (
           <div className={cn(
-            'p-3 rounded-lg',
-            isGradient ? 'bg-white/20' : 'bg-blue-100'
+            'p-4 rounded-xl flex-shrink-0',
+            isGradient ? 'bg-white/20' : 'bg-blue-50'
           )}>
-            <Icon size={24} className={isGradient ? 'text-white' : 'text-blue-600'} />
+            <Icon size={28} className={isGradient ? 'text-white' : 'text-blue-600'} />
           </div>
         )}
       </div>
