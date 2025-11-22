@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Search, Plus, Eye, Edit } from 'lucide-react';
 import EVMStaffLayout from '../../../components/layout/EVMStaffLayout';
 import SearchBar from '../../../components/shared/SearchBar';
@@ -6,7 +6,7 @@ import Table from '../../../components/ui/Table';
 import Button from '../../../components/ui/Button';
 import Badge from '../../../components/ui/Badge';
 import Dropdown from '../../../components/ui/Dropdown';
-import { useGetAllStoreStocksQuery } from '../../../api/evmStaff/inventoryApi';
+import { useGetAllInventoryTransactionsQuery } from '../../../api/evmStaff/inventoryApi';
 import { useGetAllModelsQuery } from '../../../api/admin/modelApi';
 
 const InventoryPage = () => {
@@ -17,58 +17,66 @@ const InventoryPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
-  const { data: stocksData, isLoading, error } = useGetAllStoreStocksQuery();
+  const { data: transactionsData, isLoading, error } = useGetAllInventoryTransactionsQuery();
   const { data: modelsData } = useGetAllModelsQuery();
 
-  const stocks = stocksData?.data || [];
+  const transactions = transactionsData?.data || [];
   const models = modelsData?.data || [];
 
-  // Filter stocks
-  const filteredStocks = useMemo(() => {
-    return stocks.filter((stock) => {
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, modelFilter, locationFilter]);
+
+  // Filter transactions
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter((transaction) => {
       const matchesSearch =
-        stock.vin?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        stock.serialNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        stock.modelName?.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesStatus = statusFilter === 'all' || stock.status === statusFilter;
+        transaction.inventoryId?.toString().includes(searchTerm.toLowerCase()) ||
+        transaction.modelName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        transaction.storeName?.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'all' || transaction.status === statusFilter;
       const matchesModel =
-        modelFilter === 'all' || stock.modelId?.toString() === modelFilter;
+        modelFilter === 'all' || transaction.modelId?.toString() === modelFilter;
       const matchesLocation =
-        locationFilter === 'all' || stock.location?.toLowerCase().includes(locationFilter.toLowerCase());
+        locationFilter === 'all' || transaction.storeName?.toLowerCase().includes(locationFilter.toLowerCase());
       return matchesSearch && matchesStatus && matchesModel && matchesLocation;
     });
-  }, [stocks, searchTerm, statusFilter, modelFilter, locationFilter]);
+  }, [transactions, searchTerm, statusFilter, modelFilter, locationFilter]);
 
   // Pagination
-  const totalPages = Math.ceil(filteredStocks.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedStocks = filteredStocks.slice(startIndex, endIndex);
+  const paginatedTransactions = filteredTransactions.slice(startIndex, endIndex);
 
   const getStatusBadge = (status) => {
     const statusMap = {
-      AVAILABLE: { variant: 'success', label: 'AVAILABLE', dot: 'green' },
-      SOLD: { variant: 'error', label: 'SOLD', dot: 'red' },
-      IN_TRANSIT: { variant: 'warning', label: 'IN_TRANSIT', dot: 'orange' },
-      RESERVED: { variant: 'info', label: 'RESERVED', dot: 'blue' },
+      PENDING: { variant: 'warning', label: 'Chờ duyệt' },
+      APPROVED: { variant: 'info', label: 'Đã duyệt' },
+      REJECTED: { variant: 'error', label: 'Đã từ chối' },
+      SHIPPING: { variant: 'info', label: 'Đang vận chuyển' },
+      DELIVERED: { variant: 'success', label: 'Đã giao hàng' },
+      PAID: { variant: 'success', label: 'Đã thanh toán' },
+      CANCELLED: { variant: 'error', label: 'Đã hủy' },
     };
-    const config = statusMap[status] || { variant: 'default', label: status || 'N/A', dot: 'gray' };
-    return (
-      <div className="flex items-center gap-2">
-        <div className={`w-2 h-2 rounded-full bg-${config.dot}-500`} />
-        <Badge variant={config.variant}>{config.label}</Badge>
-      </div>
-    );
+    const config = statusMap[status] || { variant: 'default', label: status || 'N/A' };
+    return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
       const date = new Date(dateString);
-      return date.toLocaleDateString('en-US');
+      return date.toLocaleDateString('vi-VN');
     } catch {
       return 'N/A';
     }
+  };
+
+  const formatCurrency = (amount) => {
+    if (!amount) return '0₫';
+    return new Intl.NumberFormat('vi-VN').format(amount) + '₫';
   };
 
   if (isLoading) {
@@ -121,9 +129,9 @@ const InventoryPage = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Quản lý kho xe</h1>
+            <h1 className="text-3xl font-bold text-gray-900">Quản lý giao dịch kho</h1>
             <p className="text-gray-600 mt-1">
-              Quản lý và theo dõi tất cả các xe trong kho.
+              Quản lý và theo dõi tất cả các giao dịch nhập kho.
             </p>
           </div>
           <Button onClick={() => {}}>
@@ -137,18 +145,21 @@ const InventoryPage = () => {
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <SearchBar
-                placeholder="Tìm kiếm theo VIN, Serial Number..."
+                placeholder="Tìm kiếm theo Mã giao dịch, Model, Cửa hàng..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
             <Dropdown
               options={[
-                { value: 'all', label: 'Trạng thái' },
-                { value: 'AVAILABLE', label: 'Available' },
-                { value: 'SOLD', label: 'Sold' },
-                { value: 'IN_TRANSIT', label: 'In Transit' },
-                { value: 'RESERVED', label: 'Reserved' },
+                { value: 'all', label: 'Trạng thái: Tất cả' },
+                { value: 'PENDING', label: 'Chờ duyệt' },
+                { value: 'APPROVED', label: 'Đã duyệt' },
+                { value: 'REJECTED', label: 'Đã từ chối' },
+                { value: 'SHIPPING', label: 'Đang vận chuyển' },
+                { value: 'DELIVERED', label: 'Đã giao hàng' },
+                { value: 'PAID', label: 'Đã thanh toán' },
+                { value: 'CANCELLED', label: 'Đã hủy' },
               ]}
               value={statusFilter}
               onChange={setStatusFilter}
@@ -166,10 +177,11 @@ const InventoryPage = () => {
             />
             <Dropdown
               options={[
-                { value: 'all', label: 'Vị trí' },
-                { value: 'hanoi', label: 'Hanoi Dealership' },
-                { value: 'hcmc', label: 'HCMC Dealership' },
-                { value: 'danang', label: 'Da Nang Dealership' },
+                { value: 'all', label: 'Cửa hàng: Tất cả' },
+                ...Array.from(new Set(transactions.map(t => t.storeName).filter(Boolean))).map(storeName => ({
+                  value: storeName,
+                  label: storeName,
+                })),
               ]}
               value={locationFilter}
               onChange={setLocationFilter}
@@ -179,7 +191,7 @@ const InventoryPage = () => {
 
         {/* Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-          {paginatedStocks.length === 0 ? (
+          {paginatedTransactions.length === 0 ? (
             <div className="p-8 text-center text-gray-500">Không có dữ liệu</div>
           ) : (
             <>
@@ -187,36 +199,55 @@ const InventoryPage = () => {
                 <Table>
                   <Table.Header>
                     <Table.Row>
-                      <Table.Head className="w-12">
-                        <input type="checkbox" className="rounded" />
-                      </Table.Head>
-                      <Table.Head>VIN</Table.Head>
-                      <Table.Head>SERIAL NUMBER</Table.Head>
+                      <Table.Head>MÃ GIAO DỊCH</Table.Head>
                       <Table.Head>MODEL</Table.Head>
-                      <Table.Head>COLOR</Table.Head>
+                      <Table.Head>MÀU SẮC</Table.Head>
+                      <Table.Head>SỐ LƯỢNG</Table.Head>
+                      <Table.Head className="bg-blue-50 font-semibold text-blue-700">GIÁ BAN ĐẦU</Table.Head>
+                      <Table.Head className="bg-orange-50 font-semibold text-orange-700">KHUYẾN MÃI</Table.Head>
+                      <Table.Head className="bg-green-50 font-semibold text-green-700">TỔNG THANH TOÁN</Table.Head>
+                      <Table.Head>CỬA HÀNG</Table.Head>
+                      <Table.Head>NGÀY ĐẶT</Table.Head>
                       <Table.Head>TRẠNG THÁI</Table.Head>
-                      <Table.Head>VỊ TRÍ</Table.Head>
-                      <Table.Head>DATE ADDED</Table.Head>
-                      <Table.Head className="text-center">ACTIONS</Table.Head>
+                      <Table.Head className="text-center">HÀNH ĐỘNG</Table.Head>
                     </Table.Row>
                   </Table.Header>
                   <Table.Body>
-                    {paginatedStocks.map((stock) => (
-                      <Table.Row key={stock.storeStockId}>
-                        <Table.Cell>
-                          <input type="checkbox" className="rounded" />
-                        </Table.Cell>
+                    {paginatedTransactions.map((transaction) => (
+                      <Table.Row key={transaction.inventoryId}>
                         <Table.Cell className="font-mono text-sm">
-                          {stock.vin || `VIN${stock.storeStockId}`}
+                          #{transaction.inventoryId}
                         </Table.Cell>
-                        <Table.Cell className="font-mono text-sm">
-                          {stock.serialNumber || `SNC${stock.storeStockId}`}
+                        <Table.Cell>{transaction.modelName || 'N/A'}</Table.Cell>
+                        <Table.Cell>{transaction.colorName || 'N/A'}</Table.Cell>
+                        <Table.Cell className="text-center">{transaction.importQuantity || 0}</Table.Cell>
+                        <Table.Cell className="bg-blue-50 font-semibold text-blue-700">
+                          {formatCurrency(transaction.totalBasePrice || 0)}
                         </Table.Cell>
-                        <Table.Cell>{stock.modelName || 'N/A'}</Table.Cell>
-                        <Table.Cell>{stock.colorName || 'N/A'}</Table.Cell>
-                        <Table.Cell>{getStatusBadge(stock.status)}</Table.Cell>
-                        <Table.Cell>{stock.location || stock.storeName || 'N/A'}</Table.Cell>
-                        <Table.Cell>{formatDate(stock.createdAt || stock.stockedDate)}</Table.Cell>
+                        <Table.Cell className="bg-orange-50">
+                          <div className="flex flex-col gap-1">
+                            {transaction.discountPercentage > 0 && (
+                              <span className="font-semibold text-orange-700">
+                                -{transaction.discountPercentage}%
+                              </span>
+                            )}
+                            {transaction.discountAmount > 0 && (
+                              <span className="text-sm text-orange-600">
+                                -{formatCurrency(transaction.discountAmount)}
+                              </span>
+                            )}
+                            {(!transaction.discountPercentage || transaction.discountPercentage === 0) && 
+                             (!transaction.discountAmount || transaction.discountAmount === 0) && (
+                              <span className="text-gray-400 text-sm">Không có</span>
+                            )}
+                          </div>
+                        </Table.Cell>
+                        <Table.Cell className="bg-green-50 font-semibold text-green-700 text-lg">
+                          {formatCurrency(transaction.totalPrice || 0)}
+                        </Table.Cell>
+                        <Table.Cell>{transaction.storeName || 'N/A'}</Table.Cell>
+                        <Table.Cell>{formatDate(transaction.orderDate)}</Table.Cell>
+                        <Table.Cell>{getStatusBadge(transaction.status)}</Table.Cell>
                         <Table.Cell>
                           <div className="flex items-center justify-center gap-2">
                             <button className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors">
@@ -236,8 +267,9 @@ const InventoryPage = () => {
               {/* Pagination */}
               <div className="flex items-center justify-between p-4 border-t border-gray-200">
                 <p className="text-sm text-gray-600">
-                  Showing {startIndex + 1} to {Math.min(endIndex, filteredStocks.length)} of{' '}
-                  {filteredStocks.length} results
+                  Hiển thị <span className="font-medium">{startIndex + 1}</span> đến{' '}
+                  <span className="font-medium">{Math.min(endIndex, filteredTransactions.length)}</span> trong{' '}
+                  <span className="font-medium">{filteredTransactions.length}</span> kết quả
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -246,26 +278,38 @@ const InventoryPage = () => {
                     onClick={() => setCurrentPage(currentPage - 1)}
                     disabled={currentPage === 1}
                   >
-                    Previous
+                    Trước
                   </Button>
-                  {Array.from({ length: Math.min(totalPages, 3) }, (_, i) => i + 1).map((page) => (
-                    <Button
-                      key={page}
-                      variant={currentPage === page ? 'primary' : 'outline'}
-                      size="sm"
-                      onClick={() => setCurrentPage(page)}
-                    >
-                      {page}
-                    </Button>
-                  ))}
-                  {totalPages > 3 && <span className="px-2">...</span>}
+                  <div className="flex gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                      if (
+                        page === 1 ||
+                        page === totalPages ||
+                        (page >= currentPage - 1 && page <= currentPage + 1)
+                      ) {
+                        return (
+                          <Button
+                            key={page}
+                            variant={currentPage === page ? 'primary' : 'outline'}
+                            size="sm"
+                            onClick={() => setCurrentPage(page)}
+                          >
+                            {page}
+                          </Button>
+                        );
+                      } else if (page === currentPage - 2 || page === currentPage + 2) {
+                        return <span key={page} className="px-2 text-gray-400">...</span>;
+                      }
+                      return null;
+                    })}
+                  </div>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => setCurrentPage(currentPage + 1)}
                     disabled={currentPage === totalPages}
                   >
-                    Next
+                    Tiếp
                   </Button>
                 </div>
               </div>
