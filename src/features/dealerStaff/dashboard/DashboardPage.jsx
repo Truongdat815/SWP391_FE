@@ -374,7 +374,7 @@ const DealerStaffDashboard = () => {
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <Card className="lg:col-span-3 flex flex-col rounded-xl p-6 bg-white border border-slate-200 shadow-sm max-h-[400px]">
+          <Card className="lg:col-span-3 flex flex-col rounded-xl p-6 bg-white border border-slate-200 shadow-sm min-h-[500px]">
             <div className="flex flex-col gap-2 mb-4">
             <p className="text-slate-800 text-lg font-semibold">Doanh thu theo tháng</p>
             <p className="text-slate-900 text-3xl font-bold tracking-tight truncate">{totalRevenue} VNĐ</p>
@@ -383,17 +383,19 @@ const DealerStaffDashboard = () => {
               <p className="text-green-600 text-sm font-medium">+12.5%</p>
               </div>
             </div>
-            <div className="flex-1 flex flex-col min-h-0">
-              <LineChart
-                data={monthlyRevenueChartData}
-                dataKey="value"
-                name="Doanh số (triệu VND)"
-                color="#1392ec"
-              />
+            <div className="flex-1 flex flex-col min-h-0" style={{ height: '100%' }}>
+              <div className="w-full h-full">
+                <LineChart
+                  data={monthlyRevenueChartData}
+                  dataKey="value"
+                  name="Doanh số (triệu VND)"
+                  color="#1392ec"
+                />
+              </div>
             </div>
           </Card>
 
-          <Card className="lg:col-span-2 flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm max-h-[400px]">
+          <Card className="lg:col-span-2 flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm min-h-[500px]">
             <p className="text-slate-800 text-lg font-semibold">Thống Kê Trạng Thái Đơn Hàng</p>
             <p className="text-slate-900 text-3xl font-bold tracking-tight truncate">{orderStatusStats.totalOrders} đơn</p>
             <div className="flex gap-2">
