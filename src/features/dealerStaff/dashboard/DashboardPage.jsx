@@ -1,14 +1,13 @@
 import { useMemo } from 'react';
-import { DollarSign, Car, UserPlus, Plus, FileText, Calendar, TrendingUp, Star } from 'lucide-react';
+import { DollarSign, Car, UserPlus, Plus, FileText, Calendar, TrendingUp, Star, Package, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import DealerStaffLayout from '../../../components/layout/DealerStaffLayout';
 import Card from '../../../components/ui/Card';
 import Button from '../../../components/ui/Button';
 import LineChart from '../../../components/charts/LineChart';
-import { useGetMyOrdersQuery, useGetOrdersByStaffIdQuery } from '../../../api/dealerStaff/orderApi';
+import { useGetAllOrdersQuery } from '../../../api/dealerStaff/orderApi';
 import { useGetAllCustomersQuery } from '../../../api/dealerStaff/customerApi';
-import { useGetAllAppointmentsQuery } from '../../../api/public/appointmentApi';
-import { useGetAllFeedbacksQuery } from '../../../api/dealerStaff/feedbackApi';
+import { useGetStoreStocksQuery } from '../../../api/dealerStaff/storeStockApi';
 import { useAppSelector } from '../../../hooks/useAppSelector';
 import { formatCurrency } from '../../../utils/formatters';
 
@@ -21,38 +20,57 @@ const DealerStaffDashboard = () => {
   console.log('user:', user);
   console.log('staffId:', staffId);
 
-  const { data: ordersData, isLoading: isLoadingOrders } = useGetMyOrdersQuery();
-  const { data: staffOrdersData, isLoading: isLoadingStaffOrders, error: staffOrdersError } = useGetOrdersByStaffIdQuery(staffId, {
-    skip: !staffId,
-  });
-  
-  // Debug: Log error nếu có
-  if (staffOrdersError) {
-    console.error('staffOrdersError:', staffOrdersError);
-  }
+  const { data: ordersData, isLoading: isLoadingOrders, error } = useGetAllOrdersQuery();
   const { data: customersData, isLoading: isLoadingCustomers } = useGetAllCustomersQuery();
-  const { data: appointmentsData, isLoading: isLoadingAppointments } = useGetAllAppointmentsQuery();
-  const { data: feedbackData, isLoading: isLoadingFeedback } = useGetAllFeedbacksQuery();
+  const { data: storeStocksData, isLoading: isLoadingStoreStocks } = useGetStoreStocksQuery();
 
-  // Đảm bảo orders, customers, appointments luôn là array
-  // Ưu tiên sử dụng orders từ staffOrdersData vì có đầy đủ thông tin hơn
-  const orders = Array.isArray(staffOrdersData?.orders) ? staffOrdersData.orders :
-                 Array.isArray(staffOrdersData?.data?.orders) ? staffOrdersData.data.orders : 
-                 Array.isArray(ordersData?.data) ? ordersData.data : [];
+  // Sử dụng dữ liệu từ API /orders/all giống như OrderManagementPage
+  const orders = Array.isArray(ordersData?.data) ? ordersData.data : [];
   const customers = Array.isArray(customersData?.data) ? customersData.data : [];
-  const appointments = Array.isArray(appointmentsData?.data) ? appointmentsData.data : [];
-  const feedbacks = Array.isArray(feedbackData?.data) ? feedbackData.data : [];
+  const storeStocks = Array.isArray(storeStocksData?.data) ? storeStocksData.data : [];
 
-  // Sử dụng dữ liệu từ API /orders/staff/{staffId} - thử các cách truy cập khác nhau
-  const totalOrders = staffOrdersData?.totalOrders || staffOrdersData?.data?.totalOrders || 0;
-  const monthlyRevenue = staffOrdersData?.monthlyRevenue || staffOrdersData?.data?.monthlyRevenue || 0;
+  // Tính toán stats từ API response giống như OrderManagementPage
+  const stats = useMemo(() => {
+    if (!Array.isArray(orders)) return { total: 0, monthlyRevenue: 0, growth: 0 };
+    
+    // Tính tổng đơn hàng
+    const total = orders.length;
+    
+    // Tính doanh thu từ các đơn hàng có trạng thái đã thanh toán
+    const revenueStatuses = ['DEPOSITED', 'FULLY_PAID', 'DELIVERED'];
+    const monthlyRevenue = orders
+      .filter(o => revenueStatuses.includes(o.status))
+      .reduce((sum, o) => sum + (o.totalPayment || 0), 0);
+    
+    // Tính tăng trưởng so với tháng trước (giả lập)
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    const currentMonthOrders = orders.filter(order => {
+      if (!order.orderDate) return false;
+      const orderDate = new Date(order.orderDate);
+      return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
+    }).length;
+    
+    const lastMonthOrders = orders.filter(order => {
+      if (!order.orderDate) return false;
+      const orderDate = new Date(order.orderDate);
+      const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      return orderDate.getMonth() === lastMonth && orderDate.getFullYear() === lastMonthYear;
+    }).length;
+    
+    const growth = lastMonthOrders > 0 ? 
+      Math.round(((currentMonthOrders - lastMonthOrders) / lastMonthOrders) * 100) : 0;
+    
+    return { total, monthlyRevenue, growth };
+  }, [orders]);
 
-  // Debug: Log dữ liệu quan trọng
-  console.log('staffOrdersData:', staffOrdersData);
-  console.log('totalOrders:', totalOrders);
-  console.log('monthlyRevenue:', monthlyRevenue);
+  // Sử dụng stats từ tính toán
+  const totalOrders = stats.total;
+  const monthlyRevenue = stats.monthlyRevenue;
 
-  const isLoading = isLoadingOrders || isLoadingStaffOrders || isLoadingCustomers || isLoadingAppointments || isLoadingFeedback;
+  const isLoading = isLoadingOrders || isLoadingCustomers || isLoadingStoreStocks;
 
   // Tính toán metrics cho hiển thị chart - sử dụng monthlyRevenue từ API
   const totalRevenue = useMemo(() => {
@@ -189,75 +207,117 @@ const DealerStaffDashboard = () => {
       });
   }, [orders]);
 
-  // Upcoming appointments
-  const upcomingAppointments = useMemo(() => {
-    if (!Array.isArray(appointments)) return [];
-    const now = new Date();
-    return appointments
-      .filter((apt) => {
-        if (!apt?.appointmentDate) return false;
-        const aptDate = new Date(apt.appointmentDate);
-        return aptDate >= now;
-      })
-      .sort((a, b) => new Date(a.appointmentDate) - new Date(b.appointmentDate))
-      .slice(0, 3);
-  }, [appointments]);
+  // Vehicle stock statistics
+  const vehicleStockStats = useMemo(() => {
+    if (!Array.isArray(storeStocks)) return { lowStock: 0, totalModels: 0 };
+    
+    const lowStockThreshold = 5; // Threshold for low stock
+    const lowStock = storeStocks.filter(stock => stock.quantity <= lowStockThreshold && stock.quantity > 0).length;
+    const totalModels = storeStocks.length;
+    
+    return { lowStock, totalModels };
+  }, [storeStocks]);
 
-  const formatDate = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
+  // Low stock vehicles details
+  const lowStockVehicles = useMemo(() => {
+    if (!Array.isArray(storeStocks)) return [];
+    const lowStockThreshold = 5;
+    return storeStocks
+      .filter(stock => stock.quantity <= lowStockThreshold && stock.quantity > 0)
+      .sort((a, b) => a.quantity - b.quantity)
+      .slice(0, 5);
+  }, [storeStocks]);
 
-    if (date.toDateString() === today.toDateString()) {
-      return 'Hôm nay';
-    } else if (date.toDateString() === tomorrow.toDateString()) {
-      return 'Ngày mai';
-    } else {
-      return date.toLocaleDateString('vi-VN');
-    }
-  };
 
-  const formatTime = (dateString) => {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' });
-  };
-
-  // Tính toán feedback stats - PHẢI ĐẶT TRƯỚC EARLY RETURN
-  const feedbackStats = useMemo(() => {
-    const total = feedbacks.length;
-    const pending = feedbacks.filter(f => f.status === 'PENDING' || !f.status).length;
-    const resolved = feedbacks.filter(f => f.status === 'RESOLVED' || f.status === 'COMPLETED').length;
-    const avgRating = feedbacks.reduce((sum, f) => sum + (f.rating || 0), 0) / (total || 1);
-    return { total, pending, resolved, avgRating: avgRating.toFixed(1) };
-  }, [feedbacks]);
-
-  // Recent feedbacks - PHẢI ĐẶT TRƯỚC EARLY RETURN
-  const recentFeedbacks = useMemo(() => {
-    return feedbacks
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-      .slice(0, 3);
-  }, [feedbacks]);
-
-  // Phân bố rating - PHẢI ĐẶT TRƯỚC EARLY RETURN
-  const ratingDistribution = useMemo(() => {
-    const distribution = [0, 0, 0, 0, 0]; // 1-5 stars
-    feedbacks.forEach(f => {
-      if (f.rating >= 1 && f.rating <= 5) {
-        distribution[f.rating - 1]++;
-      }
+  // Order status statistics - Manual calculation from orders array
+  const orderStatusStats = useMemo(() => {
+    if (!Array.isArray(orders)) return { statusList: [], totalOrders: 0 };
+    
+    // Manual calculation - count each status from orders array
+    let delivered = 0;
+    let fullyPaid = 0; 
+    let deposited = 0;
+    let contractSigned = 0;
+    let confirmed = 0;
+    let contract = 0;
+    let draft = 0;
+    
+    // Loop through orders and count manually
+    orders.forEach(order => {
+      const status = order.status;
+      if (status === 'DELIVERED') delivered++;
+      else if (status === 'FULLY_PAID') fullyPaid++;
+      else if (status === 'DEPOSITED') deposited++;
+      else if (status === 'CONTRACT_SIGNED') contractSigned++;
+      else if (status === 'CONFIRMED') confirmed++;
+      else if (status === 'CONTRACT_PENDING') contract++;
+      else if (status === 'DRAFT') draft++;
     });
-    return distribution;
-  }, [feedbacks]);
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Chào buổi sáng';
-    if (hour < 18) return 'Chào buổi chiều';
-    return 'Chào buổi tối';
-  };
+    // Create status list with manual counts (theo thứ tự yêu cầu)
+    const statusList = [
+      { 
+        status: 'DELIVERED', 
+        label: 'Đã giao', 
+        color: 'bg-green-500', 
+        bgColor: 'bg-green-50', 
+        textColor: 'text-green-600',
+        count: delivered 
+      },
+      { 
+        status: 'FULLY_PAID', 
+        label: 'Đã thanh toán đủ', 
+        color: 'bg-blue-500', 
+        bgColor: 'bg-blue-50', 
+        textColor: 'text-blue-600',
+        count: fullyPaid 
+      },
+      { 
+        status: 'DEPOSITED', 
+        label: 'Đã đặt cọc', 
+        color: 'bg-purple-500', 
+        bgColor: 'bg-purple-50', 
+        textColor: 'text-purple-600',
+        count: deposited 
+      },
+      { 
+        status: 'CONTRACT_SIGNED', 
+        label: 'Đã kí', 
+        color: 'bg-indigo-500', 
+        bgColor: 'bg-indigo-50', 
+        textColor: 'text-indigo-600',
+        count: contractSigned 
+      },
+      { 
+        status: 'CONFIRMED', 
+        label: 'Đã xác nhận', 
+        color: 'bg-amber-500', 
+        bgColor: 'bg-amber-50', 
+        textColor: 'text-amber-600',
+        count: confirmed 
+      },
+      { 
+        status: 'CONTRACT_PENDING', 
+        label: 'Hợp đồng', 
+        color: 'bg-cyan-500', 
+        bgColor: 'bg-cyan-50', 
+        textColor: 'text-cyan-600',
+        count: contract 
+      },
+      { 
+        status: 'DRAFT', 
+        label: 'Nháp', 
+        color: 'bg-gray-500', 
+        bgColor: 'bg-gray-50', 
+        textColor: 'text-gray-600',
+        count: draft 
+      }
+    ];
+
+    return { statusList, totalOrders: orders.length };
+  }, [orders]);
+
+
 
   if (isLoading) {
     return (
@@ -283,17 +343,19 @@ const DealerStaffDashboard = () => {
           <Card className="flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
             <p className="text-slate-600 text-base font-medium">Tổng Đơn Hàng</p>
             <p className="text-slate-900 text-3xl font-bold tracking-tight">
-              {isLoadingStaffOrders ? 'Đang tải...' : (totalOrders || 'N/A')}
+              {isLoadingOrders ? 'Đang tải...' : (totalOrders || 'N/A')}
             </p>
-            <div className="flex items-center gap-1 text-green-600">
+            <div className={`flex items-center gap-1 ${stats.growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               <TrendingUp size={16} />
-              <p className="text-sm font-medium">+15% so với tháng trước</p>
+              <p className="text-sm font-medium">
+                {stats.growth >= 0 ? '+' : ''}{stats.growth}% so với tháng trước
+              </p>
             </div>
           </Card>
           <Card className="flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
             <p className="text-slate-600 text-base font-medium">Tổng Doanh Thu (Tháng này)</p>
             <p className="text-slate-900 text-3xl font-bold tracking-tight">
-              {isLoadingStaffOrders ? 'Đang tải...' : (monthlyRevenue ? formatCurrency(monthlyRevenue) : 'N/A')}
+              {isLoadingOrders ? 'Đang tải...' : (monthlyRevenue ? formatCurrency(monthlyRevenue) : 'N/A')}
             </p>
             <div className="flex items-center gap-1 text-green-600">
               <TrendingUp size={16} />
@@ -301,120 +363,76 @@ const DealerStaffDashboard = () => {
             </div>
           </Card>
           <Card className="flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
-            <p className="text-slate-600 text-base font-medium">Lịch Lái Thử (Sắp tới)</p>
-            <p className="text-slate-900 text-3xl font-bold tracking-tight">{upcomingAppointments.length}</p>
-            <div className="flex items-center gap-1 text-green-600">
-              <TrendingUp size={16} />
-              <p className="text-sm font-medium">+3 so với tuần trước</p>
+            <p className="text-slate-600 text-base font-medium">Dòng Xe Sắp Hết</p>
+            <p className="text-slate-900 text-3xl font-bold tracking-tight">{vehicleStockStats.lowStock}</p>
+            <div className="flex items-center gap-1 text-amber-600">
+              <AlertTriangle size={16} />
+              <p className="text-sm font-medium">Cần nhập thêm hàng</p>
             </div>
           </Card>
         </div>
 
         {/* Charts Section */}
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <Card className="lg:col-span-3 flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
+          <Card className="lg:col-span-3 flex flex-col rounded-xl p-6 bg-white border border-slate-200 shadow-sm min-h-[500px]">
+            <div className="flex flex-col gap-2 mb-4">
             <p className="text-slate-800 text-lg font-semibold">Doanh thu theo tháng</p>
             <p className="text-slate-900 text-3xl font-bold tracking-tight truncate">{totalRevenue} VNĐ</p>
             <div className="flex gap-2">
-              <p className="text-slate-500 text-sm font-normal">3 tháng gần nhất</p>
+                <p className="text-slate-500 text-sm font-normal">6 tháng gần nhất</p>
               <p className="text-green-600 text-sm font-medium">+12.5%</p>
+              </div>
             </div>
-            <div className="flex min-h-[220px] flex-1 flex-col pt-4">
-              <LineChart
-                data={monthlyRevenueChartData}
-                dataKey="value"
-                name="Doanh số (triệu VND)"
-                color="#1392ec"
-              />
+            <div className="flex-1 flex flex-col min-h-0" style={{ height: '100%' }}>
+              <div className="w-full h-full">
+                <LineChart
+                  data={monthlyRevenueChartData}
+                  dataKey="value"
+                  name="Doanh số (triệu VND)"
+                  color="#1392ec"
+                />
+              </div>
             </div>
           </Card>
 
-          <Card className="lg:col-span-2 flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
-            <p className="text-slate-800 text-lg font-semibold">Phân bố đánh giá</p>
-            <p className="text-slate-900 text-3xl font-bold tracking-tight truncate">{feedbackStats.avgRating} sao</p>
+          <Card className="lg:col-span-2 flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm min-h-[500px]">
+            <p className="text-slate-800 text-lg font-semibold">Thống Kê Trạng Thái Đơn Hàng</p>
+            <p className="text-slate-900 text-3xl font-bold tracking-tight truncate">{orderStatusStats.totalOrders} đơn</p>
             <div className="flex gap-2">
-              <p className="text-slate-500 text-sm font-normal">Tháng này</p>
-              <p className="text-green-600 text-sm font-medium">+0.2</p>
+              <p className="text-slate-500 text-sm font-normal">Tổng số đơn hàng</p>
+              <p className="text-blue-600 text-sm font-medium">
+                {orderStatusStats.statusList.length > 0 ? 
+                  `${orderStatusStats.statusList[0].label}: ${orderStatusStats.statusList[0].count}` : 
+                  'Chưa có dữ liệu'}
+              </p>
             </div>
-            <div className="grid min-h-[220px] grid-flow-col gap-6 grid-rows-[1fr_auto] items-end justify-items-center px-3 pt-4">
-              {ratingDistribution.map((count, index) => {
-                const maxCount = Math.max(...ratingDistribution) || 1;
-                const height = (count / maxCount) * 90;
-                return (
-                  <div key={index} className="contents">
-                    <div
-                      className={`w-full rounded-t ${index === 4 ? 'bg-primary' : 'bg-primary/20'}`}
-                      style={{ height: `${height}%` }}
-                    />
-                    <p className="text-slate-500 text-xs font-medium">{index + 1} Sao</p>
+            
+            {/* Order Status List */}
+            <div className="flex-1 pt-4 flex flex-col min-h-0 overflow-y-auto">
+              <div className="space-y-2">
+                {orderStatusStats.statusList.map((item, index) => (
+                  <div key={index} className={`flex items-center justify-between p-2.5 ${item.bgColor} rounded-lg border`}>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-3 h-3 ${item.color} rounded-full`}></div>
+                      <span className="text-sm font-medium text-slate-700">
+                        {item.label}:
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={`text-sm font-bold ${item.textColor}`}>
+                        {item.count}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        ({orderStatusStats.totalOrders > 0 ? ((item.count / orderStatusStats.totalOrders) * 100).toFixed(1) : '0.0'}%)
+                      </span>
+                    </div>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
           </Card>
         </div>
 
-        {/* Customer Feedback Section */}
-        <Card className="rounded-xl bg-white border border-slate-200 shadow-sm">
-          <div className="p-6">
-            <h3 className="text-slate-800 text-lg font-semibold">Phản Hồi Khách Hàng</h3>
-          </div>
-          {/* Feedback Stats */}
-          <div className="grid grid-cols-2 md:grid-cols-4 border-y border-slate-200">
-            <div className="p-6 text-center border-r border-slate-200">
-              <p className="text-slate-900 text-2xl font-bold">{feedbackStats.total}</p>
-              <p className="text-slate-500 text-sm">Tổng số</p>
-            </div>
-            <div className="p-6 text-center md:border-r border-slate-200">
-              <p className="text-amber-500 text-2xl font-bold">{feedbackStats.pending}</p>
-              <p className="text-slate-500 text-sm">Đang chờ</p>
-            </div>
-            <div className="p-6 text-center border-r border-slate-200">
-              <p className="text-green-600 text-2xl font-bold">{feedbackStats.resolved}</p>
-              <p className="text-slate-500 text-sm">Đã xử lý</p>
-            </div>
-            <div className="p-6 text-center">
-              <p className="text-slate-900 text-2xl font-bold">{feedbackStats.avgRating}/5</p>
-              <p className="text-slate-500 text-sm">Đánh giá TB</p>
-            </div>
-          </div>
-          {/* Recent Feedback List */}
-          <div className="p-6">
-            <h4 className="text-slate-800 text-base font-medium mb-4">Phản hồi gần đây</h4>
-            <div className="flow-root">
-              {recentFeedbacks.length > 0 ? (
-                <ul className="divide-y divide-slate-200">
-                  {recentFeedbacks.map((feedback, index) => (
-                    <li key={index} className="py-4">
-                      <div className="flex items-start space-x-4">
-                        <div className="flex-shrink-0">
-                          <div className="h-10 w-10 rounded-full bg-slate-300 flex items-center justify-center">
-                            <span className="text-sm font-medium text-slate-700">
-                              {feedback.customerName?.charAt(0) || 'U'}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-semibold text-slate-900 truncate">
-                            {feedback.customerName || 'Khách hàng'}
-                          </p>
-                          <p className="text-sm text-slate-500 mt-1">
-                            "{feedback.comment || feedback.feedbackText || 'Không có nhận xét'}"
-                          </p>
-                        </div>
-                        <div className="inline-flex items-center text-sm font-semibold text-amber-500">
-                          {feedback.rating || 5} <Star size={16} className="ml-1 text-amber-400 fill-amber-400" />
-                        </div>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-sm text-slate-500 text-center py-4">Chưa có phản hồi nào</p>
-              )}
-            </div>
-          </div>
-        </Card>
 
       </div>
     </DealerStaffLayout>

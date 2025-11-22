@@ -28,6 +28,8 @@ const OrderManagementPage = () => {
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
+  const [isConfirmOrderModalOpen, setIsConfirmOrderModalOpen] = useState(false);
+  const [isConfirmContractModalOpen, setIsConfirmContractModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedContractId, setSelectedContractId] = useState(null);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'card'
@@ -155,15 +157,24 @@ const OrderManagementPage = () => {
     );
   };
 
-  const handleConfirmOrderFromStatus = async (order) => {
+  const handleConfirmOrderFromStatus = (order) => {
     if (order.status !== 'DRAFT') {
       toast.error('Chỉ có thể xác nhận đơn hàng ở trạng thái nháp');
       return;
     }
+    
+    setSelectedOrder(order);
+    setIsConfirmOrderModalOpen(true);
+  };
+
+  const handleConfirmOrderConfirmed = async () => {
+    if (!selectedOrder) return;
 
     try {
-      await confirmOrder(order.orderId).unwrap();
+      await confirmOrder(selectedOrder.orderId).unwrap();
       toast.success('Đã xác nhận đơn hàng thành công!');
+      setIsConfirmOrderModalOpen(false);
+      setSelectedOrder(null);
     } catch (error) {
       console.error('Error confirming order:', error);
       toast.error(error?.data?.message || 'Có lỗi xảy ra khi xác nhận đơn hàng');
@@ -185,21 +196,26 @@ const OrderManagementPage = () => {
       const response = await createContract({ orderId: order.orderId }).unwrap();
       const contractData = response?.data || response;
 
-      toast.success(contractData?.message || 'Đã tạo hợp đồng thành công!');
-
-      // Điều hướng đến trang quản lý hợp đồng
-      navigate('/dealer-staff/contracts');
+      // Điều hướng đến trang quản lý hợp đồng với highlight
+      const contractId = contractData?.contractId || contractData?.id;
+      navigate('/dealer-staff/contracts', {
+        state: {
+          highlightContractId: contractId,
+          newContract: true
+        }
+      });
     } catch (error) {
       console.error('Error creating contract:', error);
       toast.error(error?.data?.message || 'Có lỗi xảy ra khi tạo hợp đồng');
     }
   };
 
-  const handleContractClick = async (order) => {
+  const handleContractClick = (order) => {
     if (!order.contractId || order.contractId <= 0) {
-      // Chưa có hợp đồng - tạo hợp đồng
+      // Chưa có hợp đồng - hiển thị modal xác nhận
       if (canCreateContract(order)) {
-        await handleCreateContract(order);
+        setSelectedOrder(order);
+        setIsConfirmContractModalOpen(true);
       } else {
         toast.error('Đơn hàng chưa được xác nhận, không thể tạo hợp đồng');
       }
@@ -207,6 +223,30 @@ const OrderManagementPage = () => {
       // Đã có hợp đồng - mở trong tab mới
       const url = `/dealer-staff/contracts/${order.contractId}/view`;
       window.open(url, '_blank');
+    }
+  };
+
+  const handleCreateContractConfirmed = async () => {
+    if (!selectedOrder) return;
+
+    try {
+      const response = await createContract({ orderId: selectedOrder.orderId }).unwrap();
+      const contractData = response?.data || response;
+
+      setIsConfirmContractModalOpen(false);
+      setSelectedOrder(null);
+
+      // Điều hướng đến trang quản lý hợp đồng với highlight
+      const contractId = contractData?.contractId || contractData?.id;
+      navigate('/dealer-staff/contracts', {
+        state: {
+          highlightContractId: contractId,
+          newContract: true
+        }
+      });
+    } catch (error) {
+      console.error('Error creating contract:', error);
+      toast.error(error?.data?.message || 'Có lỗi xảy ra khi tạo hợp đồng');
     }
   };
 
@@ -513,6 +553,7 @@ const OrderManagementPage = () => {
                   <table className="min-w-full divide-y divide-slate-200">
                     <thead className="bg-slate-50">
                       <tr>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">STT</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Mã Đơn</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Khách Hàng</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Sản Phẩm</th>
@@ -520,16 +561,20 @@ const OrderManagementPage = () => {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Ngày Tạo</th>
                         <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Trạng Thái</th>
                         <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Hợp Đồng</th>
-                        <th className="px-4 py-3 text- text-xs font-semibold text-slate-500 uppercase tracking-wider">Thao tác</th> 
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Thao tác</th> 
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
-                      {paginatedOrders.map((order) => {
+                      {paginatedOrders.map((order, index) => {
+                        const sttNumber = (currentPage - 1) * itemsPerPage + index + 1;
                         return (
                             <tr
                               key={order.orderId}
                               className="hover:bg-slate-50 transition-colors"
                             >
+                              <td className="px-4 py-3 whitespace-nowrap text-center">
+                                <span className="text-sm font-medium text-slate-600">{sttNumber}</span>
+                              </td>
                               <td className="px-4 py-3 whitespace-nowrap">
                                 <div className="flex items-center gap-2">
                                   <span className="font-bold text-blue-600">{order.orderCode || order.orderId}</span>
@@ -583,21 +628,21 @@ const OrderManagementPage = () => {
                                   >
                                     <Eye size={18} />
                                   </button>
-                                  {/* Update Quote Button */}
+                                  {/* Update Quote Button - Only for DRAFT orders */}
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      if (canUpdateQuote(order)) {
+                                      if (order.status === 'DRAFT') {
                                         handleUpdateQuote(order);
                                       }
                                     }}
-                                    disabled={!canUpdateQuote(order)}
+                                    disabled={order.status !== 'DRAFT'}
                                     className={`p-2 rounded-lg transition-colors flex items-center justify-center ${
-                                      canUpdateQuote(order)
+                                      order.status === 'DRAFT'
                                         ? 'text-orange-600 hover:text-orange-800 hover:bg-orange-50'
                                         : 'text-transparent cursor-default'
                                     }`}
-                                    title={canUpdateQuote(order) ? 'Cập nhật báo giá' : ''}
+                                    title={order.status === 'DRAFT' ? 'Chỉnh sửa đơn hàng' : ''}
                                   >
                                     <Edit size={18} />
                                   </button>
@@ -800,7 +845,7 @@ const OrderManagementPage = () => {
           <div className="flex items-start gap-4 p-4 bg-red-50 rounded-lg text-red-900">
             <XCircle className="flex-shrink-0 text-red-600" size={24} />
             <div>
-              <h4 className="font-semibold">Cảnh báo hành động nguy hiểm</h4>
+              <h4 className="font-semibold">Xoá đơn hàng</h4>
               <p className="text-sm mt-1">
                 Bạn có chắc chắn muốn xóa đơn hàng <span className="font-bold">#{selectedOrder?.orderCode || selectedOrder?.orderId}</span>?
                 Hành động này không thể hoàn tác.
@@ -824,6 +869,92 @@ const OrderManagementPage = () => {
               className="bg-red-600 hover:bg-red-700 text-white"
             >
               {isDeletingOrder ? 'Đang xóa...' : 'Xóa đơn hàng'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Confirm Order Modal */}
+      <Modal
+        isOpen={isConfirmOrderModalOpen}
+        onClose={() => {
+          setIsConfirmOrderModalOpen(false);
+          setSelectedOrder(null);
+        }}
+        title="Xác nhận đơn hàng"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-lg text-blue-900">
+            <CheckCircle className="flex-shrink-0 text-blue-600" size={24} />
+            <div>
+              <h4 className="font-semibold">Xác nhận đơn hàng</h4>
+              <p className="text-sm mt-1">
+                Bạn có chắc chắn muốn xác nhận đơn hàng <span className="font-bold">#{selectedOrder?.orderCode || selectedOrder?.orderId}</span>?
+                Sau khi xác nhận, đơn hàng sẽ chuyển sang trạng thái "Đã xác nhận".
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsConfirmOrderModalOpen(false);
+                setSelectedOrder(null);
+              }}
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={handleConfirmOrderConfirmed}
+              disabled={isConfirmingOrder}
+              className="bg-blue-600 hover:bg-blue-700 text-white"
+            >
+              {isConfirmingOrder ? 'Đang xác nhận...' : 'Xác nhận đơn hàng'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Confirm Create Contract Modal */}
+      <Modal
+        isOpen={isConfirmContractModalOpen}
+        onClose={() => {
+          setIsConfirmContractModalOpen(false);
+          setSelectedOrder(null);
+        }}
+        title="Tạo hợp đồng"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-4 p-4 bg-green-50 rounded-lg text-green-900">
+            <FileText className="flex-shrink-0 text-green-600" size={24} />
+            <div>
+              <h4 className="font-semibold">Tạo hợp đồng</h4>
+              <p className="text-sm mt-1">
+                Bạn có chắc chắn muốn tạo hợp đồng cho đơn hàng <span className="font-bold">#{selectedOrder?.orderCode || selectedOrder?.orderId}</span>?
+                Hợp đồng sẽ được tạo và bạn có thể quản lý trong trang Hợp đồng.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsConfirmContractModalOpen(false);
+                setSelectedOrder(null);
+              }}
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={handleCreateContractConfirmed}
+              disabled={isCreatingContract}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isCreatingContract ? 'Đang tạo...' : 'Tạo hợp đồng'}
             </Button>
           </div>
         </div>

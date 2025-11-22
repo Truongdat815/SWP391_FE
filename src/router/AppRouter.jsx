@@ -19,11 +19,9 @@ import ContractManagementPage from '../features/dealerStaff/contracts/ContractMa
 import ViewContractPage from '../features/dealerStaff/contracts/ViewContractPage';
 import PaymentManagementPage from '../features/dealerStaff/payments/PaymentManagementPage';
 import CustomerManagementPage from '../features/dealerStaff/customers/CustomerManagementPage';
-import AppointmentsPage from '../features/dealerStaff/appointments/AppointmentsPage';
 import QuotationPage from '../features/dealerStaff/quotation/QuotationPage';
 import ProductsPage from '../features/dealerStaff/products/ProductsPage';
 import StoreStockPage from '../features/dealerStaff/storeStock/StoreStockPage';
-import ReportsPage from '../features/dealerStaff/reports/ReportsPage';
 
 // Dealer Manager routes
 import DealerManagerDashboard from '../features/dealerManager/dashboard/DashboardPage';
@@ -90,11 +88,9 @@ function AppRouter() {
                 <Route path="payments" element={<PaymentManagementPage />} />
                 <Route path="payments/callback" element={<PaymentManagementPage />} />
                 <Route path="customers" element={<CustomerManagementPage />} />
-                <Route path="appointments" element={<AppointmentsPage />} />
                 <Route path="quotation" element={<QuotationPage />} />
                 <Route path="products" element={<ProductsPage />} />
                 <Route path="storestock" element={<StoreStockPage />} />
-                <Route path="reports" element={<ReportsPage />} />
                 <Route path="" element={<Navigate to="/dealer-staff/dashboard" replace />} />
               </Routes >
             </RoleRoute >
@@ -121,29 +117,29 @@ function AppRouter() {
         }
       />
 
-{/* EVM Staff routes - Protected by authentication and role */ }
-<Route
-  path="/evm-staff/*"
-  element={
-    <ProtectedRoute>
-      <RoleRoute allowedRoles={['EVM_STAFF']}>
-        <Routes>
-          <Route path="dashboard" element={<EvmStaffDashboard />} />
-          <Route path="products" element={<ProductManagementPage />} />
-          <Route path="orders" element={<DealerOrdersPage />} />
-          <Route path="colors" element={<ColorManagementPage />} />
-          <Route path="dealers" element={<DealersPage />} />
-          <Route path="reports" element={<EvmStaffReportsPage />} />
-          <Route path="settings" element={<SettingsPage />} />
-          <Route path="" element={<Navigate to="/evm-staff/dashboard" replace />} />
-        </Routes>
-      </RoleRoute>
-    </ProtectedRoute>
-  }
-/>
+      {/* EVM Staff routes - Protected by authentication and role */}
+      <Route
+        path="/evm-staff/*"
+        element={
+          <ProtectedRoute>
+            <RoleRoute allowedRoles={['EVM_STAFF']}>
+              <Routes>
+                <Route path="dashboard" element={<EvmStaffDashboard />} />
+                <Route path="products" element={<ProductManagementPage />} />
+                <Route path="orders" element={<DealerOrdersPage />} />
+                <Route path="colors" element={<ColorManagementPage />} />
+                <Route path="dealers" element={<DealersPage />} />
+                <Route path="reports" element={<EvmStaffReportsPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="" element={<Navigate to="/evm-staff/dashboard" replace />} />
+              </Routes>
+            </RoleRoute>
+          </ProtectedRoute>
+        }
+      />
 
-{/* Fallback route */ }
-<Route path="*" element={<Navigate to="/" replace />} />
+      {/* Fallback route */}
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes >
   );
 }
