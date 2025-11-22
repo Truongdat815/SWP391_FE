@@ -13,6 +13,14 @@ export default defineConfig({
     port: 5173,
     strictPort: true, // Bắt buộc dùng port 5173, không tự động chuyển port
     open: true,
+    proxy: {
+      '/api': {
+        target: 'https://tiembanhvuive.io.vn',
+        changeOrigin: true,
+        secure: true,
+        rewrite: (path) => path, // Giữ nguyên path /api
+      },
+    },
   },
 });
 

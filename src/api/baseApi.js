@@ -16,7 +16,12 @@ const getBaseUrl = () => {
     // Loại bỏ trailing slash nếu có
     return envUrl.endsWith('/') ? envUrl.slice(0, -1) : envUrl;
   }
-  // Default URL
+  // Trong development, sử dụng proxy qua Vite (tránh CORS)
+  // Trong production, sử dụng URL trực tiếp
+  if (import.meta.env.DEV) {
+    return '/api'; // Sử dụng proxy từ Vite
+  }
+  // Default URL cho production
   return 'https://tiembanhvuive.io.vn/api';
 };
 
