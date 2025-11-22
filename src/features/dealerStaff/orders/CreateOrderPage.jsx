@@ -12,7 +12,7 @@ import { useGetAllCustomersQuery } from '../../../api/dealerStaff/customerApi';
 import { useGetAllModelsQuery } from '../../../api/admin/modelApi';
 import { useGetAllModelColorsQuery } from '../../../api/evmStaff/productApi';
 import { useGetAllPromotionsQuery } from '../../../api/dealerManager/promotionApi';
-import { useGetAllStoreStocksQuery } from '../../../api/admin/storeStockApi';
+import { useGetStoreStocksQuery } from '../../../api/dealerStaff/storeStockApi';
 import { useCreateDraftOrderMutation, useConfirmOrderMutation, useDeleteOrderMutation, useGetOrderByIdQuery } from '../../../api/dealerStaff/orderApi';
 import { useCreateQuoteMutation, useGetQuoteByOrderIdQuery, useUpdateQuoteMutation } from '../../../api/dealerStaff/quotationApi';
 import { useCreateContractMutation } from '../../../api/dealerStaff/contractApi';
@@ -71,7 +71,7 @@ const CreateOrderPage = () => {
   const { data: modelsData } = useGetAllModelsQuery();
   const { data: modelColorsData } = useGetAllModelColorsQuery();
   const { data: promotionsData, isLoading: loadingPromotions } = useGetAllPromotionsQuery();
-  const { data: storeStocksData } = useGetAllStoreStocksQuery();
+  const { data: storeStocksData } = useGetStoreStocksQuery();
 
   // API mutations
   const [createDraftOrder, { isLoading: creatingOrder }] = useCreateDraftOrderMutation();
@@ -89,8 +89,8 @@ const CreateOrderPage = () => {
 
   // Load existing quote data if in edit mode - DISABLED since order data contains everything
   // const { data: existingQuoteData, isLoading: loadingExistingQuote } = useGetQuoteByOrderIdQuery(
-  //   existingOrderId,
-  //   { skip: !editMode || !existingOrderId }
+  // existingOrderId,
+  // { skip: !editMode || !existingOrderId }
   // );
 
   // Use order data directly since it contains all quote information
@@ -115,7 +115,14 @@ const CreateOrderPage = () => {
       promotions = promotionsData;
     }
   }
-  const storeStocks = Array.isArray(storeStocksData?.data) ? storeStocksData.data : [];
+
+  // Handle store stocks data from dealer staff API (which might be wrapped differently)
+  const storeStocks = useMemo(() => {
+    if (!storeStocksData) return [];
+    if (Array.isArray(storeStocksData)) return storeStocksData;
+    if (storeStocksData.data && Array.isArray(storeStocksData.data)) return storeStocksData.data;
+    return [];
+  }, [storeStocksData]);
 
   // Filter and sort customers (newest first)
   const filteredCustomers = useMemo(() => {
@@ -215,11 +222,11 @@ const CreateOrderPage = () => {
     if (!promotions || promotions.length === 0) {
       return [];
     }
-    
+
     const filtered = promotions.filter(p => {
       // Check if promotion is active
       const isActive = p.active === true && p.manuallyDisabled === false;
-      
+
       // If model is selected, show promotions for that model; otherwise show all active promotions
       if (currentProduct.modelId) {
         // Convert both to numbers for comparison (handle string/number mismatch)
@@ -230,7 +237,7 @@ const CreateOrderPage = () => {
       // No model selected - show all active promotions
       return isActive;
     });
-    
+
     return filtered;
   }, [promotions, currentProduct.modelId]);
 
@@ -260,14 +267,22 @@ const CreateOrderPage = () => {
     );
 
     if (stock) {
+      const available = stock.availableStock !== undefined ? stock.availableStock : stock.quantity;
+      const total = stock.quantity || 0;
+      const reserved = Math.max(0, total - available);
+
       setStockInfo({
-        available: stock.quantity > 0,
-        quantity: stock.quantity || 0
+        available: available > 0,
+        quantity: available, // Use available stock for validation
+        totalQuantity: total,
+        reservedQuantity: reserved
       });
     } else {
       setStockInfo({
         available: false,
-        quantity: 0
+        quantity: 0,
+        totalQuantity: 0,
+        reservedQuantity: 0
       });
     }
   };
@@ -421,7 +436,7 @@ const CreateOrderPage = () => {
       }
       return item;
     });
-    
+
     if (hasInvalidPromotions) {
       toast.warning('Một số khuyến mãi không hợp lệ (thiếu loại khuyến mãi) đã được xóa để tránh lỗi.');
     }
@@ -546,6 +561,14 @@ const CreateOrderPage = () => {
     } else {
       toast.error('Trình duyệt đã chặn cửa sổ bật lên. Vui lòng cho phép để xem báo giá.');
     }
+  };
+
+  const handleDeleteQuote = () => {
+    // Xóa báo giá và quay lại step 2 để chỉnh sửa
+    setOrderSummary(null);
+    setHasPrintedQuote(false);
+    setCurrentStep(2);
+    toast.success('Đã xóa báo giá, bạn có thể chỉnh sửa lại sản phẩm');
   };
 
   const handleBack = () => {
@@ -867,7 +890,20 @@ const CreateOrderPage = () => {
                                 min="1"
                                 max={stockInfo?.quantity || 999}
                                 value={currentProduct.quantity}
-                                onChange={(e) => setCurrentProduct({ ...currentProduct, quantity: parseInt(e.target.value) || 1 })}
+                                onChange={(e) => {
+                                  const val = parseInt(e.target.value) || 0;
+                                  // If stock info is available, clamp the value
+                                  if (stockInfo) {
+                                    if (val > stockInfo.quantity) {
+                                      setCurrentProduct({ ...currentProduct, quantity: stockInfo.quantity });
+                                      toast.warning(`Chỉ còn ${stockInfo.quantity} xe có sẵn`);
+                                    } else {
+                                      setCurrentProduct({ ...currentProduct, quantity: Math.max(1, val) });
+                                    }
+                                  } else {
+                                    setCurrentProduct({ ...currentProduct, quantity: Math.max(1, val) });
+                                  }
+                                }}
                                 className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/50"
                               />
                             </div>
@@ -899,8 +935,8 @@ const CreateOrderPage = () => {
                                   {availablePromotions.map((promo) => {
                                     // Infer promotionType from amount if null
                                     // If amount <= 100, treat as percentage; otherwise as fixed amount
-                                    const isPercentage = promo.promotionType === 'PERCENTAGE' || 
-                                                         (promo.promotionType == null && promo.amount <= 100);
+                                    const isPercentage = promo.promotionType === 'PERCENTAGE' ||
+                                      (promo.promotionType == null && promo.amount <= 100);
                                     const discountText = isPercentage
                                       ? `${promo.amount}%`
                                       : formatCurrency(promo.amount);
@@ -942,27 +978,31 @@ const CreateOrderPage = () => {
                               initial={{ opacity: 0, y: -10 }}
                               animate={{ opacity: 1, y: 0 }}
                               className={cn(
-                                "flex items-center gap-2 p-3 rounded-lg",
+                                "flex flex-col gap-2 p-3 rounded-lg",
                                 stockInfo.available
                                   ? "bg-green-50 text-green-800"
                                   : "bg-red-50 text-red-800"
                               )}
                             >
-                              {stockInfo.available ? (
-                                <>
-                                  <CheckCircle size={20} />
-                                  <span className="text-sm font-medium">
-                                    Còn hàng: {stockInfo.quantity} sản phẩm
-                                  </span>
-                                </>
-                              ) : (
-                                <>
-                                  <AlertCircle size={20} />
-                                  <span className="text-sm font-medium">
-                                    Hết hàng
-                                  </span>
-                                </>
-                              )}
+                              <div className="flex items-center gap-2">
+                                {stockInfo.available ? (
+                                  <>
+                                    <CheckCircle size={20} />
+                                    <span className="text-sm font-medium">
+                                      Có sẵn: {stockInfo.quantity} xe
+                                    </span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <AlertCircle size={20} />
+                                    <span className="text-sm font-medium">
+                                      Hết hàng có sẵn
+                                    </span>
+                                  </>
+                                )}
+                              </div>
+
+                            
                             </motion.div>
                           )}
 
@@ -1120,15 +1160,15 @@ const CreateOrderPage = () => {
 
           {/* Right Column: Order Summary Sidebar */}
           <div className="lg:col-span-1 space-y-6">
-            <div className="bg-white p-6 rounded-xl shadow-sm sticky top-8">
-              <div className="flex items-center gap-2 mb-4">
-                <ShoppingCart className="text-primary" size={24} />
-                <h3 className="text-lg font-bold text-slate-900">
+            <div className="bg-white p-4 rounded-xl shadow-sm sticky top-8">
+              <div className="flex items-center gap-2 mb-3">
+                <ShoppingCart className="text-primary" size={20} />
+                <h3 className="text-base font-bold text-slate-900">
                   Tóm tắt đơn hàng
                 </h3>
               </div>
 
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {/* Customer */}
                 <div>
                   <p className="text-xs text-slate-500 uppercase mb-1">
@@ -1152,11 +1192,11 @@ const CreateOrderPage = () => {
                 {/* Pricing - CHỈ hiển thị khi ở step 3 */}
                 {currentStep === 3 && orderSummary && (
                   <>
-                    <div className="border-t border-slate-200 pt-4">
-                      <h4 className="text-sm font-semibold text-slate-700 mb-3">
+                    <div className="border-t border-slate-200 pt-3">
+                      <h4 className="text-sm font-semibold text-slate-700 mb-2">
                         Tổng thanh toán
                       </h4>
-                      <div className="space-y-2">
+                      <div className="space-y-1.5">
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-600">Tổng tiền hàng:</span>
                           <span className="font-medium">{formatCurrency(orderSummary.totalPrice)}</span>
@@ -1181,12 +1221,12 @@ const CreateOrderPage = () => {
                         )}
                       </div>
                     </div>
-                    <div className="border-t border-slate-200 pt-4">
+                    <div className="border-t border-slate-200 pt-3">
                       <div className="flex justify-between items-center">
-                        <span className="font-bold text-slate-900 text-base">
+                        <span className="font-bold text-slate-900 text-sm">
                           TỔNG THANH TOÁN:
                         </span>
-                        <span className="font-bold text-primary text-xl">
+                        <span className="font-bold text-primary text-lg">
                           {formatCurrency(orderSummary.totalPayment)}
                         </span>
                       </div>
@@ -1196,7 +1236,7 @@ const CreateOrderPage = () => {
 
                 {/* Action Buttons in Sidebar */}
                 {currentStep === 1 && (
-                  <div className="mt-6 pt-4 border-t border-slate-200">
+                  <div className="mt-4 pt-3 border-t border-slate-200">
                     <button
                       onClick={handleNextToProducts}
                       disabled={!selectedCustomer || creatingOrder}
@@ -1213,7 +1253,7 @@ const CreateOrderPage = () => {
                 )}
 
                 {currentStep === 2 && (
-                  <div className="mt-6 pt-4 border-t border-slate-200">
+                  <div className="mt-4 pt-3 border-t border-slate-200">
                     <button
                       onClick={handleAddToOrder}
                       disabled={orderDetails.length === 0 || creatingQuote || updatingQuote}
@@ -1230,13 +1270,20 @@ const CreateOrderPage = () => {
                 )}
 
                 {currentStep === 3 && (
-                  <div className="mt-6 pt-4 border-t border-slate-200 flex flex-col gap-3">
+                  <div className="mt-4 pt-3 border-t border-slate-200 flex flex-col gap-2">
                     <button
                       onClick={handleCreateQuoteHtml}
                       className="w-full px-4 py-3 rounded-lg font-semibold transition-colors bg-white border-2 border-blue-600 text-blue-600 hover:bg-blue-50 flex items-center justify-center gap-2"
                     >
                       <FileText size={20} />
                       In báo giá
+                    </button>
+                    <button
+                      onClick={handleDeleteQuote}
+                      className="w-full px-4 py-3 rounded-lg font-semibold transition-colors bg-white border-2 border-red-600 text-red-600 hover:bg-red-50 flex items-center justify-center gap-2"
+                    >
+                      <Trash2 size={20} />
+                      Xóa báo giá
                     </button>
                     <button
                       onClick={handleConfirmOrder}
@@ -1297,11 +1344,10 @@ const CreateOrderPage = () => {
         </div>
 
         {/* Action Buttons */}
-        {currentStep < 4 && currentStep > 1 && (
+        {currentStep === 2 && (
           <div className="mt-8 pt-6 border-t border-slate-200">
             <Button
               onClick={handleBack}
-              disabled={currentStep === 1}
               variant="outline"
             >
               Quay lại

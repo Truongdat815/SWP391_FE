@@ -44,8 +44,8 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md', className }) => 
         >
           <motion.div
             className={cn(
-              'bg-white shadow-xl',
-              isFullscreen ? 'w-full h-full' : 'w-full mx-4 rounded-lg',
+              'bg-white shadow-xl flex flex-col',
+              isFullscreen ? 'w-full h-full' : 'w-full mx-4 rounded-lg max-h-[90vh]',
               !isFullscreen && sizes[size],
               className
             )}
@@ -55,7 +55,7 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md', className }) => 
             exit={modalMotion.exit}
           >
             <div className={cn(
-              "flex items-center justify-between border-b border-gray-200",
+              "flex items-center justify-between border-b border-gray-200 flex-shrink-0",
               isFullscreen ? "p-4" : "p-6"
             )}>
               {typeof title === 'string' ? (
@@ -73,8 +73,8 @@ const Modal = ({ isOpen, onClose, title, children, size = 'md', className }) => 
               </motion.button>
             </div>
             <div className={cn(
-              "overflow-y-auto",
-              isFullscreen ? "p-4 h-[calc(100vh-73px)]" : "p-6"
+              "overflow-y-auto flex-1",
+              isFullscreen ? "p-4" : "p-6"
             )}>{children}</div>
           </motion.div>
         </motion.div>

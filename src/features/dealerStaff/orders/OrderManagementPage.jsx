@@ -8,9 +8,9 @@ import Modal from '../../../components/ui/Modal';
 import { useToast } from '../../../components/ui/Toast';
 import MetricCard from '../../../components/shared/MetricCard';
 import { useGetAllOrdersQuery, useGetOrderByIdQuery, useDeleteOrderMutation, useConfirmOrderMutation, useDeliverOrderMutation } from '../../../api/dealerStaff/orderApi';
-import { useCreateContractMutation, useGetContractDetailQuery } from '../../../api/dealerStaff/contractApi';
+import { useCreateContractMutation, useGetContractDetailQuery, useGetAllContractsQuery } from '../../../api/dealerStaff/contractApi';
 import { getAuthFromStorage, getRoleFromPath } from '../../../utils/roleUtils';
-import { formatCurrency, formatDate, getOrderStatusConfig } from '../../../utils/formatters';
+import { formatCurrency, formatDate, getOrderStatusConfig, isPaymentRequired } from '../../../utils/formatters';
 import OrderDetailsExpanded from './OrderDetailsExpanded';
 import OrderCard from './OrderCard';
 
@@ -30,11 +30,13 @@ const OrderManagementPage = () => {
   const [isContractModalOpen, setIsContractModalOpen] = useState(false);
   const [isConfirmOrderModalOpen, setIsConfirmOrderModalOpen] = useState(false);
   const [isConfirmContractModalOpen, setIsConfirmContractModalOpen] = useState(false);
+  const [isConfirmDeliverModalOpen, setIsConfirmDeliverModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedContractId, setSelectedContractId] = useState(null);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'card'
 
   const { data: ordersData, isLoading, error, refetch } = useGetAllOrdersQuery();
+  const { data: contractsData } = useGetAllContractsQuery();
   const [deleteOrder, { isLoading: isDeletingOrder }] = useDeleteOrderMutation();
   const [confirmOrder, { isLoading: isConfirmingOrder }] = useConfirmOrderMutation();
   const [deliverOrder, { isLoading: isDeliveringOrder }] = useDeliverOrderMutation();
@@ -65,6 +67,35 @@ const OrderManagementPage = () => {
 
 
   const orders = Array.isArray(ordersData?.data) ? ordersData.data : [];
+  const contracts = Array.isArray(contractsData?.data) ? contractsData.data : [];
+
+  // Helper function to check if contract has been uploaded
+  const hasUploadedContract = (contract) => {
+    if (!contract) return false;
+    const signedContractFileUrl = contract?.contractFileUrl || contract?.signedContractFileUrl;
+    return signedContractFileUrl && 
+           typeof signedContractFileUrl === 'string' && 
+           signedContractFileUrl.trim().length > 0;
+  };
+
+  // Helper function to get effective order status considering contract
+  const getEffectiveOrderStatus = (order) => {
+    // If order already has FULLY_PAID status, return it
+    if (order.status === 'FULLY_PAID' || order.status === 'DELIVERED') {
+      return order.status;
+    }
+
+    // Check if order has a contract with totalPayment = 0 AND contract has been uploaded
+    if (order.contractId) {
+      const contract = contracts.find(c => c.contractId === order.contractId);
+      if (contract && !isPaymentRequired(contract.totalPayment) && hasUploadedContract(contract)) {
+        // Contract has totalPayment <= 5 AND has been uploaded, consider as FULLY_PAID
+        return 'FULLY_PAID';
+      }
+    }
+
+    return order.status;
+  };
 
   // Calculate stats
   const stats = useMemo(() => {
@@ -131,7 +162,9 @@ const OrderManagementPage = () => {
   const paginatedOrders = filteredOrders.slice(startIndex, endIndex);
 
   const getStatusBadge = (status, order) => {
-    const config = getOrderStatusConfig(status);
+    // Use effective status instead of raw status
+    const effectiveStatus = getEffectiveOrderStatus(order);
+    const config = getOrderStatusConfig(effectiveStatus);
     const isDraft = status === 'DRAFT';
 
     if (isDraft) {
@@ -181,13 +214,31 @@ const OrderManagementPage = () => {
     }
   };
 
-  const handleDeliverOrder = async (order) => {
+  const handleDeliverOrder = (order) => {
+    setSelectedOrder(order);
+    setIsConfirmDeliverModalOpen(true);
+  };
+
+  const handleDeliverOrderConfirmed = async () => {
+    if (!selectedOrder) return;
+
     try {
-      await deliverOrder(order.orderId).unwrap();
+      // Backend automatically updates order status to FULLY_PAID when contract with totalPayment = 0 is uploaded
+      // So we can directly deliver the order
+      await deliverOrder(selectedOrder.orderId).unwrap();
       toast.success('Đã giao hàng thành công!');
+      setIsConfirmDeliverModalOpen(false);
+      setSelectedOrder(null);
     } catch (error) {
       console.error('Error delivering order:', error);
-      toast.error(error?.data?.message || 'Có lỗi xảy ra khi cập nhật trạng thái giao hàng');
+      const errorMessage = error?.data?.message || error?.message || 'Có lỗi xảy ra khi cập nhật trạng thái giao hàng';
+      
+      // If error mentions payment, provide more helpful message
+      if (errorMessage.includes('thanh toán') || errorMessage.includes('payment')) {
+        toast.error('Vui lòng đảm bảo đơn hàng đã được thanh toán đầy đủ trước khi giao hàng');
+      } else {
+        toast.error(errorMessage);
+      }
     }
   };
 
@@ -220,7 +271,19 @@ const OrderManagementPage = () => {
         toast.error('Đơn hàng chưa được xác nhận, không thể tạo hợp đồng');
       }
     } else {
-      // Đã có hợp đồng - mở trong tab mới
+      // Đã có hợp đồng - kiểm tra xem có fileUrl không
+      const contract = contracts.find(c => c.contractId === order.contractId);
+      if (contract) {
+        const signedContractFileUrl = contract?.contractFileUrl || contract?.signedContractFileUrl;
+        // Nếu hợp đồng đã được upload, mở fileUrl trực tiếp
+        if (signedContractFileUrl && 
+            typeof signedContractFileUrl === 'string' && 
+            signedContractFileUrl.trim().length > 0) {
+          window.open(signedContractFileUrl, '_blank');
+          return;
+        }
+      }
+      // Nếu chưa có fileUrl, mở trang view contract
       const url = `/dealer-staff/contracts/${order.contractId}/view`;
       window.open(url, '_blank');
     }
@@ -412,31 +475,35 @@ const OrderManagementPage = () => {
             title="Tổng đơn"
             value={stats.total}
             icon={ShoppingBag}
-            className="border-l-4 border-l-blue-500"
+            className="border-l-4 border-l-blue-500 compact"
+            compact
           />
           <MetricCard
             title="Đã xác nhận"
             value={stats.confirmed}
             icon={CheckCircle}
-            className="border-l-4 border-l-blue-600"
+            className="border-l-4 border-l-blue-600 compact"
+            compact
           />
           <MetricCard
             title="Đã thanh toán"
             value={stats.completed + stats.delivered}
             icon={Package}
-            className="border-l-4 border-l-green-500"
+            className="border-l-4 border-l-green-500 compact"
+            compact
           />
           <MetricCard
             title="Đã giao hàng"
             value={stats.delivered}
             icon={Truck}
-            className="border-l-4 border-l-green-600"
+            className="border-l-4 border-l-green-600 compact"
+            compact
           />
           <MetricCard
             title="Doanh thu"
             value={formatCurrency(stats.revenue)}
-            
-            className="border-l-4 border-l-purple-500"
+            className="border-l-4 border-l-purple-500 compact"
+            compact
           />
         </div>
 
@@ -668,17 +735,18 @@ const OrderManagementPage = () => {
                                   <button
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      if (order.status === 'FULLY_PAID') {
+                                      const effectiveStatus = getEffectiveOrderStatus(order);
+                                      if (effectiveStatus === 'FULLY_PAID') {
                                         handleDeliverOrder(order);
                                       }
                                     }}
-                                    disabled={isDeliveringOrder || order.status !== 'FULLY_PAID'}
+                                    disabled={isDeliveringOrder || getEffectiveOrderStatus(order) !== 'FULLY_PAID'}
                                     className={`p-2 rounded-lg transition-colors flex items-center justify-center ${
-                                      order.status === 'FULLY_PAID'
+                                      getEffectiveOrderStatus(order) === 'FULLY_PAID'
                                         ? 'text-green-600 hover:text-green-800 hover:bg-green-50'
                                         : 'text-transparent cursor-default'
                                     }`}
-                                    title={order.status === 'FULLY_PAID' ? 'Giao hàng' : ''}
+                                    title={getEffectiveOrderStatus(order) === 'FULLY_PAID' ? 'Giao hàng' : ''}
                                   >
                                     <Truck size={18} />
                                   </button>
@@ -700,6 +768,7 @@ const OrderManagementPage = () => {
                       <OrderCard
                         key={order.orderId}
                         order={order}
+                        contracts={contracts}
                         onView={handleOpenViewModal}
                         onCreateContract={handleCreateContract}
                         onViewContract={handleViewContract}
@@ -955,6 +1024,49 @@ const OrderManagementPage = () => {
               className="bg-green-600 hover:bg-green-700 text-white"
             >
               {isCreatingContract ? 'Đang tạo...' : 'Tạo hợp đồng'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Confirm Deliver Order Modal */}
+      <Modal
+        isOpen={isConfirmDeliverModalOpen}
+        onClose={() => {
+          setIsConfirmDeliverModalOpen(false);
+          setSelectedOrder(null);
+        }}
+        title="Xác nhận giao hàng"
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-4 p-4 bg-green-50 rounded-lg text-green-900">
+            <Truck className="flex-shrink-0 text-green-600" size={24} />
+            <div>
+              <h4 className="font-semibold">Giao hàng</h4>
+              <p className="text-sm mt-1">
+                Bạn có chắc chắn muốn đánh dấu đơn hàng <span className="font-bold">#{selectedOrder?.orderCode || selectedOrder?.orderId}</span> là đã giao hàng?
+                Sau khi xác nhận, đơn hàng sẽ chuyển sang trạng thái "Đã giao hàng".
+              </p>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsConfirmDeliverModalOpen(false);
+                setSelectedOrder(null);
+              }}
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={handleDeliverOrderConfirmed}
+              disabled={isDeliveringOrder}
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              {isDeliveringOrder ? 'Đang xử lý...' : 'Xác nhận giao hàng'}
             </Button>
           </div>
         </div>

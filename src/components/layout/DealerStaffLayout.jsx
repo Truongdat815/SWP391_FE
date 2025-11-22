@@ -5,7 +5,6 @@ import {
   ShoppingCart,
   Users,
   Calendar,
-  Car,
   BarChart3,
   Settings,
   LogOut,
@@ -70,7 +69,6 @@ const DealerStaffLayout = ({ children, title, description }) => {
     { icon: FileText, label: 'Hợp đồng', path: '/dealer-staff/contracts' },
     { icon: CreditCard, label: 'Thanh toán', path: '/dealer-staff/payments' },
     { icon: Users, label: 'Khách hàng', path: '/dealer-staff/customers' },
-    { icon: Car, label: 'Sản phẩm', path: '/dealer-staff/products' },
     { icon: Package, label: 'Kho hàng', path: '/dealer-staff/storestock' },
   ];
 

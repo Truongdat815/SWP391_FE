@@ -95,7 +95,6 @@ const Header = () => {
     if (path.includes('/dealer-staff/orders')) return 'Quản lý Đơn hàng';
     if (path.includes('/dealer-staff/customers')) return 'Quản lý Khách hàng';
     if (path.includes('/dealer-staff/quotation')) return 'Quản lý Báo giá';
-    if (path.includes('/dealer-staff/products')) return 'Quản lý Sản phẩm';
     
     // Dealer Manager routes
     if (path.includes('/dealer-manager/dashboard')) return 'Dashboard Tổng quan';
