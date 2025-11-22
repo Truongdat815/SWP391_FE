@@ -7,12 +7,7 @@ export const promotionApi = baseApi.injectEndpoints({
       query: () => '/promotions/all',
       providesTags: ['Promotion'],
     }),
-    // Lấy promotion theo tên
-    getPromotionByName: builder.query({
-      query: (name) => `/promotions/${name}`,
-      providesTags: ['Promotion'],
-    }),
-    // Lấy promotions theo model
+    // Lấy promotions theo model (for CreateOrderPage)
     getPromotionsByModel: builder.query({
       query: (modelId) => `/promotions/model/${modelId}`,
       providesTags: ['Promotion'],
@@ -26,37 +21,19 @@ export const promotionApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Promotion'],
     }),
-    // Tạo promotion cho tất cả models
-    createPromotionForAllModels: builder.mutation({
-      query: (promotionData) => ({
-        url: '/promotions/create-for-all-models',
-        method: 'POST',
-        body: promotionData,
-      }),
-      invalidatesTags: ['Promotion'],
-    }),
     // Cập nhật promotion
     updatePromotion: builder.mutation({
-      query: ({ id, ...promotionData }) => ({
-        url: `/promotions/${id}`,
+      query: ({ promotionId, ...promotionData }) => ({
+        url: `/promotions/${promotionId}`,
         method: 'PUT',
         body: promotionData,
-      }),
-      invalidatesTags: ['Promotion'],
-    }),
-    // Cập nhật trạng thái promotion
-    updatePromotionStatus: builder.mutation({
-      query: ({ promotionId, status }) => ({
-        url: `/promotions/${promotionId}/updateStatus`,
-        method: 'PUT',
-        body: { status },
       }),
       invalidatesTags: ['Promotion'],
     }),
     // Xóa promotion
     deletePromotion: builder.mutation({
-      query: (id) => ({
-        url: `/promotions/${id}`,
+      query: (promotionId) => ({
+        url: `/promotions/${promotionId}`,
         method: 'DELETE',
       }),
       invalidatesTags: ['Promotion'],
@@ -71,12 +48,9 @@ export const promotionApi = baseApi.injectEndpoints({
 
 export const {
   useGetAllPromotionsQuery,
-  useGetPromotionByNameQuery,
   useGetPromotionsByModelQuery,
   useCreatePromotionMutation,
-  useCreatePromotionForAllModelsMutation,
   useUpdatePromotionMutation,
-  useUpdatePromotionStatusMutation,
   useDeletePromotionMutation,
   useGetPromotionTypesQuery,
 } = promotionApi;

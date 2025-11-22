@@ -4,17 +4,26 @@ import { useState, useRef, useEffect } from 'react';
 import { useAppSelector } from '../../hooks/useAppSelector';
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { logout } from '../../store/slices/authSlice';
-import { useLogoutMutation } from '../../api/auth/authApi';
+import { useLogoutMutation, useGetMeQuery, authApi } from '../../api/auth/authApi';
 
 const Header = () => {
   const user = useAppSelector((state) => state.auth.user);
   const role = useAppSelector((state) => state.auth.role);
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const location = useLocation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const [logoutApi] = useLogoutMutation();
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
+  
+  // Fetch fresh user data, but only if authenticated
+  const { data: userResponse } = useGetMeQuery(undefined, {
+    skip: !isAuthenticated, // Skip if not authenticated
+  });
+  
+  // Use fresh API data if available, otherwise fallback to Redux state
+  const currentUser = userResponse?.data || user;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -43,8 +52,32 @@ const Header = () => {
     } finally {
       // Clear auth state và storage
       dispatch(logout());
-      // Redirect to login
-      navigate('/login', { replace: true });
+      
+      // Clear API cache
+      dispatch(authApi.util.resetApiState());
+      
+      // Set logout flag to prevent auto-restore
+      localStorage.setItem('_logout_flag', Date.now().toString());
+      
+      // Force clear any remaining auth data
+      const allRoles = ['ADMIN', 'DEALER_STAFF', 'DEALER_MANAGER', 'EVM_STAFF'];
+      allRoles.forEach(role => {
+        localStorage.removeItem(`auth_${role}`);
+      });
+      localStorage.removeItem('accessToken');
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('auth_default');
+      
+      // Clear sessionStorage as well
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        sessionStorage.clear();
+      }
+      
+      // Close dropdown
+      setShowDropdown(false);
+      
+      // Force page reload to ensure clean state - use window.location.href for complete reload
+      window.location.href = '/login';
     }
   };
 
@@ -123,10 +156,10 @@ const Header = () => {
               </div>
               <div className="text-left">
                 <p className="text-sm font-medium text-gray-900">
-                  {user?.fullName || 'Admin User'}
+                  {currentUser?.fullName || 'Admin User'}
                 </p>
                 <p className="text-xs text-gray-500">
-                  {user?.roleName || 'Administrator'}
+                  {currentUser?.roleName || 'Administrator'}
                 </p>
               </div>
             </button>
@@ -135,8 +168,8 @@ const Header = () => {
             {showDropdown && (
               <div className="absolute right-0 top-full mt-2 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                 <div className="px-4 py-2 border-b border-gray-100">
-                  <p className="text-sm font-medium text-gray-900">{user?.fullName || 'User'}</p>
-                  <p className="text-xs text-gray-500">{user?.email || ''}</p>
+                  <p className="text-sm font-medium text-gray-900">{currentUser?.fullName || 'User'}</p>
+                  <p className="text-xs text-gray-500">{currentUser?.email || ''}</p>
                 </div>
                 <button
                   onClick={() => {

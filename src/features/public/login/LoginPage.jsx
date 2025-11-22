@@ -2,8 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppDispatch } from '../../../hooks/useAppDispatch';
 import { useAppSelector } from '../../../hooks/useAppSelector';
-import { setCredentials } from '../../../store/slices/authSlice';
-import { useLoginMutation } from '../../../api/auth/authApi';
+import { setCredentials, clearAllAuth } from '../../../store/slices/authSlice';
+import { useLoginMutation, authApi } from '../../../api/auth/authApi';
 import { normalizeRole, getRoleDashboardRoute } from '../../../utils/roleUtils';
 import Button from '../../../components/ui/Button';
 import Input from '../../../components/ui/Input';
@@ -16,6 +16,11 @@ const LoginPage = () => {
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const userRole = useAppSelector((state) => state.auth.role);
   
+  // Clear any existing auth state when login page loads
+  useEffect(() => {
+    dispatch(clearAllAuth());
+  }, [dispatch]);
+
   // Redirect if already logged in
   useEffect(() => {
     if (isAuthenticated && userRole) {
@@ -35,6 +40,9 @@ const LoginPage = () => {
     e.preventDefault();
     setError('');
     setIsLoading(true);
+
+    // Clear any existing auth data before login to prevent contamination
+    dispatch(clearAllAuth());
 
     try {
       const res = await login({ email: formData.email, password: formData.password }).unwrap();
@@ -74,6 +82,9 @@ const LoginPage = () => {
         const roleName = user.roleName || user.role?.name || '';
         const normalizedRole = normalizeRole(roleName);
         
+        // Clear logout flag before setting credentials
+        localStorage.removeItem('_logout_flag');
+        
         dispatch(
           setCredentials({
             token: accessToken,
@@ -84,6 +95,9 @@ const LoginPage = () => {
           })
         );
         
+        // Invalidate user cache to force fresh data
+        dispatch(authApi.util.invalidateTags(['User']));
+        
         // Redirect theo role sử dụng utility function
         const redirectPath = getRoleDashboardRoute(roleName);
         
@@ -92,7 +106,8 @@ const LoginPage = () => {
           console.log('Redirecting to:', redirectPath);
         }
         
-        navigate(redirectPath);
+        // Use window.location.href to force complete page reload and ensure clean state
+        window.location.href = redirectPath;
         return; // Dừng ở đây nếu đã có user
       }
       
@@ -120,6 +135,9 @@ const LoginPage = () => {
           const roleName = userInfo.roleName || userInfo.role?.name || '';
           const normalizedRole = normalizeRole(roleName);
           
+          // Clear logout flag before setting credentials
+          localStorage.removeItem('_logout_flag');
+          
           // Lưu user info vào Redux
           dispatch(
             setCredentials({
@@ -131,6 +149,9 @@ const LoginPage = () => {
             })
           );
           
+          // Invalidate user cache to force fresh data
+          dispatch(authApi.util.invalidateTags(['User']));
+          
           // Redirect theo role sử dụng utility function
           const redirectPath = getRoleDashboardRoute(roleName);
           
@@ -139,7 +160,8 @@ const LoginPage = () => {
             console.log('Redirecting to:', redirectPath);
           }
           
-          navigate(redirectPath);
+          // Use window.location.href to force complete page reload and ensure clean state
+          window.location.href = redirectPath;
         } else {
           setError(userData.message || 'Không thể lấy thông tin user. Vui lòng thử lại.');
           setIsLoading(false);

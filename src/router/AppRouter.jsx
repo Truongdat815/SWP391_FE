@@ -3,7 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import HomePage from '../features/public/home/HomePage';
 import LoginPage from '../features/public/login/LoginPage';
 import ChangePasswordPage from '../features/public/change-password/ChangePasswordPage';
-import ProtectedRoute from './ProtectedRoute';
+import ProtectedRoute from './ProtectedRouteSimple';
 import RoleRoute from './RoleRoute';
 
 // Admin routes

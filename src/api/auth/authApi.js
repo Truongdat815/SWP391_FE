@@ -9,6 +9,7 @@ export const authApi = baseApi.injectEndpoints({
         method: 'POST',
         body: credentials,
       }),
+      invalidatesTags: ['User'], // Invalidate User cache after login
     }),
     // ─────────── REFRESH TOKEN ───────────
     refreshToken: build.mutation({
@@ -21,6 +22,7 @@ export const authApi = baseApi.injectEndpoints({
     // ─────────── GET CURRENT USER ───────────
     getMe: build.query({
       query: () => '/users/me',
+      providesTags: ['User'], // Provide User tag for cache invalidation
     }),
     // ─────────── CHANGE PASSWORD ───────────
     changePassword: build.mutation({
@@ -36,6 +38,7 @@ export const authApi = baseApi.injectEndpoints({
         url: '/auth/logout',
         method: 'POST',
       }),
+      invalidatesTags: ['User'], // Invalidate User cache after logout
     }),
   }),
 });
