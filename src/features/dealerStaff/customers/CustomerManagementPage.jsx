@@ -6,6 +6,7 @@ import Modal from '../../../components/ui/Modal';
 import Input from '../../../components/ui/Input';
 import Dropdown from '../../../components/ui/Dropdown';
 import Badge from '../../../components/ui/Badge';
+import { useToast } from '../../../components/ui/Toast';
 import {
   useGetAllCustomersQuery,
   useCreateCustomerMutation,
@@ -17,6 +18,7 @@ import { provincesApi } from '../../../api/public/provincesApi';
 import { getOrderStatusConfig } from '../../../utils/formatters';
 
 const CustomerManagementPage = () => {
+  const toast = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
@@ -52,7 +54,7 @@ const CustomerManagementPage = () => {
     identificationNumber: '',
   });
 
-  const { data: customersData, isLoading, error } = useGetAllCustomersQuery();
+  const { data: customersData, isLoading, error, refetch: refetchCustomers } = useGetAllCustomersQuery();
   const [createCustomer, { isLoading: isCreating }] = useCreateCustomerMutation();
   const [updateCustomer, { isLoading: isUpdating }] = useUpdateCustomerMutation();
 
@@ -300,6 +302,9 @@ const CustomerManagementPage = () => {
     e.preventDefault();
     try {
       await createCustomer(formData).unwrap();
+      // Refetch customers to get updated data
+      await refetchCustomers();
+      toast.success('Tạo khách hàng thành công');
       setIsCreateModalOpen(false);
       setFormData({
         fullName: '',
@@ -313,7 +318,7 @@ const CustomerManagementPage = () => {
       setSelectedWardCode('');
       setDetailedAddress('');
     } catch (error) {
-      alert(error?.data?.message || 'Có lỗi xảy ra khi tạo khách hàng');
+      toast.error(error?.data?.message || 'Có lỗi xảy ra khi tạo khách hàng');
     }
   };
 
@@ -414,6 +419,9 @@ const CustomerManagementPage = () => {
     e.preventDefault();
     try {
       await updateCustomer({ id: selectedCustomer.customerId, ...formData }).unwrap();
+      // Refetch customers to get updated data
+      await refetchCustomers();
+      toast.success('Cập nhật khách hàng thành công');
       setIsEditModalOpen(false);
       setSelectedCustomer(null);
       setEditSelectedProvinceCode('');
@@ -421,7 +429,7 @@ const CustomerManagementPage = () => {
       setEditSelectedWardCode('');
       setEditDetailedAddress('');
     } catch (error) {
-      alert(error?.data?.message || 'Có lỗi xảy ra khi cập nhật khách hàng');
+      toast.error(error?.data?.message || 'Có lỗi xảy ra khi cập nhật khách hàng');
     }
   };
 

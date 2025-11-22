@@ -206,24 +206,70 @@ const DealerStaffDashboard = () => {
       });
   }, [orders]);
 
-  // Vehicle stock statistics
+  // Vehicle stock statistics - Group by model and calculate total available stock per model
   const vehicleStockStats = useMemo(() => {
-    if (!Array.isArray(storeStocks)) return { lowStock: 0, totalModels: 0 };
+    if (!Array.isArray(storeStocks) || storeStocks.length === 0) return { lowStock: 0, totalModels: 0 };
     
-    const lowStockThreshold = 5; // Threshold for low stock
-    const lowStock = storeStocks.filter(stock => stock.quantity <= lowStockThreshold && stock.quantity > 0).length;
-    const totalModels = storeStocks.length;
+    // Group stocks by modelId (same logic as StoreStockPage)
+    const groupedByModel = {};
+    storeStocks.forEach(stock => {
+      const modelId = stock.modelId || 'unknown';
+      const modelName = stock.modelName || 'Không xác định';
+      
+      if (!groupedByModel[modelId]) {
+        groupedByModel[modelId] = {
+          modelId,
+          modelName,
+          totalAvailableStock: 0
+        };
+      }
+      // Sum up availableStock for each model (not quantity)
+      groupedByModel[modelId].totalAvailableStock += (stock.availableStock || 0);
+    });
+    
+    const modelGroups = Object.values(groupedByModel);
+    const totalModels = modelGroups.length;
+    
+    // Count models with low stock: availableStock > 0 && availableStock < 5
+    const lowStockThreshold = 5;
+    const lowStock = modelGroups.filter(group => {
+      const available = group.totalAvailableStock || 0;
+      return available > 0 && available < lowStockThreshold;
+    }).length;
     
     return { lowStock, totalModels };
   }, [storeStocks]);
 
-  // Low stock vehicles details
+  // Low stock vehicles details - Group by model and calculate total available stock per model
   const lowStockVehicles = useMemo(() => {
-    if (!Array.isArray(storeStocks)) return [];
+    if (!Array.isArray(storeStocks) || storeStocks.length === 0) return [];
+    
+    // Group stocks by modelId (same logic as vehicleStockStats)
+    const groupedByModel = {};
+    storeStocks.forEach(stock => {
+      const modelId = stock.modelId || 'unknown';
+      const modelName = stock.modelName || 'Không xác định';
+      
+      if (!groupedByModel[modelId]) {
+        groupedByModel[modelId] = {
+          modelId,
+          modelName,
+          totalAvailableStock: 0
+        };
+      }
+      groupedByModel[modelId].totalAvailableStock += (stock.availableStock || 0);
+    });
+    
+    const modelGroups = Object.values(groupedByModel);
     const lowStockThreshold = 5;
-    return storeStocks
-      .filter(stock => stock.quantity <= lowStockThreshold && stock.quantity > 0)
-      .sort((a, b) => a.quantity - b.quantity)
+    
+    // Filter models with low stock and sort by availableStock
+    return modelGroups
+      .filter(group => {
+        const available = group.totalAvailableStock || 0;
+        return available > 0 && available < lowStockThreshold;
+      })
+      .sort((a, b) => a.totalAvailableStock - b.totalAvailableStock)
       .slice(0, 5);
   }, [storeStocks]);
 

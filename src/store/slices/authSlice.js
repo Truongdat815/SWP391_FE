@@ -1,5 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { getAuthFromStorage, getRoleFromPath, setAuthToStorage, removeAuthFromStorage } from '../../utils/roleUtils';
+import { getAuthFromStorage, getRoleFromPath, setAuthToStorage, removeAuthFromStorage, cleanupExpiredTokens } from '../../utils/roleUtils';
 
 // Get initial auth state from localStorage
 const getInitialAuth = () => {
@@ -20,7 +20,6 @@ const getInitialAuth = () => {
   
   // Clean up any expired tokens first
   try {
-    const { cleanupExpiredTokens } = require('../../utils/roleUtils');
     cleanupExpiredTokens();
   } catch (error) {
     console.warn('Could not cleanup expired tokens:', error);

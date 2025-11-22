@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Edit, Trash2, MoreVertical, Eye, Image as ImageIcon, X, Building, User, Calendar, MapPin, Phone, Mail, Lightbulb, Check } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreVertical, Eye, Image as ImageIcon, X, Building, User, Calendar, MapPin, Phone, Mail, Lightbulb, Check, AlertTriangle } from 'lucide-react';
 import AdminLayout from '../../../components/layout/AdminLayout';
 import SearchBar from '../../../components/shared/SearchBar';
 import Table from '../../../components/ui/Table';
@@ -30,6 +30,8 @@ const BranchManagementPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null); // 'deactivate' or 'activate'
   const [openMenuId, setOpenMenuId] = useState(null);
   const [provinces, setProvinces] = useState([]);
   const [districts, setDistricts] = useState([]);
@@ -245,7 +247,7 @@ const BranchManagementPage = () => {
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      // Create store first
+      // Create store first (without imagePath)
       const storeData = { ...formData };
       delete storeData.imagePath; // Remove imagePath, will be set after upload
       
@@ -254,15 +256,35 @@ const BranchManagementPage = () => {
       // Upload image after store is created (if image is selected)
       if (selectedImageFile && createdStore.storeId) {
         try {
-          await uploadStoreImage({
-            storeId: createdStore.storeId,
+          const uploadResponse = await uploadStoreImage({
+            storeId: createdStore.storeId, // Use the storeId from created store
             file: selectedImageFile,
           }).unwrap();
+          
+          // Get imagePath from upload response
+          const imagePath = uploadResponse?.data?.imagePath || uploadResponse?.imagePath || '';
+          
+          // Update store with imagePath
+          if (imagePath) {
+            await updateStore({
+              storeId: createdStore.storeId,
+              ...storeData,
+              imagePath: imagePath,
+            }).unwrap();
+          }
+          
+          // Refetch stores to get updated data
+          await refetchStores();
         } catch (uploadError) {
           console.error('Error uploading image:', uploadError);
           // Store is created but image upload failed - show warning
           toast.warning('Chi nhánh đã được tạo nhưng có lỗi khi upload hình ảnh. Vui lòng thử upload lại sau.');
+          // Still refetch to show the created store
+          await refetchStores();
         }
+      } else {
+        // Refetch stores even if no image to ensure data is fresh
+        await refetchStores();
       }
 
       // Show success message
@@ -456,10 +478,15 @@ const BranchManagementPage = () => {
             storeId: selectedStore.storeId,
             file: editSelectedImageFile,
           }).unwrap();
+          // Refetch stores to get updated imagePath
+          await refetchStores();
         } catch (uploadError) {
           console.error('Error uploading image:', uploadError);
           toast.warning('Chi nhánh đã được cập nhật nhưng có lỗi khi upload hình ảnh. Vui lòng thử upload lại sau.');
         }
+      } else {
+        // Refetch stores even if no image to ensure data is fresh
+        await refetchStores();
       }
 
       toast.success('Cập nhật chi nhánh thành công');
@@ -481,62 +508,80 @@ const BranchManagementPage = () => {
     }
   };
 
-  const handleDeactivate = async (store) => {
-    if (window.confirm('Bạn có chắc chắn muốn vô hiệu hóa chi nhánh này?')) {
-      try {
-        if (import.meta.env.DEV) {
-          console.log('Calling PUT /stores/toggle-status/' + store.storeId);
-        }
-        
-        // Sử dụng API PUT /stores/toggle-status/{storeId} để vô hiệu hóa chi nhánh
-        const response = await toggleStoreStatus(store.storeId).unwrap();
-        
-        if (import.meta.env.DEV) {
-          console.log('API Response:', response);
-          console.log('Response status:', response?.data?.status);
-        }
-        
-        // Refetch để cập nhật UI ngay lập tức
-        await refetchStores();
-        
-        toast.success('Vô hiệu hóa chi nhánh thành công');
-      } catch (error) {
-        toast.error(error?.data?.message || 'Có lỗi xảy ra khi vô hiệu hóa chi nhánh');
-        if (import.meta.env.DEV) {
-          console.error('Error calling PUT /stores/toggle-status:', error);
-        }
-      }
-    }
+  const handleDeactivate = (store) => {
+    setSelectedStore(store);
+    setConfirmAction('deactivate');
+    setIsConfirmModalOpen(true);
     setOpenMenuId(null);
   };
 
-  const handleActivate = async (store) => {
-    if (window.confirm('Bạn có chắc chắn muốn kích hoạt chi nhánh này?')) {
-      try {
-        if (import.meta.env.DEV) {
-          console.log('Calling PUT /stores/toggle-status/' + store.storeId);
-        }
-        
-        // Sử dụng API PUT /stores/toggle-status/{storeId} để kích hoạt chi nhánh
-        const response = await toggleStoreStatus(store.storeId).unwrap();
-        
-        if (import.meta.env.DEV) {
-          console.log('API Response:', response);
-          console.log('Response status:', response?.data?.status);
-        }
-        
-        // Refetch để cập nhật UI ngay lập tức
-        await refetchStores();
-        
-        toast.success('Kích hoạt chi nhánh thành công');
-      } catch (error) {
-        toast.error(error?.data?.message || 'Có lỗi xảy ra khi kích hoạt chi nhánh');
-        if (import.meta.env.DEV) {
-          console.error('Error calling PUT /stores/toggle-status:', error);
-        }
+  const confirmDeactivate = async () => {
+    if (!selectedStore) return;
+    
+    try {
+      if (import.meta.env.DEV) {
+        console.log('Calling PUT /stores/toggle-status/' + selectedStore.storeId);
+      }
+      
+      // Sử dụng API PUT /stores/toggle-status/{storeId} để vô hiệu hóa chi nhánh
+      const response = await toggleStoreStatus(selectedStore.storeId).unwrap();
+      
+      if (import.meta.env.DEV) {
+        console.log('API Response:', response);
+        console.log('Response status:', response?.data?.status);
+      }
+      
+      // Refetch để cập nhật UI ngay lập tức
+      await refetchStores();
+      
+      toast.success('Vô hiệu hóa chi nhánh thành công');
+      setIsConfirmModalOpen(false);
+      setSelectedStore(null);
+      setConfirmAction(null);
+    } catch (error) {
+      toast.error(error?.data?.message || 'Có lỗi xảy ra khi vô hiệu hóa chi nhánh');
+      if (import.meta.env.DEV) {
+        console.error('Error calling PUT /stores/toggle-status:', error);
       }
     }
+  };
+
+  const handleActivate = (store) => {
+    setSelectedStore(store);
+    setConfirmAction('activate');
+    setIsConfirmModalOpen(true);
     setOpenMenuId(null);
+  };
+
+  const confirmActivate = async () => {
+    if (!selectedStore) return;
+    
+    try {
+      if (import.meta.env.DEV) {
+        console.log('Calling PUT /stores/toggle-status/' + selectedStore.storeId);
+      }
+      
+      // Sử dụng API PUT /stores/toggle-status/{storeId} để kích hoạt chi nhánh
+      const response = await toggleStoreStatus(selectedStore.storeId).unwrap();
+      
+      if (import.meta.env.DEV) {
+        console.log('API Response:', response);
+        console.log('Response status:', response?.data?.status);
+      }
+      
+      // Refetch để cập nhật UI ngay lập tức
+      await refetchStores();
+      
+      toast.success('Kích hoạt chi nhánh thành công');
+      setIsConfirmModalOpen(false);
+      setSelectedStore(null);
+      setConfirmAction(null);
+    } catch (error) {
+      toast.error(error?.data?.message || 'Có lỗi xảy ra khi kích hoạt chi nhánh');
+      if (import.meta.env.DEV) {
+        console.error('Error calling PUT /stores/toggle-status:', error);
+      }
+    }
   };
 
   const handleViewDetail = (store) => {
@@ -856,6 +901,25 @@ const BranchManagementPage = () => {
               className="bg-gray-50"
             />
           </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Ngày bắt đầu hợp đồng *"
+              type="date"
+              value={formData.contractStartDate}
+              onChange={(e) => setFormData({ ...formData, contractStartDate: e.target.value })}
+              min={getTodayDate()}
+              required
+            />
+            <Input
+              label="Ngày kết thúc hợp đồng *"
+              type="date"
+              value={formData.contractEndDate}
+              onChange={(e) => setFormData({ ...formData, contractEndDate: e.target.value })}
+              min={formData.contractStartDate || getTodayDate()}
+              required
+            />
+          </div>
           
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1137,6 +1201,34 @@ const BranchManagementPage = () => {
               </div>
             </div>
 
+            {/* Store Image Card */}
+            {selectedStore.imagePath && (
+              <div className="border border-gray-200 rounded-lg p-3">
+                <div className="flex items-center gap-2 mb-3">
+                  <ImageIcon className="w-4 h-4 text-gray-600" />
+                  <h4 className="text-sm font-semibold text-gray-900">Hình ảnh cửa hàng</h4>
+                </div>
+                <div className="flex justify-center">
+                  <img
+                    src={selectedStore.imagePath}
+                    alt={selectedStore.storeName || 'Hình ảnh chi nhánh'}
+                    className="max-w-full max-h-96 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
+                    onClick={() => handleViewImage(selectedStore)}
+                  />
+                </div>
+                <div className="mt-2 text-center">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleViewImage(selectedStore)}
+                  >
+                    <ImageIcon className="w-4 h-4 mr-2" />
+                    Xem hình ảnh lớn
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Store Information Card */}
             <div className="border border-gray-200 rounded-lg p-3">
               <div className="flex items-center gap-2 mb-3">
@@ -1281,8 +1373,76 @@ const BranchManagementPage = () => {
           </div>
         )}
       </Modal>
+
+      {/* Confirm Modal */}
+      <Modal
+        isOpen={isConfirmModalOpen}
+        onClose={() => {
+          setIsConfirmModalOpen(false);
+          setSelectedStore(null);
+          setConfirmAction(null);
+        }}
+        title={
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-orange-500" />
+            <span>Xác nhận</span>
+          </div>
+        }
+        size="md"
+      >
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="flex-shrink-0 w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center">
+              <AlertTriangle className="w-5 h-5 text-orange-600" />
+            </div>
+            <div className="flex-1">
+              <p className="text-sm text-gray-700">
+                {confirmAction === 'deactivate' 
+                  ? `Bạn có chắc chắn muốn vô hiệu hóa chi nhánh "${selectedStore?.storeName || 'N/A'}"?`
+                  : `Bạn có chắc chắn muốn kích hoạt chi nhánh "${selectedStore?.storeName || 'N/A'}"?`
+                }
+              </p>
+              {confirmAction === 'deactivate' && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Chi nhánh sẽ bị vô hiệu hóa và không thể sử dụng cho đến khi được kích hoạt lại.
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex gap-3 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsConfirmModalOpen(false);
+                setSelectedStore(null);
+                setConfirmAction(null);
+              }}
+              className="flex-1"
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={confirmAction === 'deactivate' ? confirmDeactivate : confirmActivate}
+              className={`flex-1 ${
+                confirmAction === 'deactivate' 
+                  ? 'bg-orange-600 hover:bg-orange-700' 
+                  : 'bg-green-600 hover:bg-green-700'
+              }`}
+              disabled={isTogglingStatus}
+            >
+              {isTogglingStatus 
+                ? 'Đang xử lý...' 
+                : confirmAction === 'deactivate' 
+                  ? 'Vô hiệu hóa' 
+                  : 'Kích hoạt'
+              }
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </AdminLayout>
   );
 };
 
 export default BranchManagementPage;
+

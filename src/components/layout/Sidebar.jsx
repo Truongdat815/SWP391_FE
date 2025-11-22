@@ -11,7 +11,6 @@ import {
 import { useAppDispatch } from '../../hooks/useAppDispatch';
 import { logout } from '../../store/slices/authSlice';
 import { useLogoutMutation } from '../../api/auth/authApi';
-import SessionInfo from '../shared/SessionInfo';
 
 const Sidebar = ({ isCollapsed = false, onToggle }) => {
   const location = useLocation();
@@ -98,7 +97,6 @@ const Sidebar = ({ isCollapsed = false, onToggle }) => {
       </nav>
 
       <div className="border-t border-gray-200">
-        {!isCollapsed && <SessionInfo />}
         <div className="p-4 space-y-2">
           <button
             onClick={() => {}}

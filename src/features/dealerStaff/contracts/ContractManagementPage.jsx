@@ -317,7 +317,7 @@ const ContractManagementPage = () => {
     }
 
     // Chỉ cho phép tạo thanh toán khi hợp đồng đã ký
-    if (contract.status !== 'SIGNED') {
+    if (contract.status !== 'SIGNED' && contract.status !== 'DEPOSIT_PAID') {
       toast.error('Chỉ có thể tạo thanh toán khi hợp đồng đã được ký');
       return;
     }
