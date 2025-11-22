@@ -69,10 +69,10 @@ const ProductManagementPage = () => {
   const [colorImageFile, setColorImageFile] = useState(null);
   const [uploadImageFile, setUploadImageFile] = useState(null);
 
-  const { data: modelsData, isLoading: isLoadingModels, error: modelsError } = useGetAllModelsQuery();
-  const { data: colorsData, error: colorsError } = useGetAllColorsQuery();
+  const { data: modelsData, isLoading: isLoadingModels, error: modelsError, refetch: refetchModels } = useGetAllModelsQuery();
+  const { data: colorsData, error: colorsError, refetch: refetchColors } = useGetAllColorsQuery();
   const { data: bodyTypesData } = useGetBodyTypesQuery();
-  const { data: allModelColorsData } = useGetAllModelColorsQuery();
+  const { data: allModelColorsData, refetch: refetchAllModelColors } = useGetAllModelColorsQuery();
   const { data: modelColorsData, error: modelColorsError, refetch: refetchModelColors } = useGetModelColorsByModelQuery(selectedModel?.modelId, {
     skip: !selectedModel,
   });
@@ -152,11 +152,11 @@ const ProductManagementPage = () => {
       return;
     }
     
-    // Validation năm sản xuất
+    // Validation năm sản xuất - không được lớn hơn năm hiện tại
     const currentYear = new Date().getFullYear();
     const modelYear = parseInt(modelFormData.modelYear);
-    if (modelYear < 2000 || modelYear > currentYear + 1) {
-      showNotification(`Năm sản xuất phải từ 2000 đến ${currentYear + 1}`, 'error');
+    if (modelYear < 2000 || modelYear > currentYear) {
+      showNotification(`Năm sản xuất phải từ 2000 đến ${currentYear}`, 'error');
       return;
     }
     
@@ -235,6 +235,8 @@ const ProductManagementPage = () => {
       }
 
       await createModel(createData).unwrap();
+      // Refetch để cập nhật UI ngay lập tức
+      await refetchModels();
       setIsCreateModelModalOpen(false);
       setModelFormData({
         modelName: '',
@@ -300,11 +302,11 @@ const ProductManagementPage = () => {
       return;
     }
     
-    // Validation năm sản xuất
+    // Validation năm sản xuất - không được lớn hơn năm hiện tại
     const currentYear = new Date().getFullYear();
     const modelYear = parseInt(modelFormData.modelYear);
-    if (modelYear < 2000 || modelYear > currentYear + 1) {
-      showNotification(`Năm sản xuất phải từ 2000 đến ${currentYear + 1}`, 'error');
+    if (modelYear < 2000 || modelYear > currentYear) {
+      showNotification(`Năm sản xuất phải từ 2000 đến ${currentYear}`, 'error');
       return;
     }
     
@@ -384,6 +386,8 @@ const ProductManagementPage = () => {
       }
 
       await updateModel(updateData).unwrap();
+      // Refetch để cập nhật UI ngay lập tức
+      await refetchModels();
       setIsEditModelModalOpen(false);
       setSelectedModel(null);
       setModelFormData({
@@ -422,6 +426,8 @@ const ProductManagementPage = () => {
     if (window.confirm('Bạn có chắc chắn muốn xóa xe này?')) {
       try {
         await deleteModel(id).unwrap();
+        // Refetch để cập nhật UI ngay lập tức
+        await refetchModels();
         showNotification('Xóa xe thành công!', 'success');
       } catch (error) {
         const errorMessage = error?.data?.message || 'Có lỗi xảy ra khi xóa xe';
@@ -471,6 +477,7 @@ const ProductManagementPage = () => {
           if (selectedModel?.modelId) {
             await refetchModelColors();
           }
+          await refetchAllModelColors();
           
           // Cả 2 API đều thành công
           setIsCreateColorModalOpen(false);
@@ -506,6 +513,12 @@ const ProductManagementPage = () => {
         }
       } else {
         // Chỉ tạo màu, không có hình ảnh
+        // Refetch để cập nhật UI ngay lập tức
+        if (selectedModel?.modelId) {
+          await refetchModelColors();
+        }
+        await refetchAllModelColors();
+        
         setIsCreateColorModalOpen(false);
         setColorFormData({
           modelId: null,
@@ -532,14 +545,15 @@ const ProductManagementPage = () => {
     
     try {
       await deleteModelColor(colorToDelete).unwrap();
-      setIsDeleteColorModalOpen(false);
-      setColorToDelete(null);
-      showNotification('Xóa màu thành công!', 'success');
-      
-      // Refetch để cập nhật danh sách
+      // Refetch để cập nhật UI ngay lập tức
       if (selectedModel?.modelId) {
         await refetchModelColors();
       }
+      await refetchAllModelColors();
+      
+      setIsDeleteColorModalOpen(false);
+      setColorToDelete(null);
+      showNotification('Xóa màu thành công!', 'success');
     } catch (error) {
       const errorMessage = error?.data?.message || error?.data?.error || error?.message || 'Có lỗi xảy ra khi xóa màu';
       showNotification(errorMessage, 'error');
@@ -1262,6 +1276,8 @@ const ProductManagementPage = () => {
                 value={modelFormData.modelYear}
                 onChange={(e) => setModelFormData({ ...modelFormData, modelYear: e.target.value })}
                 placeholder="2024"
+                min="2000"
+                max={new Date().getFullYear()}
                 required
               />
               <Dropdown

@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 import HomePage from '../features/public/home/HomePage';
+import ModelDetailPage from '../features/public/model-detail/ModelDetailPage';
 import LoginPage from '../features/public/login/LoginPage';
 import ChangePasswordPage from '../features/public/change-password/ChangePasswordPage';
 import ProtectedRoute from './ProtectedRouteSimple';
@@ -46,6 +47,7 @@ function AppRouter() {
     <Routes>
       {/* Public routes */}
       <Route path="/" element={<HomePage />} />
+      <Route path="/model/:modelId" element={<ModelDetailPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route
         path="/change-password"
