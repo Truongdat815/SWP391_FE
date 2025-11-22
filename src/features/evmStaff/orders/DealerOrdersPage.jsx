@@ -12,6 +12,7 @@ import {
   FileText,
   Eye,
   Receipt,
+  XCircle,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import EVMStaffLayout from '../../../components/layout/EVMStaffLayout';
@@ -1126,9 +1127,8 @@ const DealerOrdersPage = () => {
                           <td className="px-4 py-3">
                             <div className="flex items-center justify-center gap-2 flex-wrap">
                               {actionButtons.map((btn, idx) => (
-                                <Button
+                                <button
                                   key={idx}
-                                  size="sm"
                                   onClick={() => {
                                     if (btn.type === 'accept') {
                                       handleAcceptTransaction(transaction.inventoryId);
@@ -1156,45 +1156,46 @@ const DealerOrdersPage = () => {
                                   }}
                                   disabled={btn.type === 'createContract' && isCreatingContract}
                                   className={`
-                                    text-xs px-3 py-1
-                                    ${btn.type === 'accept' ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}
-                                    ${btn.type === 'createContract' ? 'bg-green-600 hover:bg-green-700 text-white disabled:opacity-50' : ''}
+                                    p-2 rounded-lg transition-colors flex items-center justify-center
+                                    ${btn.type === 'accept' ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed' : ''}
+                                    ${btn.type === 'createContract' ? 'bg-green-600 hover:bg-green-700 text-white disabled:opacity-50 disabled:cursor-not-allowed' : ''}
                                     ${btn.type === 'viewContract' ? 'bg-purple-600 hover:bg-purple-700 text-white' : ''}
                                     ${btn.type === 'viewPaymentInfo' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}
                                     ${btn.type === 'viewReceipt' ? 'bg-cyan-600 hover:bg-cyan-700 text-white' : ''}
                                     ${btn.type === 'confirmPayment' ? 'bg-yellow-600 hover:bg-yellow-700 text-white' : ''}
                                     ${btn.type === 'startShipping' ? 'bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50 disabled:cursor-not-allowed' : ''}
                                   `}
-                                  title={btn.type === 'startShipping' && !canStartShipping(transaction) ? 'Chưa có đủ hợp đồng và hóa đơn' : ''}
+                                  title={btn.type === 'startShipping' && !canStartShipping(transaction) 
+                                    ? 'Chưa có đủ hợp đồng và hóa đơn' 
+                                    : (btn.type === 'createContract' && isCreatingContract ? 'Đang tạo...' : btn.text)}
                                 >
-                                  {btn.type === 'accept' && <CheckCircle2 size={14} className="mr-1" />}
-                                  {btn.type === 'createContract' && <FileText size={14} className="mr-1" />}
-                                  {btn.type === 'viewContract' && <FileText size={14} className="mr-1" />}
-                                  {btn.type === 'viewPaymentInfo' && <CreditCard size={14} className="mr-1" />}
-                                  {btn.type === 'viewReceipt' && <Receipt size={14} className="mr-1" />}
-                                  {btn.type === 'confirmPayment' && <CreditCard size={14} className="mr-1" />}
-                                  {btn.type === 'startShipping' && <Truck size={14} className="mr-1" />}
-                                  {btn.type === 'createContract' ? (isCreatingContract ? 'Đang tạo...' : btn.text) : btn.text}
-                                </Button>
+                                  {btn.type === 'accept' && <CheckCircle2 size={18} />}
+                                  {btn.type === 'createContract' && <FileText size={18} />}
+                                  {btn.type === 'viewContract' && <FileText size={18} />}
+                                  {btn.type === 'viewPaymentInfo' && <CreditCard size={18} />}
+                                  {btn.type === 'viewReceipt' && <Receipt size={18} />}
+                                  {btn.type === 'confirmPayment' && <CreditCard size={18} />}
+                                  {btn.type === 'startShipping' && <Truck size={18} />}
+                                </button>
                               ))}
                               {(transaction.status === 'PENDING' || transaction.status === 'DRAFT') && (
-                                <Button
-                                  size="sm"
+                                <button
                                   onClick={() => handleRejectTransaction(transaction.inventoryId)}
-                                  className="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1"
+                                  className="p-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors flex items-center justify-center"
+                                  title="Từ chối"
                                 >
-                                  Từ chối
-                                </Button>
+                                  <XCircle size={18} />
+                                </button>
                               )}
                               <button
                                 onClick={() => {
                                   setSelectedTransactionId(transaction.inventoryId);
                                   setIsDetailModalOpen(true);
                                 }}
-                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors flex items-center justify-center"
                                 title="Xem chi tiết"
                               >
-                                <Eye size={16} />
+                                <Eye size={18} />
                               </button>
                             </div>
                           </td>

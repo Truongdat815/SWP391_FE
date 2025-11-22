@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { Search, Plus, Edit, Trash2, Box, Layers, ChevronRight, Package, Truck, Zap, Battery, Gauge } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Box, Layers, ChevronRight, Package, Truck, Zap, Battery, Gauge, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import EVMStaffLayout from '../../../components/layout/EVMStaffLayout';
 import SearchBar from '../../../components/shared/SearchBar';
@@ -22,6 +22,7 @@ import {
   useCreateModelColorMutation,
   useUpdateModelColorMutation,
   useDeleteModelColorMutation,
+  useUploadModelColorImageMutation,
 } from '../../../api/evmStaff/productApi';
 import { useGetAllColorsQuery } from '../../../api/evmStaff/colorApi';
 import {
@@ -41,6 +42,10 @@ const ProductManagementPage = () => {
   const [isCreateModelModalOpen, setIsCreateModelModalOpen] = useState(false);
   const [isCreateColorModalOpen, setIsCreateColorModalOpen] = useState(false);
   const [isEditModelModalOpen, setIsEditModelModalOpen] = useState(false);
+  const [isUploadImageModalOpen, setIsUploadImageModalOpen] = useState(false);
+  const [selectedModelColor, setSelectedModelColor] = useState(null);
+  const [isDeleteColorModalOpen, setIsDeleteColorModalOpen] = useState(false);
+  const [colorToDelete, setColorToDelete] = useState(null);
   const [showInventoryTransactions, setShowInventoryTransactions] = useState(false);
   const [transactionStatusFilter, setTransactionStatusFilter] = useState('all');
   const [notification, setNotification] = useState({ show: false, message: '', type: 'success' });
@@ -61,12 +66,14 @@ const ProductManagementPage = () => {
     colorId: '',
     price: '',
   });
+  const [colorImageFile, setColorImageFile] = useState(null);
+  const [uploadImageFile, setUploadImageFile] = useState(null);
 
   const { data: modelsData, isLoading: isLoadingModels, error: modelsError } = useGetAllModelsQuery();
   const { data: colorsData, error: colorsError } = useGetAllColorsQuery();
   const { data: bodyTypesData } = useGetBodyTypesQuery();
   const { data: allModelColorsData } = useGetAllModelColorsQuery();
-  const { data: modelColorsData, error: modelColorsError } = useGetModelColorsByModelQuery(selectedModel?.modelId, {
+  const { data: modelColorsData, error: modelColorsError, refetch: refetchModelColors } = useGetModelColorsByModelQuery(selectedModel?.modelId, {
     skip: !selectedModel,
   });
   const { data: transactionsData, isLoading: isLoadingTransactions, error: transactionsError } = useGetAllInventoryTransactionsQuery(undefined, {
@@ -86,6 +93,7 @@ const ProductManagementPage = () => {
   const [updateModel, { isLoading: isUpdatingModel }] = useUpdateModelMutation();
   const [deleteModel] = useDeleteModelMutation();
   const [createModelColor, { isLoading: isCreatingColor }] = useCreateModelColorMutation();
+  const [uploadModelColorImage, { isLoading: isUploadingImage }] = useUploadModelColorImageMutation();
   const [updateModelColor] = useUpdateModelColorMutation();
   const [deleteModelColor] = useDeleteModelColorMutation();
 
@@ -112,13 +120,9 @@ const ProductManagementPage = () => {
       const matchesSearch =
         model.modelName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         model.modelId?.toString().includes(searchTerm);
-      const matchesStatus =
-        statusFilter === 'all' ||
-        (statusFilter === 'active' && model.status === 'ACTIVE') ||
-        (statusFilter === 'inactive' && model.status === 'INACTIVE');
-      return matchesSearch && matchesStatus;
+      return matchesSearch;
     });
-  }, [models, searchTerm, statusFilter]);
+  }, [models, searchTerm]);
 
   const getStatusBadge = (status) => {
     const normalizedStatus = status?.toUpperCase() || 'ACTIVE';
@@ -446,31 +450,149 @@ const ProductManagementPage = () => {
     }
     
     try {
-      await createModelColor({
+      // Bước 1: Tạo model color mới (API: /model-colors/create)
+      const result = await createModelColor({
         modelId: selectedModel.modelId,
         colorId: parseInt(colorFormData.colorId),
         price: price,
       }).unwrap();
-      setIsCreateColorModalOpen(false);
-      setColorFormData({
-        modelId: null,
-        colorId: '',
-        price: '',
-      });
-      showNotification('Thêm màu cho model thành công!', 'success');
+      
+      // Bước 2: Nếu có file hình ảnh, upload sau khi tạo model color thành công
+      // API: /model-colors/{modelId}/{colorId}/upload-model-color-image
+      if (colorImageFile) {
+        try {
+          await uploadModelColorImage({
+            modelId: selectedModel.modelId,
+            colorId: parseInt(colorFormData.colorId),
+            file: colorImageFile,
+          }).unwrap();
+          
+          // Refetch để lấy dữ liệu mới bao gồm hình ảnh
+          if (selectedModel?.modelId) {
+            await refetchModelColors();
+          }
+          
+          // Cả 2 API đều thành công
+          setIsCreateColorModalOpen(false);
+          setColorFormData({
+            modelId: null,
+            colorId: '',
+            price: '',
+          });
+          setColorImageFile(null);
+          showNotification('Thêm màu và upload hình ảnh thành công!', 'success');
+        } catch (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          
+          // Tạo màu thành công nhưng upload hình ảnh thất bại
+          let uploadErrorMessage = 'Đã tạo màu nhưng có lỗi khi upload hình ảnh';
+          
+          if (uploadError?.status === 413 || uploadError?.data?.status === 413) {
+            uploadErrorMessage = 'Đã tạo màu nhưng file hình ảnh quá lớn (tối đa 2MB)';
+          } else if (uploadError?.data?.message) {
+            uploadErrorMessage = `Đã tạo màu nhưng upload hình ảnh thất bại: ${uploadError.data.message}`;
+          } else if (uploadError?.message) {
+            uploadErrorMessage = `Đã tạo màu nhưng upload hình ảnh thất bại: ${uploadError.message}`;
+          }
+          
+          setIsCreateColorModalOpen(false);
+          setColorFormData({
+            modelId: null,
+            colorId: '',
+            price: '',
+          });
+          setColorImageFile(null);
+          showNotification(uploadErrorMessage, 'error');
+        }
+      } else {
+        // Chỉ tạo màu, không có hình ảnh
+        setIsCreateColorModalOpen(false);
+        setColorFormData({
+          modelId: null,
+          colorId: '',
+          price: '',
+        });
+        setColorImageFile(null);
+        showNotification('Thêm màu cho model thành công!', 'success');
+      }
     } catch (error) {
+      // Lỗi khi tạo model color
       const errorMessage = error?.data?.message || error?.data?.error || error?.message || 'Có lỗi xảy ra khi tạo color variant';
       showNotification(errorMessage, 'error');
     }
   };
 
-  const handleDeleteColor = async (id) => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa color variant này?')) {
-      try {
-        await deleteModelColor(id).unwrap();
-      } catch (error) {
-        alert('Có lỗi xảy ra khi xóa color variant');
+  const handleDeleteColorClick = (id) => {
+    setColorToDelete(id);
+    setIsDeleteColorModalOpen(true);
+  };
+
+  const handleDeleteColor = async () => {
+    if (!colorToDelete) return;
+    
+    try {
+      await deleteModelColor(colorToDelete).unwrap();
+      setIsDeleteColorModalOpen(false);
+      setColorToDelete(null);
+      showNotification('Xóa màu thành công!', 'success');
+      
+      // Refetch để cập nhật danh sách
+      if (selectedModel?.modelId) {
+        await refetchModelColors();
       }
+    } catch (error) {
+      const errorMessage = error?.data?.message || error?.data?.error || error?.message || 'Có lỗi xảy ra khi xóa màu';
+      showNotification(errorMessage, 'error');
+    }
+  };
+
+  const handleOpenUploadImageModal = (modelColor) => {
+    setSelectedModelColor(modelColor);
+    setUploadImageFile(null);
+    setIsUploadImageModalOpen(true);
+  };
+
+  const handleUploadImage = async (e) => {
+    e.preventDefault();
+    if (!selectedModelColor || !uploadImageFile) {
+      showNotification('Vui lòng chọn file hình ảnh', 'error');
+      return;
+    }
+
+    try {
+      await uploadModelColorImage({
+        modelId: selectedModel.modelId,
+        colorId: selectedModelColor.colorId,
+        file: uploadImageFile,
+      }).unwrap();
+      
+      // Refetch để lấy dữ liệu mới bao gồm hình ảnh
+      if (selectedModel?.modelId) {
+        await refetchModelColors();
+      }
+      
+      setIsUploadImageModalOpen(false);
+      setSelectedModelColor(null);
+      setUploadImageFile(null);
+      showNotification('Upload hình ảnh thành công!', 'success');
+    } catch (error) {
+      let errorMessage = 'Có lỗi xảy ra khi upload hình ảnh';
+      
+      // Xử lý các lỗi cụ thể
+      if (error?.status === 413 || error?.data?.status === 413) {
+        errorMessage = 'File quá lớn. Vui lòng chọn file nhỏ hơn 2MB';
+      } else if (error?.status === 'FETCH_ERROR' || error?.error === 'FETCH_ERROR') {
+        errorMessage = 'Lỗi kết nối. Vui lòng kiểm tra kết nối mạng hoặc thử lại sau';
+      } else if (error?.data?.message) {
+        errorMessage = error.data.message;
+      } else if (error?.data?.error) {
+        errorMessage = error.data.error;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      showNotification(errorMessage, 'error');
+      console.error('Upload image error:', error);
     }
   };
 
@@ -699,7 +821,7 @@ const ProductManagementPage = () => {
 
         {/* Stats Cards */}
         {!showInventoryTransactions && (
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -724,25 +846,6 @@ const ProductManagementPage = () => {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-500 text-sm font-medium">Đang hoạt động</p>
-                  <p className="text-3xl font-bold mt-2 text-gray-900">
-                    {models.filter((m) => m.status === 'ACTIVE').length}
-                  </p>
-                </div>
-                <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
-                  <Zap size={24} className="text-gray-600" />
-                </div>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
-            >
-              <div className="flex items-center justify-between">
-                <div>
                   <p className="text-gray-500 text-sm font-medium">Biến thể màu</p>
                   <p className="text-3xl font-bold mt-2 text-gray-900">{allModelColors.length}</p>
                 </div>
@@ -755,7 +858,7 @@ const ProductManagementPage = () => {
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
+              transition={{ delay: 0.2 }}
               className="bg-white rounded-xl p-6 shadow-sm border border-gray-200"
             >
               <div className="flex items-center justify-between">
@@ -904,7 +1007,7 @@ const ProductManagementPage = () => {
               exit={{ opacity: 0, y: -20 }}
               className="space-y-6"
             >
-              {/* Search and Filters for Models */}
+              {/* Search for Models */}
               <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
@@ -913,20 +1016,6 @@ const ProductManagementPage = () => {
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
-                  </div>
-                  <div className="flex gap-2 p-1 bg-gray-100 rounded-lg">
-                    {['all', 'active', 'inactive'].map((filter) => (
-                      <button
-                        key={filter}
-                        onClick={() => setStatusFilter(filter)}
-                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${statusFilter === filter
-                          ? 'bg-white text-gray-900 shadow-sm'
-                          : 'text-gray-500 hover:text-gray-700'
-                          }`}
-                      >
-                        {filter === 'all' ? 'Tất cả' : filter === 'active' ? 'Hoạt động' : 'Không hoạt động'}
-                      </button>
-                    ))}
                   </div>
                 </div>
               </div>
@@ -1079,14 +1168,17 @@ const ProductManagementPage = () => {
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="font-semibold text-gray-900">Biến thể màu ({modelColors.length})</h3>
-                  <Button
-                    size="sm"
-                    onClick={() => setIsCreateColorModalOpen(true)}
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                  >
-                    <Plus size={16} className="mr-1" />
-                    Thêm màu
-                  </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  setIsCreateColorModalOpen(true);
+                  setColorImageFile(null);
+                }}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                <Plus size={16} className="mr-1" />
+                Thêm màu
+              </Button>
                 </div>
                 <div className="grid grid-cols-1 gap-3">
                   {modelColors.map((mc) => {
@@ -1097,21 +1189,48 @@ const ProductManagementPage = () => {
                         className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
                       >
                         <div className="flex items-center gap-3">
+                          {/* Hiển thị hình ảnh nếu có - kiểm tra nhiều field có thể có */}
+                          {(mc.imageUrl || mc.image || mc.imagePath || mc.imageFileUrl || mc.imageFile) ? (
+                            <img
+                              src={mc.imageUrl || mc.image || mc.imagePath || mc.imageFileUrl || mc.imageFile}
+                              alt={color?.colorName || 'Color'}
+                              className="w-16 h-16 rounded-lg object-cover border-2 border-white shadow-sm"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'block';
+                              }}
+                            />
+                          ) : null}
                           <div
-                            className="w-10 h-10 rounded-lg border-2 border-white shadow-sm"
-                            style={{ backgroundColor: color?.hexCode || '#ccc' }}
+                            className={`rounded-lg border-2 border-white shadow-sm ${(mc.imageUrl || mc.image || mc.imagePath || mc.imageFileUrl || mc.imageFile) ? 'hidden' : 'block'}`}
+                            style={{ 
+                              width: '64px', 
+                              height: '64px',
+                              backgroundColor: color?.hexCode || '#ccc',
+                              display: (mc.imageUrl || mc.image || mc.imagePath || mc.imageFileUrl || mc.imageFile) ? 'none' : 'block'
+                            }}
                           ></div>
                           <div>
                             <p className="font-medium text-gray-900">{color?.colorName || 'N/A'}</p>
                             <p className="text-sm text-gray-500">{formatCurrency(mc.price)}</p>
                           </div>
                         </div>
-                        <button
-                          onClick={() => handleDeleteColor(mc.modelColorId)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            onClick={() => handleOpenUploadImageModal(mc)}
+                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="Upload hình ảnh"
+                          >
+                            <Upload size={16} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteColorClick(mc.modelColorId)}
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Xóa màu"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -1207,7 +1326,7 @@ const ProductManagementPage = () => {
               <Button type="button" variant="outline" onClick={() => setIsCreateModelModalOpen(false)}>
                 Hủy
               </Button>
-              <Button type="submit" disabled={isCreatingModel} className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Button type="submit" disabled={isCreatingModel}>
                 {isCreatingModel ? 'Đang tạo...' : 'Tạo xe'}
               </Button>
             </div>
@@ -1282,7 +1401,7 @@ const ProductManagementPage = () => {
               >
                 Hủy
               </Button>
-              <Button type="submit" disabled={isUpdatingModel} className="bg-blue-600 hover:bg-blue-700 text-white">
+              <Button type="submit" disabled={isUpdatingModel}>
                 {isUpdatingModel ? 'Đang cập nhật...' : 'Cập nhật'}
               </Button>
             </div>
@@ -1292,7 +1411,10 @@ const ProductManagementPage = () => {
         {/* Create Color Modal */}
         <Modal
           isOpen={isCreateColorModalOpen}
-          onClose={() => setIsCreateColorModalOpen(false)}
+          onClose={() => {
+            setIsCreateColorModalOpen(false);
+            setColorImageFile(null);
+          }}
           title="Thêm biến thể màu"
         >
           <form onSubmit={handleCreateColor} className="space-y-4">
@@ -1314,12 +1436,152 @@ const ProductManagementPage = () => {
               placeholder="50000"
               required
             />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Hình ảnh xe có màu này (tùy chọn)
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    // Validate file size (max 2MB để tránh lỗi 413)
+                    const maxSize = 2 * 1024 * 1024; // 2MB
+                    if (file.size > maxSize) {
+                      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                      showNotification(`File quá lớn (${fileSizeMB}MB). Vui lòng chọn file nhỏ hơn 2MB`, 'error');
+                      e.target.value = '';
+                      return;
+                    }
+                    // Validate file type
+                    if (!file.type.startsWith('image/')) {
+                      showNotification('Vui lòng chọn file hình ảnh', 'error');
+                      e.target.value = '';
+                      return;
+                    }
+                    setColorImageFile(file);
+                  }
+                }}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              <p className="mt-1 text-xs text-gray-500">Kích thước tối đa: 2MB</p>
+              {colorImageFile && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-sm text-gray-600">{colorImageFile.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => setColorImageFile(null)}
+                    className="text-sm text-red-600 hover:text-red-800"
+                  >
+                    Xóa
+                  </button>
+                </div>
+              )}
+            </div>
             <div className="flex justify-end gap-2 pt-4">
               <Button type="button" variant="outline" onClick={() => setIsCreateColorModalOpen(false)}>
                 Hủy
               </Button>
-              <Button type="submit" disabled={isCreatingColor} className="bg-blue-600 hover:bg-blue-700 text-white">
-                {isCreatingColor ? 'Đang tạo...' : 'Thêm màu'}
+              <Button type="submit" disabled={isCreatingColor || isUploadingImage}>
+                {isCreatingColor || isUploadingImage ? 'Đang xử lý...' : 'Thêm màu'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        {/* Upload Image Modal */}
+        <Modal
+          isOpen={isUploadImageModalOpen}
+          onClose={() => {
+            setIsUploadImageModalOpen(false);
+            setSelectedModelColor(null);
+            setUploadImageFile(null);
+          }}
+          title="Upload hình ảnh màu xe"
+        >
+          <form onSubmit={handleUploadImage} className="space-y-4">
+            {selectedModelColor && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-lg">
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Màu:</span> {colors.find((c) => c.colorId === selectedModelColor.colorId)?.colorName || 'N/A'}
+                </p>
+                <p className="text-sm text-gray-600">
+                  <span className="font-medium">Model:</span> {selectedModel?.modelName || 'N/A'}
+                </p>
+              </div>
+            )}
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Chọn hình ảnh xe có màu này *
+              </label>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    // Validate file size (max 2MB để tránh lỗi 413)
+                    const maxSize = 2 * 1024 * 1024; // 2MB
+                    if (file.size > maxSize) {
+                      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                      showNotification(`File quá lớn (${fileSizeMB}MB). Vui lòng chọn file nhỏ hơn 2MB`, 'error');
+                      e.target.value = '';
+                      return;
+                    }
+                    // Validate file type
+                    if (!file.type.startsWith('image/')) {
+                      showNotification('Vui lòng chọn file hình ảnh', 'error');
+                      e.target.value = '';
+                      return;
+                    }
+                    setUploadImageFile(file);
+                  }
+                }}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                required
+              />
+              <p className="mt-1 text-xs text-gray-500">Kích thước tối đa: 2MB</p>
+              {uploadImageFile && (
+                <div className="mt-3">
+                  <p className="text-sm text-gray-600 mb-2">Preview:</p>
+                  <img
+                    src={URL.createObjectURL(uploadImageFile)}
+                    alt="Preview"
+                    className="w-full h-48 object-cover rounded-lg border border-gray-200"
+                  />
+                  <div className="mt-2 flex items-center gap-2">
+                    <span className="text-sm text-gray-600">{uploadImageFile.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => setUploadImageFile(null)}
+                      className="text-sm text-red-600 hover:text-red-800"
+                    >
+                      Xóa
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex justify-end gap-2 pt-4">
+              <Button 
+                type="button" 
+                variant="outline" 
+                onClick={() => {
+                  setIsUploadImageModalOpen(false);
+                  setSelectedModelColor(null);
+                  setUploadImageFile(null);
+                }}
+              >
+                Hủy
+              </Button>
+              <Button 
+                type="submit" 
+                disabled={isUploadingImage || !uploadImageFile}
+              >
+                {isUploadingImage ? 'Đang upload...' : 'Upload hình ảnh'}
               </Button>
             </div>
           </form>
