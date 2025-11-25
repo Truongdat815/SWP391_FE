@@ -29,6 +29,7 @@ const PromotionPage = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [promotionToDelete, setPromotionToDelete] = useState(null);
+  const [selectedPromotions, setSelectedPromotions] = useState([]); // Array of promotion IDs for bulk delete
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
   const [successModal, setSuccessModal] = useState({ isOpen: false, message: '' });
   const [formData, setFormData] = useState({
@@ -60,7 +61,7 @@ const PromotionPage = () => {
     };
   }, [isModelDropdownOpen]);
 
-  const { data: promotionsData, isLoading, error } = useGetAllPromotionsQuery();
+  const { data: promotionsData, isLoading, error, refetch: refetchPromotions } = useGetAllPromotionsQuery();
   const { data: typesData } = useGetPromotionTypesQuery();
   const { data: modelsData } = useGetAllModelsQuery();
   const [createPromotion, { isLoading: isCreating }] = useCreatePromotionMutation();
@@ -350,39 +351,71 @@ const PromotionPage = () => {
       }
       
       // Create promotion - if multiple models selected, create one for each
+      // Cho phép tạo nhiều mã giảm giá cho cùng 1 mẫu xe
       if (selectedModelIds.length > 1) {
         // Create promotion for each selected model
-        const promises = selectedModelIds.map(modelId => {
-          const model = models.find(m => m.modelId === modelId);
-          const bodyForModel = {
-            ...requestBody,
-            modelId: modelId,
-            modelName: model?.modelName || '',
-          };
-          return createPromotion(bodyForModel).unwrap();
-        });
+        const results = await Promise.allSettled(
+          selectedModelIds.map(modelId => {
+            const model = models.find(m => m.modelId === modelId);
+            const bodyForModel = {
+              ...requestBody,
+              modelId: modelId,
+              modelName: model?.modelName || '',
+            };
+            return createPromotion(bodyForModel).unwrap();
+          })
+        );
         
-        await Promise.all(promises);
-        setSuccessModal({ isOpen: true, message: `Đã tạo thành công ${selectedModelIds.length} khuyến mãi!` });
+        // Đếm số lượng thành công và thất bại
+        const successful = results.filter(r => r.status === 'fulfilled').length;
+        const failed = results.filter(r => r.status === 'rejected').length;
+        
+        if (successful > 0) {
+          setSuccessModal({ 
+            isOpen: true, 
+            message: `Đã tạo thành công ${successful} khuyến mãi!${failed > 0 ? ` (${failed} khuyến mãi bị lỗi hoặc đã tồn tại)` : ''}` 
+          });
+          // Refetch để cập nhật UI
+          await refetchPromotions();
+        } else {
+          setErrorModal({ isOpen: true, message: 'Không thể tạo khuyến mãi. Có thể các khuyến mãi đã tồn tại hoặc có lỗi xảy ra.' });
+        }
       } else if (selectedModelIds.length === 0) {
         // If "all models" selected, create promotion for each model
+        // Cho phép tạo nhiều mã giảm giá cho cùng 1 mẫu xe
         const allModelIds = models.map(m => m.modelId);
-        const promises = allModelIds.map(modelId => {
-          const model = models.find(m => m.modelId === modelId);
-          const bodyForModel = {
-            ...requestBody,
-            modelId: modelId,
-            modelName: model?.modelName || '',
-          };
-          return createPromotion(bodyForModel).unwrap();
-        });
+        const results = await Promise.allSettled(
+          allModelIds.map(modelId => {
+            const model = models.find(m => m.modelId === modelId);
+            const bodyForModel = {
+              ...requestBody,
+              modelId: modelId,
+              modelName: model?.modelName || '',
+            };
+            return createPromotion(bodyForModel).unwrap();
+          })
+        );
         
-        await Promise.all(promises);
-        setSuccessModal({ isOpen: true, message: `Đã tạo thành công ${allModelIds.length} khuyến mãi cho tất cả các model!` });
+        // Đếm số lượng thành công và thất bại
+        const successful = results.filter(r => r.status === 'fulfilled').length;
+        const failed = results.filter(r => r.status === 'rejected').length;
+        
+        if (successful > 0) {
+          setSuccessModal({ 
+            isOpen: true, 
+            message: `Đã tạo thành công ${successful} khuyến mãi cho tất cả các model!${failed > 0 ? ` (${failed} khuyến mãi bị lỗi hoặc đã tồn tại)` : ''}` 
+          });
+          // Refetch để cập nhật UI
+          await refetchPromotions();
+        } else {
+          setErrorModal({ isOpen: true, message: 'Không thể tạo khuyến mãi. Có thể các khuyến mãi đã tồn tại hoặc có lỗi xảy ra.' });
+        }
       } else {
-        // Single promotion (for one specific model)
+        // Single promotion (for one specific model or all models)
         await createPromotion(requestBody).unwrap();
         setSuccessModal({ isOpen: true, message: 'Tạo khuyến mãi thành công!' });
+        // Refetch để cập nhật UI
+        await refetchPromotions();
       }
       
       setIsCreateModalOpen(false);
@@ -694,6 +727,39 @@ const PromotionPage = () => {
     setIsDeleteModalOpen(true);
   };
 
+  // Handle bulk delete
+  const handleBulkDelete = async () => {
+    if (selectedPromotions.length === 0) {
+      setErrorModal({ isOpen: true, message: 'Vui lòng chọn ít nhất một khuyến mãi để xóa' });
+      return;
+    }
+
+    try {
+      // Delete all selected promotions
+      const results = await Promise.allSettled(
+        selectedPromotions.map(promotionId => deletePromotion(promotionId).unwrap())
+      );
+      
+      const successful = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      
+      if (successful > 0) {
+        setSuccessModal({ 
+          isOpen: true, 
+          message: `Đã xóa thành công ${successful} khuyến mãi!${failed > 0 ? ` (${failed} khuyến mãi không thể xóa)` : ''}` 
+        });
+        setSelectedPromotions([]); // Clear selection
+        // Refetch để cập nhật UI
+        await refetchPromotions();
+      } else {
+        setErrorModal({ isOpen: true, message: 'Không thể xóa các khuyến mãi đã chọn' });
+      }
+    } catch (error) {
+      console.error('Error bulk deleting promotions:', error);
+      setErrorModal({ isOpen: true, message: 'Có lỗi xảy ra khi xóa khuyến mãi' });
+    }
+  };
+
   const handleDeleteConfirm = async () => {
     if (!promotionToDelete) {
       return;
@@ -704,6 +770,10 @@ const PromotionPage = () => {
       setSuccessModal({ isOpen: true, message: 'Đã xóa khuyến mãi thành công!' });
       setIsDeleteModalOpen(false);
       setPromotionToDelete(null);
+      // Clear selection if deleted promotion was selected
+      setSelectedPromotions(prev => prev.filter(id => id !== promotionToDelete.promotionId));
+      // Refetch để cập nhật UI
+      await refetchPromotions();
     } catch (error) {
       console.error('Error deleting promotion:', error);
       let errorMessage = 'Có lỗi xảy ra khi xóa khuyến mãi';
@@ -821,6 +891,23 @@ const PromotionPage = () => {
           </div>
         </div>
 
+        {/* Bulk Actions */}
+        {selectedPromotions.length > 0 && (
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+            <div className="text-blue-800 font-medium">
+              Đã chọn {selectedPromotions.length} khuyến mãi
+            </div>
+            <Button
+              variant="danger"
+              onClick={handleBulkDelete}
+              disabled={isDeleting}
+            >
+              <Trash2 size={18} className="mr-2" />
+              Xóa đã chọn ({selectedPromotions.length})
+            </Button>
+          </div>
+        )}
+
         {/* Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {paginatedPromotions.length === 0 ? (
@@ -831,7 +918,26 @@ const PromotionPage = () => {
                 <Table className="w-full table-auto">
                   <Table.Header>
                     <Table.Row>
+                      <Table.Head className="w-12">
+                        <input
+                          type="checkbox"
+                          checked={paginatedPromotions.length > 0 && paginatedPromotions.every(p => selectedPromotions.includes(p.promotionId))}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              // Select all on current page
+                              const pageIds = paginatedPromotions.map(p => p.promotionId);
+                              setSelectedPromotions(prev => [...new Set([...prev, ...pageIds])]);
+                            } else {
+                              // Deselect all on current page
+                              const pageIds = paginatedPromotions.map(p => p.promotionId);
+                              setSelectedPromotions(prev => prev.filter(id => !pageIds.includes(id)));
+                            }
+                          }}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                      </Table.Head>
                       <Table.Head>Tên chương trình</Table.Head>
+                      <Table.Head>Mẫu xe</Table.Head>
                       <Table.Head>Thời gian áp dụng</Table.Head>
                       <Table.Head>Mức giảm giá/Ưu đãi</Table.Head>
                       <Table.Head>Trạng thái</Table.Head>
@@ -841,8 +947,29 @@ const PromotionPage = () => {
                   <Table.Body>
                     {paginatedPromotions.map((promo) => (
                       <Table.Row key={promo.promotionId}>
+                        <Table.Cell>
+                          <input
+                            type="checkbox"
+                            checked={selectedPromotions.includes(promo.promotionId)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setSelectedPromotions(prev => [...prev, promo.promotionId]);
+                              } else {
+                                setSelectedPromotions(prev => prev.filter(id => id !== promo.promotionId));
+                              }
+                            }}
+                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                          />
+                        </Table.Cell>
                         <Table.Cell className="font-medium">
                           {promo.promotionName || 'N/A'}
+                        </Table.Cell>
+                        <Table.Cell>
+                          {promo.modelId && promo.modelName 
+                            ? promo.modelName 
+                            : promo.modelId 
+                              ? models.find(m => m.modelId === promo.modelId)?.modelName || `Model ${promo.modelId}`
+                              : 'Tất cả mẫu xe'}
                         </Table.Cell>
                         <Table.Cell>
                           {formatDate(promo.startDate)} - {formatDate(promo.endDate)}
