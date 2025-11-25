@@ -36,25 +36,32 @@ const DealerStaffDashboard = () => {
     // Tính tổng đơn hàng
     const total = orders.length;
     
-    // Tính doanh thu từ các đơn hàng có trạng thái đã thanh toán
+    // Tính doanh thu từ các đơn hàng có trạng thái đã thanh toán CỦA THÁNG HIỆN TẠI
     const revenueStatuses = ['DEPOSITED', 'FULLY_PAID', 'DELIVERED'];
-    const monthlyRevenue = orders
-      .filter(o => revenueStatuses.includes(o.status))
-      .reduce((sum, o) => sum + (o.totalPayment || 0), 0);
-    
-    // Tính tăng trưởng so với tháng trước (giả lập)
     const currentMonth = new Date().getMonth();
     const currentYear = new Date().getFullYear();
     
+    const monthlyRevenue = orders
+      .filter(o => {
+        // Lọc theo tháng hiện tại
+        if (!o.orderDate && !o.createdAt) return false;
+        const orderDate = new Date(o.orderDate || o.createdAt);
+        const isCurrentMonth = orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
+        // Và có trạng thái đã thanh toán
+        return isCurrentMonth && revenueStatuses.includes(o.status);
+      })
+      .reduce((sum, o) => sum + (o.totalPayment || 0), 0);
+    
+    // Tính tăng trưởng so với tháng trước
     const currentMonthOrders = orders.filter(order => {
-      if (!order.orderDate) return false;
-      const orderDate = new Date(order.orderDate);
+      if (!order.orderDate && !order.createdAt) return false;
+      const orderDate = new Date(order.orderDate || order.createdAt);
       return orderDate.getMonth() === currentMonth && orderDate.getFullYear() === currentYear;
     }).length;
     
     const lastMonthOrders = orders.filter(order => {
-      if (!order.orderDate) return false;
-      const orderDate = new Date(order.orderDate);
+      if (!order.orderDate && !order.createdAt) return false;
+      const orderDate = new Date(order.orderDate || order.createdAt);
       const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
       const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
       return orderDate.getMonth() === lastMonth && orderDate.getFullYear() === lastMonthYear;
@@ -71,14 +78,6 @@ const DealerStaffDashboard = () => {
   const monthlyRevenue = stats.monthlyRevenue;
 
   const isLoading = isLoadingOrders || isLoadingCustomers || isLoadingStoreStocks;
-
-  // Tính toán metrics cho hiển thị chart - sử dụng monthlyRevenue từ API
-  const totalRevenue = useMemo(() => {
-    if (monthlyRevenue >= 1000000000) {
-      return `${(monthlyRevenue / 1000000000).toFixed(2)} Tỷ`;
-    }
-    return `${(monthlyRevenue / 1000000).toFixed(0)} Triệu`;
-  }, [monthlyRevenue]);
 
   const carsSold = Array.isArray(orders) ? orders.filter((o) => o.status === 'DELIVERED').length : 0;
   const newCustomers = Array.isArray(customers) ? customers.filter((c) => {
@@ -377,7 +376,9 @@ const DealerStaffDashboard = () => {
           <Card className="lg:col-span-3 flex flex-col rounded-xl p-6 bg-white border border-slate-200 shadow-sm min-h-[500px]">
             <div className="flex flex-col gap-2 mb-4">
             <p className="text-slate-800 text-lg font-semibold">Doanh thu theo tháng</p>
-            <p className="text-slate-900 text-3xl font-bold tracking-tight truncate">{totalRevenue} VNĐ</p>
+            <p className="text-slate-900 text-3xl font-bold tracking-tight truncate">
+              {isLoadingOrders ? 'Đang tải...' : (monthlyRevenue ? formatCurrency(monthlyRevenue) : 'N/A')}
+            </p>
             <div className="flex gap-2">
                 <p className="text-slate-500 text-sm font-normal">6 tháng gần nhất</p>
               <p className="text-green-600 text-sm font-medium">+12.5%</p>

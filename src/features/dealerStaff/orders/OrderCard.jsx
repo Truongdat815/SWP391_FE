@@ -1,15 +1,56 @@
-import { formatCurrency, formatDate, getOrderStatusConfig } from '../../../utils/formatters';
+import { formatCurrency, formatDate, getOrderStatusConfig, isPaymentRequired } from '../../../utils/formatters';
 import { User, Phone, Calendar, FileText, Eye, Truck } from 'lucide-react';
 
-const OrderCard = ({ order, onView, onCreateContract, onViewContract, onDeliverOrder }) => {
-  const statusConfig = getOrderStatusConfig(order.status);
+const OrderCard = ({ order, contracts = [], onView, onCreateContract, onViewContract, onDeliverOrder }) => {
+  // Helper function to check if contract has been uploaded
+  const hasUploadedContract = (contract) => {
+    if (!contract) return false;
+    const signedContractFileUrl = contract?.contractFileUrl || contract?.signedContractFileUrl;
+    return signedContractFileUrl && 
+           typeof signedContractFileUrl === 'string' && 
+           signedContractFileUrl.trim().length > 0;
+  };
+
+  // Helper function to get effective order status considering contract
+  const getEffectiveOrderStatus = (order) => {
+    // If order already has FULLY_PAID status, return it
+    if (order.status === 'FULLY_PAID' || order.status === 'DELIVERED') {
+      return order.status;
+    }
+
+    // Check if order has a contract with totalPayment = 0 AND contract has been uploaded
+    if (order.contractId) {
+      const contract = contracts.find(c => c.contractId === order.contractId);
+      if (contract && !isPaymentRequired(contract.totalPayment) && hasUploadedContract(contract)) {
+        // Contract has totalPayment <= 5 AND has been uploaded, consider as FULLY_PAID
+        return 'FULLY_PAID';
+      }
+    }
+
+    return order.status;
+  };
+
+  const effectiveStatus = getEffectiveOrderStatus(order);
+  const statusConfig = getOrderStatusConfig(effectiveStatus);
 
   const canCreateContract = order.status === 'CONFIRMED' || order.status === 'APPROVED';
   const hasContract = order.contractId && order.contractId > 0;
 
   const handleContractClick = () => {
     if (hasContract) {
-      // Open in new tab like contracts page
+      // Check if contract has been uploaded
+      const contract = contracts.find(c => c.contractId === order.contractId);
+      if (contract) {
+        const signedContractFileUrl = contract?.contractFileUrl || contract?.signedContractFileUrl;
+        // If contract has been uploaded, open fileUrl directly
+        if (signedContractFileUrl && 
+            typeof signedContractFileUrl === 'string' && 
+            signedContractFileUrl.trim().length > 0) {
+          window.open(signedContractFileUrl, '_blank');
+          return;
+        }
+      }
+      // If no fileUrl, open contract view page
       const url = `/dealer-staff/contracts/${order.contractId}/view`;
       window.open(url, '_blank');
     } else if (canCreateContract) {
@@ -44,16 +85,16 @@ const OrderCard = ({ order, onView, onCreateContract, onViewContract, onDeliverO
           {/* Always render button but conditionally visible for alignment */}
           <button
             onClick={() => {
-              if (order.status === 'FULLY_PAID' && onDeliverOrder) {
+              if (effectiveStatus === 'FULLY_PAID' && onDeliverOrder) {
                 onDeliverOrder(order);
               }
             }}
             className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${
-              order.status === 'FULLY_PAID'
+              effectiveStatus === 'FULLY_PAID'
                 ? 'hover:bg-green-50 text-green-600'
                 : 'text-transparent cursor-default'
             }`}
-            title={order.status === 'FULLY_PAID' ? 'Giao hàng' : ''}
+            title={effectiveStatus === 'FULLY_PAID' ? 'Giao hàng' : ''}
           >
             <Truck size={16} />
           </button>

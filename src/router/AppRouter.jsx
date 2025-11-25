@@ -21,7 +21,6 @@ import ViewContractPage from '../features/dealerStaff/contracts/ViewContractPage
 import PaymentManagementPage from '../features/dealerStaff/payments/PaymentManagementPage';
 import CustomerManagementPage from '../features/dealerStaff/customers/CustomerManagementPage';
 import QuotationPage from '../features/dealerStaff/quotation/QuotationPage';
-import ProductsPage from '../features/dealerStaff/products/ProductsPage';
 import StoreStockPage from '../features/dealerStaff/storeStock/StoreStockPage';
 
 // Dealer Manager routes
@@ -91,7 +90,6 @@ function AppRouter() {
                 <Route path="payments/callback" element={<PaymentManagementPage />} />
                 <Route path="customers" element={<CustomerManagementPage />} />
                 <Route path="quotation" element={<QuotationPage />} />
-                <Route path="products" element={<ProductsPage />} />
                 <Route path="storestock" element={<StoreStockPage />} />
                 <Route path="" element={<Navigate to="/dealer-staff/dashboard" replace />} />
               </Routes >

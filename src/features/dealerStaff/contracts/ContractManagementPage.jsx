@@ -364,25 +364,28 @@ const ContractManagementPage = () => {
             title="Tổng hợp đồng"
             value={stats.total}
             icon={FileText}
-            className="border-l-4 border-l-blue-500"
+            className="border-l-4 border-l-blue-500 compact"
+            compact
           />
           <MetricCard
             title="Đã ký"
             value={stats.signed}
             icon={CheckCircle}
-            className="border-l-4 border-l-green-500"
+            className="border-l-4 border-l-green-500 compact"
+            compact
           />
           <MetricCard
             title="Đã thanh toán"
             value={stats.fullyPaid}
             icon={CreditCard}
-            className="border-l-4 border-l-purple-500"
+            className="border-l-4 border-l-purple-500 compact"
+            compact
           />
           <MetricCard
             title="Doanh thu"
             value={formatCurrency(stats.totalRevenue)}
-            icon={DollarSign}
-            className="border-l-4 border-l-orange-500"
+            className="border-l-4 border-l-orange-500 compact"
+            compact
           />
         </div>
 

@@ -12,7 +12,7 @@ const ReportsPage = () => {
   const [endDate, setEndDate] = useState('');
   const [dealerId, setDealerId] = useState('');
   const [modelId, setModelId] = useState('');
-  
+
   // Tính toán min date cho endDate (startDate + 1 ngày)
   const getMinEndDate = () => {
     if (!startDate) return '';
@@ -322,15 +322,15 @@ const ReportsPage = () => {
                     <div className="space-y-4">
                       <div className="p-4 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600">Doanh thu mẫu xe</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {formatCurrency(modelReport?.data?.totalRevenue || modelReport?.totalRevenue || 0)}
-                        </p>
-                      </div>
-                      <div className="p-4 bg-gray-50 rounded-lg">
-                        <p className="text-sm text-gray-600">Số lượng bán</p>
-                        <p className="text-2xl font-bold text-gray-900">
-                          {modelReport?.data?.totalSold || modelReport?.totalSold || 0}
-                        </p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {formatCurrency(modelReport?.data?.totalRevenue || modelReport?.totalRevenue || 0)}
+                      </p>
+                    </div>
+                    <div className="p-4 bg-gray-50 rounded-lg">
+                      <p className="text-sm text-gray-600">Số lượng bán</p>
+                      <p className="text-2xl font-bold text-gray-900">
+                        {modelReport?.data?.totalSold || modelReport?.totalSold || 0}
+                      </p>
                       </div>
                     </div>
                   ) : !modelId ? (

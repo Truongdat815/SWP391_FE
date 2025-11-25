@@ -381,7 +381,7 @@ export const generateQuoteHtml = (order, customer, user) => {
       </div>
 
       <div class="footer">
-        Lưu ý: Đơn hàng này có giá trị pháp lý. Vui lòng kiểm tra kỹ thông tin trước khi ký xác nhận.
+        Lưu ý: Vui lòng kiểm tra kỹ thông tin trước khi ký xác nhận.
       </div>
 
       <script>

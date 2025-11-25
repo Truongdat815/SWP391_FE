@@ -14,6 +14,7 @@ import {
 } from '../../../api/dealerStaff/customerApi';
 import { useGetOrdersByCustomerQuery } from '../../../api/dealerStaff/orderApi';
 import { provincesApi } from '../../../api/public/provincesApi';
+import { getOrderStatusConfig } from '../../../utils/formatters';
 
 const CustomerManagementPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -443,16 +444,22 @@ const CustomerManagementPage = () => {
   };
 
   const getStatusBadge = (status) => {
-    const statusMap = {
-      DRAFT: { variant: 'default', label: 'Nháp' },
-      PENDING: { variant: 'warning', label: 'Chờ xử lý' },
-      CONFIRMED: { variant: 'info', label: 'Đã xác nhận' },
-      PAID: { variant: 'success', label: 'Đã thanh toán' },
-      DELIVERED: { variant: 'success', label: 'Đã giao' },
-      CANCELLED: { variant: 'error', label: 'Đã hủy' },
+    // Sử dụng getOrderStatusConfig từ formatters để có đầy đủ các trạng thái
+    const statusConfig = getOrderStatusConfig(status);
+    
+    // Map color classes to Badge variants
+    const getVariantFromColor = (colorClass) => {
+      if (colorClass.includes('green')) return 'success';
+      if (colorClass.includes('blue')) return 'info';
+      if (colorClass.includes('yellow') || colorClass.includes('amber') || colorClass.includes('orange')) return 'warning';
+      if (colorClass.includes('red')) return 'error';
+      if (colorClass.includes('purple') || colorClass.includes('indigo')) return 'info';
+      return 'default';
     };
-    const config = statusMap[status] || { variant: 'default', label: status };
-    return <Badge variant={config.variant}>{config.label}</Badge>;
+    
+    const variant = getVariantFromColor(statusConfig.color);
+    
+    return <Badge variant={variant}>{statusConfig.label}</Badge>;
   };
 
   if (isLoading) {

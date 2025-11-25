@@ -15,7 +15,7 @@ const LoginPage = () => {
   const [login] = useLoginMutation();
   const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
   const userRole = useAppSelector((state) => state.auth.role);
-  
+
   // Clear any existing auth state when login page loads
   useEffect(() => {
     dispatch(clearAllAuth());
@@ -46,45 +46,45 @@ const LoginPage = () => {
 
     try {
       const res = await login({ email: formData.email, password: formData.password }).unwrap();
-      
+
       if (import.meta.env.DEV) {
         console.log('Login response:', res);
       }
-      
+
       if (res.code !== 200) {
         setError(res.message || 'Sai tài khoản hoặc mật khẩu!');
         setIsLoading(false);
         return;
       }
-      
+
       if (!res.data) {
         setError('Response không hợp lệ từ server.');
         setIsLoading(false);
         return;
       }
-      
+
       const { accessToken, refreshToken, user } = res.data;
-      
+
       if (!accessToken) {
         setError('Không nhận được token từ server.');
         setIsLoading(false);
         return;
       }
-      
+
       // Lưu token vào localStorage NGAY LẬP TỨC
       localStorage.setItem('accessToken', accessToken);
       if (refreshToken) {
         localStorage.setItem('refreshToken', refreshToken);
       }
-      
+
       // Nếu có user trong response, dùng luôn
       if (user && (user.roleName || user.role?.name)) {
         const roleName = user.roleName || user.role?.name || '';
         const normalizedRole = normalizeRole(roleName);
-        
+
         // Clear logout flag before setting credentials
         localStorage.removeItem('_logout_flag');
-        
+
         dispatch(
           setCredentials({
             token: accessToken,
@@ -94,29 +94,29 @@ const LoginPage = () => {
             rememberMe: formData.rememberMe,
           })
         );
-        
+
         // Invalidate user cache to force fresh data
         dispatch(authApi.util.invalidateTags(['User']));
-        
+
         // Redirect theo role sử dụng utility function
         const redirectPath = getRoleDashboardRoute(roleName);
-        
+
         if (import.meta.env.DEV) {
           console.log('User role:', roleName, '→ Normalized:', normalizedRole);
           console.log('Redirecting to:', redirectPath);
         }
-        
+
         // Use window.location.href to force complete page reload and ensure clean state
         window.location.href = redirectPath;
         return; // Dừng ở đây nếu đã có user
       }
-      
+
       // Nếu không có user trong response, BẮT BUỘC phải fetch /users/me
       if (import.meta.env.DEV) {
         console.log('Fetching user info from /users/me...');
       }
       const apiUrl = import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api';
-      
+
       try {
         const userRes = await fetch(`${apiUrl}/users/me`, {
           headers: {
@@ -124,20 +124,20 @@ const LoginPage = () => {
             'Content-Type': 'application/json',
           },
         });
-        
+
         const userData = await userRes.json();
         if (import.meta.env.DEV) {
           console.log('User me response:', userData);
         }
-        
+
         if (userRes.ok && userData.code === 200 && userData.data) {
           const userInfo = userData.data;
           const roleName = userInfo.roleName || userInfo.role?.name || '';
           const normalizedRole = normalizeRole(roleName);
-          
+
           // Clear logout flag before setting credentials
           localStorage.removeItem('_logout_flag');
-          
+
           // Lưu user info vào Redux
           dispatch(
             setCredentials({
@@ -148,18 +148,18 @@ const LoginPage = () => {
               rememberMe: formData.rememberMe,
             })
           );
-          
+
           // Invalidate user cache to force fresh data
           dispatch(authApi.util.invalidateTags(['User']));
-          
+
           // Redirect theo role sử dụng utility function
           const redirectPath = getRoleDashboardRoute(roleName);
-          
+
           if (import.meta.env.DEV) {
             console.log('User role:', roleName, '→ Normalized:', normalizedRole);
             console.log('Redirecting to:', redirectPath);
           }
-          
+
           // Use window.location.href to force complete page reload and ensure clean state
           window.location.href = redirectPath;
         } else {
@@ -177,14 +177,14 @@ const LoginPage = () => {
       if (import.meta.env.DEV) {
         console.error('Login error:', err);
       }
-      
+
       if (err?.status === 'FETCH_ERROR' || err?.error === 'FETCH_ERROR') {
         setError('Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.');
       } else if (err?.status === 401 || err?.data?.code === 401) {
         setError('Email hoặc mật khẩu không đúng. Vui lòng thử lại.');
       } else {
         setError(
-          err?.data?.message || 
+          err?.data?.message ||
           err?.error?.data?.message ||
           'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'
         );
@@ -248,7 +248,7 @@ const LoginPage = () => {
                 className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 focus:ring-2"
               />
               <span className="ml-2 text-sm text-gray-600">
-                Ghi nhớ đăng nhập (30 ngày)
+                Ghi nhớ đăng nhập
               </span>
             </label>
           </div>
@@ -256,7 +256,6 @@ const LoginPage = () => {
           <Button
             type="submit"
             className="w-full"
-            disabled={isLoading}
           >
             {isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
           </Button>

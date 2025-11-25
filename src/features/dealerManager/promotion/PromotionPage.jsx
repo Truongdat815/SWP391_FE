@@ -29,7 +29,6 @@ const PromotionPage = () => {
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [promotionToDelete, setPromotionToDelete] = useState(null);
-  const [selectedPromotions, setSelectedPromotions] = useState([]); // Array of promotion IDs for bulk delete
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
   const [successModal, setSuccessModal] = useState({ isOpen: false, message: '' });
   const [formData, setFormData] = useState({
@@ -45,23 +44,9 @@ const PromotionPage = () => {
   const modelDropdownRef = useRef(null);
 
   // Close model dropdown when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (modelDropdownRef.current && !modelDropdownRef.current.contains(event.target)) {
-        setIsModelDropdownOpen(false);
-      }
-    };
 
-    if (isModelDropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
 
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [isModelDropdownOpen]);
-
-  const { data: promotionsData, isLoading, error, refetch: refetchPromotions } = useGetAllPromotionsQuery();
+  const { data: promotionsData, isLoading, error } = useGetAllPromotionsQuery();
   const { data: typesData } = useGetPromotionTypesQuery();
   const { data: modelsData } = useGetAllModelsQuery();
   const [createPromotion, { isLoading: isCreating }] = useCreatePromotionMutation();
@@ -73,7 +58,7 @@ const PromotionPage = () => {
   console.log('🔍 PromotionPage - promotionsData:', promotionsData);
   console.log('🔍 PromotionPage - promotionsData?.data:', promotionsData?.data);
   console.log('🔍 PromotionPage - promotionsData?.data?.data:', promotionsData?.data?.data);
-  
+
   // Try multiple parsing approaches
   let promotions = [];
   if (promotionsData) {
@@ -90,10 +75,10 @@ const PromotionPage = () => {
       console.warn('⚠️ Could not parse promotions data. Structure:', promotionsData);
     }
   }
-  
+
   const types = typesData?.data?.data || [];
   const models = modelsData?.data || [];
-  
+
   console.log('🔍 Final promotions array:', promotions);
   console.log('🔍 Promotions count:', promotions.length);
 
@@ -114,30 +99,30 @@ const PromotionPage = () => {
     if (!Array.isArray(promotions)) {
       return [];
     }
-    
+
     const filtered = promotions.filter((promo) => {
       const matchesSearch =
         !searchTerm || // If no search term, match all
         promo.promotionName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         promo.description?.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       // Tính trạng thái thực tế dựa trên ngày tháng và active field
       const actuallyActive = isPromotionActive(promo) && (promo.active !== false);
       const matchesStatus =
         statusFilter === 'all' ||
         (statusFilter === 'active' && actuallyActive) ||
         (statusFilter === 'inactive' && !actuallyActive);
-      
+
       // Filter by type - only PERCENTAGE and FIXED_AMOUNT
-      const matchesType = typeFilter === 'all' || 
+      const matchesType = typeFilter === 'all' ||
         (typeFilter === 'PERCENTAGE' && promo.promotionType === 'PERCENTAGE') ||
         (typeFilter === 'FIXED_AMOUNT' && promo.promotionType === 'FIXED_AMOUNT');
-      
+
       const matches = matchesSearch && matchesStatus && matchesType;
-      
+
       return matches;
     });
-    
+
     return filtered;
   }, [promotions, searchTerm, statusFilter, typeFilter]);
 
@@ -152,7 +137,7 @@ const PromotionPage = () => {
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const start = new Date(startDate);
     const startDateOnly = new Date(start.getFullYear(), start.getMonth(), start.getDate());
-    
+
     const end = new Date(endDate);
     // Set endDate thành cuối ngày (23:59:59) để đảm bảo cả ngày cuối cùng vẫn còn hiệu lực
     const endDateOnly = new Date(end.getFullYear(), end.getMonth(), end.getDate(), 23, 59, 59);
@@ -232,72 +217,72 @@ const PromotionPage = () => {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    
+
     // Validation - Tên chương trình
     if (!formData.promotionName || formData.promotionName.trim() === '') {
       setErrorModal({ isOpen: true, message: 'Vui lòng nhập tên chương trình khuyến mãi' });
       return;
     }
-    
+
     // Validation - Ngày
     if (!formData.startDate) {
       setErrorModal({ isOpen: true, message: 'Vui lòng chọn ngày bắt đầu' });
       return;
     }
-    
+
     if (!formData.endDate) {
       setErrorModal({ isOpen: true, message: 'Vui lòng chọn ngày kết thúc' });
       return;
     }
-    
+
     // Validation - Loại khuyến mãi
     if (!formData.promotionType) {
       setErrorModal({ isOpen: true, message: 'Vui lòng chọn loại khuyến mãi' });
       return;
     }
-    
+
     // Validation - Giá trị khuyến mãi
     if (!formData.amount || formData.amount.toString().trim() === '') {
       setErrorModal({ isOpen: true, message: 'Vui lòng nhập giá trị khuyến mãi' });
       return;
     }
-    
+
     const amountValue = parseFloat(formData.amount);
     if (isNaN(amountValue) || amountValue <= 0) {
       setErrorModal({ isOpen: true, message: 'Giá trị khuyến mãi phải lớn hơn 0' });
       return;
     }
-    
+
     if (formData.promotionType === 'PERCENTAGE' && amountValue > 100) {
       setErrorModal({ isOpen: true, message: 'Phần trăm khuyến mãi không được vượt quá 100%' });
       return;
     }
-    
+
     // Validation ngày
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Chỉ lấy phần ngày, bỏ qua giờ
-    
+
     const startDate = new Date(formData.startDate);
     startDate.setHours(0, 0, 0, 0);
-    
+
     const endDate = new Date(formData.endDate);
     endDate.setHours(0, 0, 0, 0);
-    
+
     // Ngày bắt đầu phải >= ngày hiện tại (không được là quá khứ)
     if (startDate < today) {
       setErrorModal({ isOpen: true, message: 'Ngày bắt đầu phải từ hôm nay trở đi, không được chọn ngày quá khứ' });
       return;
     }
-    
+
     // Ngày kết thúc phải > ngày bắt đầu ít nhất 1 ngày
     const oneDayInMs = 24 * 60 * 60 * 1000;
     const daysDifference = (endDate - startDate) / oneDayInMs;
-    
+
     if (endDate <= startDate || daysDifference < 1) {
       setErrorModal({ isOpen: true, message: 'Ngày kết thúc phải lớn hơn ngày bắt đầu ít nhất 1 ngày' });
       return;
     }
-    
+
     try {
       // Format dates to include time component for LocalDateTime (ISO format)
       const formatDateForBackend = (dateString) => {
@@ -306,25 +291,25 @@ const PromotionPage = () => {
         // Add time component: start date at 00:00:00
         return dateString.includes('T') ? dateString : `${dateString}T00:00:00`;
       };
-      
+
       const formatEndDateForBackend = (dateString) => {
         if (!dateString) return null;
         // End date should be at end of day (23:59:59)
         return dateString.includes('T') ? dateString : `${dateString}T23:59:59`;
       };
-      
+
       // Generate description if not provided by user
       const description = formData.description?.trim() || (
-        formData.promotionType === 'PERCENTAGE' 
+        formData.promotionType === 'PERCENTAGE'
           ? `Giảm ${amountValue}%`
           : `Giảm ${new Intl.NumberFormat('vi-VN').format(amountValue)} VNĐ`
       );
-      
+
       // Get selected model info if any
       const selectedModelIds = formData.selectedModelIds || [];
       const selectedModelId = selectedModelIds.length > 0 ? selectedModelIds[0] : null;
       const selectedModel = selectedModelId ? models.find(m => m.modelId === selectedModelId) : null;
-      
+
       // Prepare request body - only send fields required by API
       // Do NOT send: promotionId, storeId, storeName, createdAt, active, manuallyDisabled
       const requestBody = {
@@ -335,7 +320,7 @@ const PromotionPage = () => {
         startDate: formatDateForBackend(formData.startDate),
         endDate: formatEndDateForBackend(formData.endDate),
       };
-      
+
       // Add model info if a specific model is selected
       if (selectedModelId && selectedModel) {
         requestBody.modelId = selectedModelId;
@@ -345,79 +330,47 @@ const PromotionPage = () => {
         requestBody.modelId = selectedModelId;
       }
       // If no model selected, don't send modelId/modelName (applies to all models)
-      
+
       if (import.meta.env.DEV) {
         console.log('Submitting promotion data:', requestBody);
       }
-      
+
       // Create promotion - if multiple models selected, create one for each
-      // Cho phép tạo nhiều mã giảm giá cho cùng 1 mẫu xe
       if (selectedModelIds.length > 1) {
         // Create promotion for each selected model
-        const results = await Promise.allSettled(
-          selectedModelIds.map(modelId => {
-            const model = models.find(m => m.modelId === modelId);
-            const bodyForModel = {
-              ...requestBody,
-              modelId: modelId,
-              modelName: model?.modelName || '',
-            };
-            return createPromotion(bodyForModel).unwrap();
-          })
-        );
-        
-        // Đếm số lượng thành công và thất bại
-        const successful = results.filter(r => r.status === 'fulfilled').length;
-        const failed = results.filter(r => r.status === 'rejected').length;
-        
-        if (successful > 0) {
-          setSuccessModal({ 
-            isOpen: true, 
-            message: `Đã tạo thành công ${successful} khuyến mãi!${failed > 0 ? ` (${failed} khuyến mãi bị lỗi hoặc đã tồn tại)` : ''}` 
-          });
-          // Refetch để cập nhật UI
-          await refetchPromotions();
-        } else {
-          setErrorModal({ isOpen: true, message: 'Không thể tạo khuyến mãi. Có thể các khuyến mãi đã tồn tại hoặc có lỗi xảy ra.' });
-        }
+        const promises = selectedModelIds.map(modelId => {
+          const model = models.find(m => m.modelId === modelId);
+          const bodyForModel = {
+            ...requestBody,
+            modelId: modelId,
+            modelName: model?.modelName || '',
+          };
+          return createPromotion(bodyForModel).unwrap();
+        });
+
+        await Promise.all(promises);
+        setSuccessModal({ isOpen: true, message: `Đã tạo thành công ${selectedModelIds.length} khuyến mãi!` });
       } else if (selectedModelIds.length === 0) {
         // If "all models" selected, create promotion for each model
-        // Cho phép tạo nhiều mã giảm giá cho cùng 1 mẫu xe
         const allModelIds = models.map(m => m.modelId);
-        const results = await Promise.allSettled(
-          allModelIds.map(modelId => {
-            const model = models.find(m => m.modelId === modelId);
-            const bodyForModel = {
-              ...requestBody,
-              modelId: modelId,
-              modelName: model?.modelName || '',
-            };
-            return createPromotion(bodyForModel).unwrap();
-          })
-        );
-        
-        // Đếm số lượng thành công và thất bại
-        const successful = results.filter(r => r.status === 'fulfilled').length;
-        const failed = results.filter(r => r.status === 'rejected').length;
-        
-        if (successful > 0) {
-          setSuccessModal({ 
-            isOpen: true, 
-            message: `Đã tạo thành công ${successful} khuyến mãi cho tất cả các model!${failed > 0 ? ` (${failed} khuyến mãi bị lỗi hoặc đã tồn tại)` : ''}` 
-          });
-          // Refetch để cập nhật UI
-          await refetchPromotions();
-        } else {
-          setErrorModal({ isOpen: true, message: 'Không thể tạo khuyến mãi. Có thể các khuyến mãi đã tồn tại hoặc có lỗi xảy ra.' });
-        }
+        const promises = allModelIds.map(modelId => {
+          const model = models.find(m => m.modelId === modelId);
+          const bodyForModel = {
+            ...requestBody,
+            modelId: modelId,
+            modelName: model?.modelName || '',
+          };
+          return createPromotion(bodyForModel).unwrap();
+        });
+
+        await Promise.all(promises);
+        setSuccessModal({ isOpen: true, message: `Đã tạo thành công ${allModelIds.length} khuyến mãi cho tất cả các model!` });
       } else {
-        // Single promotion (for one specific model or all models)
+        // Single promotion (for one specific model)
         await createPromotion(requestBody).unwrap();
         setSuccessModal({ isOpen: true, message: 'Tạo khuyến mãi thành công!' });
-        // Refetch để cập nhật UI
-        await refetchPromotions();
       }
-      
+
       setIsCreateModalOpen(false);
       setFormData({
         promotionName: '',
@@ -431,17 +384,17 @@ const PromotionPage = () => {
     } catch (error) {
       console.error('Error creating promotion:', error);
       let errorMessage = 'Có lỗi xảy ra khi tạo khuyến mãi';
-      
+
       if (error?.data) {
-        errorMessage = error.data.message || 
-                      error.data.error || 
-                      error.data.errorMessage || 
-                      error.data.error?.message ||
-                      errorMessage;
+        errorMessage = error.data.message ||
+          error.data.error ||
+          error.data.errorMessage ||
+          error.data.error?.message ||
+          errorMessage;
       } else if (error?.message) {
         errorMessage = error.message;
       }
-      
+
       // Hiển thị chi tiết lỗi trong development
       if (import.meta.env.DEV) {
         console.error('Full error object:', error);
@@ -449,99 +402,99 @@ const PromotionPage = () => {
           console.error('Error data:', error.data);
         }
       }
-      
+
       setErrorModal({ isOpen: true, message: errorMessage });
     }
   };
 
   const handleUpdate = async (e) => {
     e.preventDefault();
-    
+
     if (!selectedPromotion) {
       setErrorModal({ isOpen: true, message: 'Không tìm thấy khuyến mãi để cập nhật' });
       return;
     }
-    
+
     // Validation - same as create
     if (!formData.promotionName || formData.promotionName.trim() === '') {
       setErrorModal({ isOpen: true, message: 'Vui lòng nhập tên chương trình khuyến mãi' });
       return;
     }
-    
+
     if (!formData.startDate) {
       setErrorModal({ isOpen: true, message: 'Vui lòng chọn ngày bắt đầu' });
       return;
     }
-    
+
     if (!formData.endDate) {
       setErrorModal({ isOpen: true, message: 'Vui lòng chọn ngày kết thúc' });
       return;
     }
-    
+
     if (!formData.promotionType) {
       setErrorModal({ isOpen: true, message: 'Vui lòng chọn loại khuyến mãi' });
       return;
     }
-    
+
     if (!formData.amount || formData.amount.toString().trim() === '') {
       setErrorModal({ isOpen: true, message: 'Vui lòng nhập giá trị khuyến mãi' });
       return;
     }
-    
+
     const amountValue = parseFloat(formData.amount);
     if (isNaN(amountValue) || amountValue <= 0) {
       setErrorModal({ isOpen: true, message: 'Giá trị khuyến mãi phải lớn hơn 0' });
       return;
     }
-    
+
     if (formData.promotionType === 'PERCENTAGE' && amountValue > 100) {
       setErrorModal({ isOpen: true, message: 'Phần trăm khuyến mãi không được vượt quá 100%' });
       return;
     }
-    
+
     // Validation ngày
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     const startDate = new Date(formData.startDate);
     startDate.setHours(0, 0, 0, 0);
-    
+
     const endDate = new Date(formData.endDate);
     endDate.setHours(0, 0, 0, 0);
-    
+
     // Ngày bắt đầu không được trong quá khứ
     if (startDate < today) {
       setErrorModal({ isOpen: true, message: 'Ngày bắt đầu không được trong quá khứ' });
       return;
     }
-    
+
     // Ngày kết thúc phải sau ngày bắt đầu
     if (endDate <= startDate) {
       setErrorModal({ isOpen: true, message: 'Ngày kết thúc phải sau ngày bắt đầu' });
       return;
     }
-    
+
     try {
       // Format dates
       const formatDateForBackend = (dateString) => {
         if (!dateString) return null;
         return dateString.includes('T') ? dateString : `${dateString}T00:00:00`;
       };
-      
+
       const formatEndDateForBackend = (dateString) => {
         if (!dateString) return null;
         return dateString.includes('T') ? dateString : `${dateString}T23:59:59`;
       };
-      
+
       // Generate description if not provided
       const description = formData.description?.trim() || (
-        formData.promotionType === 'PERCENTAGE' 
+        formData.promotionType === 'PERCENTAGE'
           ? `Giảm ${amountValue}%`
           : `Giảm ${new Intl.NumberFormat('vi-VN').format(amountValue)} VNĐ`
       );
-      
+
       const selectedModelIds = formData.selectedModelIds || [];
-      
+
       // Prepare request body
       const requestBody = {
         promotionName: formData.promotionName.trim(),
@@ -551,7 +504,7 @@ const PromotionPage = () => {
         startDate: formatDateForBackend(formData.startDate),
         endDate: formatEndDateForBackend(formData.endDate),
       };
-      
+
       // If "all models" selected (empty array), create promotion for each model
       if (selectedModelIds.length === 0) {
         const allModelIds = models.map(m => m.modelId);
@@ -572,12 +525,12 @@ const PromotionPage = () => {
           active: selectedPromotion.active !== false,
           manuallyDisabled: selectedPromotion.manuallyDisabled || false,
         };
-        
+
         await updatePromotion({
           promotionId: selectedPromotion.promotionId,
           ...fullRequestBodyForCurrent,
         }).unwrap();
-        
+
         // Then create new promotions for other models
         const otherModelIds = allModelIds.filter(id => id !== selectedPromotion.modelId);
         if (otherModelIds.length > 0) {
@@ -590,7 +543,7 @@ const PromotionPage = () => {
             };
             return createPromotion(bodyForModel).unwrap();
           });
-          
+
           await Promise.all(promises);
           setSuccessModal({ isOpen: true, message: `Đã cập nhật khuyến mãi và tạo ${otherModelIds.length} khuyến mãi mới cho các model còn lại!` });
         } else {
@@ -600,7 +553,7 @@ const PromotionPage = () => {
         // Multiple models selected - update current and create for others
         const currentModelId = selectedPromotion.modelId;
         const otherModelIds = selectedModelIds.filter(id => id !== currentModelId);
-        
+
         // Update current promotion with full request body
         const currentModel = models.find(m => m.modelId === currentModelId);
         const fullRequestBodyForCurrent = {
@@ -619,12 +572,12 @@ const PromotionPage = () => {
           active: selectedPromotion.active !== false,
           manuallyDisabled: selectedPromotion.manuallyDisabled || false,
         };
-        
+
         await updatePromotion({
           promotionId: selectedPromotion.promotionId,
           ...fullRequestBodyForCurrent,
         }).unwrap();
-        
+
         // Create for other selected models
         if (otherModelIds.length > 0) {
           const promises = otherModelIds.map(modelId => {
@@ -636,7 +589,7 @@ const PromotionPage = () => {
             };
             return createPromotion(bodyForModel).unwrap();
           });
-          
+
           await Promise.all(promises);
           setSuccessModal({ isOpen: true, message: `Đã cập nhật khuyến mãi và tạo ${otherModelIds.length} khuyến mãi mới!` });
         } else {
@@ -646,7 +599,7 @@ const PromotionPage = () => {
         // Single model selected - just update
         const selectedModelId = selectedModelIds[0];
         const selectedModel = models.find(m => m.modelId === selectedModelId);
-        
+
         // Prepare full request body according to API format
         const fullRequestBody = {
           promotionId: selectedPromotion.promotionId,
@@ -664,15 +617,15 @@ const PromotionPage = () => {
           active: selectedPromotion.active !== false,
           manuallyDisabled: selectedPromotion.manuallyDisabled || false,
         };
-        
+
         await updatePromotion({
           promotionId: selectedPromotion.promotionId,
           ...fullRequestBody,
         }).unwrap();
-        
+
         setSuccessModal({ isOpen: true, message: 'Đã cập nhật khuyến mãi thành công!' });
       }
-      
+
       setIsEditModalOpen(false);
       setSelectedPromotion(null);
       setFormData({
@@ -687,17 +640,17 @@ const PromotionPage = () => {
     } catch (error) {
       console.error('Error updating promotion:', error);
       let errorMessage = 'Có lỗi xảy ra khi cập nhật khuyến mãi';
-      
+
       if (error?.data) {
-        errorMessage = error.data.message || 
-                      error.data.error || 
-                      error.data.errorMessage || 
-                      error.data.error?.message ||
-                      errorMessage;
+        errorMessage = error.data.message ||
+          error.data.error ||
+          error.data.errorMessage ||
+          error.data.error?.message ||
+          errorMessage;
       } else if (error?.message) {
         errorMessage = error.message;
       }
-      
+
       setErrorModal({ isOpen: true, message: errorMessage });
     }
   };
@@ -727,39 +680,6 @@ const PromotionPage = () => {
     setIsDeleteModalOpen(true);
   };
 
-  // Handle bulk delete
-  const handleBulkDelete = async () => {
-    if (selectedPromotions.length === 0) {
-      setErrorModal({ isOpen: true, message: 'Vui lòng chọn ít nhất một khuyến mãi để xóa' });
-      return;
-    }
-
-    try {
-      // Delete all selected promotions
-      const results = await Promise.allSettled(
-        selectedPromotions.map(promotionId => deletePromotion(promotionId).unwrap())
-      );
-      
-      const successful = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
-      
-      if (successful > 0) {
-        setSuccessModal({ 
-          isOpen: true, 
-          message: `Đã xóa thành công ${successful} khuyến mãi!${failed > 0 ? ` (${failed} khuyến mãi không thể xóa)` : ''}` 
-        });
-        setSelectedPromotions([]); // Clear selection
-        // Refetch để cập nhật UI
-        await refetchPromotions();
-      } else {
-        setErrorModal({ isOpen: true, message: 'Không thể xóa các khuyến mãi đã chọn' });
-      }
-    } catch (error) {
-      console.error('Error bulk deleting promotions:', error);
-      setErrorModal({ isOpen: true, message: 'Có lỗi xảy ra khi xóa khuyến mãi' });
-    }
-  };
-
   const handleDeleteConfirm = async () => {
     if (!promotionToDelete) {
       return;
@@ -770,24 +690,20 @@ const PromotionPage = () => {
       setSuccessModal({ isOpen: true, message: 'Đã xóa khuyến mãi thành công!' });
       setIsDeleteModalOpen(false);
       setPromotionToDelete(null);
-      // Clear selection if deleted promotion was selected
-      setSelectedPromotions(prev => prev.filter(id => id !== promotionToDelete.promotionId));
-      // Refetch để cập nhật UI
-      await refetchPromotions();
     } catch (error) {
       console.error('Error deleting promotion:', error);
       let errorMessage = 'Có lỗi xảy ra khi xóa khuyến mãi';
-      
+
       if (error?.data) {
-        errorMessage = error.data.message || 
-                      error.data.error || 
-                      error.data.errorMessage || 
-                      error.data.error?.message ||
-                      errorMessage;
+        errorMessage = error.data.message ||
+          error.data.error ||
+          error.data.errorMessage ||
+          error.data.error?.message ||
+          errorMessage;
       } else if (error?.message) {
         errorMessage = error.message;
       }
-      
+
       setErrorModal({ isOpen: true, message: errorMessage });
       setIsDeleteModalOpen(false);
     }
@@ -811,7 +727,7 @@ const PromotionPage = () => {
 
   // Kiểm tra lỗi 401 (Unauthorized)
   const isUnauthorized = error?.status === 401;
-  
+
   if (isUnauthorized) {
     return (
       <DealerManagerLayout>
@@ -891,23 +807,6 @@ const PromotionPage = () => {
           </div>
         </div>
 
-        {/* Bulk Actions */}
-        {selectedPromotions.length > 0 && (
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
-            <div className="text-blue-800 font-medium">
-              Đã chọn {selectedPromotions.length} khuyến mãi
-            </div>
-            <Button
-              variant="danger"
-              onClick={handleBulkDelete}
-              disabled={isDeleting}
-            >
-              <Trash2 size={18} className="mr-2" />
-              Xóa đã chọn ({selectedPromotions.length})
-            </Button>
-          </div>
-        )}
-
         {/* Table */}
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {paginatedPromotions.length === 0 ? (
@@ -918,26 +817,7 @@ const PromotionPage = () => {
                 <Table className="w-full table-auto">
                   <Table.Header>
                     <Table.Row>
-                      <Table.Head className="w-12">
-                        <input
-                          type="checkbox"
-                          checked={paginatedPromotions.length > 0 && paginatedPromotions.every(p => selectedPromotions.includes(p.promotionId))}
-                          onChange={(e) => {
-                            if (e.target.checked) {
-                              // Select all on current page
-                              const pageIds = paginatedPromotions.map(p => p.promotionId);
-                              setSelectedPromotions(prev => [...new Set([...prev, ...pageIds])]);
-                            } else {
-                              // Deselect all on current page
-                              const pageIds = paginatedPromotions.map(p => p.promotionId);
-                              setSelectedPromotions(prev => prev.filter(id => !pageIds.includes(id)));
-                            }
-                          }}
-                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                        />
-                      </Table.Head>
                       <Table.Head>Tên chương trình</Table.Head>
-                      <Table.Head>Mẫu xe</Table.Head>
                       <Table.Head>Thời gian áp dụng</Table.Head>
                       <Table.Head>Mức giảm giá/Ưu đãi</Table.Head>
                       <Table.Head>Trạng thái</Table.Head>
@@ -947,29 +827,8 @@ const PromotionPage = () => {
                   <Table.Body>
                     {paginatedPromotions.map((promo) => (
                       <Table.Row key={promo.promotionId}>
-                        <Table.Cell>
-                          <input
-                            type="checkbox"
-                            checked={selectedPromotions.includes(promo.promotionId)}
-                            onChange={(e) => {
-                              if (e.target.checked) {
-                                setSelectedPromotions(prev => [...prev, promo.promotionId]);
-                              } else {
-                                setSelectedPromotions(prev => prev.filter(id => id !== promo.promotionId));
-                              }
-                            }}
-                            className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
-                          />
-                        </Table.Cell>
                         <Table.Cell className="font-medium">
                           {promo.promotionName || 'N/A'}
-                        </Table.Cell>
-                        <Table.Cell>
-                          {promo.modelId && promo.modelName 
-                            ? promo.modelName 
-                            : promo.modelId 
-                              ? models.find(m => m.modelId === promo.modelId)?.modelName || `Model ${promo.modelId}`
-                              : 'Tất cả mẫu xe'}
                         </Table.Cell>
                         <Table.Cell>
                           {formatDate(promo.startDate)} - {formatDate(promo.endDate)}
@@ -1104,13 +963,13 @@ const PromotionPage = () => {
               options={
                 Array.isArray(types) && types.length > 0
                   ? types.map(type => ({
-                      value: type,
-                      label: type === 'PERCENTAGE' ? 'Phần trăm (%)' : 'Số tiền cố định'
-                    }))
+                    value: type,
+                    label: type === 'PERCENTAGE' ? 'Phần trăm (%)' : 'Số tiền cố định'
+                  }))
                   : [
-                      { value: 'PERCENTAGE', label: 'Phần trăm (%)' },
-                      { value: 'FIXED_AMOUNT', label: 'Số tiền cố định' },
-                    ]
+                    { value: 'PERCENTAGE', label: 'Phần trăm (%)' },
+                    { value: 'FIXED_AMOUNT', label: 'Số tiền cố định' },
+                  ]
               }
               value={formData.promotionType}
               onChange={(value) => setFormData({ ...formData, promotionType: value })}
@@ -1132,7 +991,7 @@ const PromotionPage = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Áp dụng cho model (tùy chọn)
             </label>
-            <div className="relative" ref={modelDropdownRef}>
+            <div className="relative">
               <button
                 type="button"
                 onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
@@ -1142,17 +1001,17 @@ const PromotionPage = () => {
                   {formData.selectedModelIds.length === 0
                     ? 'Tất cả các model'
                     : formData.selectedModelIds.length === 1
-                    ? models.find(m => m.modelId === formData.selectedModelIds[0])?.modelName || `Model ${formData.selectedModelIds[0]}`
-                    : `Đã chọn ${formData.selectedModelIds.length} model`}
+                      ? models.find(m => m.modelId === formData.selectedModelIds[0])?.modelName || `Model ${formData.selectedModelIds[0]}`
+                      : `Đã chọn ${formData.selectedModelIds.length} model`}
                 </span>
                 <ChevronDown
                   size={20}
                   className={`text-gray-400 transition-transform ${isModelDropdownOpen ? 'transform rotate-180' : ''}`}
                 />
               </button>
-              
+
               {isModelDropdownOpen && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <div className="w-full mt-2 bg-white border border-gray-300 rounded-lg max-h-60 overflow-y-auto">
                   <div className="p-2">
                     <label className="flex items-center px-3 py-2 hover:bg-gray-100 rounded cursor-pointer mb-2">
                       <input
@@ -1273,13 +1132,13 @@ const PromotionPage = () => {
               options={
                 Array.isArray(types) && types.length > 0
                   ? types.map(type => ({
-                      value: type,
-                      label: type === 'PERCENTAGE' ? 'Phần trăm (%)' : 'Số tiền cố định'
-                    }))
+                    value: type,
+                    label: type === 'PERCENTAGE' ? 'Phần trăm (%)' : 'Số tiền cố định'
+                  }))
                   : [
-                      { value: 'PERCENTAGE', label: 'Phần trăm (%)' },
-                      { value: 'FIXED_AMOUNT', label: 'Số tiền cố định' },
-                    ]
+                    { value: 'PERCENTAGE', label: 'Phần trăm (%)' },
+                    { value: 'FIXED_AMOUNT', label: 'Số tiền cố định' },
+                  ]
               }
               value={formData.promotionType}
               onChange={(value) => setFormData({ ...formData, promotionType: value })}
@@ -1301,7 +1160,7 @@ const PromotionPage = () => {
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Áp dụng cho model (tùy chọn)
             </label>
-            <div className="relative" ref={modelDropdownRef}>
+            <div className="relative">
               <button
                 type="button"
                 onClick={() => setIsModelDropdownOpen(!isModelDropdownOpen)}
@@ -1311,17 +1170,17 @@ const PromotionPage = () => {
                   {formData.selectedModelIds.length === 0
                     ? 'Tất cả các model'
                     : formData.selectedModelIds.length === 1
-                    ? models.find(m => m.modelId === formData.selectedModelIds[0])?.modelName || `Model ${formData.selectedModelIds[0]}`
-                    : `Đã chọn ${formData.selectedModelIds.length} model`}
+                      ? models.find(m => m.modelId === formData.selectedModelIds[0])?.modelName || `Model ${formData.selectedModelIds[0]}`
+                      : `Đã chọn ${formData.selectedModelIds.length} model`}
                 </span>
                 <ChevronDown
                   size={20}
                   className={`text-gray-400 transition-transform ${isModelDropdownOpen ? 'transform rotate-180' : ''}`}
                 />
               </button>
-              
+
               {isModelDropdownOpen && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                <div className="w-full mt-2 bg-white border border-gray-300 rounded-lg max-h-60 overflow-y-auto">
                   <div className="p-2">
                     <label className="flex items-center px-3 py-2 hover:bg-gray-100 rounded cursor-pointer mb-2">
                       <input
@@ -1432,9 +1291,9 @@ const PromotionPage = () => {
               <div>
                 <label className="text-sm font-medium text-gray-500">Loại khuyến mãi</label>
                 <p className="text-lg mt-1">
-                  {selectedPromotion.promotionType === 'PERCENTAGE' ? 'Phần trăm (%)' : 
-                   selectedPromotion.promotionType === 'FIXED_AMOUNT' ? 'Số tiền cố định' : 
-                   'N/A'}
+                  {selectedPromotion.promotionType === 'PERCENTAGE' ? 'Phần trăm (%)' :
+                    selectedPromotion.promotionType === 'FIXED_AMOUNT' ? 'Số tiền cố định' :
+                      'N/A'}
                 </p>
               </div>
               <div>
@@ -1447,9 +1306,9 @@ const PromotionPage = () => {
                 <div>
                   <label className="text-sm font-medium text-gray-500">Áp dụng cho mẫu xe</label>
                   <p className="text-lg mt-1">
-                    {selectedPromotion.modelName || 
-                     models.find(m => m.modelId === selectedPromotion.modelId)?.modelName || 
-                     `Model ID: ${selectedPromotion.modelId}`}
+                    {selectedPromotion.modelName ||
+                      models.find(m => m.modelId === selectedPromotion.modelId)?.modelName ||
+                      `Model ID: ${selectedPromotion.modelId}`}
                   </p>
                 </div>
               )}
@@ -1466,7 +1325,7 @@ const PromotionPage = () => {
                 </div>
               )}
             </div>
-            
+
             {selectedPromotion.description && (
               <div>
                 <label className="text-sm font-medium text-gray-500">Mô tả</label>
