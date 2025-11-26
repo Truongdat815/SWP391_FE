@@ -10,6 +10,7 @@ import RoleRoute from './RoleRoute';
 import AdminDashboard from '../features/admin/dashboard/AdminDashboard';
 import UserManagement from '../features/admin/accounts/UserManagementPage';
 import BranchManagement from '../features/admin/branches/BranchManagementPage';
+import CompanyBankAccountPage from '../features/admin/companyBankAccounts/CompanyBankAccountPage';
 
 // Dealer Staff routes
 import DealerStaffDashboard from '../features/dealerStaff/dashboard/DashboardPage';
@@ -63,6 +64,7 @@ function AppRouter() {
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="accounts" element={<UserManagement />} />
                 <Route path="branches" element={<BranchManagement />} />
+                <Route path="company-bank-accounts" element={<CompanyBankAccountPage />} />
                 <Route path="" element={<Navigate to="/admin/dashboard" replace />} />
               </Routes>
             </RoleRoute>

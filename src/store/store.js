@@ -1,6 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
 import { setupListeners } from '@reduxjs/toolkit/query';
 import { baseApi } from '../api/baseApi';
+import { bankApi } from '../api/public/bankApi';
 import authReducer from './slices/authSlice';
 
 // Import all API slices to ensure they're registered
@@ -19,10 +20,11 @@ import '../api/auth/authApi';
 export const store = configureStore({
   reducer: {
     [baseApi.reducerPath]: baseApi.reducer,
+    [bankApi.reducerPath]: bankApi.reducer,
     auth: authReducer,
   },
   middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware().concat(baseApi.middleware),
+    getDefaultMiddleware().concat(baseApi.middleware).concat(bankApi.middleware),
 });
 
 setupListeners(store.dispatch);

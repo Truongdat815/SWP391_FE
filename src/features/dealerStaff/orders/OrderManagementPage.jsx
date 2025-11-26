@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Search, ChevronLeft, ChevronRight, FileText, ShoppingBag, CheckCircle, Package, DollarSign, List, Grid, ChevronDown, Eye, Truck, Filter, RefreshCw, XCircle, Edit } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, FileText, ShoppingBag, CheckCircle, Package, DollarSign, List, Grid, ChevronDown, Eye, Truck, Filter, RefreshCw, XCircle, Edit, Car } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import DealerStaffLayout from '../../../components/layout/DealerStaffLayout';
@@ -7,12 +7,13 @@ import Button from '../../../components/ui/Button';
 import Modal from '../../../components/ui/Modal';
 import { useToast } from '../../../components/ui/Toast';
 import MetricCard from '../../../components/shared/MetricCard';
-import { useGetAllOrdersQuery, useGetOrderByIdQuery, useDeleteOrderMutation, useConfirmOrderMutation, useDeliverOrderMutation } from '../../../api/dealerStaff/orderApi';
+import { useGetAllOrdersQuery, useGetOrderByIdQuery, useDeleteOrderMutation, useConfirmOrderMutation, useDeliverOrderMutation, useGetOrderDetailsQuery } from '../../../api/dealerStaff/orderApi';
 import { useCreateContractMutation, useGetContractDetailQuery, useGetAllContractsQuery } from '../../../api/dealerStaff/contractApi';
 import { getAuthFromStorage, getRoleFromPath } from '../../../utils/roleUtils';
 import { formatCurrency, formatDate, getOrderStatusConfig, isPaymentRequired } from '../../../utils/formatters';
 import OrderDetailsExpanded from './OrderDetailsExpanded';
 import OrderCard from './OrderCard';
+import VehicleAssignmentModal from './VehicleAssignmentModal';
 
 const OrderManagementPage = () => {
   const navigate = useNavigate();
@@ -31,6 +32,7 @@ const OrderManagementPage = () => {
   const [isConfirmOrderModalOpen, setIsConfirmOrderModalOpen] = useState(false);
   const [isConfirmContractModalOpen, setIsConfirmContractModalOpen] = useState(false);
   const [isConfirmDeliverModalOpen, setIsConfirmDeliverModalOpen] = useState(false);
+  const [isVehicleAssignmentModalOpen, setIsVehicleAssignmentModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedContractId, setSelectedContractId] = useState(null);
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'card'
@@ -41,10 +43,15 @@ const OrderManagementPage = () => {
   const [confirmOrder, { isLoading: isConfirmingOrder }] = useConfirmOrderMutation();
   const [deliverOrder, { isLoading: isDeliveringOrder }] = useDeliverOrderMutation();
   const [createContract, { isLoading: isCreatingContract }] = useCreateContractMutation();
-  
+
   // Get order detail when viewing
   const { data: orderDetailData, isLoading: isLoadingOrderDetail } = useGetOrderByIdQuery(selectedOrder?.orderId, {
     skip: !selectedOrder?.orderId || !isViewModalOpen,
+  });
+
+  // Get order details for vehicle assignment
+  const { data: vehicleAssignmentOrderDetails } = useGetOrderDetailsQuery(selectedOrder?.orderId, {
+    skip: !selectedOrder?.orderId || !isVehicleAssignmentModalOpen,
   });
 
   // Get contract detail when modal is open
@@ -73,9 +80,9 @@ const OrderManagementPage = () => {
   const hasUploadedContract = (contract) => {
     if (!contract) return false;
     const signedContractFileUrl = contract?.contractFileUrl || contract?.signedContractFileUrl;
-    return signedContractFileUrl && 
-           typeof signedContractFileUrl === 'string' && 
-           signedContractFileUrl.trim().length > 0;
+    return signedContractFileUrl &&
+      typeof signedContractFileUrl === 'string' &&
+      signedContractFileUrl.trim().length > 0;
   };
 
   // Helper function to get effective order status considering contract
@@ -195,7 +202,7 @@ const OrderManagementPage = () => {
       toast.error('Chỉ có thể xác nhận đơn hàng ở trạng thái nháp');
       return;
     }
-    
+
     setSelectedOrder(order);
     setIsConfirmOrderModalOpen(true);
   };
@@ -232,7 +239,7 @@ const OrderManagementPage = () => {
     } catch (error) {
       console.error('Error delivering order:', error);
       const errorMessage = error?.data?.message || error?.message || 'Có lỗi xảy ra khi cập nhật trạng thái giao hàng';
-      
+
       // If error mentions payment, provide more helpful message
       if (errorMessage.includes('thanh toán') || errorMessage.includes('payment')) {
         toast.error('Vui lòng đảm bảo đơn hàng đã được thanh toán đầy đủ trước khi giao hàng');
@@ -276,9 +283,9 @@ const OrderManagementPage = () => {
       if (contract) {
         const signedContractFileUrl = contract?.contractFileUrl || contract?.signedContractFileUrl;
         // Nếu hợp đồng đã được upload, mở fileUrl trực tiếp
-        if (signedContractFileUrl && 
-            typeof signedContractFileUrl === 'string' && 
-            signedContractFileUrl.trim().length > 0) {
+        if (signedContractFileUrl &&
+          typeof signedContractFileUrl === 'string' &&
+          signedContractFileUrl.trim().length > 0) {
           window.open(signedContractFileUrl, '_blank');
           return;
         }
@@ -422,13 +429,13 @@ const OrderManagementPage = () => {
 
   const handleUpdateQuote = (order) => {
     // Navigate to CreateOrderPage step 2 with existing order data
-    navigate('/dealer-staff/orders/create', { 
-      state: { 
+    navigate('/dealer-staff/orders/create', {
+      state: {
         editMode: true,
         orderId: order.orderId,
         orderData: order,
         startStep: 2
-      } 
+      }
     });
   };
 
@@ -438,14 +445,23 @@ const OrderManagementPage = () => {
   };
 
   const canCreateContract = (order) => {
-    return order.status === 'CONFIRMED' || order.status === 'APPROVED';
+    return order.status === 'PENDING_DEPOSIT';
+  };
+
+  const canAssignVehicles = (order) => {
+    return order.status === 'CONFIRMED';
+  };
+
+  const handleAssignVehicles = (order) => {
+    setSelectedOrder(order);
+    setIsVehicleAssignmentModalOpen(true);
   };
 
   if (isLoading) {
     return (
       <DealerStaffLayout>
         <div className="flex items-center justify-center h-64">
-          <div className="text-gray-500">Đang tải...</div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
       </DealerStaffLayout>
     );
@@ -531,8 +547,10 @@ const OrderManagementPage = () => {
                   <option value="all">Tất cả trạng thái</option>
                   <option value="DRAFT">Nháp</option>
                   <option value="CONFIRMED">Đã xác nhận</option>
+                  <option value="PENDING_DEPOSIT">Chờ đặt cọc</option>
                   <option value="CONTRACT_PENDING">Hợp đồng</option>
                   <option value="CONTRACT_SIGNED">Đã ký</option>
+                  <option value="DEPOSIT_PAID">Đã đặt cọc</option>
                   <option value="FULLY_PAID">Đã thanh toán đủ</option>
                   <option value="DELIVERED">Đã giao</option>
                   <option value="CANCELLED">Đã hủy</option>
@@ -627,131 +645,98 @@ const OrderManagementPage = () => {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Ngày Tạo</th>
                         <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Trạng Thái</th>
                         <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Hợp Đồng</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Thao tác</th> 
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
                       {paginatedOrders.map((order, index) => {
                         const sttNumber = (currentPage - 1) * itemsPerPage + index + 1;
                         return (
-                            <tr
-                              key={order.orderId}
-                              className="hover:bg-slate-50 transition-colors"
-                            >
-                              <td className="px-4 py-3 whitespace-nowrap text-center">
-                                <span className="text-sm font-medium text-slate-600">{sttNumber}</span>
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold text-blue-600">{order.orderCode || order.orderId}</span>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap">
-                                <div>
-                                  <p className="font-medium text-slate-900">{order.customerName || 'N/A'}</p>
-                                  <p className="text-xs text-slate-500">{order.customerPhone || ''}</p>
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap">
-                                <div className="flex flex-col gap-1">
-                                  {order.getOrderDetailsResponses?.map((detail, idx) => (
-                                    <span key={idx} className="text-sm text-slate-700">
-                                      {detail.modelName} - {detail.quantity} xe
-                                    </span>
-                                  )) || <span className="text-sm text-gray-400">-</span>}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-right font-semibold text-slate-900">
-                                {formatCurrency(order.totalPayment || 0)}
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">
-                                {formatDate(order.orderDate)}
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-center">
-                                {getStatusBadge(order.status, order)}
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                          <tr
+                            key={order.orderId}
+                            className="hover:bg-slate-50 transition-colors"
+                          >
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              <span className="text-sm font-medium text-slate-600">{sttNumber}</span>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex items-center gap-2">
+                                <span className="font-bold text-blue-600">{order.orderCode || order.orderId}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div>
+                                <p className="font-medium text-slate-900">{order.customerName || 'N/A'}</p>
+                                <p className="text-xs text-slate-500">{order.customerPhone || ''}</p>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap">
+                              <div className="flex flex-col gap-1">
+                                {order.getOrderDetailsResponses?.map((detail, idx) => (
+                                  <span key={idx} className="text-sm text-slate-700">
+                                    {detail.modelName} - {detail.quantity} xe
+                                  </span>
+                                )) || <span className="text-sm text-gray-400">-</span>}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-right font-semibold text-slate-900">
+                              {formatCurrency(order.totalPayment || 0)}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">
+                              {formatDate(order.orderDate)}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              {getStatusBadge(order.status, order)}
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                              <button
+                                onClick={() => handleContractClick(order)}
+                                disabled={isCreatingContract}
+                                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${order.contractId && order.contractId > 0
+                                  ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-pointer'
+                                  : canCreateContract(order)
+                                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer'
+                                    : 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                                  }`}
+                              >
+                                {order.contractId && order.contractId > 0
+                                  ? 'Xem hợp đồng'
+                                  : canCreateContract(order)
+                                    ? 'Tạo hợp đồng'
+                                    : '-'
+                                }
+                              </button>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center">
+                              <div className="flex items-center justify-center gap-2">
                                 <button
-                                  onClick={() => handleContractClick(order)}
-                                  disabled={isCreatingContract}
-                                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${order.contractId && order.contractId > 0
-                                    ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-pointer'
-                                    : canCreateContract(order)
-                                      ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer'
-                                      : 'bg-gray-50 text-gray-400 cursor-not-allowed'
-                                    }`}
+                                  onClick={() => handleOpenViewModal(order)}
+                                  className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                  title="Xem chi tiết"
                                 >
-                                  <FileText size={12} className="mr-1" />
-                                  {order.contractId && order.contractId > 0 ? 'Đã có' : 'Chưa có'}
+                                  <Eye size={18} />
                                 </button>
-                              </td>
-                              <td className="px-4 py-3 whitespace-nowrap text-right">
-                                <div className="flex items-center justify-end gap-1">
+                                {canUpdateQuote(order) && (
                                   <button
-                                    onClick={() => handleOpenViewModal(order)}
-                                    className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors flex items-center justify-center"
-                                    title="Xem chi tiết"
-                                  >
-                                    <Eye size={18} />
-                                  </button>
-                                  {/* Update Quote Button - Only for DRAFT orders */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (order.status === 'DRAFT') {
-                                        handleUpdateQuote(order);
-                                      }
-                                    }}
-                                    disabled={order.status !== 'DRAFT'}
-                                    className={`p-2 rounded-lg transition-colors flex items-center justify-center ${
-                                      order.status === 'DRAFT'
-                                        ? 'text-orange-600 hover:text-orange-800 hover:bg-orange-50'
-                                        : 'text-transparent cursor-default'
-                                    }`}
-                                    title={order.status === 'DRAFT' ? 'Chỉnh sửa đơn hàng' : ''}
+                                    onClick={() => handleUpdateQuote(order)}
+                                    className="p-1.5 text-slate-600 hover:bg-slate-50 rounded-lg transition-colors"
+                                    title="Cập nhật báo giá"
                                   >
                                     <Edit size={18} />
                                   </button>
-                                  {/* Delete Button - Only for DRAFT orders */}
+                                )}
+                                {canAssignVehicles(order) && (
                                   <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      if (order.status === 'DRAFT') {
-                                        handleDeleteClick(order);
-                                      }
-                                    }}
-                                    disabled={order.status !== 'DRAFT'}
-                                    className={`p-2 rounded-lg transition-colors flex items-center justify-center ${
-                                      order.status === 'DRAFT'
-                                        ? 'text-red-600 hover:text-red-800 hover:bg-red-50'
-                                        : 'text-transparent cursor-default'
-                                    }`}
-                                    title={order.status === 'DRAFT' ? 'Xóa đơn hàng' : ''}
+                                    onClick={() => handleAssignVehicles(order)}
+                                    className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                    title="Gán phương tiện"
                                   >
-                                    <XCircle size={18} />
+                                    <Car size={18} />
                                   </button>
-                                  {/* Deliver Button - Always render but conditionally visible */}
-                                  <button
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      const effectiveStatus = getEffectiveOrderStatus(order);
-                                      if (effectiveStatus === 'FULLY_PAID') {
-                                        handleDeliverOrder(order);
-                                      }
-                                    }}
-                                    disabled={isDeliveringOrder || getEffectiveOrderStatus(order) !== 'FULLY_PAID'}
-                                    className={`p-2 rounded-lg transition-colors flex items-center justify-center ${
-                                      getEffectiveOrderStatus(order) === 'FULLY_PAID'
-                                        ? 'text-green-600 hover:text-green-800 hover:bg-green-50'
-                                        : 'text-transparent cursor-default'
-                                    }`}
-                                    title={getEffectiveOrderStatus(order) === 'FULLY_PAID' ? 'Giao hàng' : ''}
-                                  >
-                                    <Truck size={18} />
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
                         );
                       })}
                     </tbody>
@@ -781,8 +766,6 @@ const OrderManagementPage = () => {
               {/* Pagination */}
               <div className="px-4 py-3 border-t border-slate-200 flex items-center justify-between bg-slate-50/50">
                 <div className="text-sm text-slate-500">
-              
-                  
                   <span className="font-medium text-slate-900">{filteredOrders.length}</span> đơn hàng
                 </div>
                 <div className="flex gap-2">
@@ -809,268 +792,279 @@ const OrderManagementPage = () => {
               </div>
             </>
           )}
+
         </div>
-      </div>
 
-      {/* View Order Details Modal */}
-      <Modal
-        isOpen={isViewModalOpen}
-        onClose={handleCloseViewModal}
-        title="Chi tiết đơn hàng"
-        size="lg"
-      >
-        {isLoadingOrderDetail ? (
-          <div className="flex items-center justify-center py-16">
-            <div className="flex flex-col items-center gap-4">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-              <div className="text-slate-500 text-lg">Đang tải chi tiết đơn hàng...</div>
-            </div>
-          </div>
-        ) : orderDetailData?.data ? (
-          <div className="max-h-[85vh] overflow-y-auto">
-            <OrderDetailsExpanded order={orderDetailData.data} onViewContract={handleViewContract} />
-          </div>
-        ) : selectedOrder ? (
-          <div className="max-h-[85vh] overflow-y-auto">
-            <OrderDetailsExpanded order={selectedOrder} onViewContract={handleViewContract} />
-          </div>
-        ) : null}
-      </Modal>
-
-      {/* Contract Modal - Show signed image or message */}
-      <Modal
-        isOpen={isContractModalOpen}
-        onClose={() => {
-          setIsContractModalOpen(false);
-          setSelectedContractId(null);
-        }}
-        title="Hợp đồng"
-        size="lg"
-      >
-        <div className="space-y-4">
-          {(() => {
-            const contractDetail = contractDetailData?.data || contractDetailData;
-            const signedContractFileUrl = contractDetail?.contractFileUrl || contractDetail?.signedContractFileUrl;
-            const hasSignedContract = signedContractFileUrl &&
-              typeof signedContractFileUrl === 'string' &&
-              signedContractFileUrl.trim().length > 0;
-
-            return hasSignedContract ? (
-              <>
-                <p className="text-sm text-slate-600">Hợp đồng đã được ký:</p>
-                <div className="flex justify-center">
-                  <img
-                    src={signedContractFileUrl}
-                    alt="Hợp đồng đã ký"
-                    className="max-w-full h-auto rounded-lg border border-slate-200"
-                  />
-                </div>
-              </>
-            ) : (
-              <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
-                <FileText size={48} className="mx-auto text-slate-300 mb-3" />
-                <p className="text-slate-600 text-lg font-medium">Hợp đồng chưa được ký</p>
-                <p className="text-slate-500 text-sm">Vui lòng kiểm tra lại sau hoặc liên hệ khách hàng</p>
+        {/* View Order Details Modal */}
+        <Modal
+          isOpen={isViewModalOpen}
+          onClose={handleCloseViewModal}
+          title="Chi tiết đơn hàng"
+          size="lg"
+        >
+          {isLoadingOrderDetail ? (
+            <div className="flex items-center justify-center py-16">
+              <div className="flex flex-col items-center gap-4">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                <div className="text-slate-500 text-lg">Đang tải chi tiết đơn hàng...</div>
               </div>
-            );
-          })()}
+            </div>
+          ) : orderDetailData?.data ? (
+            <div className="max-h-[85vh] overflow-y-auto">
+              <OrderDetailsExpanded order={orderDetailData.data} onViewContract={handleViewContract} />
+            </div>
+          ) : selectedOrder ? (
+            <div className="max-h-[85vh] overflow-y-auto">
+              <OrderDetailsExpanded order={selectedOrder} onViewContract={handleViewContract} />
+            </div>
+          ) : null}
+        </Modal>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsContractModalOpen(false);
-                setSelectedContractId(null);
-              }}
-            >
-              Đóng
-            </Button>
-            {contractDetailData?.data?.contractId && (
+        {/* Contract Modal - Show signed image or message */}
+        <Modal
+          isOpen={isContractModalOpen}
+          onClose={() => {
+            setIsContractModalOpen(false);
+            setSelectedContractId(null);
+          }}
+          title="Hợp đồng"
+          size="lg"
+        >
+          <div className="space-y-4">
+            {(() => {
+              const contractDetail = contractDetailData?.data || contractDetailData;
+              const signedContractFileUrl = contractDetail?.contractFileUrl || contractDetail?.signedContractFileUrl;
+              const hasSignedContract = signedContractFileUrl &&
+                typeof signedContractFileUrl === 'string' &&
+                signedContractFileUrl.trim().length > 0;
+
+              return hasSignedContract ? (
+                <>
+                  <p className="text-sm text-slate-600">Hợp đồng đã được ký:</p>
+                  <div className="flex justify-center">
+                    <img
+                      src={signedContractFileUrl}
+                      alt="Hợp đồng đã ký"
+                      className="max-w-full h-auto rounded-lg border border-slate-200"
+                    />
+                  </div>
+                </>
+              ) : (
+                <div className="text-center py-12 bg-slate-50 rounded-xl border border-dashed border-slate-300">
+                  <FileText size={48} className="mx-auto text-slate-300 mb-3" />
+                  <p className="text-slate-600 text-lg font-medium">Hợp đồng chưa được ký</p>
+                  <p className="text-slate-500 text-sm">Vui lòng kiểm tra lại sau hoặc liên hệ khách hàng</p>
+                </div>
+              );
+            })()}
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 mt-4">
               <Button
+                variant="outline"
                 onClick={() => {
-                  const url = `/dealer-staff/contracts/${contractDetailData.data.contractId}/view`;
-                  window.open(url, '_blank');
+                  setIsContractModalOpen(false);
+                  setSelectedContractId(null);
                 }}
               >
-                Xem chi tiết hợp đồng
+                Đóng
               </Button>
-            )}
-          </div>
-        </div>
-      </Modal>
-
-      {/* Delete Confirmation Modal */}
-      <Modal
-        isOpen={isDeleteModalOpen}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setSelectedOrder(null);
-        }}
-        title="Xác nhận xóa đơn hàng"
-        size="md"
-      >
-        <div className="space-y-4">
-          <div className="flex items-start gap-4 p-4 bg-red-50 rounded-lg text-red-900">
-            <XCircle className="flex-shrink-0 text-red-600" size={24} />
-            <div>
-              <h4 className="font-semibold">Xoá đơn hàng</h4>
-              <p className="text-sm mt-1">
-                Bạn có chắc chắn muốn xóa đơn hàng <span className="font-bold">#{selectedOrder?.orderCode || selectedOrder?.orderId}</span>?
-                Hành động này không thể hoàn tác.
-              </p>
+              {contractDetailData?.data?.contractId && (
+                <Button
+                  onClick={() => {
+                    const url = `/dealer-staff/contracts/${contractDetailData.data.contractId}/view`;
+                    window.open(url, '_blank');
+                  }}
+                >
+                  Xem chi tiết hợp đồng
+                </Button>
+              )}
             </div>
           </div>
+        </Modal>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsDeleteModalOpen(false);
-                setSelectedOrder(null);
-              }}
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={handleDeleteOrder}
-              disabled={isDeletingOrder}
-              className="bg-red-600 hover:bg-red-700 text-white"
-            >
-              {isDeletingOrder ? 'Đang xóa...' : 'Xóa đơn hàng'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        {/* Delete Confirmation Modal */}
+        <Modal
+          isOpen={isDeleteModalOpen}
+          onClose={() => {
+            setIsDeleteModalOpen(false);
+            setSelectedOrder(null);
+          }}
+          title="Xác nhận xóa đơn hàng"
+          size="md"
+        >
+          <div className="space-y-4">
+            <div className="flex items-start gap-4 p-4 bg-red-50 rounded-lg text-red-900">
+              <XCircle className="flex-shrink-0 text-red-600" size={24} />
+              <div>
+                <h4 className="font-semibold">Xoá đơn hàng</h4>
+                <p className="text-sm mt-1">
+                  Bạn có chắc chắn muốn xóa đơn hàng <span className="font-bold">#{selectedOrder?.orderCode || selectedOrder?.orderId}</span>?
+                  Hành động này không thể hoàn tác.
+                </p>
+              </div>
+            </div>
 
-      {/* Confirm Order Modal */}
-      <Modal
-        isOpen={isConfirmOrderModalOpen}
-        onClose={() => {
-          setIsConfirmOrderModalOpen(false);
-          setSelectedOrder(null);
-        }}
-        title="Xác nhận đơn hàng"
-        size="md"
-      >
-        <div className="space-y-4">
-          <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-lg text-blue-900">
-            <CheckCircle className="flex-shrink-0 text-blue-600" size={24} />
-            <div>
-              <h4 className="font-semibold">Xác nhận đơn hàng</h4>
-              <p className="text-sm mt-1">
-                Bạn có chắc chắn muốn xác nhận đơn hàng <span className="font-bold">#{selectedOrder?.orderCode || selectedOrder?.orderId}</span>?
-                Sau khi xác nhận, đơn hàng sẽ chuyển sang trạng thái "Đã xác nhận".
-              </p>
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsDeleteModalOpen(false);
+                  setSelectedOrder(null);
+                }}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={handleDeleteOrder}
+                disabled={isDeletingOrder}
+                className="bg-red-600 hover:bg-red-700 text-white"
+              >
+                {isDeletingOrder ? 'Đang xóa...' : 'Xóa đơn hàng'}
+              </Button>
             </div>
           </div>
+        </Modal>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsConfirmOrderModalOpen(false);
-                setSelectedOrder(null);
-              }}
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={handleConfirmOrderConfirmed}
-              disabled={isConfirmingOrder}
-              className="bg-blue-600 hover:bg-blue-700 text-white"
-            >
-              {isConfirmingOrder ? 'Đang xác nhận...' : 'Xác nhận đơn hàng'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        {/* Confirm Order Modal */}
+        <Modal
+          isOpen={isConfirmOrderModalOpen}
+          onClose={() => {
+            setIsConfirmOrderModalOpen(false);
+            setSelectedOrder(null);
+          }}
+          title="Xác nhận đơn hàng"
+          size="md"
+        >
+          <div className="space-y-4">
+            <div className="flex items-start gap-4 p-4 bg-blue-50 rounded-lg text-blue-900">
+              <CheckCircle className="flex-shrink-0 text-blue-600" size={24} />
+              <div>
+                <h4 className="font-semibold">Xác nhận đơn hàng</h4>
+                <p className="text-sm mt-1">
+                  Bạn có chắc chắn muốn xác nhận đơn hàng <span className="font-bold">#{selectedOrder?.orderCode || selectedOrder?.orderId}</span>?
+                  Sau khi xác nhận, đơn hàng sẽ chuyển sang trạng thái "Đã xác nhận".
+                </p>
+              </div>
+            </div>
 
-      {/* Confirm Create Contract Modal */}
-      <Modal
-        isOpen={isConfirmContractModalOpen}
-        onClose={() => {
-          setIsConfirmContractModalOpen(false);
-          setSelectedOrder(null);
-        }}
-        title="Tạo hợp đồng"
-        size="md"
-      >
-        <div className="space-y-4">
-          <div className="flex items-start gap-4 p-4 bg-green-50 rounded-lg text-green-900">
-            <FileText className="flex-shrink-0 text-green-600" size={24} />
-            <div>
-              <h4 className="font-semibold">Tạo hợp đồng</h4>
-              <p className="text-sm mt-1">
-                Bạn có chắc chắn muốn tạo hợp đồng cho đơn hàng <span className="font-bold">#{selectedOrder?.orderCode || selectedOrder?.orderId}</span>?
-                Hợp đồng sẽ được tạo và bạn có thể quản lý trong trang Hợp đồng.
-              </p>
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsConfirmOrderModalOpen(false);
+                  setSelectedOrder(null);
+                }}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={handleConfirmOrderConfirmed}
+                disabled={isConfirmingOrder}
+                className="bg-blue-600 hover:bg-blue-700 text-white"
+              >
+                {isConfirmingOrder ? 'Đang xác nhận...' : 'Xác nhận đơn hàng'}
+              </Button>
             </div>
           </div>
+        </Modal>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsConfirmContractModalOpen(false);
-                setSelectedOrder(null);
-              }}
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={handleCreateContractConfirmed}
-              disabled={isCreatingContract}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              {isCreatingContract ? 'Đang tạo...' : 'Tạo hợp đồng'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+        {/* Confirm Create Contract Modal */}
+        <Modal
+          isOpen={isConfirmContractModalOpen}
+          onClose={() => {
+            setIsConfirmContractModalOpen(false);
+            setSelectedOrder(null);
+          }}
+          title="Tạo hợp đồng"
+          size="md"
+        >
+          <div className="space-y-4">
+            <div className="flex items-start gap-4 p-4 bg-green-50 rounded-lg text-green-900">
+              <FileText className="flex-shrink-0 text-green-600" size={24} />
+              <div>
+                <h4 className="font-semibold">Tạo hợp đồng</h4>
+                <p className="text-sm mt-1">
+                  Bạn có chắc chắn muốn tạo hợp đồng cho đơn hàng <span className="font-bold">#{selectedOrder?.orderCode || selectedOrder?.orderId}</span>?
+                  Hợp đồng sẽ được tạo và bạn có thể quản lý trong trang Hợp đồng.
+                </p>
+              </div>
+            </div>
 
-      {/* Confirm Deliver Order Modal */}
-      <Modal
-        isOpen={isConfirmDeliverModalOpen}
-        onClose={() => {
-          setIsConfirmDeliverModalOpen(false);
-          setSelectedOrder(null);
-        }}
-        title="Xác nhận giao hàng"
-        size="md"
-      >
-        <div className="space-y-4">
-          <div className="flex items-start gap-4 p-4 bg-green-50 rounded-lg text-green-900">
-            <Truck className="flex-shrink-0 text-green-600" size={24} />
-            <div>
-              <h4 className="font-semibold">Giao hàng</h4>
-              <p className="text-sm mt-1">
-                Bạn có chắc chắn muốn đánh dấu đơn hàng <span className="font-bold">#{selectedOrder?.orderCode || selectedOrder?.orderId}</span> là đã giao hàng?
-                Sau khi xác nhận, đơn hàng sẽ chuyển sang trạng thái "Đã giao hàng".
-              </p>
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsConfirmContractModalOpen(false);
+                  setSelectedOrder(null);
+                }}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={handleCreateContractConfirmed}
+                disabled={isCreatingContract}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {isCreatingContract ? 'Đang tạo...' : 'Tạo hợp đồng'}
+              </Button>
             </div>
           </div>
+        </Modal>
 
-          <div className="flex justify-end gap-3 pt-4">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setIsConfirmDeliverModalOpen(false);
-                setSelectedOrder(null);
-              }}
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={handleDeliverOrderConfirmed}
-              disabled={isDeliveringOrder}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              {isDeliveringOrder ? 'Đang xử lý...' : 'Xác nhận giao hàng'}
-            </Button>
+        {/* Confirm Deliver Order Modal */}
+        <Modal
+          isOpen={isConfirmDeliverModalOpen}
+          onClose={() => {
+            setIsConfirmDeliverModalOpen(false);
+            setSelectedOrder(null);
+          }}
+          title="Xác nhận giao hàng"
+          size="md"
+        >
+          <div className="space-y-4">
+            <div className="flex items-start gap-4 p-4 bg-green-50 rounded-lg text-green-900">
+              <Truck className="flex-shrink-0 text-green-600" size={24} />
+              <div>
+                <h4 className="font-semibold">Giao hàng</h4>
+                <p className="text-sm mt-1">
+                  Bạn có chắc chắn muốn đánh dấu đơn hàng <span className="font-bold">#{selectedOrder?.orderCode || selectedOrder?.orderId}</span> là đã giao hàng?
+                  Sau khi xác nhận, đơn hàng sẽ chuyển sang trạng thái "Đã giao hàng".
+                </p>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setIsConfirmDeliverModalOpen(false);
+                  setSelectedOrder(null);
+                }}
+              >
+                Hủy
+              </Button>
+              <Button
+                onClick={handleDeliverOrderConfirmed}
+                disabled={isDeliveringOrder}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                {isDeliveringOrder ? 'Đang xử lý...' : 'Xác nhận giao hàng'}
+              </Button>
+            </div>
           </div>
-        </div>
-      </Modal>
+        </Modal>
 
+        {/* Vehicle Assignment Modal */}
+        <VehicleAssignmentModal
+          isOpen={isVehicleAssignmentModalOpen}
+          onClose={() => {
+            setIsVehicleAssignmentModalOpen(false);
+            setSelectedOrder(null);
+          }}
+          order={selectedOrder}
+          orderDetails={vehicleAssignmentOrderDetails?.data}
+        />
+      </div>
     </DealerStaffLayout>
   );
 };

@@ -10,20 +10,23 @@ import {
   useGetMyStoreQuery,
   useUpdateMyStoreMutation,
 } from '../../../api/dealerManager/storeApi';
-import { provincesApi } from '../../../api/public/provincesApi';
+import { addressKitApi } from '../../../api/public/addressKitApi';
+
 
 const StoreManagementPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
   const [errorModal, setErrorModal] = useState({ isOpen: false, message: '' });
   const [successModal, setSuccessModal] = useState({ isOpen: false, message: '' });
+
+  // Address states for 2-level system
   const [provinces, setProvinces] = useState([]);
-  const [districts, setDistricts] = useState([]);
-  const [wards, setWards] = useState([]);
+  const [communes, setCommunes] = useState([]);
   const [selectedProvinceCode, setSelectedProvinceCode] = useState('');
-  const [selectedDistrictCode, setSelectedDistrictCode] = useState('');
-  const [selectedWardCode, setSelectedWardCode] = useState('');
+  const [selectedCommuneCode, setSelectedCommuneCode] = useState('');
+  const [communeSearchTerm, setCommuneSearchTerm] = useState('');
   const [detailedAddress, setDetailedAddress] = useState('');
+
   const [formData, setFormData] = useState({
     storeName: '',
     address: '',
@@ -43,7 +46,7 @@ const StoreManagementPage = () => {
   useEffect(() => {
     const loadProvinces = async () => {
       try {
-        const data = await provincesApi.getAllProvinces();
+        const data = await addressKitApi.getAllProvinces();
         setProvinces(data);
       } catch (error) {
         console.error('Error loading provinces:', error);
@@ -52,47 +55,29 @@ const StoreManagementPage = () => {
     loadProvinces();
   }, []);
 
-  // Load districts when province is selected
+  // Load communes when province is selected
   useEffect(() => {
-    const loadDistricts = async () => {
+    const loadCommunes = async () => {
       if (selectedProvinceCode) {
         try {
-          const province = await provincesApi.getProvinceWithDistricts(selectedProvinceCode);
-          setDistricts(province.districts || []);
-          setWards([]);
-          setSelectedDistrictCode('');
-          setSelectedWardCode('');
+          const data = await addressKitApi.getCommunesByProvince(selectedProvinceCode);
+          setCommunes(data || []);
+          // Only reset if this is a user selection, not initial load
+          if (selectedCommuneCode && !data?.find(c => c.code === selectedCommuneCode)) {
+            setSelectedCommuneCode('');
+          }
+          setCommuneSearchTerm('');
         } catch (error) {
-          console.error('Error loading districts:', error);
+          console.error('Error loading communes:', error);
         }
       } else {
-        setDistricts([]);
-        setWards([]);
-        setSelectedDistrictCode('');
-        setSelectedWardCode('');
+        setCommunes([]);
+        setSelectedCommuneCode('');
+        setCommuneSearchTerm('');
       }
     };
-    loadDistricts();
+    loadCommunes();
   }, [selectedProvinceCode]);
-
-  // Load wards when district is selected
-  useEffect(() => {
-    const loadWards = async () => {
-      if (selectedDistrictCode) {
-        try {
-          const district = await provincesApi.getDistrictWithWards(selectedDistrictCode);
-          setWards(district.wards || []);
-          setSelectedWardCode('');
-        } catch (error) {
-          console.error('Error loading wards:', error);
-        }
-      } else {
-        setWards([]);
-        setSelectedWardCode('');
-      }
-    };
-    loadWards();
-  }, [selectedDistrictCode]);
 
   // Initialize form when store data is loaded
   useEffect(() => {
@@ -107,11 +92,25 @@ const StoreManagementPage = () => {
         contractEndDate: store.contractEndDate ? store.contractEndDate.split('T')[0] : '',
       });
 
-      // Try to set province, district, ward from address
-      if (store.provinceName && Array.isArray(provinces)) {
+      // Try to set province and commune from address
+      if (store.provinceName && provinces.length > 0) {
         const province = provinces.find(p => p.name === store.provinceName);
         if (province) {
-          setSelectedProvinceCode(province.code.toString());
+          setSelectedProvinceCode(province.code);
+
+          // Note: We can't easily set commune code without loading communes first
+          // But we can try to parse the address to get detailed address
+          // Address format: "detailed, Commune, Province" or old "detailed, Ward, District, Province"
+          let detailedAddr = store.address || '';
+          if (detailedAddr.includes(store.provinceName)) {
+            detailedAddr = detailedAddr.replace(store.provinceName, '').trim();
+            if (detailedAddr.endsWith(',')) detailedAddr = detailedAddr.slice(0, -1).trim();
+
+            // Try to extract commune name if possible, but it's hard without the list
+            // For now just set detailed address as the remaining part
+            // In a real scenario, we might want to wait for communes to load
+          }
+          setDetailedAddress(detailedAddr);
         }
       }
     }
@@ -119,9 +118,8 @@ const StoreManagementPage = () => {
 
   // Update address and provinceName when selections change
   useEffect(() => {
-    const selectedProvince = Array.isArray(provinces) ? provinces.find(p => p.code === parseInt(selectedProvinceCode)) : null;
-    const selectedDistrict = Array.isArray(districts) ? districts.find(d => d.code === parseInt(selectedDistrictCode)) : null;
-    const selectedWard = Array.isArray(wards) ? wards.find(w => w.code === parseInt(selectedWardCode)) : null;
+    const selectedProvince = provinces.find(p => p.code === selectedProvinceCode);
+    const selectedCommune = communes.find(c => c.code === selectedCommuneCode);
 
     if (selectedProvince) {
       setFormData(prev => ({
@@ -130,12 +128,11 @@ const StoreManagementPage = () => {
       }));
     }
 
-    // Build address from ward, district, province
+    // Build address from commune and province
     const addressParts = [];
-    if (selectedWard) addressParts.push(selectedWard.name);
-    if (selectedDistrict) addressParts.push(selectedDistrict.name);
+    if (selectedCommune) addressParts.push(selectedCommune.name);
     if (selectedProvince) addressParts.push(selectedProvince.name);
-    
+
     // Combine with detailed address if provided
     let fullAddress = '';
     if (detailedAddress.trim()) {
@@ -146,14 +143,14 @@ const StoreManagementPage = () => {
     } else if (addressParts.length > 0) {
       fullAddress = addressParts.join(', ');
     }
-    
+
     if (fullAddress) {
       setFormData(prev => ({
         ...prev,
         address: fullAddress,
       }));
     }
-  }, [selectedProvinceCode, selectedDistrictCode, selectedWardCode, detailedAddress, provinces, districts, wards]);
+  }, [selectedProvinceCode, selectedCommuneCode, detailedAddress, provinces, communes]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -206,11 +203,11 @@ const StoreManagementPage = () => {
     if (formData.contractStartDate && formData.contractEndDate) {
       const startDate = new Date(formData.contractStartDate);
       const endDate = new Date(formData.contractEndDate);
-      
+
       // Set time về 0 để so sánh chỉ ngày
       startDate.setHours(0, 0, 0, 0);
       endDate.setHours(0, 0, 0, 0);
-      
+
       if (endDate <= startDate) {
         setErrorModal({ isOpen: true, message: 'Ngày kết thúc hợp đồng phải sau ngày bắt đầu hợp đồng' });
         return;
@@ -218,9 +215,52 @@ const StoreManagementPage = () => {
     }
 
     try {
+      // Update store details first
       await updateStore({ storeId: store.storeId, ...formData }).unwrap();
+
+      // Upload image if new image is selected
+      if (selectedImageFile) {
+        try {
+          const uploadResponse = await uploadStoreImage({
+            storeId: store.storeId,
+            file: selectedImageFile,
+          }).unwrap();
+
+          // Handle API response: data can be the URL string itself or an object
+          // Based on user report: { code: 200, message: "...", data: "https://..." }
+          const imagePath = typeof uploadResponse?.data === 'string'
+            ? uploadResponse.data
+            : (uploadResponse?.data?.imagePath || uploadResponse?.imagePath || '');
+
+          if (imagePath) {
+            // Update store with new image path
+            await updateStore({
+              storeId: store.storeId,
+              ...formData,
+              imagePath: imagePath,
+            }).unwrap();
+          }
+
+          // Refetch to ensure UI is updated
+          await refetchStore();
+        } catch (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          // Store details updated but image failed
+          setSuccessModal({ isOpen: true, message: 'Cập nhật thông tin thành công nhưng có lỗi khi tải ảnh lên.' });
+          setIsEditModalOpen(false);
+          return;
+        }
+      } else {
+        await refetchStore();
+      }
+
       setIsEditModalOpen(false);
       setSuccessModal({ isOpen: true, message: 'Cập nhật thông tin đại lý thành công!' });
+
+      // Reset image states
+      setSelectedImageFile(null);
+      setImagePreview(null);
+      setShowImagePreview(false);
     } catch (error) {
       const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi cập nhật thông tin đại lý';
       setErrorModal({ isOpen: true, message: errorMessage });
@@ -228,6 +268,23 @@ const StoreManagementPage = () => {
         console.error(error);
       }
     }
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+      setShowImagePreview(false);
+    }
+  };
+
+  const handleToggleImagePreview = () => {
+    setShowImagePreview(!showImagePreview);
   };
 
   const handleViewImage = () => {
@@ -246,7 +303,7 @@ const StoreManagementPage = () => {
 
   // Kiểm tra lỗi 401 (Unauthorized)
   const isUnauthorized = error?.status === 401;
-  
+
   if (isUnauthorized) {
     return (
       <DealerManagerLayout>
@@ -410,14 +467,14 @@ const StoreManagementPage = () => {
             onChange={(e) => setFormData({ ...formData, storeName: e.target.value })}
             required
           />
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Tỉnh/Thành phố *
             </label>
             <Dropdown
-              options={(Array.isArray(provinces) ? provinces : []).map((province) => ({
-                value: province.code.toString(),
+              options={provinces.map((province) => ({
+                value: province.code,
                 label: province.name,
               }))}
               value={selectedProvinceCode}
@@ -426,47 +483,60 @@ const StoreManagementPage = () => {
             />
           </div>
 
-          {selectedProvinceCode && districts.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Quận/Huyện *
-              </label>
-              <Dropdown
-                options={(Array.isArray(districts) ? districts : []).map((district) => ({
-                  value: district.code.toString(),
-                  label: district.name,
-                }))}
-                value={selectedDistrictCode}
-                onChange={(value) => setSelectedDistrictCode(value)}
-                placeholder="Chọn quận/huyện"
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Phường/Xã/Thị trấn *
+            </label>
+            {/* Commune search input */}
+            {selectedProvinceCode && communes.length > 0 && (
+              <input
+                className="w-full px-3 py-2 mb-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm"
+                placeholder="Tìm kiếm phường/xã..."
+                value={communeSearchTerm}
+                onChange={(e) => setCommuneSearchTerm(e.target.value)}
               />
-            </div>
-          )}
-
-          {selectedDistrictCode && wards.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Phường/Xã *
-              </label>
-              <Dropdown
-                options={(Array.isArray(wards) ? wards : []).map((ward) => ({
-                  value: ward.code.toString(),
-                  label: ward.name,
+            )}
+            <Dropdown
+              options={communes
+                .filter(commune =>
+                  !communeSearchTerm.trim() ||
+                  commune.name.toLowerCase().includes(communeSearchTerm.toLowerCase())
+                )
+                .map((commune) => ({
+                  value: commune.code,
+                  label: commune.name,
                 }))}
-                value={selectedWardCode}
-                onChange={(value) => setSelectedWardCode(value)}
-                placeholder="Chọn phường/xã"
-              />
-            </div>
-          )}
-
-          {selectedProvinceCode && selectedDistrictCode && selectedWardCode && (
-            <Input
-              label="Địa chỉ chi tiết (số nhà, tên đường, v.v.)"
-              value={detailedAddress}
-              onChange={(e) => setDetailedAddress(e.target.value)}
-              placeholder="Ví dụ: 123 Đường ABC, Tòa nhà XYZ"
+              value={selectedCommuneCode}
+              onChange={(value) => setSelectedCommuneCode(value)}
+              placeholder="Chọn phường/xã/thị trấn"
+              disabled={!selectedProvinceCode || communes.length === 0}
             />
+            {selectedProvinceCode && communes.length > 0 && (
+              <p className="mt-1 text-xs text-gray-500">
+                {communes.filter(c =>
+                  !communeSearchTerm.trim() ||
+                  c.name.toLowerCase().includes(communeSearchTerm.toLowerCase())
+                ).length} / {communes.length} kết quả
+              </p>
+            )}
+          </div>
+
+          {selectedProvinceCode && selectedCommuneCode && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Địa chỉ chi tiết (Số nhà, tên đường) *
+              </label>
+              <Input
+                value={detailedAddress}
+                onChange={(e) => setDetailedAddress(e.target.value)}
+                placeholder="Ví dụ: 123 Đường ABC"
+                required
+              />
+              <div className="flex items-start gap-2 mt-2 text-sm text-gray-500">
+                <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                <span>Địa chỉ sẽ tự động bao gồm: [Số nhà, tên đường] + Phường/Xã + Tỉnh/Thành phố</span>
+              </div>
+            </div>
           )}
 
           <Input
@@ -503,7 +573,50 @@ const StoreManagementPage = () => {
             onChange={(e) => setFormData({ ...formData, contractEndDate: e.target.value })}
             required
           />
-          
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Hình ảnh cửa hàng
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleImageChange}
+                className="block flex-1 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              {selectedImageFile && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleToggleImagePreview}
+                  size="sm"
+                >
+                  {showImagePreview ? 'Ẩn' : 'Xem trước'}
+                </Button>
+              )}
+            </div>
+            {imagePreview && showImagePreview && (
+              <div className="mt-2 flex justify-center">
+                <img
+                  src={imagePreview}
+                  alt="Preview"
+                  className="max-w-full max-h-96 object-contain rounded-lg border border-gray-200"
+                />
+              </div>
+            )}
+            {!selectedImageFile && store?.imagePath && (
+              <div className="mt-2">
+                <p className="text-sm text-gray-500 mb-2">Hình ảnh hiện tại:</p>
+                <img
+                  src={store.imagePath}
+                  alt="Current"
+                  className="max-w-full max-h-48 object-contain rounded-lg border border-gray-200"
+                />
+              </div>
+            )}
+          </div>
+
           <div className="flex gap-4 pt-4">
             <Button
               type="button"
@@ -624,5 +737,3 @@ const StoreManagementPage = () => {
 };
 
 export default StoreManagementPage;
-
-

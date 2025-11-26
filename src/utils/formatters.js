@@ -49,29 +49,17 @@ export const getOrderStatusConfig = (status) => {
       color: 'bg-slate-100 text-slate-800',
       label: 'Nháp'
     },
-    PENDING: {
-      color: 'bg-yellow-100 text-yellow-800',
-      label: 'Chờ xử lý'
-    },
     CONFIRMED: {
       color: 'bg-blue-100 text-blue-800',
       label: 'Đã xác nhận'
     },
+    PENDING_DEPOSIT: {
+      color: 'bg-cyan-100 text-cyan-800',
+      label: 'Chờ đặt cọc'
+    },
     APPROVED: {
       color: 'bg-purple-100 text-purple-800',
       label: 'Đã phê duyệt'
-    },
-    FULLY_PAID: {
-      color: 'bg-emerald-100 text-emerald-800',
-      label: 'Đã thanh toán đủ'
-    },
-    DELIVERED: {
-      color: 'bg-green-100 text-green-800',
-      label: 'Đã giao hàng'
-    },
-    CANCELLED: {
-      color: 'bg-red-100 text-red-800',
-      label: 'Đã hủy'
     },
     CONTRACT_PENDING: {
       color: 'bg-orange-100 text-orange-800',
@@ -84,6 +72,18 @@ export const getOrderStatusConfig = (status) => {
     DEPOSIT_PAID: {
       color: 'bg-amber-100 text-amber-800',
       label: 'Đã đặt cọc'
+    },
+    FULLY_PAID: {
+      color: 'bg-emerald-100 text-emerald-800',
+      label: 'Đã thanh toán đủ'
+    },
+    DELIVERED: {
+      color: 'bg-green-100 text-green-800',
+      label: 'Đã giao hàng'
+    },
+    CANCELLED: {
+      color: 'bg-red-100 text-red-800',
+      label: 'Đã hủy'
     },
   };
   return statusMap[status] || { color: 'bg-gray-100 text-gray-800', label: status || 'N/A' };
@@ -197,12 +197,12 @@ export const isPaymentRequired = (totalPayment) => {
  */
 export const getEffectiveContractStatus = (contract) => {
   if (!contract) return 'DRAFT';
-  
+
   // If total payment <= 5, automatically consider as FULLY_PAID
   if (!isPaymentRequired(contract.totalPayment)) {
     return 'FULLY_PAID';
   }
-  
+
   return contract.status;
 };
 
@@ -213,12 +213,12 @@ export const getEffectiveContractStatus = (contract) => {
  */
 export const getEffectiveRemainingAmount = (contract) => {
   if (!contract) return 0;
-  
+
   // If total payment <= 5, remaining amount is 0
   if (!isPaymentRequired(contract.totalPayment)) {
     return 0;
   }
-  
+
   return contract.remainingAmountToPay || 0;
 };
 

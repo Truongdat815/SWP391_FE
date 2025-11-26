@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Plus, Edit, Trash2, MoreVertical, Eye, Image as ImageIcon, X, Building, User, Calendar, MapPin, Phone, Mail, Lightbulb, Check, AlertTriangle } from 'lucide-react';
+import { Plus, Edit, Trash2, MoreVertical, Eye, Image as ImageIcon, X, Building, User, Calendar, MapPin, Phone, Mail, Lightbulb, Check, AlertTriangle, Upload } from 'lucide-react';
 import AdminLayout from '../../../components/layout/AdminLayout';
 import SearchBar from '../../../components/shared/SearchBar';
 import Table from '../../../components/ui/Table';
@@ -16,7 +16,7 @@ import {
   useGetStoreStatusesQuery,
   useUploadStoreImageMutation,
 } from '../../../api/admin/storeApi';
-import { provincesApi } from '../../../api/public/provincesApi';
+import { addressKitApi } from '../../../api/public/addressKitApi';
 import Dropdown from '../../../components/ui/Dropdown';
 
 const BranchManagementPage = () => {
@@ -30,29 +30,37 @@ const BranchManagementPage = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isDetailModalOpen, setIsDetailModalOpen] = useState(false);
   const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null); // 'deactivate' or 'activate'
   const [openMenuId, setOpenMenuId] = useState(null);
+
+  // Address states for 2-level system (Province -> Commune)
   const [provinces, setProvinces] = useState([]);
-  const [districts, setDistricts] = useState([]);
-  const [wards, setWards] = useState([]);
+  const [communes, setCommunes] = useState([]);
   const [selectedProvinceCode, setSelectedProvinceCode] = useState('');
-  const [selectedDistrictCode, setSelectedDistrictCode] = useState('');
-  const [selectedWardCode, setSelectedWardCode] = useState('');
+  const [selectedCommuneCode, setSelectedCommuneCode] = useState('');
+  const [communeSearchTerm, setCommuneSearchTerm] = useState('');
+  const [detailedAddress, setDetailedAddress] = useState('');
+
   const [selectedImageFile, setSelectedImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [showImagePreview, setShowImagePreview] = useState(false);
-  const [detailedAddress, setDetailedAddress] = useState('');
+
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploadPreview, setUploadPreview] = useState(null);
+
   // Edit form states
   const [editSelectedProvinceCode, setEditSelectedProvinceCode] = useState('');
-  const [editSelectedDistrictCode, setEditSelectedDistrictCode] = useState('');
-  const [editSelectedWardCode, setEditSelectedWardCode] = useState('');
-  const [editDistricts, setEditDistricts] = useState([]);
-  const [editWards, setEditWards] = useState([]);
+  const [editSelectedCommuneCode, setEditSelectedCommuneCode] = useState('');
+  const [editCommunes, setEditCommunes] = useState([]);
+  const [editCommuneSearchTerm, setEditCommuneSearchTerm] = useState('');
   const [editDetailedAddress, setEditDetailedAddress] = useState('');
+
   const [editSelectedImageFile, setEditSelectedImageFile] = useState(null);
   const [editImagePreview, setEditImagePreview] = useState(null);
   const [editShowImagePreview, setEditShowImagePreview] = useState(false);
+
   const [formData, setFormData] = useState({
     storeName: '',
     address: '',
@@ -75,22 +83,19 @@ const BranchManagementPage = () => {
   const stores = storesResponse?.data || [];
   const statuses = statusesResponse?.data || ['ACTIVE', 'INACTIVE'];
 
-  // Debug: Log store structure in development
-  if (import.meta.env.DEV && stores.length > 0) {
-    console.log('Store data structure:', stores[0]);
-  }
+
 
   const filteredStores = useMemo(() => {
     return stores.filter((store) => {
       // Filter by province
-      const matchesProvince = !filterProvince || 
+      const matchesProvince = !filterProvince ||
         store.provinceName?.toLowerCase() === filterProvince.toLowerCase();
-      
+
       // Search by store name and phone
-      const matchesSearch = !searchTerm || 
+      const matchesSearch = !searchTerm ||
         store.storeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         store.phone?.includes(searchTerm);
-      
+
       return matchesProvince && matchesSearch;
     });
   }, [stores, searchTerm, filterProvince]);
@@ -110,7 +115,7 @@ const BranchManagementPage = () => {
   useEffect(() => {
     const loadProvinces = async () => {
       try {
-        const data = await provincesApi.getAllProvinces();
+        const data = await addressKitApi.getAllProvinces();
         setProvinces(data);
       } catch (error) {
         console.error('Error loading provinces:', error);
@@ -119,53 +124,34 @@ const BranchManagementPage = () => {
     loadProvinces();
   }, []);
 
-  // Load districts when province is selected
+  // Load communes when province is selected
   useEffect(() => {
-    const loadDistricts = async () => {
+    const loadCommunes = async () => {
       if (selectedProvinceCode) {
         try {
-          const province = await provincesApi.getProvinceWithDistricts(selectedProvinceCode);
-          setDistricts(province.districts || []);
-          setWards([]);
-          setSelectedDistrictCode('');
-          setSelectedWardCode('');
+          const data = await addressKitApi.getCommunesByProvince(selectedProvinceCode);
+          setCommunes(data || []);
+          // Only reset if this is a user selection, not initial load
+          if (selectedCommuneCode && !data?.find(c => c.code === selectedCommuneCode)) {
+            setSelectedCommuneCode('');
+          }
+          setCommuneSearchTerm('');
         } catch (error) {
-          console.error('Error loading districts:', error);
+          console.error('Error loading communes:', error);
         }
       } else {
-        setDistricts([]);
-        setWards([]);
-        setSelectedDistrictCode('');
-        setSelectedWardCode('');
+        setCommunes([]);
+        setSelectedCommuneCode('');
+        setCommuneSearchTerm('');
       }
     };
-    loadDistricts();
+    loadCommunes();
   }, [selectedProvinceCode]);
-
-  // Load wards when district is selected
-  useEffect(() => {
-    const loadWards = async () => {
-      if (selectedDistrictCode) {
-        try {
-          const district = await provincesApi.getDistrictWithWards(selectedDistrictCode);
-          setWards(district.wards || []);
-          setSelectedWardCode('');
-        } catch (error) {
-          console.error('Error loading wards:', error);
-        }
-      } else {
-        setWards([]);
-        setSelectedWardCode('');
-      }
-    };
-    loadWards();
-  }, [selectedDistrictCode]);
 
   // Update address and provinceName when selections change
   useEffect(() => {
-    const selectedProvince = provinces.find(p => p.code === parseInt(selectedProvinceCode));
-    const selectedDistrict = districts.find(d => d.code === parseInt(selectedDistrictCode));
-    const selectedWard = wards.find(w => w.code === parseInt(selectedWardCode));
+    const selectedProvince = provinces.find(p => p.code === selectedProvinceCode);
+    const selectedCommune = communes.find(c => c.code === selectedCommuneCode);
 
     if (selectedProvince) {
       setFormData(prev => ({
@@ -174,12 +160,11 @@ const BranchManagementPage = () => {
       }));
     }
 
-    // Build address from ward, district, province
+    // Build address from commune and province
     const addressParts = [];
-    if (selectedWard) addressParts.push(selectedWard.name);
-    if (selectedDistrict) addressParts.push(selectedDistrict.name);
+    if (selectedCommune) addressParts.push(selectedCommune.name);
     if (selectedProvince) addressParts.push(selectedProvince.name);
-    
+
     // Combine with detailed address if provided
     let fullAddress = '';
     if (detailedAddress.trim()) {
@@ -190,14 +175,14 @@ const BranchManagementPage = () => {
     } else if (addressParts.length > 0) {
       fullAddress = addressParts.join(', ');
     }
-    
+
     if (fullAddress) {
       setFormData(prev => ({
         ...prev,
         address: fullAddress,
       }));
     }
-  }, [selectedProvinceCode, selectedDistrictCode, selectedWardCode, detailedAddress, provinces, districts, wards]);
+  }, [selectedProvinceCode, selectedCommuneCode, detailedAddress, provinces, communes]);
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -249,43 +234,12 @@ const BranchManagementPage = () => {
     try {
       // Create store first (without imagePath)
       const storeData = { ...formData };
-      delete storeData.imagePath; // Remove imagePath, will be set after upload
-      
-      const createdStore = await createStore(storeData).unwrap();
-      
-      // Upload image after store is created (if image is selected)
-      if (selectedImageFile && createdStore.storeId) {
-        try {
-          const uploadResponse = await uploadStoreImage({
-            storeId: createdStore.storeId, // Use the storeId from created store
-            file: selectedImageFile,
-          }).unwrap();
-          
-          // Get imagePath from upload response
-          const imagePath = uploadResponse?.data?.imagePath || uploadResponse?.imagePath || '';
-          
-          // Update store with imagePath
-          if (imagePath) {
-            await updateStore({
-              storeId: createdStore.storeId,
-              ...storeData,
-              imagePath: imagePath,
-            }).unwrap();
-          }
-          
-          // Refetch stores to get updated data
-          await refetchStores();
-        } catch (uploadError) {
-          console.error('Error uploading image:', uploadError);
-          // Store is created but image upload failed - show warning
-          toast.warning('Chi nhánh đã được tạo nhưng có lỗi khi upload hình ảnh. Vui lòng thử upload lại sau.');
-          // Still refetch to show the created store
-          await refetchStores();
-        }
-      } else {
-        // Refetch stores even if no image to ensure data is fresh
-        await refetchStores();
-      }
+      delete storeData.imagePath; // Remove imagePath
+
+      await createStore(storeData).unwrap();
+
+      // Refetch stores to get updated data
+      await refetchStores();
 
       // Show success message
       toast.success('Tạo chi nhánh thành công');
@@ -304,8 +258,8 @@ const BranchManagementPage = () => {
         imagePath: '',
       });
       setSelectedProvinceCode('');
-      setSelectedDistrictCode('');
-      setSelectedWardCode('');
+      setSelectedCommuneCode('');
+      setCommuneSearchTerm('');
       setSelectedImageFile(null);
       setImagePreview(null);
       setShowImagePreview(false);
@@ -320,32 +274,34 @@ const BranchManagementPage = () => {
 
   const handleEdit = async (store) => {
     setSelectedStore(store);
-    
+
     // Find province by name
     const province = provinces.find(p => p.name === store.provinceName);
     if (province) {
-      setEditSelectedProvinceCode(province.code.toString());
-      // Load districts
+      setEditSelectedProvinceCode(province.code);
+      // Load communes
       try {
-        const provinceData = await provincesApi.getProvinceWithDistricts(province.code);
-        setEditDistricts(provinceData.districts || []);
+        const data = await addressKitApi.getCommunesByProvince(province.code);
+        setEditCommunes(data || []);
       } catch (error) {
-        console.error('Error loading districts:', error);
+        console.error('Error loading communes:', error);
       }
     }
-    
-    // Parse address to extract detailed address and ward/district
-    // Address format: "detailed, Ward, District, Province"
+
+    // Parse address to extract detailed address
+    // Address format: "detailed, Commune, Province" or old "detailed, Ward, District, Province"
     let detailedAddr = store.address || '';
     if (store.provinceName && detailedAddr.includes(store.provinceName)) {
       detailedAddr = detailedAddr.replace(store.provinceName, '').trim();
       if (detailedAddr.endsWith(',')) {
         detailedAddr = detailedAddr.slice(0, -1).trim();
       }
+      // Note: We can't easily extract commune/district/ward without the full list loaded
+      // So we just leave the detailed address as is for now, user can update it
     }
-    
+
     setEditDetailedAddress(detailedAddr);
-    
+
     setFormData({
       storeName: store.storeName || '',
       address: store.address || '',
@@ -357,62 +313,40 @@ const BranchManagementPage = () => {
       contractEndDate: store.contractEndDate ? store.contractEndDate.split('T')[0] : '',
       imagePath: store.imagePath || '',
     });
-    
+
     setEditSelectedImageFile(null);
     setEditImagePreview(store.imagePath || null);
     setEditShowImagePreview(false);
-    
+
     setIsEditModalOpen(true);
     setOpenMenuId(null);
   };
 
-  // Load edit districts when province is selected
+  // Load edit communes when province is selected
   useEffect(() => {
-    const loadEditDistricts = async () => {
+    const loadEditCommunes = async () => {
       if (editSelectedProvinceCode) {
         try {
-          const province = await provincesApi.getProvinceWithDistricts(parseInt(editSelectedProvinceCode));
-          setEditDistricts(province.districts || []);
-          setEditWards([]);
-          setEditSelectedDistrictCode('');
-          setEditSelectedWardCode('');
+          const data = await addressKitApi.getCommunesByProvince(editSelectedProvinceCode);
+          setEditCommunes(data || []);
+          setEditSelectedCommuneCode('');
+          setEditCommuneSearchTerm('');
         } catch (error) {
-          console.error('Error loading districts:', error);
+          console.error('Error loading communes:', error);
         }
       } else {
-        setEditDistricts([]);
-        setEditWards([]);
-        setEditSelectedDistrictCode('');
-        setEditSelectedWardCode('');
+        setEditCommunes([]);
+        setEditSelectedCommuneCode('');
+        setEditCommuneSearchTerm('');
       }
     };
-    loadEditDistricts();
+    loadEditCommunes();
   }, [editSelectedProvinceCode]);
-
-  // Load edit wards when district is selected
-  useEffect(() => {
-    const loadEditWards = async () => {
-      if (editSelectedDistrictCode) {
-        try {
-          const district = await provincesApi.getDistrictWithWards(parseInt(editSelectedDistrictCode));
-          setEditWards(district.wards || []);
-          setEditSelectedWardCode('');
-        } catch (error) {
-          console.error('Error loading wards:', error);
-        }
-      } else {
-        setEditWards([]);
-        setEditSelectedWardCode('');
-      }
-    };
-    loadEditWards();
-  }, [editSelectedDistrictCode]);
 
   // Update edit address and provinceName when selections change
   useEffect(() => {
-    const selectedProvince = provinces.find(p => p.code === parseInt(editSelectedProvinceCode));
-    const selectedDistrict = editDistricts.find(d => d.code === parseInt(editSelectedDistrictCode));
-    const selectedWard = editWards.find(w => w.code === parseInt(editSelectedWardCode));
+    const selectedProvince = provinces.find(p => p.code === editSelectedProvinceCode);
+    const selectedCommune = editCommunes.find(c => c.code === editSelectedCommuneCode);
 
     if (selectedProvince) {
       setFormData(prev => ({
@@ -421,12 +355,11 @@ const BranchManagementPage = () => {
       }));
     }
 
-    // Build address from ward, district, province
+    // Build address from commune and province
     const addressParts = [];
-    if (selectedWard) addressParts.push(selectedWard.name);
-    if (selectedDistrict) addressParts.push(selectedDistrict.name);
+    if (selectedCommune) addressParts.push(selectedCommune.name);
     if (selectedProvince) addressParts.push(selectedProvince.name);
-    
+
     // Combine with detailed address if provided
     let fullAddress = '';
     if (editDetailedAddress.trim()) {
@@ -437,14 +370,14 @@ const BranchManagementPage = () => {
     } else if (addressParts.length > 0) {
       fullAddress = addressParts.join(', ');
     }
-    
+
     if (fullAddress) {
       setFormData(prev => ({
         ...prev,
         address: fullAddress,
       }));
     }
-  }, [editSelectedProvinceCode, editSelectedDistrictCode, editSelectedWardCode, editDetailedAddress, provinces, editDistricts, editWards]);
+  }, [editSelectedProvinceCode, editSelectedCommuneCode, editDetailedAddress, provinces, editCommunes]);
 
   const handleEditImageChange = (e) => {
     const file = e.target.files[0];
@@ -468,16 +401,31 @@ const BranchManagementPage = () => {
     try {
       const updateData = { ...formData };
       delete updateData.imagePath; // Remove imagePath, will be set after upload
-      
+
+      // Update store details first
       await updateStore({ storeId: selectedStore.storeId, ...updateData }).unwrap();
-      
+
       // Upload image if new image is selected
       if (editSelectedImageFile && selectedStore.storeId) {
         try {
-          await uploadStoreImage({
+          const uploadResponse = await uploadStoreImage({
             storeId: selectedStore.storeId,
             file: editSelectedImageFile,
           }).unwrap();
+
+          // Handle API response: data can be the URL string itself or an object
+          const imagePath = typeof uploadResponse?.data === 'string'
+            ? uploadResponse.data
+            : (uploadResponse?.data?.imagePath || uploadResponse?.imagePath || '');
+
+          if (imagePath) {
+            await updateStore({
+              storeId: selectedStore.storeId,
+              ...updateData,
+              imagePath: imagePath
+            }).unwrap();
+          }
+
           // Refetch stores to get updated imagePath
           await refetchStores();
         } catch (uploadError) {
@@ -490,12 +438,12 @@ const BranchManagementPage = () => {
       }
 
       toast.success('Cập nhật chi nhánh thành công');
-      
+
       setIsEditModalOpen(false);
       setSelectedStore(null);
       setEditSelectedProvinceCode('');
-      setEditSelectedDistrictCode('');
-      setEditSelectedWardCode('');
+      setEditSelectedCommuneCode('');
+      setEditCommuneSearchTerm('');
       setEditDetailedAddress('');
       setEditSelectedImageFile(null);
       setEditImagePreview(null);
@@ -508,6 +456,71 @@ const BranchManagementPage = () => {
     }
   };
 
+  const handleOpenUploadModal = (store) => {
+    setSelectedStore(store);
+    setUploadFile(null);
+    setUploadPreview(null);
+    setIsUploadModalOpen(true);
+  };
+
+  const handleUploadFileChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setUploadFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUploadPreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUploadImageSubmit = async (e) => {
+    e.preventDefault();
+    if (!uploadFile || !selectedStore) return;
+
+    try {
+      const uploadResponse = await uploadStoreImage({
+        storeId: selectedStore.storeId,
+        file: uploadFile,
+      }).unwrap();
+
+      const imagePath = typeof uploadResponse?.data === 'string'
+        ? uploadResponse.data
+        : (uploadResponse?.data?.imagePath || uploadResponse?.imagePath || '');
+
+      if (imagePath) {
+        // Construct update data from selectedStore to ensure we don't lose data
+        // We need to format dates correctly if they are strings
+        const updateData = {
+          storeName: selectedStore.storeName,
+          address: selectedStore.address,
+          phone: selectedStore.phone,
+          provinceName: selectedStore.provinceName,
+          ownerName: selectedStore.ownerName,
+          status: selectedStore.status,
+          contractStartDate: selectedStore.contractStartDate,
+          contractEndDate: selectedStore.contractEndDate,
+          imagePath: imagePath
+        };
+
+        await updateStore({
+          storeId: selectedStore.storeId,
+          ...updateData,
+        }).unwrap();
+      }
+
+      await refetchStores();
+      toast.success('Cập nhật hình ảnh thành công');
+      setIsUploadModalOpen(false);
+      setUploadFile(null);
+      setUploadPreview(null);
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error('Có lỗi xảy ra khi upload hình ảnh');
+    }
+  };
+
   const handleDeactivate = (store) => {
     setSelectedStore(store);
     setConfirmAction('deactivate');
@@ -517,23 +530,23 @@ const BranchManagementPage = () => {
 
   const confirmDeactivate = async () => {
     if (!selectedStore) return;
-    
+
     try {
       if (import.meta.env.DEV) {
         console.log('Calling PUT /stores/toggle-status/' + selectedStore.storeId);
       }
-      
+
       // Sử dụng API PUT /stores/toggle-status/{storeId} để vô hiệu hóa chi nhánh
       const response = await toggleStoreStatus(selectedStore.storeId).unwrap();
-      
+
       if (import.meta.env.DEV) {
         console.log('API Response:', response);
         console.log('Response status:', response?.data?.status);
       }
-      
+
       // Refetch để cập nhật UI ngay lập tức
       await refetchStores();
-      
+
       toast.success('Vô hiệu hóa chi nhánh thành công');
       setIsConfirmModalOpen(false);
       setSelectedStore(null);
@@ -555,23 +568,23 @@ const BranchManagementPage = () => {
 
   const confirmActivate = async () => {
     if (!selectedStore) return;
-    
+
     try {
       if (import.meta.env.DEV) {
         console.log('Calling PUT /stores/toggle-status/' + selectedStore.storeId);
       }
-      
+
       // Sử dụng API PUT /stores/toggle-status/{storeId} để kích hoạt chi nhánh
       const response = await toggleStoreStatus(selectedStore.storeId).unwrap();
-      
+
       if (import.meta.env.DEV) {
         console.log('API Response:', response);
         console.log('Response status:', response?.data?.status);
       }
-      
+
       // Refetch để cập nhật UI ngay lập tức
       await refetchStores();
-      
+
       toast.success('Kích hoạt chi nhánh thành công');
       setIsConfirmModalOpen(false);
       setSelectedStore(null);
@@ -667,48 +680,46 @@ const BranchManagementPage = () => {
                     <Table.Cell>{formatDate(store.contractEndDate)}</Table.Cell>
                     <Table.Cell className="whitespace-nowrap">{getStatusBadge(store.status || 'ACTIVE')}</Table.Cell>
                     <Table.Cell className="text-center">
-                      <div className="relative flex justify-center">
+                      <div className="flex items-center justify-center gap-2">
                         <button
-                          onClick={() => setOpenMenuId(openMenuId === store.storeId ? null : store.storeId)}
-                          className="p-2 hover:bg-gray-100 rounded transition-colors"
+                          onClick={() => handleViewDetail(store)}
+                          className="p-1 text-gray-500 hover:text-blue-600 transition-colors"
+                          title="Xem chi tiết"
                         >
-                          <MoreVertical size={16} />
+                          <Eye size={18} />
                         </button>
-                        {openMenuId === store.storeId && (
-                          <div className="absolute right-0 mt-8 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
-                            <button
-                              onClick={() => handleViewDetail(store)}
-                              className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-gray-50 transition-colors border-b border-gray-200"
-                            >
-                              <Eye size={16} />
-                              Xem chi tiết
-                            </button>
-                            <button
-                              onClick={() => handleEdit(store)}
-                              className="w-full flex items-center gap-2 px-4 py-2 text-left hover:bg-gray-50 transition-colors border-b border-gray-200"
-                            >
-                              <Edit size={16} />
-                              Chỉnh sửa
-                            </button>
-                            {store.status === 'ACTIVE' && (
-                              <button
-                                onClick={() => handleDeactivate(store)}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-left text-orange-600 hover:bg-orange-50 transition-colors"
-                              >
-                                <X size={16} />
-                                Vô hiệu hóa
-                              </button>
-                            )}
-                            {store.status === 'INACTIVE' && (
-                              <button
-                                onClick={() => handleActivate(store)}
-                                className="w-full flex items-center gap-2 px-4 py-2 text-left text-green-600 hover:bg-green-50 transition-colors"
-                              >
-                                <Check size={16} />
-                                Kích hoạt
-                              </button>
-                            )}
-                          </div>
+                        <button
+                          onClick={() => handleEdit(store)}
+                          className="p-1 text-gray-500 hover:text-yellow-600 transition-colors"
+                          title="Chỉnh sửa"
+                        >
+                          <Edit size={18} />
+                        </button>
+                        {!store.imagePath && (
+                          <button
+                            onClick={() => handleOpenUploadModal(store)}
+                            className="p-1 text-gray-500 hover:text-green-600 transition-colors"
+                            title="Upload hình ảnh"
+                          >
+                            <Upload size={18} />
+                          </button>
+                        )}
+                        {store.status === 'ACTIVE' ? (
+                          <button
+                            onClick={() => handleDeactivate(store)}
+                            className="p-1 text-gray-500 hover:text-red-600 transition-colors"
+                            title="Vô hiệu hóa"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleActivate(store)}
+                            className="p-1 text-gray-500 hover:text-green-600 transition-colors"
+                            title="Kích hoạt"
+                          >
+                            <Check size={18} />
+                          </button>
                         )}
                       </div>
                     </Table.Cell>
@@ -801,54 +812,41 @@ const BranchManagementPage = () => {
         }
         size="lg"
       >
-         <form onSubmit={handleCreate} className="space-y-4">
-           <div className="grid grid-cols-2 gap-4">
-             <div>
-               <label className="block text-sm font-medium text-gray-700 mb-1">
-                 Tỉnh/Thành phố *
-               </label>
-               <Dropdown
-                 options={provinces.map((province) => ({
-                   value: province.code.toString(),
-                   label: province.name,
-                 }))}
-                 value={selectedProvinceCode}
-                 onChange={(value) => setSelectedProvinceCode(value)}
-                 placeholder="Chọn tỉnh/thành phố"
-               />
-             </div>
+        <form onSubmit={handleCreate} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tỉnh/Thành phố *
+              </label>
+              <Dropdown
+                options={provinces.map((province) => ({
+                  value: province.code,
+                  label: province.name,
+                }))}
+                value={selectedProvinceCode}
+                onChange={(value) => setSelectedProvinceCode(value)}
+                placeholder="Chọn tỉnh/thành phố"
+              />
+            </div>
 
-             <div>
-               <label className="block text-sm font-medium text-gray-700 mb-1">
-                 Quận/Huyện *
-               </label>
-               <Dropdown
-                 options={districts.map((district) => ({
-                   value: district.code.toString(),
-                   label: district.name,
-                 }))}
-                 value={selectedDistrictCode}
-                 onChange={(value) => setSelectedDistrictCode(value)}
-                 placeholder="Chọn quận/huyện"
-                 disabled={!selectedProvinceCode || districts.length === 0}
-               />
-             </div>
-
-             <div>
-               <label className="block text-sm font-medium text-gray-700 mb-1">
-                 Phường/Xã *
-               </label>
-               <Dropdown
-                 options={wards.map((ward) => ({
-                   value: ward.code.toString(),
-                   label: ward.name,
-                 }))}
-                 value={selectedWardCode}
-                 onChange={(value) => setSelectedWardCode(value)}
-                 placeholder="Chọn phường/xã"
-                 disabled={!selectedDistrictCode || wards.length === 0}
-               />
-             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phường/Xã *
+              </label>
+              <Dropdown
+                options={communes.map((commune) => ({
+                  value: commune.code,
+                  label: commune.name,
+                }))}
+                value={selectedCommuneCode}
+                onChange={(value) => setSelectedCommuneCode(value)}
+                placeholder="Chọn phường/xã"
+                disabled={!selectedProvinceCode || communes.length === 0}
+                searchable
+                onSearchChange={setCommuneSearchTerm}
+                searchValue={communeSearchTerm}
+              />
+            </div>
 
             <Input
               label="Tên cửa hàng *"
@@ -873,7 +871,7 @@ const BranchManagementPage = () => {
             />
           </div>
 
-          {selectedProvinceCode && selectedDistrictCode && selectedWardCode && (
+          {selectedProvinceCode && selectedCommuneCode && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Địa chỉ chi tiết (Số nhà, tên đường) *
@@ -886,7 +884,7 @@ const BranchManagementPage = () => {
               />
               <div className="flex items-start gap-2 mt-2 text-sm text-gray-500">
                 <Lightbulb className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>Địa chỉ sẽ tự động bao gồm: [Số nhà, tên đường] + Phường/Xã + Quận/Huyện + Tỉnh/Thành phố</span>
+                <span>Địa chỉ sẽ tự động bao gồm: [Số nhà, tên đường] + Phường/Xã + Tỉnh/Thành phố</span>
               </div>
             </div>
           )}
@@ -920,39 +918,7 @@ const BranchManagementPage = () => {
               required
             />
           </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Hình ảnh cửa hàng
-            </label>
-            <div className="flex items-center gap-2">
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="block flex-1 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
-              />
-              {selectedImageFile && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleToggleImagePreview}
-                  size="sm"
-                >
-                  {showImagePreview ? 'Ẩn' : 'Xem trước'}
-                </Button>
-              )}
-            </div>
-            {imagePreview && showImagePreview && (
-              <div className="mt-2 flex justify-center">
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="max-w-full max-h-96 object-contain rounded-lg border border-gray-200"
-                />
-              </div>
-            )}
-          </div>
+
           <div className="flex gap-4 pt-4">
             <Button
               type="button"
@@ -963,9 +929,9 @@ const BranchManagementPage = () => {
             >
               Hủy
             </Button>
-            <Button type="submit" className="flex-1" disabled={isCreating || isUploadingImage}>
+            <Button type="submit" className="flex-1" disabled={isCreating}>
               <Check className="w-4 h-4 mr-2" />
-              {isCreating || isUploadingImage ? 'Đang tạo...' : 'Tạo chi nhánh'}
+              {isCreating ? 'Đang tạo...' : 'Tạo chi nhánh'}
             </Button>
           </div>
         </form>
@@ -1002,7 +968,7 @@ const BranchManagementPage = () => {
               </label>
               <Dropdown
                 options={provinces.map((province) => ({
-                  value: province.code.toString(),
+                  value: province.code,
                   label: province.name,
                 }))}
                 value={editSelectedProvinceCode}
@@ -1013,33 +979,20 @@ const BranchManagementPage = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Quận/Huyện *
-              </label>
-              <Dropdown
-                options={editDistricts.map((district) => ({
-                  value: district.code.toString(),
-                  label: district.name,
-                }))}
-                value={editSelectedDistrictCode}
-                onChange={(value) => setEditSelectedDistrictCode(value)}
-                placeholder="Chọn quận/huyện"
-                disabled={!editSelectedProvinceCode || editDistricts.length === 0}
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
                 Phường/Xã *
               </label>
               <Dropdown
-                options={editWards.map((ward) => ({
-                  value: ward.code.toString(),
-                  label: ward.name,
+                options={editCommunes.map((commune) => ({
+                  value: commune.code,
+                  label: commune.name,
                 }))}
-                value={editSelectedWardCode}
-                onChange={(value) => setEditSelectedWardCode(value)}
+                value={editSelectedCommuneCode}
+                onChange={(value) => setEditSelectedCommuneCode(value)}
                 placeholder="Chọn phường/xã"
-                disabled={!editSelectedDistrictCode || editWards.length === 0}
+                disabled={!editSelectedProvinceCode || editCommunes.length === 0}
+                searchable
+                onSearchChange={setEditCommuneSearchTerm}
+                searchValue={editCommuneSearchTerm}
               />
             </div>
 
@@ -1066,7 +1019,7 @@ const BranchManagementPage = () => {
             />
           </div>
 
-          {editSelectedProvinceCode && editSelectedDistrictCode && editSelectedWardCode && (
+          {editSelectedProvinceCode && editSelectedCommuneCode && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
                 Địa chỉ chi tiết (Số nhà, tên đường) *
@@ -1079,7 +1032,7 @@ const BranchManagementPage = () => {
               />
               <div className="flex items-start gap-2 mt-2 text-sm text-gray-500">
                 <Lightbulb className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <span>Địa chỉ sẽ tự động bao gồm: [Số nhà, tên đường] + Phường/Xã + Quận/Huyện + Tỉnh/Thành phố</span>
+                <span>Địa chỉ sẽ tự động bao gồm: [Số nhà, tên đường] + Phường/Xã + Tỉnh/Thành phố</span>
               </div>
             </div>
           )}
@@ -1094,7 +1047,7 @@ const BranchManagementPage = () => {
               className="bg-gray-50"
             />
           </div>
-          
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Hình ảnh cửa hàng
@@ -1201,33 +1154,7 @@ const BranchManagementPage = () => {
               </div>
             </div>
 
-            {/* Store Image Card */}
-            {selectedStore.imagePath && (
-              <div className="border border-gray-200 rounded-lg p-3">
-                <div className="flex items-center gap-2 mb-3">
-                  <ImageIcon className="w-4 h-4 text-gray-600" />
-                  <h4 className="text-sm font-semibold text-gray-900">Hình ảnh cửa hàng</h4>
-                </div>
-                <div className="flex justify-center">
-                  <img
-                    src={selectedStore.imagePath}
-                    alt={selectedStore.storeName || 'Hình ảnh chi nhánh'}
-                    className="max-w-full max-h-96 object-contain rounded-lg border border-gray-200 cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => handleViewImage(selectedStore)}
-                  />
-                </div>
-                <div className="mt-2 text-center">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewImage(selectedStore)}
-                  >
-                    <ImageIcon className="w-4 h-4 mr-2" />
-                    Xem hình ảnh lớn
-                  </Button>
-                </div>
-              </div>
-            )}
+
 
             {/* Store Information Card */}
             <div className="border border-gray-200 rounded-lg p-3">
@@ -1374,6 +1301,63 @@ const BranchManagementPage = () => {
         )}
       </Modal>
 
+      {/* Upload Image Modal */}
+      <Modal
+        isOpen={isUploadModalOpen}
+        onClose={() => {
+          setIsUploadModalOpen(false);
+          setUploadFile(null);
+          setUploadPreview(null);
+        }}
+        title="Upload hình ảnh chi nhánh"
+        size="md"
+      >
+        <form onSubmit={handleUploadImageSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Chọn hình ảnh
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleUploadFileChange}
+                className="block flex-1 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                required
+              />
+            </div>
+            {uploadPreview && (
+              <div className="mt-4 flex justify-center">
+                <img
+                  src={uploadPreview}
+                  alt="Preview"
+                  className="max-w-full max-h-64 object-contain rounded-lg border border-gray-200"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex gap-4 pt-4">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setIsUploadModalOpen(false);
+                setUploadFile(null);
+                setUploadPreview(null);
+              }}
+              className="flex-1"
+            >
+              Hủy
+            </Button>
+            <Button type="submit" className="flex-1" disabled={!uploadFile}>
+              <Upload className="w-4 h-4 mr-2" />
+              Upload
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
       {/* Confirm Modal */}
       <Modal
         isOpen={isConfirmModalOpen}
@@ -1397,7 +1381,7 @@ const BranchManagementPage = () => {
             </div>
             <div className="flex-1">
               <p className="text-sm text-gray-700">
-                {confirmAction === 'deactivate' 
+                {confirmAction === 'deactivate'
                   ? `Bạn có chắc chắn muốn vô hiệu hóa chi nhánh "${selectedStore?.storeName || 'N/A'}"?`
                   : `Bạn có chắc chắn muốn kích hoạt chi nhánh "${selectedStore?.storeName || 'N/A'}"?`
                 }
@@ -1423,17 +1407,16 @@ const BranchManagementPage = () => {
             </Button>
             <Button
               onClick={confirmAction === 'deactivate' ? confirmDeactivate : confirmActivate}
-              className={`flex-1 ${
-                confirmAction === 'deactivate' 
-                  ? 'bg-orange-600 hover:bg-orange-700' 
-                  : 'bg-green-600 hover:bg-green-700'
-              }`}
+              className={`flex-1 ${confirmAction === 'deactivate'
+                ? 'bg-orange-600 hover:bg-orange-700'
+                : 'bg-green-600 hover:bg-green-700'
+                }`}
               disabled={isTogglingStatus}
             >
-              {isTogglingStatus 
-                ? 'Đang xử lý...' 
-                : confirmAction === 'deactivate' 
-                  ? 'Vô hiệu hóa' 
+              {isTogglingStatus
+                ? 'Đang xử lý...'
+                : confirmAction === 'deactivate'
+                  ? 'Vô hiệu hóa'
                   : 'Kích hoạt'
               }
             </Button>

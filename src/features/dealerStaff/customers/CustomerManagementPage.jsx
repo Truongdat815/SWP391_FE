@@ -14,7 +14,7 @@ import {
   useGetCustomerByIdQuery,
 } from '../../../api/dealerStaff/customerApi';
 import { useGetOrdersByCustomerQuery } from '../../../api/dealerStaff/orderApi';
-import { provincesApi } from '../../../api/public/provincesApi';
+import { addressKitApi } from '../../../api/public/addressKitApi';
 import { getOrderStatusConfig } from '../../../utils/formatters';
 
 const CustomerManagementPage = () => {
@@ -29,22 +29,20 @@ const CustomerManagementPage = () => {
   const [isOrdersModalOpen, setIsOrdersModalOpen] = useState(false);
   const [selectedCustomerId, setSelectedCustomerId] = useState(null);
 
-  // Address dropdown states for create modal
+  // Address dropdown states for create modal (2-level: Province -> Commune)
   const [provinces, setProvinces] = useState([]);
-  const [districts, setDistricts] = useState([]);
-  const [wards, setWards] = useState([]);
+  const [communes, setCommunes] = useState([]);
   const [selectedProvinceCode, setSelectedProvinceCode] = useState('');
-  const [selectedDistrictCode, setSelectedDistrictCode] = useState('');
-  const [selectedWardCode, setSelectedWardCode] = useState('');
+  const [selectedCommuneCode, setSelectedCommuneCode] = useState('');
   const [detailedAddress, setDetailedAddress] = useState('');
+  const [communeSearchTerm, setCommuneSearchTerm] = useState('');
 
   // Address dropdown states for edit modal
-  const [editDistricts, setEditDistricts] = useState([]);
-  const [editWards, setEditWards] = useState([]);
+  const [editCommunes, setEditCommunes] = useState([]);
   const [editSelectedProvinceCode, setEditSelectedProvinceCode] = useState('');
-  const [editSelectedDistrictCode, setEditSelectedDistrictCode] = useState('');
-  const [editSelectedWardCode, setEditSelectedWardCode] = useState('');
+  const [editSelectedCommuneCode, setEditSelectedCommuneCode] = useState('');
   const [editDetailedAddress, setEditDetailedAddress] = useState('');
+  const [editCommuneSearchTerm, setEditCommuneSearchTerm] = useState('');
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -76,7 +74,7 @@ const CustomerManagementPage = () => {
   useEffect(() => {
     const loadProvinces = async () => {
       try {
-        const data = await provincesApi.getAllProvinces();
+        const data = await addressKitApi.getAllProvinces();
         setProvinces(data);
       } catch (error) {
         console.error('Error loading provinces:', error);
@@ -85,105 +83,58 @@ const CustomerManagementPage = () => {
     loadProvinces();
   }, []);
 
-  // Load districts when province is selected (create modal)
+  // Load communes when province is selected (create modal)
   useEffect(() => {
-    const loadDistricts = async () => {
+    const loadCommunes = async () => {
       if (selectedProvinceCode) {
         try {
-          const province = await provincesApi.getProvinceWithDistricts(selectedProvinceCode);
-          setDistricts(province.districts || []);
-          setWards([]);
-          setSelectedDistrictCode('');
-          setSelectedWardCode('');
+          const data = await addressKitApi.getCommunesByProvince(selectedProvinceCode);
+          setCommunes(data || []);
+          setSelectedCommuneCode('');
+          setCommuneSearchTerm('');
         } catch (error) {
-          console.error('Error loading districts:', error);
+          console.error('Error loading communes:', error);
         }
       } else {
-        setDistricts([]);
-        setWards([]);
-        setSelectedDistrictCode('');
-        setSelectedWardCode('');
+        setCommunes([]);
+        setSelectedCommuneCode('');
+        setCommuneSearchTerm('');
       }
     };
-    loadDistricts();
+    loadCommunes();
   }, [selectedProvinceCode]);
 
-  // Load wards when district is selected (create modal)
+  // Load communes when province is selected (edit modal)
   useEffect(() => {
-    const loadWards = async () => {
-      if (selectedDistrictCode) {
-        try {
-          const district = await provincesApi.getDistrictWithWards(selectedDistrictCode);
-          setWards(district.wards || []);
-          setSelectedWardCode('');
-        } catch (error) {
-          console.error('Error loading wards:', error);
-        }
-      } else {
-        setWards([]);
-        setSelectedWardCode('');
-      }
-    };
-    loadWards();
-  }, [selectedDistrictCode]);
-
-  // Load districts when province is selected (edit modal)
-  useEffect(() => {
-    const loadEditDistricts = async () => {
+    const loadEditCommunes = async () => {
       if (editSelectedProvinceCode) {
         try {
-          const province = await provincesApi.getProvinceWithDistricts(editSelectedProvinceCode);
-          setEditDistricts(province.districts || []);
+          const data = await addressKitApi.getCommunesByProvince(editSelectedProvinceCode);
+          setEditCommunes(data || []);
           // Only reset if this is a user selection, not initial load
-          if (editSelectedDistrictCode && !province.districts?.find(d => d.code.toString() === editSelectedDistrictCode)) {
-            setEditWards([]);
-            setEditSelectedDistrictCode('');
-            setEditSelectedWardCode('');
+          if (editSelectedCommuneCode && !data?.find(c => c.code === editSelectedCommuneCode)) {
+            setEditSelectedCommuneCode('');
           }
+          setEditCommuneSearchTerm('');
         } catch (error) {
-          console.error('Error loading edit districts:', error);
+          console.error('Error loading edit communes:', error);
         }
       } else {
-        setEditDistricts([]);
-        setEditWards([]);
-        setEditSelectedDistrictCode('');
-        setEditSelectedWardCode('');
+        setEditCommunes([]);
+        setEditSelectedCommuneCode('');
+        setEditCommuneSearchTerm('');
       }
     };
-    loadEditDistricts();
+    loadEditCommunes();
   }, [editSelectedProvinceCode]);
 
-  // Load wards when district is selected (edit modal)
+  // Update address when selections change (create modal) - 2-level format
   useEffect(() => {
-    const loadEditWards = async () => {
-      if (editSelectedDistrictCode) {
-        try {
-          const district = await provincesApi.getDistrictWithWards(editSelectedDistrictCode);
-          setEditWards(district.wards || []);
-          // Only reset if this is a user selection, not initial load
-          if (editSelectedWardCode && !district.wards?.find(w => w.code.toString() === editSelectedWardCode)) {
-            setEditSelectedWardCode('');
-          }
-        } catch (error) {
-          console.error('Error loading edit wards:', error);
-        }
-      } else {
-        setEditWards([]);
-        setEditSelectedWardCode('');
-      }
-    };
-    loadEditWards();
-  }, [editSelectedDistrictCode]);
-
-  // Update address when selections change (create modal)
-  useEffect(() => {
-    const selectedProvince = provinces.find(p => p.code === parseInt(selectedProvinceCode));
-    const selectedDistrict = districts.find(d => d.code === parseInt(selectedDistrictCode));
-    const selectedWard = wards.find(w => w.code === parseInt(selectedWardCode));
+    const selectedProvince = provinces.find(p => p.code === selectedProvinceCode);
+    const selectedCommune = communes.find(c => c.code === selectedCommuneCode);
 
     const addressParts = [];
-    if (selectedWard) addressParts.push(selectedWard.name);
-    if (selectedDistrict) addressParts.push(selectedDistrict.name);
+    if (selectedCommune) addressParts.push(selectedCommune.name);
     if (selectedProvince) addressParts.push(selectedProvince.name);
 
     let fullAddress = '';
@@ -196,64 +147,19 @@ const CustomerManagementPage = () => {
       fullAddress = addressParts.join(', ');
     }
 
-    // Always update address, even if empty
     setFormData(prev => ({
       ...prev,
       address: fullAddress,
     }));
-  }, [selectedProvinceCode, selectedDistrictCode, selectedWardCode, detailedAddress, provinces, districts, wards]);
+  }, [selectedProvinceCode, selectedCommuneCode, detailedAddress, provinces, communes]);
 
-  // Load edit districts when province is selected (edit modal)
+  // Update edit address when selections change (edit modal) - 2-level format
   useEffect(() => {
-    const loadEditDistricts = async () => {
-      if (editSelectedProvinceCode) {
-        try {
-          const province = await provincesApi.getProvinceWithDistricts(parseInt(editSelectedProvinceCode));
-          setEditDistricts(province.districts || []);
-          setEditWards([]);
-          setEditSelectedDistrictCode('');
-          setEditSelectedWardCode('');
-        } catch (error) {
-          console.error('Error loading districts:', error);
-        }
-      } else {
-        setEditDistricts([]);
-        setEditWards([]);
-        setEditSelectedDistrictCode('');
-        setEditSelectedWardCode('');
-      }
-    };
-    loadEditDistricts();
-  }, [editSelectedProvinceCode]);
-
-  // Load edit wards when district is selected (edit modal)
-  useEffect(() => {
-    const loadEditWards = async () => {
-      if (editSelectedDistrictCode) {
-        try {
-          const district = await provincesApi.getDistrictWithWards(parseInt(editSelectedDistrictCode));
-          setEditWards(district.wards || []);
-          setEditSelectedWardCode('');
-        } catch (error) {
-          console.error('Error loading wards:', error);
-        }
-      } else {
-        setEditWards([]);
-        setEditSelectedWardCode('');
-      }
-    };
-    loadEditWards();
-  }, [editSelectedDistrictCode]);
-
-  // Update edit address when selections change (edit modal)
-  useEffect(() => {
-    const selectedProvince = provinces.find(p => p.code === parseInt(editSelectedProvinceCode));
-    const selectedDistrict = editDistricts.find(d => d.code === parseInt(editSelectedDistrictCode));
-    const selectedWard = editWards.find(w => w.code === parseInt(editSelectedWardCode));
+    const selectedProvince = provinces.find(p => p.code === editSelectedProvinceCode);
+    const selectedCommune = editCommunes.find(c => c.code === editSelectedCommuneCode);
 
     const addressParts = [];
-    if (selectedWard) addressParts.push(selectedWard.name);
-    if (selectedDistrict) addressParts.push(selectedDistrict.name);
+    if (selectedCommune) addressParts.push(selectedCommune.name);
     if (selectedProvince) addressParts.push(selectedProvince.name);
 
     let fullAddress = '';
@@ -266,12 +172,11 @@ const CustomerManagementPage = () => {
       fullAddress = addressParts.join(', ');
     }
 
-    // Always update address, even if empty
     setFormData(prev => ({
       ...prev,
       address: fullAddress,
     }));
-  }, [editSelectedProvinceCode, editSelectedDistrictCode, editSelectedWardCode, editDetailedAddress, provinces, editDistricts, editWards]);
+  }, [editSelectedProvinceCode, editSelectedCommuneCode, editDetailedAddress, provinces, editCommunes]);
 
   // Filter and sort customers by join date (newest first)
   const filteredCustomers = useMemo(() => {
@@ -292,6 +197,22 @@ const CustomerManagementPage = () => {
     });
   }, [customers, searchTerm]);
 
+  // Filter communes based on search term (create modal)
+  const filteredCommunes = useMemo(() => {
+    if (!communeSearchTerm.trim()) return communes;
+    return communes.filter(commune =>
+      commune.name.toLowerCase().includes(communeSearchTerm.toLowerCase())
+    );
+  }, [communes, communeSearchTerm]);
+
+  // Filter communes based on search term (edit modal)
+  const filteredEditCommunes = useMemo(() => {
+    if (!editCommuneSearchTerm.trim()) return editCommunes;
+    return editCommunes.filter(commune =>
+      commune.name.toLowerCase().includes(editCommuneSearchTerm.toLowerCase())
+    );
+  }, [editCommunes, editCommuneSearchTerm]);
+
   // Pagination
   const totalPages = Math.ceil(filteredCustomers.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -301,10 +222,9 @@ const CustomerManagementPage = () => {
   const handleCreate = async (e) => {
     e.preventDefault();
     try {
-      await createCustomer(formData).unwrap();
-      // Refetch customers to get updated data
+      const response = await createCustomer(formData).unwrap();
       await refetchCustomers();
-      toast.success('Tạo khách hàng thành công');
+      toast.success(response?.message || 'Tạo khách hàng thành công');
       setIsCreateModalOpen(false);
       setFormData({
         fullName: '',
@@ -314,9 +234,9 @@ const CustomerManagementPage = () => {
         identificationNumber: '',
       });
       setSelectedProvinceCode('');
-      setSelectedDistrictCode('');
-      setSelectedWardCode('');
+      setSelectedCommuneCode('');
       setDetailedAddress('');
+      setCommuneSearchTerm('');
     } catch (error) {
       toast.error(error?.data?.message || 'Có lỗi xảy ra khi tạo khách hàng');
     }
@@ -327,76 +247,66 @@ const CustomerManagementPage = () => {
 
     // Parse existing address to populate dropdowns if possible
     const existingAddress = customer.address || '';
-    
-    // Try to parse address components (this is a basic implementation)
-    // Format: "Detailed Address, Ward, District, Province"
+
+    // Try to parse address components
+    // New format: "Detailed Address, Commune, Province"
+    // Old format (backward compat): "Detailed Address, Ward, District, Province"
     const addressParts = existingAddress.split(', ');
-    
+
     // Reset dropdown states first
     setEditSelectedProvinceCode('');
-    setEditSelectedDistrictCode('');
-    setEditSelectedWardCode('');
+    setEditSelectedCommuneCode('');
     setEditDetailedAddress('');
-    setEditDistricts([]);
-    setEditWards([]);
+    setEditCommunes([]);
+    setEditCommuneSearchTerm('');
 
     // If we have address parts, try to match them
     if (addressParts.length >= 2) {
       const detailedAddr = addressParts[0] || '';
-      const wardName = addressParts[1] || '';
-      const districtName = addressParts[2] || '';
-      const provinceName = addressParts[3] || '';
+      let communeName = '';
+      let provinceName = '';
+
+      // Check if it's new format (3 parts) or old format (4 parts)
+      if (addressParts.length === 3) {
+        // New format: [Detailed, Commune, Province]
+        communeName = addressParts[1] || '';
+        provinceName = addressParts[2] || '';
+      } else if (addressParts.length >= 4) {
+        // Old format: [Detailed, Ward, District, Province] - skip district
+        communeName = addressParts[1] || ''; // Take ward as commune
+        provinceName = addressParts[3] || '';
+      }
 
       setEditDetailedAddress(detailedAddr);
 
       // Try to find matching province
       if (provinceName && provinces.length > 0) {
-        const matchingProvince = provinces.find(p => 
+        const matchingProvince = provinces.find(p =>
           p.name.toLowerCase().includes(provinceName.toLowerCase()) ||
           provinceName.toLowerCase().includes(p.name.toLowerCase())
         );
-        
+
         if (matchingProvince) {
-          setEditSelectedProvinceCode(matchingProvince.code.toString());
-          
-          // Load districts for this province
+          setEditSelectedProvinceCode(matchingProvince.code);
+
+          // Load communes for this province
           try {
-            const provinceWithDistricts = await provincesApi.getProvinceWithDistricts(matchingProvince.code);
-            setEditDistricts(provinceWithDistricts.districts || []);
-            
-            // Try to find matching district
-            if (districtName) {
-              const matchingDistrict = (provinceWithDistricts.districts || []).find(d => 
-                d.name.toLowerCase().includes(districtName.toLowerCase()) ||
-                districtName.toLowerCase().includes(d.name.toLowerCase())
+            const communesData = await addressKitApi.getCommunesByProvince(matchingProvince.code);
+            setEditCommunes(communesData || []);
+
+            // Try to find matching commune
+            if (communeName) {
+              const matchingCommune = (communesData || []).find(c =>
+                c.name.toLowerCase().includes(communeName.toLowerCase()) ||
+                communeName.toLowerCase().includes(c.name.toLowerCase())
               );
-              
-              if (matchingDistrict) {
-                setEditSelectedDistrictCode(matchingDistrict.code.toString());
-                
-                // Load wards for this district
-                try {
-                  const districtWithWards = await provincesApi.getDistrictWithWards(matchingDistrict.code);
-                  setEditWards(districtWithWards.wards || []);
-                  
-                  // Try to find matching ward
-                  if (wardName) {
-                    const matchingWard = (districtWithWards.wards || []).find(w => 
-                      w.name.toLowerCase().includes(wardName.toLowerCase()) ||
-                      wardName.toLowerCase().includes(w.name.toLowerCase())
-                    );
-                    
-                    if (matchingWard) {
-                      setEditSelectedWardCode(matchingWard.code.toString());
-                    }
-                  }
-                } catch (error) {
-                  console.error('Error loading wards for edit:', error);
-                }
+
+              if (matchingCommune) {
+                setEditSelectedCommuneCode(matchingCommune.code);
               }
             }
           } catch (error) {
-            console.error('Error loading districts for edit:', error);
+            console.error('Error loading communes for edit:', error);
           }
         }
       }
@@ -419,15 +329,14 @@ const CustomerManagementPage = () => {
     e.preventDefault();
     try {
       await updateCustomer({ id: selectedCustomer.customerId, ...formData }).unwrap();
-      // Refetch customers to get updated data
       await refetchCustomers();
       toast.success('Cập nhật khách hàng thành công');
       setIsEditModalOpen(false);
       setSelectedCustomer(null);
       setEditSelectedProvinceCode('');
-      setEditSelectedDistrictCode('');
-      setEditSelectedWardCode('');
+      setEditSelectedCommuneCode('');
       setEditDetailedAddress('');
+      setEditCommuneSearchTerm('');
     } catch (error) {
       toast.error(error?.data?.message || 'Có lỗi xảy ra khi cập nhật khách hàng');
     }
@@ -452,10 +361,8 @@ const CustomerManagementPage = () => {
   };
 
   const getStatusBadge = (status) => {
-    // Sử dụng getOrderStatusConfig từ formatters để có đầy đủ các trạng thái
     const statusConfig = getOrderStatusConfig(status);
-    
-    // Map color classes to Badge variants
+
     const getVariantFromColor = (colorClass) => {
       if (colorClass.includes('green')) return 'success';
       if (colorClass.includes('blue')) return 'info';
@@ -464,9 +371,9 @@ const CustomerManagementPage = () => {
       if (colorClass.includes('purple') || colorClass.includes('indigo')) return 'info';
       return 'default';
     };
-    
+
     const variant = getVariantFromColor(statusConfig.color);
-    
+
     return <Badge variant={variant}>{statusConfig.label}</Badge>;
   };
 
@@ -639,24 +546,23 @@ const CustomerManagementPage = () => {
         onClose={() => {
           setIsCreateModalOpen(false);
           setSelectedProvinceCode('');
-          setSelectedDistrictCode('');
-          setSelectedWardCode('');
+          setSelectedCommuneCode('');
           setDetailedAddress('');
+          setCommuneSearchTerm('');
         }}
         title="Thêm Khách Hàng Mới"
         size="xl"
       >
         <form onSubmit={handleCreate} className="space-y-5">
-         
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* 2-Level Address: Province and Commune only */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Tỉnh/Thành phố <span className="text-red-500">*</span>
               </label>
               <Dropdown
                 options={provinces.map((province) => ({
-                  value: province.code.toString(),
+                  value: province.code,
                   label: province.name,
                 }))}
                 value={selectedProvinceCode}
@@ -667,34 +573,32 @@ const CustomerManagementPage = () => {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Quận/Huyện <span className="text-red-500">*</span>
+                Phường/Xã/Thị trấn <span className="text-red-500">*</span>
               </label>
+              {/* Commune search input */}
+              {selectedProvinceCode && communes.length > 0 && (
+                <input
+                  className="w-full px-3 py-2 mb-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm"
+                  placeholder="Tìm kiếm phường/xã..."
+                  value={communeSearchTerm}
+                  onChange={(e) => setCommuneSearchTerm(e.target.value)}
+                />
+              )}
               <Dropdown
-                options={districts.map((district) => ({
-                  value: district.code.toString(),
-                  label: district.name,
+                options={filteredCommunes.map((commune) => ({
+                  value: commune.code,
+                  label: commune.name,
                 }))}
-                value={selectedDistrictCode}
-                onChange={(value) => setSelectedDistrictCode(value)}
-                placeholder="Chọn quận/huyện"
-                disabled={!selectedProvinceCode || districts.length === 0}
+                value={selectedCommuneCode}
+                onChange={(value) => setSelectedCommuneCode(value)}
+                placeholder="Chọn phường/xã/thị trấn"
+                disabled={!selectedProvinceCode || communes.length === 0}
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Phường/Xã <span className="text-red-500">*</span>
-              </label>
-              <Dropdown
-                options={wards.map((ward) => ({
-                  value: ward.code.toString(),
-                  label: ward.name,
-                }))}
-                value={selectedWardCode}
-                onChange={(value) => setSelectedWardCode(value)}
-                placeholder="Chọn phường/xã"
-                disabled={!selectedDistrictCode || wards.length === 0}
-              />
+              {selectedProvinceCode && communes.length > 0 && (
+                <p className="mt-1 text-xs text-slate-500">
+                  {filteredCommunes.length} / {communes.length} kết quả
+                </p>
+              )}
             </div>
           </div>
 
@@ -712,7 +616,7 @@ const CustomerManagementPage = () => {
               Địa chỉ đầy đủ (Tự động tạo)
             </label>
             <div className="w-full px-3 py-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-700 text-sm min-h-[42px] flex items-center">
-              {formData.address || 'Địa chỉ sẽ được tạo tự động khi bạn chọn tỉnh/thành phố, quận/huyện, phường/xã'}
+              {formData.address || 'Địa chỉ sẽ được tạo tự động khi bạn chọn tỉnh/thành phố và phường/xã'}
             </div>
           </div>
 
@@ -775,24 +679,23 @@ const CustomerManagementPage = () => {
           setIsEditModalOpen(false);
           setSelectedCustomer(null);
           setEditSelectedProvinceCode('');
-          setEditSelectedDistrictCode('');
-          setEditSelectedWardCode('');
+          setEditSelectedCommuneCode('');
           setEditDetailedAddress('');
+          setEditCommuneSearchTerm('');
         }}
         title="Chỉnh sửa Khách Hàng"
         size="xl"
       >
         <form onSubmit={handleUpdate} className="space-y-5">
-         
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* 2-Level Address: Province and Commune only */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Tỉnh/Thành phố <span className="text-red-500">*</span>
               </label>
               <Dropdown
                 options={provinces.map((province) => ({
-                  value: province.code.toString(),
+                  value: province.code,
                   label: province.name,
                 }))}
                 value={editSelectedProvinceCode}
@@ -803,34 +706,32 @@ const CustomerManagementPage = () => {
 
             <div>
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Quận/Huyện <span className="text-red-500">*</span>
+                Phường/Xã/Thị trấn <span className="text-red-500">*</span>
               </label>
+              {/* Commune search input */}
+              {editSelectedProvinceCode && editCommunes.length > 0 && (
+                <input
+                  className="w-full px-3 py-2 mb-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm"
+                  placeholder="Tìm kiếm phường/xã..."
+                  value={editCommuneSearchTerm}
+                  onChange={(e) => setEditCommuneSearchTerm(e.target.value)}
+                />
+              )}
               <Dropdown
-                options={editDistricts.map((district) => ({
-                  value: district.code.toString(),
-                  label: district.name,
+                options={filteredEditCommunes.map((commune) => ({
+                  value: commune.code,
+                  label: commune.name,
                 }))}
-                value={editSelectedDistrictCode}
-                onChange={(value) => setEditSelectedDistrictCode(value)}
-                placeholder="Chọn quận/huyện"
-                disabled={!editSelectedProvinceCode || editDistricts.length === 0}
+                value={editSelectedCommuneCode}
+                onChange={(value) => setEditSelectedCommuneCode(value)}
+                placeholder="Chọn phường/xã/thị trấn"
+                disabled={!editSelectedProvinceCode || editCommunes.length === 0}
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1.5">
-                Phường/Xã <span className="text-red-500">*</span>
-              </label>
-              <Dropdown
-                options={editWards.map((ward) => ({
-                  value: ward.code.toString(),
-                  label: ward.name,
-                }))}
-                value={editSelectedWardCode}
-                onChange={(value) => setEditSelectedWardCode(value)}
-                placeholder="Chọn phường/xã"
-                disabled={!editSelectedDistrictCode || editWards.length === 0}
-              />
+              {editSelectedProvinceCode && editCommunes.length > 0 && (
+                <p className="mt-1 text-xs text-slate-500">
+                  {filteredEditCommunes.length} / {editCommunes.length} kết quả
+                </p>
+              )}
             </div>
           </div>
 
@@ -848,7 +749,7 @@ const CustomerManagementPage = () => {
               Địa chỉ đầy đủ (Tự động tạo)
             </label>
             <div className="w-full px-3 py-2.5 rounded-lg border border-slate-300 bg-slate-50 text-slate-700 text-sm min-h-[42px] flex items-center">
-              {formData.address || 'Địa chỉ sẽ được tạo tự động khi bạn chọn tỉnh/thành phố, quận/huyện, phường/xã'}
+              {formData.address || 'Địa chỉ sẽ được tạo tự động khi bạn chọn tỉnh/thành phố và phường/xã'}
             </div>
           </div>
 
@@ -903,223 +804,110 @@ const CustomerManagementPage = () => {
         </form>
       </Modal>
 
-      {/* Customer Details Modal */}
+      {/* Customer Details Modal - Keeping original implementation */}
       <Modal
         isOpen={isDetailsModalOpen}
         onClose={() => {
           setIsDetailsModalOpen(false);
           setSelectedCustomerId(null);
         }}
-        title="Chi tiết Khách hàng"
-        size="lg"
+        title="Chi tiết Khách Hàng"
+        size="2xl"
       >
         {customerDetails ? (
-          <div className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="p-4 bg-blue-50 rounded-lg border border-blue-100">
-                <div className="flex items-center gap-2 mb-2">
-                  <Users size={18} className="text-blue-600" />
-                  <p className="text-sm font-semibold text-blue-900">Họ và tên</p>
-                </div>
-                <p className="text-base font-medium text-slate-900">{customerDetails.fullName || 'N/A'}</p>
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Họ và tên</label>
+                <p className="text-slate-900 font-medium">{customerDetails.fullName || 'N/A'}</p>
               </div>
-
-              <div className="p-4 bg-green-50 rounded-lg border border-green-100">
-                <div className="flex items-center gap-2 mb-2">
-                  <CreditCard size={18} className="text-green-600" />
-                  <p className="text-sm font-semibold text-green-900">CCCD/CMND</p>
-                </div>
-                <p className="text-base font-medium text-slate-900">{customerDetails.identificationNumber || 'N/A'}</p>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">CCCD/CMND</label>
+                <p className="text-slate-900">{customerDetails.identificationNumber || 'N/A'}</p>
               </div>
-
-              <div className="p-4 bg-purple-50 rounded-lg border border-purple-100">
-                <div className="flex items-center gap-2 mb-2">
-                  <Phone size={18} className="text-purple-600" />
-                  <p className="text-sm font-semibold text-purple-900">Số điện thoại</p>
-                </div>
-                <p className="text-base font-medium text-slate-900">{customerDetails.phone || 'N/A'}</p>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Số điện thoại</label>
+                <p className="text-slate-900">{customerDetails.phone || 'N/A'}</p>
               </div>
-
-              <div className="p-4 bg-orange-50 rounded-lg border border-orange-100">
-                <div className="flex items-center gap-2 mb-2">
-                  <Mail size={18} className="text-orange-600" />
-                  <p className="text-sm font-semibold text-orange-900">Email</p>
-                </div>
-                <p className="text-base font-medium text-slate-900 break-all">{customerDetails.email || 'N/A'}</p>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Email</label>
+                <p className="text-slate-900">{customerDetails.email || 'N/A'}</p>
               </div>
-            </div>
-
-            <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
-              <div className="flex items-center gap-2 mb-2">
-                <MapPin size={18} className="text-slate-600" />
-                <p className="text-sm font-semibold text-slate-900">Địa chỉ</p>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-slate-700 mb-2">Địa chỉ</label>
+                <p className="text-slate-900">{customerDetails.address || 'N/A'}</p>
               </div>
-              <p className="text-base text-slate-900">{customerDetails.address || 'N/A'}</p>
-            </div>
-
-            <div className="p-4 bg-indigo-50 rounded-lg border border-indigo-100">
-              <div className="flex items-center gap-2 mb-2">
-                <Calendar size={18} className="text-indigo-600" />
-                <p className="text-sm font-semibold text-indigo-900">Ngày tham gia</p>
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-2">Ngày tham gia</label>
+                <p className="text-slate-900">
+                  {customerDetails.createdAt
+                    ? new Date(customerDetails.createdAt).toLocaleDateString('vi-VN', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })
+                    : 'N/A'}
+                </p>
               </div>
-              <p className="text-base font-medium text-slate-900">
-                {customerDetails.createdAt ? new Date(customerDetails.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
-              </p>
             </div>
           </div>
         ) : (
-          <div className="flex items-center justify-center py-8">
-            <div className="text-slate-500">Đang tải thông tin...</div>
+          <div className="flex items-center justify-center py-12">
+            <div className="text-slate-500">Đang tải...</div>
           </div>
         )}
       </Modal>
 
-      {/* Customer Orders Modal */}
+      {/* Customer Orders Modal - Getting original implementation */}
       <Modal
         isOpen={isOrdersModalOpen}
         onClose={() => {
           setIsOrdersModalOpen(false);
           setSelectedCustomerId(null);
         }}
-        title="Đơn hàng của Khách hàng"
-        size="2xl"
+        title="Đơn Hàng Của Khách Hàng"
+        size="4xl"
       >
         {isLoadingOrders ? (
-          <div className="flex items-center justify-center py-8">
-            <div className="text-slate-500">Đang tải đơn hàng...</div>
+          <div className="flex items-center justify-center py-12">
+            <div className="text-slate-500">Đang tải...</div>
           </div>
         ) : customerOrders.length === 0 ? (
-          <div className="p-12 text-center rounded-lg bg-slate-50 border-2 border-dashed border-slate-200">
-            <div className="flex flex-col items-center gap-3">
-              <div className="p-4 rounded-full bg-slate-100">
-                <ShoppingCart size={32} className="text-slate-400" />
-              </div>
-              <p className="text-slate-500 font-medium">Khách hàng chưa có đơn hàng nào</p>
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="p-3 rounded-full bg-slate-100 mb-3">
+              <Package size={32} className="text-slate-400" />
             </div>
+            <p className="text-slate-500">Khách hàng chưa có đơn hàng nào</p>
           </div>
         ) : (
-          <div className="space-y-4 max-h-[600px] overflow-y-auto">
+          <div className="space-y-4">
             {customerOrders.map((order) => (
-              <div key={order.orderId} className="p-5 rounded-lg border-2 border-slate-200 bg-white hover:border-blue-300 hover:shadow-sm transition-all">
-                {/* Order Header */}
-                <div className="flex items-start justify-between gap-4 mb-4 pb-4 border-b border-slate-200">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h4 className="text-base font-bold text-slate-900">{order.orderCode}</h4>
-                      {getStatusBadge(order.status)}
-                    </div>
-                    <div className="flex items-center gap-4 text-sm text-slate-600">
-                      <div className="flex items-center gap-1.5">
-                        <Calendar size={14} className="text-slate-400" />
-                        <span>{order.orderDate ? new Date(order.orderDate).toLocaleDateString('vi-VN') : 'N/A'}</span>
-                      </div>
-                      {order.contractCode && (
-                        <div className="flex items-center gap-1.5">
-                          <Package size={14} className="text-slate-400" />
-                          <span>HĐ: {order.contractCode}</span>
-                        </div>
-                      )}
+              <div
+                key={order.orderId}
+                className="p-4 border border-slate-200 rounded-lg hover:border-primary/50 transition-colors"
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <ShoppingCart size={20} className="text-primary" />
+                    <div>
+                      <p className="font-medium text-slate-900">{order.orderCode || `#${order.orderId}`}</p>
+                      <p className="text-sm text-slate-500">
+                        {order.createdAt ? new Date(order.createdAt).toLocaleDateString('vi-VN') : 'N/A'}
+                      </p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-500 mb-1">Tổng thanh toán</p>
-                    <p className="text-xl font-bold text-green-600">{formatCurrency(order.totalPayment)}</p>
+                  {getStatusBadge(order.status)}
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-slate-500">Tổng tiền:</span>
+                    <span className="ml-2 font-medium text-slate-900">{formatCurrency(order.totalAmount)}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-500">Cửa hàng:</span>
+                    <span className="ml-2 text-slate-900">{order.storeName || 'N/A'}</span>
                   </div>
                 </div>
-
-                {/* Order Details */}
-                <div className="space-y-2">
-                  <p className="text-sm font-semibold text-slate-700">Chi tiết đơn hàng:</p>
-                  {order.getOrderDetailsResponses && order.getOrderDetailsResponses.length > 0 ? (
-                    <div className="space-y-2">
-                      {order.getOrderDetailsResponses.map((detail) => (
-                        <div key={detail.orderDetailId} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex-1">
-                              <p className="font-semibold text-slate-900">{detail.modelName}</p>
-                              <p className="text-sm text-slate-600">Màu: {detail.colorName}</p>
-                            </div>
-                            <div className="text-right">
-                              <p className="text-sm text-slate-600">SL: {detail.quantity}</p>
-                            </div>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div>
-                              <span className="text-slate-500">Đơn giá: </span>
-                              <span className="font-medium">{formatCurrency(detail.unitPrice)}</span>
-                            </div>
-                            <div>
-                              <span className="text-slate-500">Tổng: </span>
-                              <span className="font-medium">{formatCurrency(detail.totalPrice)}</span>
-                            </div>
-                            {detail.licensePlateFee > 0 && (
-                              <div>
-                                <span className="text-slate-500">Phí biển số: </span>
-                                <span className="font-medium">{formatCurrency(detail.licensePlateFee)}</span>
-                              </div>
-                            )}
-                            {detail.registrationFee > 0 && (
-                              <div>
-                                <span className="text-slate-500">Phí đăng ký: </span>
-                                <span className="font-medium">{formatCurrency(detail.registrationFee)}</span>
-                              </div>
-                            )}
-                            {detail.promotionName && (
-                              <div className="col-span-2">
-                                <span className="text-slate-500">Khuyến mãi: </span>
-                                <span className="font-medium text-orange-600">
-                                  {detail.promotionName} (-{formatCurrency(detail.discountAmount)})
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-500">Không có chi tiết</p>
-                  )}
-                </div>
-
-                {/* Order Summary */}
-                <div className="mt-4 pt-4 border-t border-slate-200">
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
-                    <div className="text-center p-2 bg-blue-50 rounded">
-                      <p className="text-xs text-slate-600">Tổng giá</p>
-                      <p className="font-semibold text-blue-700">{formatCurrency(order.totalPrice)}</p>
-                    </div>
-                    <div className="text-center p-2 bg-purple-50 rounded">
-                      <p className="text-xs text-slate-600">Thuế</p>
-                      <p className="font-semibold text-purple-700">{formatCurrency(order.totalTaxPrice)}</p>
-                    </div>
-                    <div className="text-center p-2 bg-orange-50 rounded">
-                      <p className="text-xs text-slate-600">Giảm giá</p>
-                      <p className="font-semibold text-orange-700">{formatCurrency(order.totalPromotionAmount)}</p>
-                    </div>
-                    <div className="text-center p-2 bg-green-50 rounded">
-                      <p className="text-xs text-slate-600">Thành tiền</p>
-                      <p className="font-semibold text-green-700">{formatCurrency(order.totalPayment)}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Staff and Store Info */}
-                {(order.staffName || order.storeName) && (
-                  <div className="mt-3 pt-3 border-t border-slate-200 flex items-center gap-4 text-xs text-slate-600">
-                    {order.staffName && (
-                      <div>
-                        <span className="font-medium">NV: </span>
-                        <span>{order.staffName}</span>
-                      </div>
-                    )}
-                    {order.storeName && (
-                      <div>
-                        <span className="font-medium">Chi nhánh: </span>
-                        <span>{order.storeName}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             ))}
           </div>

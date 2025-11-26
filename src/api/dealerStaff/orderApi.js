@@ -70,6 +70,15 @@ export const dsOrderApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Order'],
     }),
+    // Gán xe cho order details
+    assignVehicles: builder.mutation({
+      query: (assignments) => ({
+        url: '/order-details/assign-vehicles',
+        method: 'PUT',
+        body: assignments,
+      }),
+      invalidatesTags: ['Order'],
+    }),
   }),
 });
 
@@ -85,5 +94,6 @@ export const {
   useGetOrderDetailsQuery,
   useGetOrderStatusesQuery,
   useDeleteOrderMutation,
+  useAssignVehiclesMutation,
 } = dsOrderApi;
 

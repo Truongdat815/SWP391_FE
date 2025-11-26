@@ -3,6 +3,7 @@ import {
   LayoutDashboard,
   Users,
   Building2,
+  CreditCard,
   Settings,
   LogOut,
   ChevronLeft,
@@ -21,6 +22,7 @@ const Sidebar = ({ isCollapsed = false, onToggle }) => {
     { path: '/admin/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { path: '/admin/accounts', label: 'Quản lý Người dùng', icon: Users },
     { path: '/admin/branches', label: 'Quản lý Chi nhánh', icon: Building2 },
+    { path: '/admin/company-bank-accounts', label: 'Tài khoản công ty', icon: CreditCard },
   ];
 
   const handleLogout = async () => {
@@ -80,11 +82,10 @@ const Sidebar = ({ isCollapsed = false, onToggle }) => {
               <li key={item.path}>
                 <Link
                   to={item.path}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                    isActive
-                      ? 'bg-blue-50 text-blue-600 font-medium'
-                      : 'text-gray-700 hover:bg-gray-50'
-                  } ${isCollapsed ? 'justify-center' : ''}`}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive
+                    ? 'bg-blue-50 text-blue-600 font-medium'
+                    : 'text-gray-700 hover:bg-gray-50'
+                    } ${isCollapsed ? 'justify-center' : ''}`}
                   title={isCollapsed ? item.label : ''}
                 >
                   <Icon size={20} className="shrink-0" />
@@ -99,7 +100,7 @@ const Sidebar = ({ isCollapsed = false, onToggle }) => {
       <div className="border-t border-gray-200">
         <div className="p-4 space-y-2">
           <button
-            onClick={() => {}}
+            onClick={() => { }}
             className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors ${isCollapsed ? 'justify-center' : ''}`}
             title={isCollapsed ? 'Cài đặt' : ''}
           >
