@@ -391,10 +391,8 @@ const DealerStaffDashboard = () => {
               {isLoadingOrders ? 'Đang tải...' : (totalOrders || 'N/A')}
             </p>
             <div className={`flex items-center gap-1 ${stats.growth >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-              <TrendingUp size={16} />
-              <p className="text-sm font-medium">
-                {stats.growth >= 0 ? '+' : ''}{stats.growth}% so với tháng trước
-              </p>
+             
+            
             </div>
           </Card>
           <Card className="flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
@@ -402,10 +400,7 @@ const DealerStaffDashboard = () => {
             <p className="text-slate-900 text-3xl font-bold tracking-tight">
               {isLoadingOrders ? 'Đang tải...' : (monthlyRevenue ? formatCurrency(monthlyRevenue) : 'N/A')}
             </p>
-            <div className="flex items-center gap-1 text-green-600">
-              <TrendingUp size={16} />
-              <p className="text-sm font-medium">+8.5% so với tháng trước</p>
-            </div>
+           
           </Card>
           <Card className="flex flex-col gap-2 rounded-xl p-6 bg-white border border-slate-200 shadow-sm">
             <p className="text-slate-600 text-base font-medium">Dòng Xe Sắp Hết</p>

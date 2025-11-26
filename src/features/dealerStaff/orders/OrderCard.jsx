@@ -1,14 +1,14 @@
 import { formatCurrency, formatDate, getOrderStatusConfig, isPaymentRequired } from '../../../utils/formatters';
-import { User, Phone, Calendar, FileText, Eye, Truck } from 'lucide-react';
+import { User, Phone, Calendar, FileText, Eye, Truck, DollarSign } from 'lucide-react';
 
-const OrderCard = ({ order, contracts = [], onView, onCreateContract, onViewContract, onDeliverOrder }) => {
+const OrderCard = ({ order, contracts = [], onView, onCreateContract, onViewContract, onDeliverOrder, onCreateDepositRequest, onConfirmDepositPayment }) => {
   // Helper function to check if contract has been uploaded
   const hasUploadedContract = (contract) => {
     if (!contract) return false;
     const signedContractFileUrl = contract?.contractFileUrl || contract?.signedContractFileUrl;
-    return signedContractFileUrl && 
-           typeof signedContractFileUrl === 'string' && 
-           signedContractFileUrl.trim().length > 0;
+    return signedContractFileUrl &&
+      typeof signedContractFileUrl === 'string' &&
+      signedContractFileUrl.trim().length > 0;
   };
 
   // Helper function to get effective order status considering contract
@@ -33,7 +33,7 @@ const OrderCard = ({ order, contracts = [], onView, onCreateContract, onViewCont
   const effectiveStatus = getEffectiveOrderStatus(order);
   const statusConfig = getOrderStatusConfig(effectiveStatus);
 
-  const canCreateContract = order.status === 'CONFIRMED' || order.status === 'APPROVED';
+  const canCreateContract = order.status === 'DEPOSIT_PAID';
   const hasContract = order.contractId && order.contractId > 0;
 
   const handleContractClick = () => {
@@ -43,9 +43,9 @@ const OrderCard = ({ order, contracts = [], onView, onCreateContract, onViewCont
       if (contract) {
         const signedContractFileUrl = contract?.contractFileUrl || contract?.signedContractFileUrl;
         // If contract has been uploaded, open fileUrl directly
-        if (signedContractFileUrl && 
-            typeof signedContractFileUrl === 'string' && 
-            signedContractFileUrl.trim().length > 0) {
+        if (signedContractFileUrl &&
+          typeof signedContractFileUrl === 'string' &&
+          signedContractFileUrl.trim().length > 0) {
           window.open(signedContractFileUrl, '_blank');
           return;
         }
@@ -89,11 +89,10 @@ const OrderCard = ({ order, contracts = [], onView, onCreateContract, onViewCont
                 onDeliverOrder(order);
               }
             }}
-            className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${
-              effectiveStatus === 'FULLY_PAID'
-                ? 'hover:bg-green-50 text-green-600'
-                : 'text-transparent cursor-default'
-            }`}
+            className={`p-1.5 rounded-lg transition-colors flex items-center justify-center ${effectiveStatus === 'FULLY_PAID'
+              ? 'hover:bg-green-50 text-green-600'
+              : 'text-transparent cursor-default'
+              }`}
             title={effectiveStatus === 'FULLY_PAID' ? 'Giao hàng' : ''}
           >
             <Truck size={16} />
@@ -150,15 +149,30 @@ const OrderCard = ({ order, contracts = [], onView, onCreateContract, onViewCont
             <FileText size={16} />
             Hợp đồng
           </button>
+        ) : order.status === 'CONFIRMED' ? (
+          <button
+            onClick={() => onCreateDepositRequest && onCreateDepositRequest(order)}
+            className="w-full px-3 py-2 rounded-lg bg-orange-500 text-white text-sm font-medium hover:bg-orange-600 transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-orange-500/20"
+          >
+            <FileText size={16} />
+            Tạo đặt cọc
+          </button>
+        ) : order.status === 'PENDING_DEPOSIT' ? (
+          <button
+            onClick={() => onConfirmDepositPayment && onConfirmDepositPayment(order)}
+            className="w-full px-3 py-2 rounded-lg bg-green-500 text-white text-sm font-medium hover:bg-green-600 transition-colors flex items-center justify-center gap-1.5 shadow-sm shadow-green-500/20"
+          >
+            <DollarSign size={16} />
+            Xác nhận cọc
+          </button>
         ) : (
           <button
             onClick={handleContractClick}
             disabled={!canCreateContract}
-            className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
-              canCreateContract
-                ? 'bg-primary text-white hover:bg-primary/90 shadow-sm shadow-primary/20'
-                : 'bg-slate-100 text-slate-400 cursor-not-allowed'
-            }`}
+            className={`w-full px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${canCreateContract
+              ? 'bg-primary text-white hover:bg-primary/90 shadow-sm shadow-primary/20'
+              : 'bg-slate-100 text-slate-400 cursor-not-allowed'
+              }`}
           >
             <FileText size={16} />
             Tạo HĐ

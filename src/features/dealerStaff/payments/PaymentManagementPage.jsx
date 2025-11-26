@@ -9,7 +9,7 @@ import Modal from '../../../components/ui/Modal';
 import { useToast } from '../../../components/ui/Toast';
 import LoadingSkeleton from '../../../components/shared/LoadingSkeleton';
 import Stepper from '../../../components/ui/Stepper';
-import { useGetAllPaymentsQuery, useGetPaymentByIdQuery, useCreatePaymentMutation } from '../../../api/dealerStaff/paymentApi';
+import { useGetAllPaymentsQuery, useGetPaymentByIdQuery, useCreatePaymentMutation, useConfirmCashPaymentMutation } from '../../../api/dealerStaff/paymentApi';
 import { useGetAllContractsQuery, useGetContractDetailQuery } from '../../../api/dealerStaff/contractApi';
 import { formatCurrency, formatDate, getPaymentStatusConfig, getPaymentTypeLabel, getPaymentMethodLabel, getContractStatusConfig, getEffectiveContractStatus, getEffectiveRemainingAmount, isPaymentRequired } from '../../../utils/formatters';
 
@@ -57,13 +57,13 @@ const PaymentManagementPage = () => {
   // Handle date range changes with validation
   const handleStartDateChange = (value) => {
     const newDateRange = { ...dateRange, start: value };
-    
+
     // If end date exists and new start date is after end date, clear end date
     if (newDateRange.end && !validateDateRange(value, newDateRange.end)) {
       newDateRange.end = '';
       toast.warning('Đã xóa ngày kết thúc vì ngày bắt đầu phải trước ngày kết thúc');
     }
-    
+
     setDateRange(newDateRange);
   };
 
@@ -73,7 +73,7 @@ const PaymentManagementPage = () => {
       toast.error('Ngày kết thúc phải sau ngày bắt đầu');
       return;
     }
-    
+
     setDateRange({ ...dateRange, end: value });
   };
 
@@ -86,13 +86,13 @@ const PaymentManagementPage = () => {
     }
 
     const newValueFilter = { ...totalValueFilter, min: value };
-    
+
     // If max value exists and new min is greater than max, show warning
     if (newValueFilter.max && !validateValueRange(value, newValueFilter.max)) {
       toast.error('Giá trị từ phải nhỏ hơn giá trị đến');
       return;
     }
-    
+
     setTotalValueFilter(newValueFilter);
   };
 
@@ -108,7 +108,7 @@ const PaymentManagementPage = () => {
       toast.error('Giá trị đến phải lớn hơn giá trị từ');
       return;
     }
-    
+
     setTotalValueFilter({ ...totalValueFilter, max: value });
   };
   const [currentPage, setCurrentPage] = useState(1);
@@ -131,6 +131,7 @@ const PaymentManagementPage = () => {
   const { data: paymentsData, isLoading, error, refetch: refetchPayments } = useGetAllPaymentsQuery();
   const { data: contractsData, refetch: refetchContracts } = useGetAllContractsQuery();
   const [createPayment, { isLoading: creatingPayment }] = useCreatePaymentMutation();
+  const [confirmCashPayment, { isLoading: isConfirmingCash }] = useConfirmCashPaymentMutation();
 
   // Get contract detail when contractId is provided
   const contractIdFromRoute = location.state?.contractId;
@@ -311,7 +312,7 @@ const PaymentManagementPage = () => {
         payment.paymentId?.toString().includes(searchTerm) ||
         payment.paymentCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         payment.contractCode?.toLowerCase().includes(searchTerm.toLowerCase());
-      
+
       const matchesStatus = statusFilter === 'all' || payment.status === statusFilter;
 
       // Date range filter with validation
@@ -379,6 +380,18 @@ const PaymentManagementPage = () => {
         {config.label}
       </span>
     );
+  };
+
+  const handleConfirmCash = async (paymentId) => {
+    try {
+      await confirmCashPayment(paymentId).unwrap();
+      toast.success('Xác nhận thanh toán tiền mặt thành công');
+      refetchPayments();
+      refetchContracts();
+    } catch (error) {
+      console.error('Error confirming cash payment:', error);
+      toast.error(error?.data?.message || 'Có lỗi xảy ra khi xác nhận thanh toán');
+    }
   };
 
   const handleCreatePayment = async () => {
@@ -528,11 +541,10 @@ const PaymentManagementPage = () => {
                 min={dateRange.start || undefined}
                 onChange={(e) => handleEndDateChange(e.target.value)}
                 disabled={!dateRange.start}
-                className={`h-10 rounded-lg border border-slate-300 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary ${
-                  !dateRange.start 
-                    ? 'bg-slate-100 cursor-not-allowed text-slate-400' 
+                className={`h-10 rounded-lg border border-slate-300 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary ${!dateRange.start
+                    ? 'bg-slate-100 cursor-not-allowed text-slate-400'
                     : 'bg-slate-50'
-                }`}
+                  }`}
                 title={!dateRange.start ? "Vui lòng chọn ngày bắt đầu trước" : "Chọn ngày kết thúc"}
               />
             </div>
@@ -559,11 +571,10 @@ const PaymentManagementPage = () => {
                 onChange={(e) => handleMaxValueChange(e.target.value)}
                 placeholder="∞"
                 disabled={!totalValueFilter.min}
-                className={`h-10 w-32 rounded-lg border border-slate-300 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary ${
-                  !totalValueFilter.min 
-                    ? 'bg-slate-100 cursor-not-allowed text-slate-400' 
+                className={`h-10 w-32 rounded-lg border border-slate-300 px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary ${!totalValueFilter.min
+                    ? 'bg-slate-100 cursor-not-allowed text-slate-400'
                     : 'bg-slate-50'
-                }`}
+                  }`}
                 title={!totalValueFilter.min ? "Vui lòng nhập giá trị từ trước" : "Nhập giá trị tối đa"}
               />
             </div>
@@ -1280,7 +1291,7 @@ const PaymentManagementPage = () => {
             {/* Payment List - Simple */}
             <div className="space-y-2">
               <h3 className="text-sm font-semibold text-slate-700">Danh sách thanh toán</h3>
-              
+
               <div className="max-h-[400px] overflow-y-auto">
                 {(() => {
                   const contractPayments = payments.filter(payment =>
@@ -1303,19 +1314,18 @@ const PaymentManagementPage = () => {
                             <div className="flex-1">
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="font-medium text-slate-900">{payment.paymentCode}</span>
-                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
-                                  payment.status === 'COMPLETED' || payment.status === 'SUCCESS'
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${payment.status === 'COMPLETED' || payment.status === 'SUCCESS'
                                     ? 'bg-green-100 text-green-700'
                                     : payment.status === 'PENDING'
                                       ? 'bg-yellow-100 text-yellow-700'
                                       : payment.status === 'FAILED'
                                         ? 'bg-red-100 text-red-700'
                                         : 'bg-gray-100 text-gray-700'
-                                }`}>
+                                  }`}>
                                   {payment.status === 'COMPLETED' ? 'Hoàn thành' :
-                                   payment.status === 'SUCCESS' ? 'Thành công' :
-                                   payment.status === 'PENDING' ? 'Chờ xử lý' :
-                                   payment.status === 'FAILED' ? 'Thất bại' : payment.status}
+                                    payment.status === 'SUCCESS' ? 'Thành công' :
+                                      payment.status === 'PENDING' ? 'Chờ xử lý' :
+                                        payment.status === 'FAILED' ? 'Thất bại' : payment.status}
                                 </span>
                               </div>
                               <div className="text-sm text-slate-600">
@@ -1328,7 +1338,19 @@ const PaymentManagementPage = () => {
                             </div>
                             <div className="text-right">
                               <div className="font-bold text-green-600">{formatCurrency(payment.amount)}</div>
-                              
+                              {payment.status === 'DRAFT' && payment.paymentMethod === 'CASH' && (
+                                <Button
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleConfirmCash(payment.paymentId);
+                                  }}
+                                  disabled={isConfirmingCash}
+                                  className="mt-1 h-7 text-xs bg-green-600 hover:bg-green-700 text-white"
+                                >
+                                  {isConfirmingCash ? 'Đang xử lý...' : 'Xác nhận tiền mặt'}
+                                </Button>
+                              )}
                             </div>
                           </div>
                         </li>

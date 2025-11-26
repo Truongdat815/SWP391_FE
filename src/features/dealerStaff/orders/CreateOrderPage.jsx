@@ -74,7 +74,7 @@ const CreateOrderPage = () => {
   const { data: promotionsData, isLoading: loadingPromotions } = useGetAllPromotionsQuery();
   const { data: storeStocksData } = useGetStoreStocksQuery();
   const { data: storesData } = useGetAllStoresQuery();
-  
+
   // Get store info from storeName
   const storeName = orderSummary?.storeName || user?.storeName;
   const { data: storeByNameData } = useGetStoreByNameQuery(storeName, {
@@ -131,6 +131,23 @@ const CreateOrderPage = () => {
     if (storeStocksData.data && Array.isArray(storeStocksData.data)) return storeStocksData.data;
     return [];
   }, [storeStocksData]);
+
+  // Filter models based on store stock
+  const availableModels = useMemo(() => {
+    if (!storeStocks || storeStocks.length === 0) return [];
+
+    // Get all modelIds that have stock > 0
+    const modelIdsWithStock = new Set(
+      storeStocks
+        .filter(s => {
+          const qty = s.availableStock !== undefined ? s.availableStock : s.quantity;
+          return qty > 0;
+        })
+        .map(s => s.modelId)
+    );
+
+    return models.filter(m => modelIdsWithStock.has(m.modelId));
+  }, [models, storeStocks]);
 
   // Filter and sort customers (newest first)
   const filteredCustomers = useMemo(() => {
@@ -218,11 +235,26 @@ const CreateOrderPage = () => {
     }
   }, [editMode, location.state?.orderData, customers, selectedCustomer]);
 
-  // Get available colors for selected model
+  // Get available colors for selected model (filtered by stock)
   const availableColors = useMemo(() => {
     if (!currentProduct.modelId) return [];
-    return modelColors.filter(mc => mc.modelId === currentProduct.modelId);
-  }, [currentProduct.modelId, modelColors]);
+
+    // Get colors for this model
+    const colorsForModel = modelColors.filter(mc => mc.modelId === currentProduct.modelId);
+
+    // Filter by stock
+    return colorsForModel.filter(c => {
+      const colorId = c.id || c.colorId;
+      const stock = storeStocks.find(s =>
+        s.modelId === currentProduct.modelId &&
+        (s.colorId === colorId || s.color?.id === colorId || s.color?.colorId === colorId)
+      );
+
+      if (!stock) return false;
+      const qty = stock.availableStock !== undefined ? stock.availableStock : stock.quantity;
+      return qty > 0;
+    });
+  }, [currentProduct.modelId, modelColors, storeStocks]);
 
   // Get available promotions (filter active only, optionally filter by model if selected)
   // Note: promotionType can be null - we'll infer it from amount if needed
@@ -562,19 +594,19 @@ const CreateOrderPage = () => {
     let store = null;
     const storeId = orderSummary?.storeId;
     const storeNameToFind = orderSummary?.storeName || user?.storeName;
-    
+
     if (storesData?.data && Array.isArray(storesData.data)) {
       // First try to find by storeId (from order)
       if (storeId) {
         store = storesData.data.find(s => s.storeId === storeId || s.storeId?.toString() === storeId?.toString());
       }
-      
+
       // If not found by storeId, try by storeName
       if (!store && storeNameToFind) {
         store = storesData.data.find(s => s.storeName === storeNameToFind);
       }
     }
-    
+
     // Debug log in development
     if (import.meta.env.DEV) {
       console.log('Store lookup:', {
@@ -866,7 +898,7 @@ const CreateOrderPage = () => {
                                 }}
                               >
                                 <option value="">-- Chọn mẫu xe --</option>
-                                {models.map((model) => (
+                                {availableModels.map((model) => (
                                   <option key={model.modelId} value={model.modelId}>
                                     {model.modelName}
                                   </option>
@@ -1039,7 +1071,7 @@ const CreateOrderPage = () => {
                                 )}
                               </div>
 
-                            
+
                             </motion.div>
                           )}
 
@@ -1182,10 +1214,7 @@ const CreateOrderPage = () => {
                     <Button onClick={handleViewOrder} variant="outline">
                       Xem đơn hàng
                     </Button>
-                    <Button onClick={handleCreateContract}>
-                      <ArrowRight size={20} className="mr-2" />
-                      Tạo hợp đồng
-                    </Button>
+
                     <Button onClick={handleCreateNewOrder} variant="outline">
                       Tạo đơn mới
                     </Button>

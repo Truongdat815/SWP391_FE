@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Search, ChevronLeft, ChevronRight, FileText, ShoppingBag, CheckCircle, Package, DollarSign, List, Grid, ChevronDown, Eye, Truck, Filter, RefreshCw, XCircle, Edit, Car } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, FileText, ShoppingBag, CheckCircle, Package, DollarSign, List, Grid, ChevronDown, Eye, Truck, Filter, RefreshCw, XCircle, Edit, Car, Trash2 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import DealerStaffLayout from '../../../components/layout/DealerStaffLayout';
@@ -7,8 +7,9 @@ import Button from '../../../components/ui/Button';
 import Modal from '../../../components/ui/Modal';
 import { useToast } from '../../../components/ui/Toast';
 import MetricCard from '../../../components/shared/MetricCard';
-import { useGetAllOrdersQuery, useGetOrderByIdQuery, useDeleteOrderMutation, useConfirmOrderMutation, useDeliverOrderMutation, useGetOrderDetailsQuery } from '../../../api/dealerStaff/orderApi';
+import { useGetAllOrdersQuery, useGetOrderByIdQuery, useDeleteOrderMutation, useConfirmOrderMutation, useDeliverOrderMutation, useGetOrderDetailsQuery, useCreateDepositRequestMutation, useConfirmDepositPaymentMutation } from '../../../api/dealerStaff/orderApi';
 import { useCreateContractMutation, useGetContractDetailQuery, useGetAllContractsQuery } from '../../../api/dealerStaff/contractApi';
+import { useCreatePaymentMutation } from '../../../api/dealerStaff/paymentApi';
 import { getAuthFromStorage, getRoleFromPath } from '../../../utils/roleUtils';
 import { formatCurrency, formatDate, getOrderStatusConfig, isPaymentRequired } from '../../../utils/formatters';
 import OrderDetailsExpanded from './OrderDetailsExpanded';
@@ -33,8 +34,10 @@ const OrderManagementPage = () => {
   const [isConfirmContractModalOpen, setIsConfirmContractModalOpen] = useState(false);
   const [isConfirmDeliverModalOpen, setIsConfirmDeliverModalOpen] = useState(false);
   const [isVehicleAssignmentModalOpen, setIsVehicleAssignmentModalOpen] = useState(false);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedContractId, setSelectedContractId] = useState(null);
+  const [paymentMethod, setPaymentMethod] = useState('VNPAY');
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'card'
 
   const { data: ordersData, isLoading, error, refetch } = useGetAllOrdersQuery();
@@ -43,6 +46,51 @@ const OrderManagementPage = () => {
   const [confirmOrder, { isLoading: isConfirmingOrder }] = useConfirmOrderMutation();
   const [deliverOrder, { isLoading: isDeliveringOrder }] = useDeliverOrderMutation();
   const [createContract, { isLoading: isCreatingContract }] = useCreateContractMutation();
+  const [createDepositRequest, { isLoading: isCreatingDepositRequest }] = useCreateDepositRequestMutation();
+  const [confirmDepositPayment, { isLoading: isConfirmingDepositPayment }] = useConfirmDepositPaymentMutation();
+  const [createPayment, { isLoading: isCreatingPayment }] = useCreatePaymentMutation();
+
+  // ... (rest of the file)
+
+  const handlePayment = (order) => {
+    setSelectedOrder(order);
+    setPaymentMethod('VNPAY'); // Default to VNPAY
+    setIsPaymentModalOpen(true);
+  };
+
+  const handleCreatePayment = async () => {
+    if (!selectedOrder) return;
+
+    try {
+      const paymentData = {
+        orderId: selectedOrder.orderId,
+        paymentType: 'DEPOSIT',
+        paymentMethod: paymentMethod,
+      };
+
+      const response = await createPayment(paymentData).unwrap();
+
+      if (paymentMethod === 'VNPAY' && response.data?.paymentUrl) {
+        // Redirect to VNPay
+        window.location.href = response.data.paymentUrl;
+      } else if (paymentMethod === 'CASH') {
+        toast.success('Tạo thanh toán tiền mặt thành công. Vui lòng xác nhận thanh toán.');
+        setIsPaymentModalOpen(false);
+        // Navigate to PaymentManagementPage
+        navigate('/dealer-staff/payments');
+      } else {
+        toast.success('Tạo thanh toán thành công');
+        setIsPaymentModalOpen(false);
+      }
+    } catch (error) {
+      console.error('Error creating payment:', error);
+      toast.error(error?.data?.message || 'Có lỗi xảy ra khi tạo thanh toán');
+    }
+  };
+
+  // ... (rest of the file)
+
+
 
   // Get order detail when viewing
   const { data: orderDetailData, isLoading: isLoadingOrderDetail } = useGetOrderByIdQuery(selectedOrder?.orderId, {
@@ -168,11 +216,18 @@ const OrderManagementPage = () => {
   const endIndex = startIndex + itemsPerPage;
   const paginatedOrders = filteredOrders.slice(startIndex, endIndex);
 
+  const handleStatusClick = (order) => {
+    if (order.status === 'PENDING_DEPOSIT') {
+      handleViewDepositAgreement(`/orders/${order.orderId}/deposit-agreement`);
+    }
+  };
+
   const getStatusBadge = (status, order) => {
     // Use effective status instead of raw status
     const effectiveStatus = getEffectiveOrderStatus(order);
     const config = getOrderStatusConfig(effectiveStatus);
     const isDraft = status === 'DRAFT';
+    const isPendingDeposit = status === 'PENDING_DEPOSIT';
 
     if (isDraft) {
       return (
@@ -184,6 +239,22 @@ const OrderManagementPage = () => {
           disabled={isConfirmingOrder}
           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${config.color} hover:opacity-80 cursor-pointer transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-sm`}
           title="Click để xác nhận đơn hàng"
+        >
+          {config.label}
+        </button>
+      );
+    }
+
+    if (isPendingDeposit) {
+      return (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            handleStatusClick(order);
+          }}
+          disabled={false}
+          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${config.color} hover:opacity-80 cursor-pointer transition-opacity disabled:opacity-50 disabled:cursor-not-allowed shadow-sm`}
+          title="Click để xem thỏa thuận đặt cọc"
         >
           {config.label}
         </button>
@@ -321,7 +392,6 @@ const OrderManagementPage = () => {
 
   const handleViewContract = async (contractId) => {
     try {
-      // First, get contract detail to check if it has signed contract
       const baseUrl = import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api';
       const apiUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
 
@@ -407,6 +477,92 @@ const OrderManagementPage = () => {
     }
   };
 
+  const handleViewDepositAgreement = async (viewUrl) => {
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api';
+      const apiUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+
+      let fullUrl = viewUrl;
+      if (!viewUrl.startsWith('http')) {
+        // If viewUrl starts with /api and apiUrl ends with /api, remove one /api
+        if (viewUrl.startsWith('/api') && apiUrl.endsWith('/api')) {
+          fullUrl = `${apiUrl.slice(0, -4)}${viewUrl}`;
+        } else {
+          fullUrl = `${apiUrl}${viewUrl.startsWith('/') ? '' : '/'}${viewUrl}`;
+        }
+      }
+
+      // Get auth token
+      const currentPath = window.location.pathname;
+      const roleFromPath = getRoleFromPath(currentPath);
+      let token = null;
+
+      if (roleFromPath) {
+        const authData = getAuthFromStorage(roleFromPath);
+        token = authData?.token;
+      }
+
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers: {
+          'Authorization': token ? `Bearer ${token}` : '',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch deposit agreement');
+      }
+
+      const htmlContent = await response.text();
+
+      // Create blob URL and open in new tab
+      const blob = new Blob([htmlContent], { type: 'text/html' });
+      const url = URL.createObjectURL(blob);
+      const newWindow = window.open(url, '_blank');
+
+      // Clean up blob URL after window opens
+      if (newWindow) {
+        newWindow.onload = () => {
+          setTimeout(() => URL.revokeObjectURL(url), 100);
+        };
+      } else {
+        URL.revokeObjectURL(url);
+      }
+    } catch (error) {
+      console.error('Error fetching deposit agreement:', error);
+      toast.error('Không thể xem thỏa thuận đặt cọc');
+    }
+  };
+
+  const handleCreateDepositRequest = async (order) => {
+    try {
+      const response = await createDepositRequest(order.orderId).unwrap();
+
+
+
+      // Open the viewUrl if available
+      if (response.data && response.data.viewUrl) {
+        handleViewDepositAgreement(response.data.viewUrl);
+      }
+    } catch (error) {
+      console.error('Error creating deposit request:', error);
+      toast.error(error?.data?.message || 'Có lỗi xảy ra khi tạo yêu cầu đặt cọc');
+    }
+  };
+
+  const handleConfirmDepositPayment = async (order) => {
+    if (!window.confirm('Bạn có chắc chắn muốn xác nhận đã nhận tiền cọc cho đơn hàng này?')) {
+      return;
+    }
+
+    try {
+      await confirmDepositPayment(order.orderId).unwrap();
+      toast.success('Đã xác nhận thanh toán cọc thành công');
+    } catch (error) {
+      console.error('Error confirming deposit payment:', error);
+      toast.error(error?.data?.message || 'Có lỗi xảy ra khi xác nhận thanh toán cọc');
+    }
+  };
 
   const handleOpenViewModal = (order) => {
     setSelectedOrder(order);
@@ -445,7 +601,7 @@ const OrderManagementPage = () => {
   };
 
   const canCreateContract = (order) => {
-    return order.status === 'PENDING_DEPOSIT';
+    return order.status === 'DEPOSIT_PAID';
   };
 
   const canAssignVehicles = (order) => {
@@ -645,7 +801,7 @@ const OrderManagementPage = () => {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Ngày Tạo</th>
                         <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Trạng Thái</th>
                         <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Hợp Đồng</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Thao tác</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
@@ -689,26 +845,25 @@ const OrderManagementPage = () => {
                               {getStatusBadge(order.status, order)}
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
-                              <button
-                                onClick={() => handleContractClick(order)}
-                                disabled={isCreatingContract}
-                                className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${order.contractId && order.contractId > 0
-                                  ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-pointer'
-                                  : canCreateContract(order)
-                                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer'
-                                    : 'bg-gray-50 text-gray-400 cursor-not-allowed'
-                                  }`}
-                              >
-                                {order.contractId && order.contractId > 0
-                                  ? 'Xem hợp đồng'
-                                  : canCreateContract(order)
-                                    ? 'Tạo hợp đồng'
-                                    : '-'
-                                }
-                              </button>
-                            </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-center">
                               <div className="flex items-center justify-center gap-2">
+                                <button
+                                  onClick={() => handleContractClick(order)}
+                                  disabled={isCreatingContract}
+                                  className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${order.contractId && order.contractId > 0
+                                    ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-pointer'
+                                    : canCreateContract(order)
+                                      ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer'
+                                      : 'bg-gray-50 text-gray-400 cursor-not-allowed'
+                                    }`}
+                                >
+                                  {order.contractId && order.contractId > 0
+                                    ? 'Xem hợp đồng'
+                                    : canCreateContract(order)
+                                      ? 'Tạo hợp đồng'
+                                      : '-'
+                                  }
+                                </button>
+
                                 <button
                                   onClick={() => handleOpenViewModal(order)}
                                   className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -716,6 +871,17 @@ const OrderManagementPage = () => {
                                 >
                                   <Eye size={18} />
                                 </button>
+
+                                {order.status === 'PENDING_DEPOSIT' && (
+                                  <button
+                                    onClick={() => handlePayment(order)}
+                                    className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                                    title="Thanh toán"
+                                  >
+                                    <DollarSign size={18} />
+                                  </button>
+                                )}
+
                                 {canUpdateQuote(order) && (
                                   <button
                                     onClick={() => handleUpdateQuote(order)}
@@ -725,13 +891,36 @@ const OrderManagementPage = () => {
                                     <Edit size={18} />
                                   </button>
                                 )}
-                                {canAssignVehicles(order) && (
+
+                                {order.status === 'CONFIRMED' && (
                                   <button
-                                    onClick={() => handleAssignVehicles(order)}
-                                    className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                    title="Gán phương tiện"
+                                    onClick={() => handleCreateDepositRequest(order)}
+                                    disabled={isCreatingDepositRequest}
+                                    className="p-1.5 text-orange-600 hover:bg-orange-50 rounded-lg transition-colors"
+                                    title="Tạo yêu cầu đặt cọc"
                                   >
-                                    <Car size={18} />
+                                    <FileText size={18} />
+                                  </button>
+                                )}
+
+                                {order.status === 'PENDING_DEPOSIT' && (
+                                  <button
+                                    onClick={() => handleConfirmDepositPayment(order)}
+                                    disabled={isConfirmingDepositPayment}
+                                    className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                    title="Xác nhận đã nhận tiền cọc"
+                                  >
+                                    <DollarSign size={18} />
+                                  </button>
+                                )}
+
+                                {order.status === 'DRAFT' && (
+                                  <button
+                                    onClick={() => handleDeleteClick(order)}
+                                    className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                    title="Xóa đơn hàng"
+                                  >
+                                    <Trash2 size={18} />
                                   </button>
                                 )}
                               </div>
@@ -757,6 +946,8 @@ const OrderManagementPage = () => {
                         onCreateContract={handleCreateContract}
                         onViewContract={handleViewContract}
                         onDeliverOrder={handleDeliverOrder}
+                        onCreateDepositRequest={handleCreateDepositRequest}
+                        onConfirmDepositPayment={handleConfirmDepositPayment}
                       />
                     ))}
                   </div>
@@ -791,7 +982,8 @@ const OrderManagementPage = () => {
                 </div>
               </div>
             </>
-          )}
+          )
+          }
 
         </div>
 
@@ -1065,7 +1257,61 @@ const OrderManagementPage = () => {
           orderDetails={vehicleAssignmentOrderDetails?.data}
         />
       </div>
-    </DealerStaffLayout>
+      {/* Payment Modal */}
+      <Modal
+        isOpen={isPaymentModalOpen}
+        onClose={() => setIsPaymentModalOpen(false)}
+        title="Thanh toán đặt cọc"
+        size="md"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Chọn phương thức thanh toán cho đơn hàng <strong>{selectedOrder?.orderCode || selectedOrder?.orderId}</strong>
+          </p>
+
+          <div className="space-y-3">
+            <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="VNPAY"
+                checked={paymentMethod === 'VNPAY'}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="ml-3 font-medium text-gray-900">VNPAY</span>
+            </label>
+
+            <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
+              <input
+                type="radio"
+                name="paymentMethod"
+                value="CASH"
+                checked={paymentMethod === 'CASH'}
+                onChange={(e) => setPaymentMethod(e.target.value)}
+                className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+              />
+              <span className="ml-3 font-medium text-gray-900">Tiền mặt</span>
+            </label>
+          </div>
+
+          <div className="flex justify-end gap-3 mt-6">
+            <Button
+              variant="outline"
+              onClick={() => setIsPaymentModalOpen(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              onClick={handleCreatePayment}
+              disabled={isCreatingPayment}
+            >
+              {isCreatingPayment ? 'Đang xử lý...' : 'Xác nhận thanh toán'}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </DealerStaffLayout >
   );
 };
 

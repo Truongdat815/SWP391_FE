@@ -575,17 +575,8 @@ const CustomerManagementPage = () => {
               <label className="block text-sm font-medium text-slate-700 mb-1.5">
                 Phường/Xã/Thị trấn <span className="text-red-500">*</span>
               </label>
-              {/* Commune search input */}
-              {selectedProvinceCode && communes.length > 0 && (
-                <input
-                  className="w-full px-3 py-2 mb-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none text-sm"
-                  placeholder="Tìm kiếm phường/xã..."
-                  value={communeSearchTerm}
-                  onChange={(e) => setCommuneSearchTerm(e.target.value)}
-                />
-              )}
               <Dropdown
-                options={filteredCommunes.map((commune) => ({
+                options={communes.map((commune) => ({
                   value: commune.code,
                   label: commune.name,
                 }))}
@@ -594,11 +585,6 @@ const CustomerManagementPage = () => {
                 placeholder="Chọn phường/xã/thị trấn"
                 disabled={!selectedProvinceCode || communes.length === 0}
               />
-              {selectedProvinceCode && communes.length > 0 && (
-                <p className="mt-1 text-xs text-slate-500">
-                  {filteredCommunes.length} / {communes.length} kết quả
-                </p>
-              )}
             </div>
           </div>
 

@@ -41,6 +41,19 @@ export const dsPaymentApi = baseApi.injectEndpoints({
       query: () => '/payment/methods',
       providesTags: ['Payment'],
     }),
+    // Lấy danh sách cổng thanh toán
+    getPaymentGateways: builder.query({
+      query: () => '/payment/gateways',
+      providesTags: ['Payment'],
+    }),
+    // Xác nhận thanh toán tiền mặt
+    confirmCashPayment: builder.mutation({
+      query: (paymentId) => ({
+        url: `/payment/${paymentId}/confirm-cash`,
+        method: 'PUT',
+      }),
+      invalidatesTags: ['Payment'],
+    }),
   }),
 });
 
@@ -52,5 +65,7 @@ export const {
   useGetPaymentStatusesQuery,
   useGetPaymentTypesQuery,
   useGetPaymentMethodsQuery,
+  useGetPaymentGatewaysQuery,
+  useConfirmCashPaymentMutation,
 } = dsPaymentApi;
 

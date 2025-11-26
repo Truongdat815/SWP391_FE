@@ -132,7 +132,7 @@ const OrderDetailsExpanded = ({ order, onViewContract }) => {
             {/* Total Tax Price */}
             {order.totalTaxPrice > 0 && (
               <div className="flex justify-between items-center">
-                <span className="text-sm text-slate-600">Tổng thuế:</span>
+                <span className="text-sm text-slate-600">Tổng phí:</span>
                 <span className="text-sm font-medium text-slate-900">{formatCurrency(order.totalTaxPrice)}</span>
               </div>
             )}

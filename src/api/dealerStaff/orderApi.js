@@ -79,6 +79,32 @@ export const dsOrderApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Order'],
     }),
+    // Xác nhận thanh toán đặt cọc
+    confirmDepositPayment: builder.mutation({
+      query: (orderId) => ({
+        url: `/orders/${orderId}/confirm-deposit-payment`,
+        method: 'PUT',
+      }),
+      invalidatesTags: ['Order'],
+    }),
+    // Tạo yêu cầu đặt cọc (Deposit Request)
+    createDepositRequest: builder.mutation({
+      query: (orderId) => ({
+        url: `/orders/${orderId}/create-deposit-request`,
+        method: 'POST',
+      }),
+      invalidatesTags: ['Order'],
+    }),
+    // Xem thỏa thuận đặt cọc (Deposit Agreement)
+    getDepositAgreement: builder.query({
+      query: (orderId) => ({
+        url: `/orders/${orderId}/deposit-agreement`,
+        responseHandler: async (response) => {
+          const text = await response.text();
+          return text;
+        },
+      }),
+    }),
   }),
 });
 
@@ -95,5 +121,9 @@ export const {
   useGetOrderStatusesQuery,
   useDeleteOrderMutation,
   useAssignVehiclesMutation,
+  useConfirmDepositPaymentMutation,
+  useCreateDepositRequestMutation,
+  useGetDepositAgreementQuery,
+  useLazyGetDepositAgreementQuery,
 } = dsOrderApi;
 

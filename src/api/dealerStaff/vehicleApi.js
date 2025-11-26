@@ -32,6 +32,16 @@ export const vehicleApi = baseApi.injectEndpoints({
       query: ({ modelId, colorId }) => `/vehicles/available?modelId=${modelId}&colorId=${colorId}`,
       providesTags: ['Vehicle'],
     }),
+    // Lấy thông tin xe theo ID
+    getVehicleById: builder.query({
+      query: (vehicleId) => `/vehicles/${vehicleId}`,
+      providesTags: ['Vehicle'],
+    }),
+    // Lấy danh sách xe trong inventory transaction
+    getVehiclesByInventoryId: builder.query({
+      query: (inventoryId) => `/vehicles/inventory/${inventoryId}`,
+      providesTags: ['Vehicle'],
+    }),
   }),
 });
 
@@ -42,5 +52,7 @@ export const {
   useGetModelColorsByModelQuery,
   useGetAllColorsQuery,
   useGetAvailableVehiclesQuery,
+  useGetVehicleByIdQuery,
+  useGetVehiclesByInventoryIdQuery,
 } = vehicleApi;
 
