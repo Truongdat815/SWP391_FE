@@ -57,8 +57,21 @@ const Sidebar = ({ isCollapsed = false, onToggle }) => {
       </button>
 
       <div className={`p-6 border-b border-gray-200 ${isCollapsed ? 'px-4' : ''}`}>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shrink-0">
+        <div className="flex items-center gap-3 p-2">
+          <div className="bg-white rounded-xl p-1.5 shadow-md border-2 border-gray-200 shrink-0">
+            <img 
+              src="/images/electra-logo1.png" 
+              alt="Electra Logo" 
+              className={`h-12 w-20 object-contain ${isCollapsed ? '' : ''}`}
+              onError={(e) => {
+                // Fallback nếu logo chưa có, hiển thị icon cũ
+                e.target.style.display = 'none';
+                const fallback = e.target.nextElementSibling;
+                if (fallback) fallback.style.display = 'flex';
+              }}
+            />
+          </div>
+          <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center shrink-0 hidden">
             <span className="text-white font-bold text-xl">E</span>
           </div>
           {!isCollapsed && (

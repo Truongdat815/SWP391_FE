@@ -204,7 +204,11 @@ export const evmInventoryApi = baseApi.injectEndpoints({
             response.message.includes('bị trùng') ||
             response.message.includes('duplicate') ||
             response.message.includes('UNIQUE KEY constraint') ||
-            response.message.includes('constraint violation')
+            response.message.includes('constraint violation') ||
+            response.message.includes('NullPointerException') ||
+            response.message.includes('getStatus()') ||
+            response.message.includes('VehicleStatus') ||
+            response.message.includes('is null')
           )) {
             // Throw error để RTK Query coi đây là lỗi
             throw {

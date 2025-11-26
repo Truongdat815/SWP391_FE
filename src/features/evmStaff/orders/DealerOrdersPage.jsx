@@ -1104,31 +1104,36 @@ const DealerOrdersPage = () => {
         // Lỗi từ backend (duplicate trong database hoặc validation khác)
         let errorMessage = error.data.message || error.data.errorMessage || 'File Excel không hợp lệ';
         
-        // Parse message để tìm giá trị bị trùng
-        let duplicateValue = '';
-        const valueMatch = errorMessage.match(/duplicate key value is \(([^)]+)\)/i) || 
-                          errorMessage.match(/value is \(([^)]+)\)/i) ||
-                          errorMessage.match(/\(([A-Z0-9]+)\)/);
-        
-        if (valueMatch && valueMatch[1]) {
-          duplicateValue = valueMatch[1];
-        }
-        
-        // Parse để xác định loại dữ liệu bị trùng (VIN, battery, engine)
-        let duplicateType = 'dữ liệu';
-        if (errorMessage.includes('battery') || errorMessage.includes('battery_no')) {
-          duplicateType = 'Số seri pin';
-        } else if (errorMessage.includes('vin')) {
-          duplicateType = 'Mã VIN';
-        } else if (errorMessage.includes('engine') || errorMessage.includes('engine_no')) {
-          duplicateType = 'Số máy';
-        }
-        
-        if (duplicateValue) {
-          errorMessage = `Dữ liệu trong file Excel bị trùng với dữ liệu đã có trong hệ thống. ${duplicateType} bị trùng: ${duplicateValue}. Vui lòng kiểm tra lại file Excel.`;
-        } else if (!errorMessage.includes('Dữ liệu trong file Excel bị trùng')) {
-          // Nếu message chưa có tiếng Việt, thêm vào
-          errorMessage = `Dữ liệu trong file Excel bị trùng hoặc không hợp lệ. ${errorMessage}`;
+        // Xử lý lỗi NullPointerException - Vehicle.getStatus() is null
+        if (errorMessage.includes('getStatus()') || errorMessage.includes('VehicleStatus') || errorMessage.includes('is null') || errorMessage.includes('NullPointerException')) {
+          errorMessage = 'Lỗi hệ thống: Backend không thể xử lý dữ liệu xe do thiếu thông tin trạng thái. Vui lòng liên hệ quản trị viên để kiểm tra và sửa lỗi backend. Lỗi kỹ thuật: ' + errorMessage;
+        } else {
+          // Parse message để tìm giá trị bị trùng
+          let duplicateValue = '';
+          const valueMatch = errorMessage.match(/duplicate key value is \(([^)]+)\)/i) || 
+                            errorMessage.match(/value is \(([^)]+)\)/i) ||
+                            errorMessage.match(/\(([A-Z0-9]+)\)/);
+          
+          if (valueMatch && valueMatch[1]) {
+            duplicateValue = valueMatch[1];
+          }
+          
+          // Parse để xác định loại dữ liệu bị trùng (VIN, battery, engine)
+          let duplicateType = 'dữ liệu';
+          if (errorMessage.includes('battery') || errorMessage.includes('battery_no')) {
+            duplicateType = 'Số seri pin';
+          } else if (errorMessage.includes('vin')) {
+            duplicateType = 'Mã VIN';
+          } else if (errorMessage.includes('engine') || errorMessage.includes('engine_no')) {
+            duplicateType = 'Số máy';
+          }
+          
+          if (duplicateValue) {
+            errorMessage = `Dữ liệu trong file Excel bị trùng với dữ liệu đã có trong hệ thống. ${duplicateType} bị trùng: ${duplicateValue}. Vui lòng kiểm tra lại file Excel.`;
+          } else if (!errorMessage.includes('Dữ liệu trong file Excel bị trùng')) {
+            // Nếu message chưa có tiếng Việt, thêm vào
+            errorMessage = `Dữ liệu trong file Excel bị trùng hoặc không hợp lệ. ${errorMessage}`;
+          }
         }
         
         setExcelValidationError({
@@ -1155,6 +1160,15 @@ const DealerOrdersPage = () => {
         // Xử lý lỗi 404 Not Found - Backend chưa implement API
         if (error?.status === 404 || error?.data?.status === 404 || errorMessage.includes('Not Found') || errorMessage.includes('404')) {
           errorMessage = 'API endpoint chưa được implement ở backend. Vui lòng liên hệ backend developer để implement endpoint: POST /vehicles/import/{transactionId}';
+        }
+        
+        // Xử lý lỗi 417 Expectation Failed - Backend validation error
+        if (error?.status === 417 || error?.data?.status === 417 || error?.statusCode === 417) {
+          if (errorMessage.includes('getStatus()') || errorMessage.includes('VehicleStatus') || errorMessage.includes('is null')) {
+            errorMessage = 'Lỗi hệ thống: Backend không thể xử lý dữ liệu xe do thiếu thông tin trạng thái. Vui lòng liên hệ quản trị viên để kiểm tra và sửa lỗi backend.';
+          } else {
+            errorMessage = 'Lỗi xác thực từ backend: ' + (errorMessage || 'Backend không thể xử lý dữ liệu. Vui lòng kiểm tra lại file Excel hoặc liên hệ quản trị viên.');
+          }
         }
         
         // Xử lý lỗi duplicate key constraint - chuyển sang tiếng Việt
@@ -1606,7 +1620,7 @@ const DealerOrdersPage = () => {
                             {getStatusBadge(transaction.status)}
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center justify-center gap-2 flex-wrap">
+                            <div className="flex items-center justify-center gap-2 flex-nowrap whitespace-nowrap">
                               {actionButtons.map((btn, idx) => (
                                 <button
                                   key={idx}

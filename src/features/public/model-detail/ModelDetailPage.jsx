@@ -88,11 +88,23 @@ const ModelDetailPage = () => {
       <header className="bg-gray-900/95 backdrop-blur-sm border-b border-gray-800 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-lg">
+            <div className="flex items-center gap-3 p-2">
+              <div className="bg-white rounded-xl p-2 shadow-lg border-2 border-gray-200">
+                <img 
+                  src="/images/electra-logo1.png" 
+                  alt="Electra Logo" 
+                  className="h-14 w-24 object-contain"
+                  onError={(e) => {
+                    // Fallback nếu logo chưa có, hiển thị icon cũ
+                    e.target.style.display = 'none';
+                    const fallback = e.target.nextElementSibling;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+              </div>
+              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-lg hidden">
                 <span className="text-white font-bold text-2xl">E</span>
               </div>
-              <span className="text-2xl font-bold text-white">Electra</span>
             </div>
             <nav className="hidden md:flex items-center gap-8">
               <a href="/" className="text-white hover:text-green-400 transition-colors font-medium">

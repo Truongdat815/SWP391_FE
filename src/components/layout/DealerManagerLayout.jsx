@@ -62,11 +62,23 @@ const DealerManagerLayout = ({ children }) => {
         {/* Logo */}
         <div className="p-6 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+            <div className="flex items-center gap-3 p-2">
+              <div className="bg-white rounded-xl p-1.5 shadow-md border-2 border-gray-200">
+                <img 
+                  src="/images/electra-logo1.png" 
+                  alt="Electra Logo" 
+                  className="h-12 w-20 object-contain"
+                  onError={(e) => {
+                    // Fallback nếu logo chưa có, hiển thị icon cũ
+                    e.target.style.display = 'none';
+                    const fallback = e.target.nextElementSibling;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+              </div>
+              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center hidden">
                 <span className="text-white font-bold text-xl">E</span>
               </div>
-              <span className="text-xl font-bold text-gray-900">Electra</span>
             </div>
             <button
               onClick={() => setIsSidebarOpen(false)}
