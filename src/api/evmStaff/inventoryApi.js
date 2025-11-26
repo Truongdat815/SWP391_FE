@@ -184,6 +184,43 @@ export const evmInventoryApi = baseApi.injectEndpoints({
       }),
       providesTags: ['Inventory'],
     }),
+    // Upload vehicle Excel và chuyển trạng thái
+    uploadVehicleExcel: builder.mutation({
+      query: ({ inventoryId, file }) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: `/vehicles/import/${inventoryId}`,
+          method: 'POST',
+          body: formData,
+        };
+      },
+      transformResponse: (response, meta) => {
+        // Kiểm tra xem response có chứa lỗi không (dù HTTP status có thể là 201)
+        if (response && typeof response === 'object') {
+          // Nếu response có message chứa lỗi, throw error
+          if (response.message && (
+            response.message.includes('Không thể nhập dữ liệu') ||
+            response.message.includes('bị trùng') ||
+            response.message.includes('duplicate') ||
+            response.message.includes('UNIQUE KEY constraint') ||
+            response.message.includes('constraint violation')
+          )) {
+            // Throw error để RTK Query coi đây là lỗi
+            throw {
+              status: response.code || 400,
+              data: {
+                code: response.code || 400,
+                message: response.message,
+                error: 'VALIDATION_ERROR'
+              }
+            };
+          }
+        }
+        return response;
+      },
+      invalidatesTags: ['Inventory'],
+    }),
   }),
 });
 
@@ -211,5 +248,6 @@ export const {
   useGetContractQuery,
   useGetContractHtmlQuery,
   useGetPaymentInfoQuery,
+  useUploadVehicleExcelMutation,
 } = evmInventoryApi;
 

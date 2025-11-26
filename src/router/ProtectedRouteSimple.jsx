@@ -15,27 +15,21 @@ const ProtectedRouteSimple = ({ children }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      console.log('Checking auth for path:', location.pathname);
-      
       // Check if there's a logout flag - if yes, don't restore any auth state
       const logoutFlag = localStorage.getItem('_logout_flag');
       if (logoutFlag) {
-        console.log('Logout flag detected, skipping auth restore');
         setIsLoading(false);
         return;
       }
       
       const roleFromPath = getRoleFromPath(location.pathname);
-      console.log('Role from path:', roleFromPath);
       
       // Only restore from localStorage if we're not authenticated AND there's no current role
       // This prevents restoring old auth data after logout
       if (roleFromPath && !isAuthenticated && !currentRole) {
         const authData = getAuthFromStorage(roleFromPath);
-        console.log('Auth data from storage:', authData);
         
         if (authData && authData.token) {
-          console.log('Setting credentials from storage');
           dispatch(setCredentials({
             user: authData.user,
             token: authData.token,
@@ -65,7 +59,6 @@ const ProtectedRouteSimple = ({ children }) => {
   // Check if there's a logout flag - if yes, don't allow access
   const logoutFlag = localStorage.getItem('_logout_flag');
   if (logoutFlag) {
-    console.log('Logout flag detected, redirecting to login');
     return <Navigate to="/login" replace />;
   }
   
@@ -74,15 +67,7 @@ const ProtectedRouteSimple = ({ children }) => {
   // This prevents using stale localStorage data after logout
   const hasValidAuth = isAuthenticated || (!isAuthenticated && !currentRole && roleFromPath && getAuthFromStorage(roleFromPath)?.token);
 
-  console.log('Final auth check:', {
-    isAuthenticated,
-    roleFromPath,
-    hasValidAuth,
-    currentRole
-  });
-
   if (!hasValidAuth) {
-    console.log('No valid auth, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 

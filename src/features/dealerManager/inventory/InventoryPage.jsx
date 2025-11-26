@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, Filter, Download, Printer, Plus, Eye, Edit, Package, Clock, FileText, Upload, Receipt, AlertCircle, CreditCard, Hash, Car, Palette, Calendar, DollarSign, FileText as FileTextIcon, StickyNote } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import DealerManagerLayout from '../../../components/layout/DealerManagerLayout';
 import SearchBar from '../../../components/shared/SearchBar';
 import MetricCard from '../../../components/shared/MetricCard';
@@ -26,6 +27,8 @@ import {
   useConfirmDeliveryMutation,
   useGetPaymentInfoQuery,
   useGetContractQuery,
+  useGetVehicleExcelQuery,
+  useGetSoldVehiclesQuery,
 } from '../../../api/dealerManager/inventoryApi';
 import { getAuthFromStorage } from '../../../utils/roleUtils';
 import { useGetAllModelsQuery } from '../../../api/admin/modelApi';
@@ -93,6 +96,11 @@ const InventoryPage = () => {
   });
   const [formErrors, setFormErrors] = useState({});
   const [confirmModal, setConfirmModal] = useState({ isOpen: false, message: '', onConfirm: null });
+  const [inventoryViewTab, setInventoryViewTab] = useState('available'); // 'available' hoặc 'sold'
+  const [deliveryVehicles, setDeliveryVehicles] = useState([]);
+  const [isViewExcelModalOpen, setIsViewExcelModalOpen] = useState(false);
+  const [viewExcelData, setViewExcelData] = useState([]); // Data để hiển thị trong modal
+  const [isLoadingExcelData, setIsLoadingExcelData] = useState(false);
   const { toasts, showToast, removeToast } = useToast();
 
   // Lưu trạng thái vào localStorage khi thay đổi
@@ -124,9 +132,19 @@ const InventoryPage = () => {
     }
   }, [debouncedSearchTerm, activeTab]);
 
-  const { data: stocksData, isLoading, error } = useGetAllStoreStocksQuery();
+  // Auto-refresh stocks mỗi 15 giây (ít thường xuyên hơn vì ít thay đổi)
+  const { data: stocksData, isLoading, error } = useGetAllStoreStocksQuery(undefined, {
+    pollingInterval: 15000, // Tự động refetch mỗi 15 giây
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+  });
   const { data: modelsData } = useGetAllModelsQuery();
-  const { data: transactionsData, isLoading: isLoadingTransactions, refetch: refetchTransactions } = useGetAllInventoryTransactionsQuery();
+  // Auto-refresh transactions mỗi 10 giây và khi focus lại tab
+  const { data: transactionsData, isLoading: isLoadingTransactions, refetch: refetchTransactions } = useGetAllInventoryTransactionsQuery(undefined, {
+    pollingInterval: 10000, // Tự động refetch mỗi 10 giây
+    refetchOnFocus: true, // Tự động refetch khi user quay lại tab
+    refetchOnReconnect: true, // Tự động refetch khi reconnect
+  });
   const { data: modelColorsData } = useGetModelColorsByModelQuery(selectedModelId, {
     skip: !selectedModelId,
   });
@@ -135,11 +153,15 @@ const InventoryPage = () => {
     skip: !selectedStockId,
   });
   // Fetch transaction detail khi có selectedTransactionId (để có data mới nhất sau khi upload contract)
+  // Auto-refresh khi có transaction được chọn
   const { data: transactionDetailData, isLoading: isLoadingTransactionDetail, refetch: refetchTransactionDetail } = useGetInventoryTransactionByIdQuery(selectedTransactionId, {
     skip: !selectedTransactionId,
+    pollingInterval: selectedTransactionId ? 10000 : 0, // Tự động refetch mỗi 10 giây nếu có transaction được chọn
+    refetchOnFocus: true,
   });
   const { data: contractData } = useGetContractQuery(selectedTransactionId, {
     skip: !selectedTransactionId,
+    refetchOnFocus: true, // Tự động refetch khi focus lại tab
   });
   const { data: paymentInfoData, isLoading: isLoadingPaymentInfo, error: paymentInfoError } = useGetPaymentInfoQuery(selectedTransactionId, {
     skip: !selectedTransactionId || !isPaymentInfoModalOpen,
@@ -151,56 +173,15 @@ const InventoryPage = () => {
   const [confirmDelivery, { isLoading: isConfirmingDelivery }] = useConfirmDeliveryMutation();
 
   const store = storeData?.data;
+  const { data: soldVehiclesData } = useGetSoldVehiclesQuery(store?.storeId, {
+    skip: !store?.storeId || inventoryViewTab !== 'sold' || activeTab !== 'inventory',
+  });
 
   const stocks = stocksData?.data || [];
   const models = modelsData?.data || [];
   const transactions = transactionsData?.data || [];
   const modelColors = modelColorsData?.data || [];
 
-  // Debug: Log stock fields để kiểm tra các field ngày có sẵn
-  useEffect(() => {
-    if (stocks && stocks.length > 0 && import.meta.env.DEV) {
-      const sample = stocks[0];
-      console.log('Sample stock date fields:', {
-        stockedDate: sample.stockedDate,
-        receivedDate: sample.receivedDate,
-        importDate: sample.importDate,
-        stockDate: sample.stockDate,
-        dateStocked: sample.dateStocked,
-        receivedAt: sample.receivedAt,
-        dateReceived: sample.dateReceived,
-        createdAt: sample.createdAt,
-        createdDate: sample.createdDate,
-        dateCreated: sample.dateCreated,
-        updatedAt: sample.updatedAt,
-        allKeys: Object.keys(sample),
-      });
-    }
-  }, [stocks]);
-
-  // Debug logging trong development
-  if (import.meta.env.DEV && transactions.length > 0) {
-    console.log('Inventory Transactions Sample:', transactions.slice(0, 2));
-    console.log('Transaction fields:', transactions[0] ? Object.keys(transactions[0]) : []);
-    // Log quantity và date fields
-    if (transactions[0]) {
-      const sample = transactions[0];
-      console.log('Sample transaction quantity fields:', {
-        quantity: sample.quantity,
-        importQuantity: sample.importQuantity,
-        requestedQuantity: sample.requestedQuantity,
-        orderQuantity: sample.orderQuantity,
-        requestQuantity: sample.requestQuantity,
-      });
-      console.log('Sample transaction date fields:', {
-        createdAt: sample.createdAt,
-        requestDate: sample.requestDate,
-        createdDate: sample.createdDate,
-        dateCreated: sample.dateCreated,
-        orderDate: sample.orderDate,
-      });
-    }
-  }
 
   // Tính toán metrics - Tính từ quantity thực tế của mỗi stock
   // Tổng số xe trong kho = chỉ tính xe còn trong kho (không tính đã bán)
@@ -552,19 +533,6 @@ const InventoryPage = () => {
       const unitPrice = modelColor?.price || 0;
       const totalPrice = unitPrice * quantity;
       
-      // Debug logging
-      if (import.meta.env.DEV) {
-        console.log('Creating transaction with data:', {
-          modelId,
-          colorId,
-          quantity,
-          importQuantity: quantity,
-          unitPrice,
-          totalPrice,
-          storeId: store.storeId,
-        });
-      }
-      
       // Gửi đúng field mà backend cần
       await createTransaction({
         modelId: modelId,
@@ -912,14 +880,59 @@ const InventoryPage = () => {
     }
   };
 
-  const handleConfirmDelivery = async (inventoryId) => {
+  // Removed downloadAndParseExcel - now using GET /inventory-transactions/{inventoryId} to get vehicles data
+
+  const handleConfirmDelivery = async (inventoryId, transaction) => {
+    // Lấy dữ liệu vehicles từ API thay vì tải file Excel
+    let vehicles = [];
+    
+    if (transaction?.status === 'IN_TRANSIT') {
+      try {
+        const baseUrl = import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api';
+        const token = localStorage.getItem('accessToken');
+        
+        const response = await fetch(`${baseUrl}/inventory-transactions/${inventoryId}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.message || 'Không thể lấy dữ liệu xe');
+        }
+        
+        const data = await response.json();
+        const transactionData = data.data || data;
+        
+        // Lấy vehicles từ transaction
+        const transactionVehicles = transactionData.vehicles || [];
+        
+        if (transactionVehicles.length > 0) {
+          // Format data để gửi lên backend
+          vehicles = transactionVehicles.map(vehicle => ({
+            vin: vehicle.vin || vehicle.VIN || '',
+            engineNumber: vehicle.engineNo || vehicle.engineNumber || vehicle.engine_no || '',
+            batterySerial: vehicle.batteryNo || vehicle.batterySerial || vehicle.battery_no || ''
+          })).filter(v => v.vin || v.engineNumber || v.batterySerial); // Filter bỏ vehicle rỗng
+        }
+        
+        setDeliveryVehicles(vehicles);
+      } catch (error) {
+        showToast(error.message || 'Không thể lấy dữ liệu xe. Vui lòng thử lại.', 'error');
+        return;
+      }
+    }
+    
     setConfirmModal({
       isOpen: true,
-      message: 'Bạn có chắc chắn đã nhận được xe?',
+      message: 'Bạn có chắc chắn đã nhận được xe? Thông tin xe sẽ được lưu vào kho.',
       onConfirm: async () => {
         try {
-          await confirmDelivery(inventoryId).unwrap();
+          await confirmDelivery({ 
+            inventoryId,
+            vehicles: vehicles.length > 0 ? vehicles : undefined
+          }).unwrap();
           setConfirmModal({ isOpen: false, message: '', onConfirm: null });
+          setDeliveryVehicles([]);
           showToast('Đã xác nhận nhận xe thành công!', 'success');
         } catch (error) {
           setConfirmModal({ isOpen: false, message: '', onConfirm: null });
@@ -928,6 +941,58 @@ const InventoryPage = () => {
         }
       },
     });
+  };
+
+  // Handler xem Excel - lấy dữ liệu từ API
+  const handleViewExcel = async (inventoryId) => {
+    setIsLoadingExcelData(true);
+    setIsViewExcelModalOpen(true);
+    setViewExcelData([]);
+    
+    try {
+      const baseUrl = import.meta.env.VITE_API_URL || 'https://tiembanhvuive.io.vn/api';
+      const token = localStorage.getItem('accessToken');
+      
+      const response = await fetch(`${baseUrl}/inventory-transactions/${inventoryId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Không thể lấy dữ liệu Excel');
+      }
+      
+      const data = await response.json();
+      const transaction = data.data || data;
+      
+      // Lấy vehicles từ transaction
+      const vehicles = transaction.vehicles || [];
+      
+      if (vehicles.length === 0) {
+        showToast('Chưa có dữ liệu xe trong đơn hàng này.', 'info');
+        setIsViewExcelModalOpen(false);
+        return;
+      }
+      
+      // Format data để hiển thị
+      const excelData = vehicles.map(vehicle => ({
+        vin: vehicle.vin || vehicle.VIN || '',
+        engineNumber: vehicle.engineNo || vehicle.engineNumber || vehicle.engine_no || '',
+        batterySerial: vehicle.batteryNo || vehicle.batterySerial || vehicle.battery_no || ''
+      }));
+      
+      setViewExcelData(excelData);
+    } catch (error) {
+      const errorMessage = error.message || 'Không thể lấy dữ liệu Excel';
+      showToast(errorMessage, 'error');
+      setIsViewExcelModalOpen(false);
+      
+      if (import.meta.env.DEV) {
+        console.error('View Excel error:', error);
+      }
+    } finally {
+      setIsLoadingExcelData(false);
+    }
   };
   
   const handleViewContract = async (inventoryId, transaction = null) => {
@@ -1282,66 +1347,185 @@ const InventoryPage = () => {
               </div>
             </div>
 
+            {/* Tab selector cho kho hàng */}
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 mb-4">
+              <div className="flex border-b border-gray-200">
+                <button
+                  onClick={() => setInventoryViewTab('available')}
+                  className={`flex-1 px-4 py-3 font-medium text-sm ${
+                    inventoryViewTab === 'available'
+                      ? 'border-b-2 border-blue-600 text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Xe chưa bán
+                </button>
+                <button
+                  onClick={() => setInventoryViewTab('sold')}
+                  className={`flex-1 px-4 py-3 font-medium text-sm ${
+                    inventoryViewTab === 'sold'
+                      ? 'border-b-2 border-blue-600 text-blue-600'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Xe đã bán
+                </button>
+              </div>
+            </div>
+
             {/* Table */}
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-              {paginatedStocks.length === 0 ? (
-                <EmptyState
-                  icon="package"
-                  title="Không có xe trong kho"
-                  message={
-                    filteredStocks.length === 0
-                      ? "Hiện tại không có xe nào trong kho. Hãy đặt xe từ hãng để bắt đầu."
-                      : "Không tìm thấy xe phù hợp với từ khóa tìm kiếm."
-                  }
-                  actionLabel={filteredStocks.length === 0 ? "Đặt xe từ hãng" : undefined}
-                  onAction={filteredStocks.length === 0 ? handleOpenOrderModal : undefined}
-                />
+              {inventoryViewTab === 'available' ? (
+                paginatedStocks.length === 0 ? (
+                  <EmptyState
+                    icon="package"
+                    title="Không có xe trong kho"
+                    message={
+                      filteredStocks.length === 0
+                        ? "Hiện tại không có xe nào trong kho. Hãy đặt xe từ hãng để bắt đầu."
+                        : "Không tìm thấy xe phù hợp với từ khóa tìm kiếm."
+                    }
+                    actionLabel={filteredStocks.length === 0 ? "Đặt xe từ hãng" : undefined}
+                    onAction={filteredStocks.length === 0 ? handleOpenOrderModal : undefined}
+                  />
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <Table.Header>
+                        <Table.Row>
+                          <Table.Head>MẪU XE</Table.Head>
+                          <Table.Head>MÀU SẮC</Table.Head>
+                          <Table.Head>MÃ VIN</Table.Head>
+                          <Table.Head>SỐ MÁY</Table.Head>
+                          <Table.Head>SỐ SERI PIN</Table.Head>
+                          <Table.Head>SỐ LƯỢNG</Table.Head>
+                          <Table.Head>TÌNH TRẠNG</Table.Head>
+                          <Table.Head className="text-center">HÀNH ĐỘNG</Table.Head>
+                        </Table.Row>
+                      </Table.Header>
+                      <Table.Body>
+                        {paginatedStocks.flatMap((stock) => {
+                          const quantity = getStockQuantity(stock);
+                          // Lấy danh sách xe chưa bán của stock này (giả sử backend trả về vehicles array)
+                          const availableVehicles = stock.vehicles?.filter(v => !v.isSold) || [];
+                          
+                          if (availableVehicles.length === 0) {
+                            return [
+                              <Table.Row key={`stock-empty-${stock.storeStockId}`}>
+                                <Table.Cell className="font-medium">
+                                  {stock.modelName || `Model ${stock.modelId}`}
+                                </Table.Cell>
+                                <Table.Cell>{stock.colorName || 'N/A'}</Table.Cell>
+                                <Table.Cell colSpan={5} className="text-center text-gray-500">
+                                  Chưa có xe trong kho
+                                </Table.Cell>
+                                <Table.Cell>
+                                  <div className="flex items-center justify-center gap-2">
+                                    <button 
+                                      onClick={() => handleViewStockDetail(stock.storeStockId)}
+                                      className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                      title="Xem chi tiết"
+                                    >
+                                      <Eye size={16} />
+                                    </button>
+                                  </div>
+                                </Table.Cell>
+                              </Table.Row>
+                            ];
+                          }
+                          
+                          return availableVehicles.map((vehicle, index) => (
+                            <Table.Row key={`stock-${stock.storeStockId}-vehicle-${vehicle.vin || vehicle.vehicleId || index}`}>
+                              {index === 0 && (
+                                <>
+                                  <Table.Cell rowSpan={availableVehicles.length} className="font-medium">
+                                    {stock.modelName || `Model ${stock.modelId}`}
+                                  </Table.Cell>
+                                  <Table.Cell rowSpan={availableVehicles.length}>
+                                    {stock.colorName || 'N/A'}
+                                  </Table.Cell>
+                                </>
+                              )}
+                              <Table.Cell className="font-mono text-sm">{vehicle.vin || 'N/A'}</Table.Cell>
+                              <Table.Cell className="font-mono text-sm">{vehicle.engineNumber || 'N/A'}</Table.Cell>
+                              <Table.Cell className="font-mono text-sm">{vehicle.batterySerial || vehicle.batterySerialNumber || 'N/A'}</Table.Cell>
+                              {index === 0 && (
+                                <>
+                                  <Table.Cell rowSpan={availableVehicles.length} className="font-semibold">
+                                    {availableVehicles.length}
+                                  </Table.Cell>
+                                  <Table.Cell rowSpan={availableVehicles.length}>
+                                    {getStockStatusBadge(stock)}
+                                  </Table.Cell>
+                                  <Table.Cell rowSpan={availableVehicles.length}>
+                                    <div className="flex items-center justify-center gap-2">
+                                      <button 
+                                        onClick={() => handleViewStockDetail(stock.storeStockId)}
+                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                                        title="Xem chi tiết"
+                                      >
+                                        <Eye size={16} />
+                                      </button>
+                                    </div>
+                                  </Table.Cell>
+                                </>
+                              )}
+                            </Table.Row>
+                          ));
+                        })}
+                      </Table.Body>
+                    </Table>
+                  </div>
+                )
               ) : (
                 <div className="overflow-x-auto">
-                  <Table>
-                    <Table.Header>
-                      <Table.Row>
-                        <Table.Head>MẪU XE</Table.Head>
-                        <Table.Head>MÀU SẮC</Table.Head>
-                        <Table.Head>SỐ LƯỢNG</Table.Head>
-                        <Table.Head>TÌNH TRẠNG</Table.Head>
-                        <Table.Head className="text-center">HÀNH ĐỘNG</Table.Head>
-                      </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                      {paginatedStocks.map((stock) => {
-                        const quantity = getStockQuantity(stock);
-                        return (
-                          <Table.Row key={stock.storeStockId}>
+                  {soldVehiclesData?.data && soldVehiclesData.data.length > 0 ? (
+                    <Table>
+                      <Table.Header>
+                        <Table.Row>
+                          <Table.Head>MẪU XE</Table.Head>
+                          <Table.Head>MÀU SẮC</Table.Head>
+                          <Table.Head>MÃ VIN</Table.Head>
+                          <Table.Head>SỐ MÁY</Table.Head>
+                          <Table.Head>SỐ SERI PIN</Table.Head>
+                          <Table.Head>KHÁCH HÀNG</Table.Head>
+                          <Table.Head>MÃ ĐƠN</Table.Head>
+                          <Table.Head>NGÀY BÁN</Table.Head>
+                        </Table.Row>
+                      </Table.Header>
+                      <Table.Body>
+                        {soldVehiclesData.data.map((vehicle, index) => (
+                          <Table.Row key={vehicle.vehicleId || vehicle.vin || `sold-vehicle-${index}`}>
                             <Table.Cell className="font-medium">
-                              {stock.modelName || `Model ${stock.modelId}`}
+                              {vehicle.modelName || 'N/A'}
                             </Table.Cell>
-                            <Table.Cell>{stock.colorName || 'N/A'}</Table.Cell>
-                            <Table.Cell className="font-semibold">{quantity}</Table.Cell>
-                            <Table.Cell>{getStockStatusBadge(stock)}</Table.Cell>
+                            <Table.Cell>{vehicle.colorName || 'N/A'}</Table.Cell>
+                            <Table.Cell className="font-mono text-sm">{vehicle.vin || 'N/A'}</Table.Cell>
+                            <Table.Cell className="font-mono text-sm">{vehicle.engineNumber || 'N/A'}</Table.Cell>
+                            <Table.Cell className="font-mono text-sm">{vehicle.batterySerial || vehicle.batterySerialNumber || 'N/A'}</Table.Cell>
                             <Table.Cell>
-                              <div className="flex items-center justify-center gap-2">
-                                <button 
-                                  onClick={() => handleViewStockDetail(stock.storeStockId)}
-                                  className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
-                                  title="Xem chi tiết"
-                                >
-                                  <Eye size={16} />
-                                </button>
-                                <button 
-                                  onClick={() => handleEditStock(stock)}
-                                  className="p-2 text-gray-600 hover:bg-gray-100 rounded transition-colors"
-                                  title="Chỉnh sửa"
-                                >
-                                  <Edit size={16} />
-                                </button>
-                              </div>
+                              {vehicle.customerName || 'N/A'}
+                              {vehicle.customerPhone && (
+                                <span className="text-gray-500 text-xs block">{vehicle.customerPhone}</span>
+                              )}
+                            </Table.Cell>
+                            <Table.Cell className="font-mono text-sm">
+                              {vehicle.orderId ? `#${vehicle.orderId}` : 'N/A'}
+                            </Table.Cell>
+                            <Table.Cell>
+                              {vehicle.soldDate ? formatDate(vehicle.soldDate) : 'N/A'}
                             </Table.Cell>
                           </Table.Row>
-                        );
-                      })}
-                    </Table.Body>
-                  </Table>
+                        ))}
+                      </Table.Body>
+                    </Table>
+                  ) : (
+                    <EmptyState
+                      icon="package"
+                      title="Không có xe đã bán"
+                      message="Hiện tại chưa có xe nào đã được bán."
+                    />
+                  )}
                 </div>
               )}
 
@@ -1420,8 +1604,11 @@ const InventoryPage = () => {
                         </Table.Row>
                       </Table.Header>
                       <Table.Body>
-                        {paginatedTransactions.map((transaction) => (
-                          <Table.Row key={transaction.inventoryId}>
+                        {paginatedTransactions.map((transaction) => {
+                          // Status checked - logs removed to prevent data exposure
+                          
+                          return (
+                            <Table.Row key={transaction.inventoryId}>
                             <Table.Cell className="font-mono">
                               #{transaction.inventoryId}
                             </Table.Cell>
@@ -1677,7 +1864,7 @@ const InventoryPage = () => {
                                     </>
                                   );
                                 })()}
-                                {/* IN_TRANSIT: Xem hợp đồng, Xem hóa đơn, và Đã nhận được hàng */}
+                                {/* IN_TRANSIT: Xem hợp đồng, Xem hóa đơn, Tải Excel, và Đã nhận được hàng */}
                                 {transaction.status === 'IN_TRANSIT' && (() => {
                                   const { hasContract, hasUploadedContract, hasReceipt } = getTransactionChecks(transaction);
                                   
@@ -1699,11 +1886,18 @@ const InventoryPage = () => {
                                           onClick={() => handleViewReceipt(transaction, false)}
                                         />
                                       )}
+                                      {/* Xem file Excel xe */}
+                                      <IconButton
+                                        icon={Eye}
+                                        text="Xem file Excel xe"
+                                        onClick={() => handleViewExcel(transaction.inventoryId)}
+                                        className="bg-indigo-600 hover:bg-indigo-700 text-white"
+                                      />
                                       {/* Đã nhận được hàng */}
                                       <IconButton
                                         icon={Package}
                                         text={isConfirmingDelivery ? 'Đang xác nhận...' : 'Đã nhận được hàng'}
-                                        onClick={() => handleConfirmDelivery(transaction.inventoryId)}
+                                        onClick={() => handleConfirmDelivery(transaction.inventoryId, transaction)}
                                         disabled={isConfirmingDelivery}
                                         className="bg-green-600 hover:bg-green-700 text-white"
                                       />
@@ -1713,7 +1907,8 @@ const InventoryPage = () => {
                               </div>
                             </Table.Cell>
                           </Table.Row>
-                        ))}
+                          );
+                        })}
                       </Table.Body>
                     </Table>
                   </div>
@@ -2525,6 +2720,62 @@ const InventoryPage = () => {
               Đã hiểu
             </Button>
           </div>
+        </Modal>
+
+        {/* View Excel Modal */}
+        <Modal
+          isOpen={isViewExcelModalOpen}
+          onClose={() => {
+            setIsViewExcelModalOpen(false);
+            setViewExcelData([]);
+          }}
+          title="Nội dung file Excel thông tin xe"
+          size="lg"
+        >
+          {isLoadingExcelData ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="text-gray-500">Đang tải dữ liệu...</div>
+            </div>
+          ) : viewExcelData.length > 0 ? (
+            <div className="space-y-4">
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-200">
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">STT</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Mã VIN</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Số máy</th>
+                      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-700">Số seri pin</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-200">
+                    {viewExcelData.map((row, index) => (
+                      <tr key={index} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 text-sm text-gray-900">{index + 1}</td>
+                        <td className="px-4 py-3 text-sm font-mono text-gray-900">{row.vin || '-'}</td>
+                        <td className="px-4 py-3 text-sm font-mono text-gray-900">{row.engineNumber || '-'}</td>
+                        <td className="px-4 py-3 text-sm font-mono text-gray-900">{row.batterySerial || '-'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => {
+                    setIsViewExcelModalOpen(false);
+                    setViewExcelData([]);
+                  }}
+                >
+                  Đóng
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-8 text-gray-500">
+              Không có dữ liệu để hiển thị
+            </div>
+          )}
         </Modal>
 
         {/* Toast Notifications */}

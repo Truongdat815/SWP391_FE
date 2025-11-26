@@ -7,7 +7,12 @@ import { ToastProvider } from './components/ui/Toast';
 function App() {
   return (
     <Provider store={store}>
-      <BrowserRouter>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
         <ToastProvider>
           <AppRouter />
         </ToastProvider>

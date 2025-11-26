@@ -90,9 +90,10 @@ export const inventoryApi = baseApi.injectEndpoints({
     }),
     // Xác nhận đã nhận hàng (confirm-delivery)
     confirmDelivery: builder.mutation({
-      query: (inventoryId) => ({
+      query: ({ inventoryId, vehicles }) => ({
         url: `/inventory-transactions/confirm-delivery/${inventoryId}`,
         method: 'PUT',
+        body: vehicles ? { vehicles } : undefined,
       }),
       invalidatesTags: ['Inventory'],
     }),
@@ -156,6 +157,25 @@ export const inventoryApi = baseApi.injectEndpoints({
         },
       }),
     }),
+    // Download vehicle Excel
+    getVehicleExcel: builder.query({
+      query: (inventoryId) => ({
+        url: `/inventory-transactions/${inventoryId}/vehicle-excel`,
+        responseHandler: async (response) => {
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Failed to download Excel');
+            throw new Error(errorText);
+          }
+          const blob = await response.blob();
+          return blob;
+        },
+      }),
+    }),
+    // Lấy danh sách xe đã bán
+    getSoldVehicles: builder.query({
+      query: (storeId) => `/store-stocks/${storeId}/sold-vehicles`,
+      providesTags: ['Inventory'],
+    }),
   }),
 });
 
@@ -176,5 +196,7 @@ export const {
   useGetPaymentInfoQuery,
   useGetContractHtmlQuery,
   useGetContractQuery,
+  useGetVehicleExcelQuery,
+  useGetSoldVehiclesQuery,
 } = inventoryApi;
 

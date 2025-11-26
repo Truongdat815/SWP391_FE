@@ -74,12 +74,17 @@ const baseQuery = fetchBaseQuery({
 
     // Check if this is a FormData upload request
     // Don't set Content-Type for upload endpoints - browser will set it automatically with boundary
-    const isUploadRequest = typeof endpoint === 'string' && (
-      endpoint.includes('upload-signed') || 
-      endpoint.includes('upload-contract') ||
-      endpoint.includes('upload-receipt') ||
-      endpoint.includes('upload-image') ||
-      endpoint.includes('upload-model-color-image')
+    // Check cả endpoint name và URL path (vì endpoint có thể là name hoặc URL)
+    const endpointStr = typeof endpoint === 'string' ? endpoint : '';
+    const isUploadRequest = endpointStr && (
+      endpointStr.includes('upload-signed') || 
+      endpointStr.includes('upload-contract') ||
+      endpointStr.includes('upload-receipt') ||
+      endpointStr.includes('upload-image') ||
+      endpointStr.includes('upload-model-color-image') ||
+      endpointStr.includes('upload-vehicle-excel') ||
+      endpointStr.includes('uploadVehicleExcel') ||
+      endpointStr.includes('vehicles/import')
     );
 
     // Set Content-Type for JSON requests (chỉ khi chưa có Content-Type và không phải upload request)
@@ -135,8 +140,9 @@ const baseQueryWithReauth = async (args, api, extraOptions) => {
       delete modifiedArgs.headers['Content-Type'];
       delete modifiedArgs.headers['content-type'];
     }
-    // Gọi baseQuery với args đã được modify
-    let result = await baseQuery(modifiedArgs, api, extraOptions);
+    // Đảm bảo không có Content-Type trong headers
+    // Browser sẽ tự động set Content-Type với boundary cho FormData
+    const result = await baseQuery(modifiedArgs, api, extraOptions);
     return result;
   }
   
