@@ -202,7 +202,7 @@ const ModelDetailPage = () => {
             <div>
               <h1 className="text-4xl font-bold text-gray-900 mb-2">{model.modelName}</h1>
               <p className="text-lg text-gray-600">
-                Model {model.modelYear} • {model.bodyType}
+                Mẫu xe {model.modelYear} • {model.bodyType}
               </p>
             </div>
 

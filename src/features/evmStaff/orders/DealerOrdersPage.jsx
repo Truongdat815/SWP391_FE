@@ -985,9 +985,6 @@ const DealerOrdersPage = () => {
       }
       
       // Sau khi upload thành công, kiểm tra số lượng vehicles để đảm bảo không vượt quá số lượng đặt
-      const expectedQuantity = selectedTransactionForExcel.transaction.importQuantity || 
-                              selectedTransactionForExcel.transaction.quantity;
-      
       try {
         // Đợi một chút để backend xử lý xong
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -1147,6 +1144,14 @@ const DealerOrdersPage = () => {
                           error?.message || 
                           'Có lỗi xảy ra khi upload file Excel. Vui lòng thử lại.';
         
+        // Xử lý lỗi JavaScript (Cannot access before initialization, etc.)
+        if (errorMessage.includes('Cannot access') || 
+            errorMessage.includes('before initialization') ||
+            errorMessage.includes('is not defined') ||
+            errorMessage.includes('ReferenceError')) {
+          errorMessage = 'Có lỗi xảy ra khi xử lý file Excel. Vui lòng thử lại hoặc liên hệ quản trị viên.';
+        }
+        
         // Xử lý lỗi 404 Not Found - Backend chưa implement API
         if (error?.status === 404 || error?.data?.status === 404 || errorMessage.includes('Not Found') || errorMessage.includes('404')) {
           errorMessage = 'API endpoint chưa được implement ở backend. Vui lòng liên hệ backend developer để implement endpoint: POST /vehicles/import/{transactionId}';
@@ -1178,6 +1183,9 @@ const DealerOrdersPage = () => {
           message: errorMessage
         });
       }
+      
+      // Reset loading state
+      setIsValidatingExcel(false);
     } finally {
       setIsValidatingExcel(false);
     }
@@ -1402,7 +1410,7 @@ const DealerOrdersPage = () => {
         <div className="flex flex-col md:flex-row gap-4">
           <div className="flex-1">
             <SearchBar
-              placeholder="Tìm kiếm theo Mã đơn, Đại lý, Model..."
+              placeholder="Tìm kiếm theo Mã đơn, Đại lý, Mẫu xe..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="bg-white"
@@ -1418,7 +1426,7 @@ const DealerOrdersPage = () => {
               ]}
               value={timeRangeFilter}
               onChange={setTimeRangeFilter}
-              className="w-40"
+              className="w-48 min-w-[180px]"
             />
             <Dropdown
               options={[
@@ -1773,7 +1781,7 @@ const DealerOrdersPage = () => {
                 <p className="text-base text-gray-900">{formatDate(transactionDetail.data.orderDate)}</p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">Model</label>
+                <label className="text-sm font-medium text-gray-500">Mẫu xe</label>
                 <p className="text-base text-gray-900">{transactionDetail.data.modelName || 'N/A'}</p>
               </div>
               <div>
@@ -2202,7 +2210,7 @@ const DealerOrdersPage = () => {
             </Button>
             <Button
               onClick={handleSubmitExcel}
-              disabled={!selectedExcelFile || isValidatingExcel || isUploadingExcel}
+              disabled={isValidatingExcel || isUploadingExcel}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               {isValidatingExcel || isUploadingExcel ? 'Đang xử lý...' : 'Gửi'}

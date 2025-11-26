@@ -198,7 +198,7 @@ const EVMStaffDashboard = () => {
         <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
           <MetricCard
             title="Tổng sản phẩm"
-            value={`${totalModels} Model`}
+            value={`${totalModels} Mẫu xe`}
             change={`${totalVariants} biến thể`}
             changeType="neutral"
             icon={Package}

@@ -495,7 +495,7 @@ const InventoryPage = () => {
       return false;
     }
     if (!formData.modelId) {
-      errors.modelId = 'Vui lòng chọn model xe';
+      errors.modelId = 'Vui lòng chọn mẫu xe';
     }
     if (!formData.colorId) {
       errors.colorId = 'Vui lòng chọn màu sắc';
@@ -1413,7 +1413,7 @@ const InventoryPage = () => {
                             return [
                               <Table.Row key={`stock-empty-${stock.storeStockId}`}>
                                 <Table.Cell className="font-medium">
-                                  {stock.modelName || `Model ${stock.modelId}`}
+                                  {stock.modelName || `Mẫu xe ${stock.modelId}`}
                                 </Table.Cell>
                                 <Table.Cell>{stock.colorName || 'N/A'}</Table.Cell>
                                 <Table.Cell colSpan={5} className="text-center text-gray-500">
@@ -1439,7 +1439,7 @@ const InventoryPage = () => {
                               {index === 0 && (
                                 <>
                                   <Table.Cell rowSpan={availableVehicles.length} className="font-medium">
-                                    {stock.modelName || `Model ${stock.modelId}`}
+                                    {stock.modelName || `Mẫu xe ${stock.modelId}`}
                                   </Table.Cell>
                                   <Table.Cell rowSpan={availableVehicles.length}>
                                     {stock.colorName || 'N/A'}
@@ -1594,7 +1594,7 @@ const InventoryPage = () => {
                       <Table.Header>
                         <Table.Row>
                           <Table.Head>Mã yêu cầu</Table.Head>
-                          <Table.Head>Model</Table.Head>
+                          <Table.Head>Mẫu xe</Table.Head>
                           <Table.Head>Màu sắc</Table.Head>
                           <Table.Head>Số lượng</Table.Head>
                           <Table.Head>Ngày tạo</Table.Head>
@@ -1613,7 +1613,7 @@ const InventoryPage = () => {
                               #{transaction.inventoryId}
                             </Table.Cell>
                             <Table.Cell className="font-medium">
-                              {transaction.modelName || `Model ${transaction.modelId}`}
+                              {transaction.modelName || `Mẫu xe ${transaction.modelId}`}
                             </Table.Cell>
                             <Table.Cell>{transaction.colorName || 'N/A'}</Table.Cell>
                             <Table.Cell className="font-semibold">
@@ -1965,14 +1965,14 @@ const InventoryPage = () => {
           <form onSubmit={handleCreateOrder} className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Model xe *
+                Mẫu xe *
               </label>
               <Dropdown
                 options={[
-                  { value: '', label: 'Chọn model' },
+                  { value: '', label: 'Chọn mẫu xe' },
                   ...models.map((model) => ({
                     value: model.modelId?.toString(),
-                    label: model.modelName || `Model ${model.modelId}`,
+                    label: model.modelName || `Mẫu xe ${model.modelId}`,
                   })),
                 ]}
                 value={formData.modelId}
@@ -1982,7 +1982,7 @@ const InventoryPage = () => {
                     setFormErrors({ ...formErrors, modelId: '' });
                   }
                 }}
-                placeholder="Chọn model"
+                placeholder="Chọn mẫu xe"
               />
               {formErrors.modelId && (
                 <p className="text-sm text-red-600 mt-1">{formErrors.modelId}</p>
@@ -2104,7 +2104,7 @@ const InventoryPage = () => {
               <Button
                 type="submit"
                 className="flex-1"
-                disabled={isCreating || !formData.modelId || !formData.colorId}
+                disabled={isCreating}
               >
                 {isCreating ? (
                   <>
@@ -2185,7 +2185,7 @@ const InventoryPage = () => {
               <Button
                 type="submit"
                 className="flex-1"
-                disabled={isUploadingContract || !contractFile}
+                disabled={isUploadingContract}
               >
                 {isUploadingContract ? 'Đang upload...' : 'Upload'}
               </Button>
@@ -2237,7 +2237,7 @@ const InventoryPage = () => {
               <Button
                 type="submit"
                 className="flex-1"
-                disabled={isUploadingReceipt || !receiptFile}
+                disabled={isUploadingReceipt}
               >
                 {isUploadingReceipt ? 'Đang upload...' : 'Upload'}
               </Button>
@@ -2331,7 +2331,7 @@ const InventoryPage = () => {
               {/* Thông tin chi tiết */}
               <div className="grid grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Mẫu xe</label>
                   <p className="text-base text-gray-900">{transactionDetailData.data.modelName || 'N/A'}</p>
                 </div>
                 <div>

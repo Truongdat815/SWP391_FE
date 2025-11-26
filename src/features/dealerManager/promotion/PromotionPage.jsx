@@ -364,7 +364,7 @@ const PromotionPage = () => {
         });
 
         await Promise.all(promises);
-        setSuccessModal({ isOpen: true, message: `Đã tạo thành công ${allModelIds.length} khuyến mãi cho tất cả các model!` });
+        setSuccessModal({ isOpen: true, message: `Đã tạo thành công ${allModelIds.length} khuyến mãi cho tất cả các mẫu xe!` });
       } else {
         // Single promotion (for one specific model)
         await createPromotion(requestBody).unwrap();
@@ -999,10 +999,10 @@ const PromotionPage = () => {
               >
                 <span className="text-gray-900">
                   {formData.selectedModelIds.length === 0
-                    ? 'Tất cả các model'
+                    ? 'Tất cả các mẫu xe'
                     : formData.selectedModelIds.length === 1
-                      ? models.find(m => m.modelId === formData.selectedModelIds[0])?.modelName || `Model ${formData.selectedModelIds[0]}`
-                      : `Đã chọn ${formData.selectedModelIds.length} model`}
+                      ? models.find(m => m.modelId === formData.selectedModelIds[0])?.modelName || `Mẫu xe ${formData.selectedModelIds[0]}`
+                      : `Đã chọn ${formData.selectedModelIds.length} mẫu xe`}
                 </span>
                 <ChevronDown
                   size={20}
@@ -1023,7 +1023,7 @@ const PromotionPage = () => {
                         }}
                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2"
                       />
-                      <span className="text-sm text-gray-900">Tất cả các model</span>
+                      <span className="text-sm text-gray-900">Tất cả các mẫu xe</span>
                     </label>
                     <div className="grid grid-cols-2 gap-1">
                       {(Array.isArray(models) ? models : []).map((model) => {
@@ -1045,7 +1045,7 @@ const PromotionPage = () => {
                               className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2"
                             />
                             <span className="text-sm text-gray-900">
-                              {model.modelName || `Model ${model.modelId}`}
+                              {model.modelName || `Mẫu xe ${model.modelId}`}
                             </span>
                           </label>
                         );
@@ -1056,7 +1056,7 @@ const PromotionPage = () => {
               )}
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Chọn "Tất cả các model" để tạo 1 khuyến mãi áp dụng cho tất cả các model. Chọn một hoặc nhiều model cụ thể để tạo khuyến mãi cho các model đó.
+              Chọn "Tất cả các mẫu xe" để tạo 1 khuyến mãi áp dụng cho tất cả các mẫu xe. Chọn một hoặc nhiều mẫu xe cụ thể để tạo khuyến mãi cho các mẫu xe đó.
             </p>
           </div>
           <div className="flex gap-4 pt-4">
@@ -1168,10 +1168,10 @@ const PromotionPage = () => {
               >
                 <span className="text-gray-900">
                   {formData.selectedModelIds.length === 0
-                    ? 'Tất cả các model'
+                    ? 'Tất cả các mẫu xe'
                     : formData.selectedModelIds.length === 1
-                      ? models.find(m => m.modelId === formData.selectedModelIds[0])?.modelName || `Model ${formData.selectedModelIds[0]}`
-                      : `Đã chọn ${formData.selectedModelIds.length} model`}
+                      ? models.find(m => m.modelId === formData.selectedModelIds[0])?.modelName || `Mẫu xe ${formData.selectedModelIds[0]}`
+                      : `Đã chọn ${formData.selectedModelIds.length} mẫu xe`}
                 </span>
                 <ChevronDown
                   size={20}
@@ -1192,7 +1192,7 @@ const PromotionPage = () => {
                         }}
                         className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2"
                       />
-                      <span className="text-sm text-gray-900">Tất cả các model</span>
+                      <span className="text-sm text-gray-900">Tất cả các mẫu xe</span>
                     </label>
                     <div className="grid grid-cols-2 gap-1">
                       {(Array.isArray(models) ? models : []).map((model) => {
@@ -1214,7 +1214,7 @@ const PromotionPage = () => {
                               className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-2"
                             />
                             <span className="text-sm text-gray-900">
-                              {model.modelName || `Model ${model.modelId}`}
+                              {model.modelName || `Mẫu xe ${model.modelId}`}
                             </span>
                           </label>
                         );
@@ -1225,7 +1225,7 @@ const PromotionPage = () => {
               )}
             </div>
             <p className="text-xs text-gray-500 mt-1">
-              Chọn "Tất cả các model" để cập nhật khuyến mãi hiện tại và tạo khuyến mãi mới cho tất cả các model còn lại. Chọn một hoặc nhiều model cụ thể để cập nhật và tạo khuyến mãi cho các model đó.
+              Chọn "Tất cả các mẫu xe" để cập nhật khuyến mãi hiện tại và tạo khuyến mãi mới cho tất cả các mẫu xe còn lại. Chọn một hoặc nhiều mẫu xe cụ thể để cập nhật và tạo khuyến mãi cho các mẫu xe đó.
             </p>
           </div>
           <div className="flex gap-4 pt-4">
@@ -1308,7 +1308,7 @@ const PromotionPage = () => {
                   <p className="text-lg mt-1">
                     {selectedPromotion.modelName ||
                       models.find(m => m.modelId === selectedPromotion.modelId)?.modelName ||
-                      `Model ID: ${selectedPromotion.modelId}`}
+                      `Mẫu xe ID: ${selectedPromotion.modelId}`}
                   </p>
                 </div>
               )}

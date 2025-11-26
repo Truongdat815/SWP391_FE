@@ -410,7 +410,7 @@ const HomePage = () => {
                 <div className="p-6">
                   <h3 className="text-xl font-bold text-white mb-1">{product.name}</h3>
                   <p className="text-gray-400 text-sm mb-4">
-                    Model {product.year} • {product.type}
+                    Mẫu xe {product.year} • {product.type}
                   </p>
 
                   {/* Specifications Grid */}

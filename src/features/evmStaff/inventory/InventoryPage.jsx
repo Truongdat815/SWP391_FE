@@ -145,7 +145,7 @@ const InventoryPage = () => {
           <div className="flex items-center gap-4">
             <div className="flex-1">
               <SearchBar
-                placeholder="Tìm kiếm theo Mã giao dịch, Model, Cửa hàng..."
+                placeholder="Tìm kiếm theo Mã giao dịch, Mẫu xe, Cửa hàng..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
@@ -169,7 +169,7 @@ const InventoryPage = () => {
                 { value: 'all', label: 'Dòng xe' },
                 ...models.map((model) => ({
                   value: model.modelId?.toString(),
-                  label: model.modelName || `Model ${model.modelId}`,
+                  label: model.modelName || `Mẫu xe ${model.modelId}`,
                 })),
               ]}
               value={modelFilter}

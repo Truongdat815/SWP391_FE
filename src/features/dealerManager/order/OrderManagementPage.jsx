@@ -190,7 +190,7 @@ const OrderManagementPage = () => {
       errors.customerPhone = 'Số điện thoại không hợp lệ';
     }
     if (!formData.modelId) {
-      errors.modelId = 'Vui lòng chọn model xe';
+      errors.modelId = 'Vui lòng chọn mẫu xe';
     }
     if (!formData.colorId) {
       errors.colorId = 'Vui lòng chọn màu sắc';
@@ -971,14 +971,14 @@ const OrderManagementPage = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Model xe *
+                Mẫu xe *
               </label>
               <Dropdown
                 options={[
-                  { value: '', label: 'Chọn model' },
+                  { value: '', label: 'Chọn mẫu xe' },
                   ...models.map((model) => ({
                     value: model.modelId?.toString(),
-                    label: model.modelName || `Model ${model.modelId}`,
+                    label: model.modelName || `Mẫu xe ${model.modelId}`,
                   })),
                 ]}
                 value={formData.modelId}
@@ -988,7 +988,7 @@ const OrderManagementPage = () => {
                     setFormErrors({ ...formErrors, modelId: '' });
                   }
                 }}
-                placeholder="Chọn model"
+                placeholder="Chọn mẫu xe"
               />
               {formErrors.modelId && (
                 <p className="text-sm text-red-600 mt-1">{formErrors.modelId}</p>

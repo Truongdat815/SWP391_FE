@@ -66,7 +66,7 @@ const ColorManagementPage = () => {
     const associatedModelColors = modelColors.filter((mc) => mc.colorId === colorId);
     return associatedModelColors.map((mc) => {
       const model = models.find((m) => m.modelId === mc.modelId);
-      return model?.modelName || `Model ${mc.modelId}`;
+      return model?.modelName || `Mẫu xe ${mc.modelId}`;
     });
   };
 
@@ -255,10 +255,10 @@ const ColorManagementPage = () => {
             </div>
             <Dropdown
               options={[
-                { value: 'all', label: 'Lọc theo Model' },
+                { value: 'all', label: 'Lọc theo Mẫu xe' },
                 ...models.map((model) => ({
                   value: model.modelId?.toString(),
-                  label: model.modelName || `Model ${model.modelId}`,
+                  label: model.modelName || `Mẫu xe ${model.modelId}`,
                 })),
               ]}
               value={modelFilter}
