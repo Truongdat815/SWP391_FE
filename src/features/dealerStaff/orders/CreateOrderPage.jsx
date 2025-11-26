@@ -16,6 +16,7 @@ import { useGetStoreStocksQuery } from '../../../api/dealerStaff/storeStockApi';
 import { useCreateDraftOrderMutation, useConfirmOrderMutation, useDeleteOrderMutation, useGetOrderByIdQuery } from '../../../api/dealerStaff/orderApi';
 import { useCreateQuoteMutation, useGetQuoteByOrderIdQuery, useUpdateQuoteMutation } from '../../../api/dealerStaff/quotationApi';
 import { useCreateContractMutation } from '../../../api/dealerStaff/contractApi';
+import { useGetAllStoresQuery, useGetStoreByNameQuery } from '../../../api/admin/storeApi';
 import { formatCurrency } from '../../../utils/formatters';
 import { generateQuoteHtml } from './QuoteTemplate';
 import { useSelector } from 'react-redux';
@@ -72,6 +73,13 @@ const CreateOrderPage = () => {
   const { data: modelColorsData } = useGetAllModelColorsQuery();
   const { data: promotionsData, isLoading: loadingPromotions } = useGetAllPromotionsQuery();
   const { data: storeStocksData } = useGetStoreStocksQuery();
+  const { data: storesData } = useGetAllStoresQuery();
+  
+  // Get store info from storeName
+  const storeName = orderSummary?.storeName || user?.storeName;
+  const { data: storeByNameData } = useGetStoreByNameQuery(storeName, {
+    skip: !storeName,
+  });
 
   // API mutations
   const [createDraftOrder, { isLoading: creatingOrder }] = useCreateDraftOrderMutation();
@@ -550,7 +558,36 @@ const CreateOrderPage = () => {
       return;
     }
 
-    const htmlContent = generateQuoteHtml(orderSummary, selectedCustomer, user);
+    // Get store info - prioritize storeId from order, then fallback to storeName
+    let store = null;
+    const storeId = orderSummary?.storeId;
+    const storeNameToFind = orderSummary?.storeName || user?.storeName;
+    
+    if (storesData?.data && Array.isArray(storesData.data)) {
+      // First try to find by storeId (from order)
+      if (storeId) {
+        store = storesData.data.find(s => s.storeId === storeId || s.storeId?.toString() === storeId?.toString());
+      }
+      
+      // If not found by storeId, try by storeName
+      if (!store && storeNameToFind) {
+        store = storesData.data.find(s => s.storeName === storeNameToFind);
+      }
+    }
+    
+    // Debug log in development
+    if (import.meta.env.DEV) {
+      console.log('Store lookup:', {
+        storeId,
+        storeNameToFind,
+        storeFound: !!store,
+        storeAddress: store?.address,
+        storePhone: store?.phone,
+        orderSummary: orderSummary,
+      });
+    }
+
+    const htmlContent = generateQuoteHtml(orderSummary, selectedCustomer, user, store);
 
     // Open new window
     const printWindow = window.open('', '_blank');
@@ -612,7 +649,7 @@ const CreateOrderPage = () => {
       const contractId = contractData?.contractId;
 
       if (contractId) {
-        toast.success(contractData?.message || 'Đã tạo hợp đồng thành công!');
+        // toast.success(contractData?.message || 'Đã tạo hợp đồng thành công!'); // Disabled
         // Navigate to contracts page with contractId for highlighting
         navigate('/dealer-staff/contracts', {
           state: {

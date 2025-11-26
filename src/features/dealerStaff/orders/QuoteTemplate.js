@@ -104,7 +104,7 @@ const readMoney = (number) => {
   return result + ' đồng';
 };
 
-export const generateQuoteHtml = (order, customer, user) => {
+export const generateQuoteHtml = (order, customer, user, store = null) => {
   const currentDate = new Date();
   const formattedDate = `lúc ${currentDate.getHours()}:${currentDate.getMinutes().toString().padStart(2, '0')} ${currentDate.getDate()} tháng ${currentDate.getMonth() + 1}, ${currentDate.getFullYear()}`;
   const topDate = `${currentDate.getHours()}:${currentDate.getMinutes().toString().padStart(2, '0')} ${currentDate.getDate()}/${currentDate.getMonth() + 1}/${currentDate.getFullYear().toString().slice(-2)}`;
@@ -120,9 +120,10 @@ export const generateQuoteHtml = (order, customer, user) => {
   const amountInWords = readMoney(totalPayment);
 
   const staffName = user?.fullName || 'Ngô Hoàng Trường Đẹt';
-  const storeName = user?.storeName || 'Electra Gò Vấp';
-  const storeAddress = '65 đường Điện Biên Phủ, Phường 6, Quận Gò Vấp, Thành phố Hồ Chí Minh';
-  const storePhone = '0908111234';
+  // Use store info from store object if available, otherwise fallback to user or order
+  const storeName = store?.storeName || order?.storeName || user?.storeName || 'Electra Gò Vấp';
+  const storeAddress = store?.address || '65 đường Điện Biên Phủ, Phường 6, Quận Gò Vấp, Thành phố Hồ Chí Minh';
+  const storePhone = order?.store?.phone || order?.store?.phone || store?.phone || '0908111234';
 
   const html = `
     <!DOCTYPE html>

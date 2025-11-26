@@ -81,6 +81,10 @@ export const getOrderStatusConfig = (status) => {
       color: 'bg-indigo-100 text-indigo-800',
       label: 'Đã ký'
     },
+    DEPOSIT_PAID: {
+      color: 'bg-amber-100 text-amber-800',
+      label: 'Đã đặt cọc'
+    },
   };
   return statusMap[status] || { color: 'bg-gray-100 text-gray-800', label: status || 'N/A' };
 };

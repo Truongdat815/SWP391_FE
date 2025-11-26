@@ -100,7 +100,7 @@ const OrderManagementPage = () => {
   // Calculate stats
   const stats = useMemo(() => {
     // Only count revenue from orders with specific statuses
-    const revenueStatuses = ['DEPOSITED', 'FULLY_PAID', 'DELIVERED'];
+    const revenueStatuses = ['DEPOSIT_PAID', 'FULLY_PAID', 'DELIVERED'];
     const revenue = orders
       .filter(o => revenueStatuses.includes(o.status))
       .reduce((sum, o) => sum + (o.totalPayment || 0), 0);
@@ -261,7 +261,7 @@ const OrderManagementPage = () => {
     }
   };
 
-  const handleContractClick = (order) => {
+  const handleContractClick = async (order) => {
     if (!order.contractId || order.contractId <= 0) {
       // Chưa có hợp đồng - hiển thị modal xác nhận
       if (canCreateContract(order)) {
@@ -283,9 +283,8 @@ const OrderManagementPage = () => {
           return;
         }
       }
-      // Nếu chưa có fileUrl, mở trang view contract
-      const url = `/dealer-staff/contracts/${order.contractId}/view`;
-      window.open(url, '_blank');
+      // Nếu chưa có fileUrl, hiển thị HTML của hợp đồng
+      await handleViewContract(order.contractId);
     }
   };
 

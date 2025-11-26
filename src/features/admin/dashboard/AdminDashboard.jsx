@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useGetAllUsersQuery } from '../../../api/admin/userApi';
-import { useGetAllStoresQuery, useGetMonthlyRevenueQuery, useGetTotalMonthlyRevenueQuery } from '../../../api/admin/storeApi';
+import { useGetAllStoresQuery } from '../../../api/admin/storeApi';
 import { useGetAllModelsQuery } from '../../../api/admin/modelApi';
 import { normalizeRole } from '../../../utils/roleUtils';
 import AdminLayout from '../../../components/layout/AdminLayout';
@@ -13,23 +13,17 @@ const AdminDashboard = () => {
   // API calls
   const { data: usersData, isLoading: isLoadingUsers, error: usersError } = useGetAllUsersQuery();
   const { data: storesData, isLoading: isLoadingStores, error: storesError } = useGetAllStoresQuery();
-  const { data: revenueData, isLoading: isLoadingRevenue, error: revenueError } = useGetMonthlyRevenueQuery();
-  const { data: totalMonthlyRevenueData, isLoading: isLoadingTotalRevenue, error: totalRevenueError } = useGetTotalMonthlyRevenueQuery();
   const { data: modelsData, isLoading: isLoadingModels, error: modelsError } = useGetAllModelsQuery();
 
   const users = usersData?.data || [];
   const stores = storesData?.data || [];
-  const monthlyRevenues = revenueData?.data || [];
-  const totalMonthlyRevenue = totalMonthlyRevenueData?.data || {};
   const models = modelsData?.data || [];
 
-  const isLoading = isLoadingUsers || isLoadingStores || isLoadingRevenue || isLoadingTotalRevenue || isLoadingModels;
+  const isLoading = isLoadingUsers || isLoadingStores || isLoadingModels;
   
   const isUnauthorized = 
     usersError?.status === 401 || 
     storesError?.status === 401 || 
-    revenueError?.status === 401 ||
-    totalRevenueError?.status === 401 ||
     modelsError?.status === 401;
   
   const hasError = (usersError && usersError.status !== 401) || 
@@ -40,29 +34,6 @@ const AdminDashboard = () => {
   const activeStores = stores.filter(s => s.status === 'ACTIVE').length;
   const totalUsers = users.length;
   const activeUsers = users.filter(u => u.status === 'ACTIVE').length;
-  
-  // Tính tổng doanh thu theo tháng từ API /stores/revenue/monthly
-  const totalRevenue = useMemo(() => {
-    if (monthlyRevenues?.length > 0) {
-      // Tính tổng monthlyRevenue từ tất cả các store
-      const total = monthlyRevenues.reduce((sum, store) => {
-        return sum + (parseFloat(store.monthlyRevenue) || 0);
-      }, 0);
-      
-      // Format số tiền
-      if (total >= 1000000000000) {
-        return `${(total / 1000000000000).toFixed(1)} Tỷ`;
-      } else if (total >= 1000000000) {
-        return `${(total / 1000000000).toFixed(1)} Tỷ`;
-      } else if (total >= 1000000) {
-        return `${(total / 1000000).toFixed(1)}M VND`;
-      } else if (total >= 1000) {
-      return `${(total / 1000).toFixed(1)}K VND`;
-      }
-      return `${total.toLocaleString('vi-VN')} VND`;
-    }
-    return '0 VND';
-  }, [monthlyRevenues]);
 
   // Phân bố cửa hàng theo tỉnh (hiển thị tất cả các tỉnh có dữ liệu)
   const storesByProvince = useMemo(() => {
@@ -386,9 +357,9 @@ const AdminDashboard = () => {
 
   return (
     <AdminLayout>
-      <div className="p-4 space-y-4">
+      <div className="p-4 space-y-6">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-2 max-w-8xl">
           <StatCard
             title="Tổng Số Cửa Hàng"
             value={activeStores}
@@ -403,50 +374,24 @@ const AdminDashboard = () => {
             trend={true}
             trendText="+12% so với tháng trước"
           />
-          <StatCard
-            title={
-              <div>
-                <div>Tổng Số Đơn Hàng</div>
-                <div className="text-lg font-normal text-gray-700 mt-1">
-                  <span className="font-bold text-gray-900">{totalMonthlyRevenue?.totalOrders?.toLocaleString('vi-VN') || '0'} đơn</span> tháng {totalMonthlyRevenue?.month || ''}/{totalMonthlyRevenue?.year || ''}
-                </div>
-              </div>
-            }
-            value=""
-            trend={true}
-            trendText="+8.5% so với tháng trước"
-          />
-          <StatCard
-            title={
-              <div>
-                <div>Tổng Doanh Thu Tháng</div>
-                <div className="text-lg font-normal text-gray-700 mt-1">
-                  <span className="font-bold text-gray-900">{totalRevenue}</span> tháng {totalMonthlyRevenue?.month || ''}/{totalMonthlyRevenue?.year || ''}
-                </div>
-              </div>
-            }
-            value=""
-            trend={true}
-            trendText="+15.2% so với tháng trước"
-          />
         </div>
 
         {/* Charts */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
-          {/* Province Distribution Chart */}
-          <div className="lg:col-span-3 flex flex-col gap-4 rounded-xl border border-gray-200 p-6 bg-white">
-            <p className="text-lg font-semibold text-gray-900">
-              Phân Bố Cửa Hàng Theo Khu Vực
-            </p>
-            <ProvinceChart />
-          </div>
-
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* User Role Chart */}
-          <div className="lg:col-span-2 flex flex-col gap-4 rounded-xl border border-gray-200 p-6 bg-white">
+          <div className="flex flex-col gap-4 rounded-xl border border-gray-200 p-6 bg-white">
             <p className="text-lg font-semibold text-gray-900">
               Cơ Cấu Người Dùng
             </p>
             <UserRoleChart />
+          </div>
+
+          {/* Province Distribution Chart */}
+          <div className="flex flex-col gap-4 rounded-xl border border-gray-200 p-6 bg-white">
+            <p className="text-lg font-semibold text-gray-900">
+              Phân Bố Cửa Hàng Theo Khu Vực
+            </p>
+            <ProvinceChart />
           </div>
         </div>
       </div>

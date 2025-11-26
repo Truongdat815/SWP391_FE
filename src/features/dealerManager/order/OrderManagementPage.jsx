@@ -563,9 +563,6 @@ const OrderManagementPage = () => {
                 <Table>
                   <Table.Header>
                     <Table.Row>
-                      <Table.Head className="w-12">
-                        <input type="checkbox" className="rounded" />
-                      </Table.Head>
                       <Table.Head>MÃ ĐƠN HÀNG</Table.Head>
                       <Table.Head>KHÁCH HÀNG</Table.Head>
                       <Table.Head>NHÂN VIÊN</Table.Head>
@@ -579,9 +576,6 @@ const OrderManagementPage = () => {
                   <Table.Body>
                     {paginatedOrders.map((order) => (
                       <Table.Row key={order.orderId}>
-                        <Table.Cell>
-                          <input type="checkbox" className="rounded" />
-                        </Table.Cell>
                         <Table.Cell className="font-mono">
                           #{order.orderId || `ELEC-${order.orderId}`}
                         </Table.Cell>

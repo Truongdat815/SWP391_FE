@@ -5,7 +5,6 @@ import {
   ShoppingCart,
   Factory,
   Building2,
-  BarChart3,
   Package,
   Palette,
   Settings,
@@ -50,7 +49,6 @@ const EVMStaffLayout = ({ children }) => {
     { icon: Package, label: 'Quản lý Sản phẩm', path: '/evm-staff/products' },
     { icon: Palette, label: 'Quản lý Màu sắc', path: '/evm-staff/colors' },
     { icon: Building2, label: 'Quản lý Đại lý', path: '/evm-staff/dealers' },
-    { icon: BarChart3, label: 'Báo Cáo', path: '/evm-staff/reports' },
   ];
 
   return (

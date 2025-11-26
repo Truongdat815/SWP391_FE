@@ -6,7 +6,6 @@ import {
   ShoppingCart,
   Tag,
   Users,
-  BarChart3,
   Settings,
   LogOut,
   Menu,
@@ -50,7 +49,6 @@ const DealerManagerLayout = ({ children }) => {
     { icon: Tag, label: 'Khuyến mãi', path: '/dealer-manager/promotions' },
     { icon: Users, label: 'Đội Ngũ', path: '/dealer-manager/staff' },
     { icon: Building2, label: 'Đại lý', path: '/dealer-manager/store' },
-    { icon: BarChart3, label: 'Báo Cáo', path: '/dealer-manager/reports' },
   ];
 
   return (
