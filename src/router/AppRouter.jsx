@@ -37,7 +37,6 @@ import ProductManagementPage from '../features/evmStaff/products/ProductManageme
 import DealerOrdersPage from '../features/evmStaff/orders/DealerOrdersPage';
 import ColorManagementPage from '../features/evmStaff/colors/ColorManagementPage';
 import DealersPage from '../features/evmStaff/dealers/DealersPage';
-import SettingsPage from '../features/evmStaff/settings/SettingsPage';
 
 function AppRouter() {
   return (
@@ -108,6 +107,7 @@ function AppRouter() {
                 <Route path="orders" element={<DealerManagerOrderManagementPage />} />
                 <Route path="promotions" element={<PromotionPage />} />
                 <Route path="staff" element={<StaffPage />} />
+                <Route path="store" element={<StoreManagementPage />} />
                 <Route path="" element={<Navigate to="/dealer-manager/dashboard" replace />} />
               </Routes>
             </RoleRoute>
@@ -127,7 +127,6 @@ function AppRouter() {
                 <Route path="orders" element={<DealerOrdersPage />} />
                 <Route path="colors" element={<ColorManagementPage />} />
                 <Route path="dealers" element={<DealersPage />} />
-                <Route path="settings" element={<SettingsPage />} />
                 <Route path="" element={<Navigate to="/evm-staff/dashboard" replace />} />
               </Routes>
             </RoleRoute>

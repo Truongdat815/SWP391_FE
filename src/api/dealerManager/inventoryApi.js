@@ -17,12 +17,23 @@ export const inventoryApi = baseApi.injectEndpoints({
       }),
     }),
     // Cập nhật giá của store stock
+    // Theo Swagger: chỉ cần modelId, colorId, và price
     updateStockPrice: builder.mutation({
-      query: ({ storeStockId, price }) => ({
-        url: '/store-stocks/update-price',
-        method: 'PUT',
-        body: { storeStockId, price },
-      }),
+      query: ({ modelId, colorId, price }) => {
+        const body = { 
+          modelId: Number(modelId),
+          colorId: Number(colorId),
+          price: Number(price),
+        };
+        
+        console.log('API updateStockPrice request body:', body);
+        
+        return {
+          url: '/store-stocks/update-price',
+          method: 'PUT',
+          body,
+        };
+      },
       invalidatesTags: ['Inventory'],
     }),
     // Lấy tất cả inventory transactions
@@ -131,6 +142,14 @@ export const inventoryApi = baseApi.injectEndpoints({
     getStoreStockById: builder.query({
       query: (storeStockId) => `/store-stocks/${storeStockId}`,
       providesTags: ['Inventory'],
+      transformResponse: (response) => {
+        // API có thể trả về { code, message, data } hoặc data trực tiếp
+        if (response?.data !== undefined && response?.code !== undefined) {
+          return { data: response.data };
+        }
+        // Nếu response đã là data trực tiếp
+        return { data: response };
+      },
     }),
     // Lấy inventory transaction theo ID
     getInventoryTransactionById: builder.query({

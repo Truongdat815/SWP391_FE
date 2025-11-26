@@ -76,6 +76,15 @@ const ProtectedRouteSimple = ({ children }) => {
     return <Navigate to="/change-password" replace />;
   }
 
+  // Check for disabled/inactive status - không cho phép truy cập
+  if (user && (user.status === 'DISABLED' || user.status === 'INACTIVE')) {
+    // Clear auth và redirect về login
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.setItem('_logout_flag', 'true');
+    return <Navigate to="/login" replace />;
+  }
+
   return children;
 };
 

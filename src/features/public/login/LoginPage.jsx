@@ -132,6 +132,14 @@ const LoginPage = () => {
 
         if (userRes.ok && userData.code === 200 && userData.data) {
           const userInfo = userData.data;
+          
+          // Kiểm tra status DISABLED - không cho phép login
+          if (userInfo.status === 'DISABLED' || userInfo.status === 'INACTIVE') {
+            setError('Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên để được hỗ trợ.');
+            setIsLoading(false);
+            return;
+          }
+          
           const roleName = userInfo.roleName || userInfo.role?.name || '';
           const normalizedRole = normalizeRole(roleName);
 
@@ -204,14 +212,15 @@ const LoginPage = () => {
 
       <div className="w-full max-w-md relative z-10">
         <Card className="bg-white/95 backdrop-blur-sm shadow-2xl border border-gray-200/50">
-          {/* Logo Section */}
-          <div className="text-center mb-8">
+          {/* Logo Section - Không bị ảnh hưởng bởi form state */}
+          <div className="text-center mb-8" style={{ pointerEvents: 'auto', opacity: 1 }}>
             <div className="flex items-center justify-center mb-6">
-              <div className="bg-white rounded-2xl p-4 shadow-xl border-2 border-gray-100 transform hover:scale-105 transition-transform duration-300">
+              <div className="bg-white rounded-2xl p-4 shadow-xl border-2 border-gray-100 transform hover:scale-105 transition-transform duration-300 cursor-default" style={{ pointerEvents: 'auto', opacity: 1 }}>
                 <img 
                   src="/images/electra-logo1.png" 
                   alt="Electra Logo" 
-                  className="h-20 w-36 object-contain"
+                  className="h-20 w-36 object-contain cursor-default"
+                  style={{ pointerEvents: 'auto', opacity: 1 }}
                   onError={(e) => {
                     e.target.style.display = 'none';
                     const fallback = e.target.nextElementSibling;

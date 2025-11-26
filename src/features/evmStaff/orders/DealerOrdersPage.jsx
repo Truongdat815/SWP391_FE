@@ -318,9 +318,17 @@ const DealerOrdersPage = () => {
   const statusCounts = useMemo(() => {
     return {
       PENDING: transactions.filter((t) => t.status === 'PENDING' || t.status === 'DRAFT').length,
-      CONFIRM_PAYMENT: transactions.filter((t) => t.status === 'ACCEPTED' || t.status === 'CONFIRMED').length,
+      CONFIRM_PAYMENT: transactions.filter((t) => 
+        t.status === 'ACCEPTED' || 
+        t.status === 'CONFIRMED' ||
+        t.status === 'EVM_SIGNED' ||
+        t.status === 'SIGNED' ||
+        t.status === 'CONTRACT_SIGNED' ||
+        t.status === 'FILE_UPLOADED' ||
+        t.status === 'PAYMENT_CONFIRMED'
+      ).length,
       PROCESSING: transactions.filter((t) => t.status === 'PROCESSING').length,
-      SHIPPING: transactions.filter((t) => t.status === 'SHIPPING').length,
+      SHIPPING: transactions.filter((t) => t.status === 'SHIPPING' || t.status === 'IN_TRANSIT').length,
       COMPLETED: transactions.filter((t) => t.status === 'COMPLETED' || t.status === 'DELIVERED').length,
     };
   }, [transactions]);
@@ -337,11 +345,19 @@ const DealerOrdersPage = () => {
         if (statusFilter === 'PENDING') {
           matchesStatus = transaction.status === 'PENDING' || transaction.status === 'DRAFT';
         } else if (statusFilter === 'ACCEPTED') {
-          matchesStatus = transaction.status === 'ACCEPTED' || transaction.status === 'CONFIRMED';
+          // Tab "Thanh toán" - bao gồm tất cả các status liên quan đến thanh toán
+          matchesStatus = 
+            transaction.status === 'ACCEPTED' || 
+            transaction.status === 'CONFIRMED' ||
+            transaction.status === 'EVM_SIGNED' ||
+            transaction.status === 'SIGNED' ||
+            transaction.status === 'CONTRACT_SIGNED' ||
+            transaction.status === 'FILE_UPLOADED' ||
+            transaction.status === 'PAYMENT_CONFIRMED';
         } else if (statusFilter === 'PROCESSING') {
           matchesStatus = transaction.status === 'PROCESSING';
         } else if (statusFilter === 'SHIPPING') {
-          matchesStatus = transaction.status === 'SHIPPING';
+          matchesStatus = transaction.status === 'SHIPPING' || transaction.status === 'IN_TRANSIT';
         } else if (statusFilter === 'COMPLETED') {
           matchesStatus = transaction.status === 'COMPLETED' || transaction.status === 'DELIVERED';
         } else {

@@ -696,14 +696,24 @@ const ProductManagementPage = () => {
 
   const getTransactionStatusBadge = (status) => {
     const statusMap = {
+      DRAFT: { variant: 'default', label: 'Nháp' },
       PENDING: { variant: 'warning', label: 'Chờ xử lý' },
+      CONFIRMED: { variant: 'info', label: 'Đã xác nhận' },
       ACCEPTED: { variant: 'info', label: 'Đã chấp nhận' },
-      REJECTED: { variant: 'error', label: 'Đã từ chối' },
+      EVM_SIGNED: { variant: 'info', label: 'Chờ ký hợp đồng' },
+      SIGNED: { variant: 'success', label: 'Đã ký hợp đồng' },
+      CONTRACT_SIGNED: { variant: 'success', label: 'Đã ký hợp đồng' },
+      FILE_UPLOADED: { variant: 'info', label: 'Đã upload hóa đơn' },
+      PAYMENT_CONFIRMED: { variant: 'info', label: 'Đã xác nhận thanh toán' },
+      PROCESSING: { variant: 'info', label: 'Đang xử lý' },
+      IN_TRANSIT: { variant: 'info', label: 'Đang vận chuyển' },
       SHIPPING: { variant: 'info', label: 'Đang vận chuyển' },
       DELIVERED: { variant: 'success', label: 'Đã giao' },
-      CANCELLED: { variant: 'default', label: 'Đã hủy' },
+      COMPLETED: { variant: 'success', label: 'Hoàn thành' },
+      CANCELLED: { variant: 'error', label: 'Đã hủy' },
+      REJECTED: { variant: 'error', label: 'Đã từ chối' },
     };
-    const config = statusMap[status] || { variant: 'default', label: status || 'N/A' };
+    const config = statusMap[status] || { variant: 'default', label: status || 'Không xác định' };
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
@@ -896,7 +906,7 @@ const ProductManagementPage = () => {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-500 text-sm font-medium">Tổng số xe</p>
+                  <p className="text-gray-500 text-sm font-medium">Tổng số mẫu xe</p>
                   <p className="text-3xl font-bold mt-2 text-gray-900">{models.length}</p>
                 </div>
                 <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">

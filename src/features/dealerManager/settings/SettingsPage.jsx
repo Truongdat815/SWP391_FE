@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { User, Lock } from 'lucide-react';
-import EVMStaffLayout from '../../../components/layout/EVMStaffLayout';
+import DealerManagerLayout from '../../../components/layout/DealerManagerLayout';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
 import Toast from '../../../components/shared/Toast';
@@ -34,6 +34,7 @@ const SettingsPage = () => {
     newPassword: '',
     confirmPassword: '',
   });
+
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     
@@ -91,7 +92,7 @@ const SettingsPage = () => {
   ];
 
   return (
-    <EVMStaffLayout>
+    <DealerManagerLayout>
       <div className="space-y-6 p-6">
         {/* Header */}
         <div>
@@ -202,12 +203,11 @@ const SettingsPage = () => {
                 </div>
               </form>
             )}
-
           </div>
         </div>
       </div>
       <Toast toasts={toasts} removeToast={removeToast} />
-    </EVMStaffLayout>
+    </DealerManagerLayout>
   );
 };
 

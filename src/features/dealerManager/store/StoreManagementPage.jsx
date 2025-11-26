@@ -9,6 +9,7 @@ import Dropdown from '../../../components/ui/Dropdown';
 import {
   useGetMyStoreQuery,
   useUpdateMyStoreMutation,
+  useUploadStoreImageMutation,
 } from '../../../api/dealerManager/storeApi';
 import { provincesApi } from '../../../api/public/provincesApi';
 
@@ -24,6 +25,8 @@ const StoreManagementPage = () => {
   const [selectedDistrictCode, setSelectedDistrictCode] = useState('');
   const [selectedWardCode, setSelectedWardCode] = useState('');
   const [detailedAddress, setDetailedAddress] = useState('');
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [formData, setFormData] = useState({
     storeName: '',
     address: '',
@@ -34,8 +37,9 @@ const StoreManagementPage = () => {
     contractEndDate: '',
   });
 
-  const { data: storeResponse, isLoading, error } = useGetMyStoreQuery();
+  const { data: storeResponse, isLoading, error, refetch: refetchStore } = useGetMyStoreQuery();
   const [updateStore, { isLoading: isUpdating }] = useUpdateMyStoreMutation();
+  const [uploadStoreImage, { isLoading: isUploadingImage }] = useUploadStoreImageMutation();
 
   const store = storeResponse?.data;
 
@@ -106,6 +110,9 @@ const StoreManagementPage = () => {
         contractStartDate: store.contractStartDate ? store.contractStartDate.split('T')[0] : '',
         contractEndDate: store.contractEndDate ? store.contractEndDate.split('T')[0] : '',
       });
+      // Reset image preview when store data changes
+      setSelectedImageFile(null);
+      setImagePreview(null);
 
       // Try to set province, district, ward from address
       if (store.provinceName && Array.isArray(provinces)) {
@@ -176,7 +183,48 @@ const StoreManagementPage = () => {
 
 
   const handleEdit = () => {
+    // Reset image selection when opening edit modal
+    setSelectedImageFile(null);
+    setImagePreview(null);
     setIsEditModalOpen(true);
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      const fileType = file.type || '';
+      const fileName = file.name || '';
+      const isValidType = allowedTypes.includes(fileType) || 
+                         fileName.toLowerCase().endsWith('.jpg') ||
+                         fileName.toLowerCase().endsWith('.jpeg') ||
+                         fileName.toLowerCase().endsWith('.png');
+      
+      if (!isValidType) {
+        setErrorModal({ isOpen: true, message: 'File không hợp lệ. Vui lòng chọn file JPG, JPEG hoặc PNG' });
+        e.target.value = ''; // Reset input
+        return;
+      }
+      
+      // Validate file size (max 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        setErrorModal({ isOpen: true, message: `File quá lớn (${fileSizeMB}MB). Vui lòng chọn file nhỏ hơn 10MB` });
+        e.target.value = ''; // Reset input
+        return;
+      }
+      
+      setSelectedImageFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleUpdate = async (e) => {
@@ -218,8 +266,35 @@ const StoreManagementPage = () => {
     }
 
     try {
+      // Update store information first
       await updateStore({ storeId: store.storeId, ...formData }).unwrap();
+      
+      // Upload image if selected
+      if (selectedImageFile) {
+        try {
+          await uploadStoreImage({
+            storeId: store.storeId,
+            file: selectedImageFile,
+          }).unwrap();
+        } catch (uploadError) {
+          console.error('Error uploading image:', uploadError);
+          // Store info is updated but image upload failed - show warning
+          setErrorModal({ 
+            isOpen: true, 
+            message: 'Thông tin đại lý đã được cập nhật nhưng có lỗi khi upload hình ảnh. Vui lòng thử upload lại sau.' 
+          });
+          // Still refetch to show updated data
+          await refetchStore();
+          setIsEditModalOpen(false);
+          return;
+        }
+      }
+      
+      // Refetch store data to get updated image
+      await refetchStore();
       setIsEditModalOpen(false);
+      setSelectedImageFile(null);
+      setImagePreview(null);
       setSuccessModal({ isOpen: true, message: 'Cập nhật thông tin đại lý thành công!' });
     } catch (error) {
       const errorMessage = error?.data?.message || error?.data?.error || error?.data?.errorMessage || error?.message || 'Có lỗi xảy ra khi cập nhật thông tin đại lý';
@@ -399,6 +474,9 @@ const StoreManagementPage = () => {
         isOpen={isEditModalOpen}
         onClose={() => {
           setIsEditModalOpen(false);
+          // Reset image selection when closing modal
+          setSelectedImageFile(null);
+          setImagePreview(null);
         }}
         title="Chỉnh sửa Thông tin Đại lý"
         size="lg"
@@ -504,6 +582,51 @@ const StoreManagementPage = () => {
             required
           />
           
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Hình ảnh chi nhánh
+            </label>
+            <div className="space-y-2">
+              {imagePreview ? (
+                <div className="relative">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-full h-auto max-h-[200px] object-contain rounded-lg border border-gray-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedImageFile(null);
+                      setImagePreview(null);
+                    }}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : store?.imagePath ? (
+                <div className="relative">
+                  <img
+                    src={store.imagePath}
+                    alt="Current image"
+                    className="w-full h-auto max-h-[200px] object-contain rounded-lg border border-gray-200"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Hình ảnh hiện tại</p>
+                </div>
+              ) : null}
+              <input
+                type="file"
+                accept=".jpg,.jpeg,.png,image/jpeg,image/png"
+                onChange={handleImageChange}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              />
+              <p className="text-xs text-gray-500">
+                Chỉ chấp nhận file JPG, JPEG, PNG. Kích thước tối đa: 10MB
+              </p>
+            </div>
+          </div>
+          
           <div className="flex gap-4 pt-4">
             <Button
               type="button"
@@ -516,8 +639,8 @@ const StoreManagementPage = () => {
             >
               Hủy
             </Button>
-            <Button type="submit" className="flex-1" disabled={isUpdating}>
-              {isUpdating ? 'Đang cập nhật...' : 'Cập nhật'}
+            <Button type="submit" className="flex-1" disabled={isUpdating || isUploadingImage}>
+              {isUpdating || isUploadingImage ? 'Đang cập nhật...' : 'Cập nhật'}
             </Button>
           </div>
         </form>

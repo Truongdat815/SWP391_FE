@@ -178,11 +178,12 @@ const HomePage = () => {
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
             <div className="flex items-center gap-3 p-2">
-              <div className="bg-white rounded-xl p-2 shadow-lg border-2 border-gray-200">
+              <div className="bg-white rounded-xl p-2 shadow-lg border-2 border-gray-200 cursor-default" style={{ pointerEvents: 'auto', opacity: 1 }}>
                 <img 
                   src="/images/electra-logo1.png" 
                   alt="Electra Logo" 
-                  className="h-14 w-24 object-contain"
+                  className="h-14 w-24 object-contain cursor-default"
+                  style={{ pointerEvents: 'auto', opacity: 1 }}
                   onError={(e) => {
                     // Fallback nếu logo chưa có, hiển thị icon cũ
                     e.target.style.display = 'none';
@@ -563,11 +564,12 @@ const HomePage = () => {
             {/* Logo & Tagline */}
             <div className="md:col-span-2">
               <div className="flex items-center gap-3 mb-4 p-2">
-                <div className="bg-white rounded-xl p-2 shadow-lg border-2 border-gray-200">
+                <div className="bg-white rounded-xl p-2 shadow-lg border-2 border-gray-200 cursor-default" style={{ pointerEvents: 'auto', opacity: 1 }}>
                   <img 
                     src="/images/electra-logo1.png" 
                     alt="Electra Logo" 
-                    className="h-14 w-24 object-contain"
+                    className="h-14 w-24 object-contain cursor-default"
+                    style={{ pointerEvents: 'auto', opacity: 1 }}
                     onError={(e) => {
                       // Fallback nếu logo chưa có, hiển thị icon cũ
                       e.target.style.display = 'none';
