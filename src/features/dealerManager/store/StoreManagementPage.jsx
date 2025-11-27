@@ -9,6 +9,7 @@ import Dropdown from '../../../components/ui/Dropdown';
 import {
   useGetMyStoreQuery,
   useUpdateMyStoreMutation,
+  useUploadStoreImageMutation,
 } from '../../../api/dealerManager/storeApi';
 import { addressKitApi } from '../../../api/public/addressKitApi';
 
@@ -26,7 +27,8 @@ const StoreManagementPage = () => {
   const [selectedCommuneCode, setSelectedCommuneCode] = useState('');
   const [communeSearchTerm, setCommuneSearchTerm] = useState('');
   const [detailedAddress, setDetailedAddress] = useState('');
-
+  const [selectedImageFile, setSelectedImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
   const [formData, setFormData] = useState({
     storeName: '',
     address: '',
@@ -37,8 +39,9 @@ const StoreManagementPage = () => {
     contractEndDate: '',
   });
 
-  const { data: storeResponse, isLoading, error } = useGetMyStoreQuery();
+  const { data: storeResponse, isLoading, error, refetch: refetchStore } = useGetMyStoreQuery();
   const [updateStore, { isLoading: isUpdating }] = useUpdateMyStoreMutation();
+  const [uploadStoreImage, { isLoading: isUploadingImage }] = useUploadStoreImageMutation();
 
   const store = storeResponse?.data;
 
@@ -91,6 +94,9 @@ const StoreManagementPage = () => {
         contractStartDate: store.contractStartDate ? store.contractStartDate.split('T')[0] : '',
         contractEndDate: store.contractEndDate ? store.contractEndDate.split('T')[0] : '',
       });
+      // Reset image preview when store data changes
+      setSelectedImageFile(null);
+      setImagePreview(null);
 
       // Try to set province and commune from address
       if (store.provinceName && provinces.length > 0) {
@@ -173,7 +179,48 @@ const StoreManagementPage = () => {
 
 
   const handleEdit = () => {
+    // Reset image selection when opening edit modal
+    setSelectedImageFile(null);
+    setImagePreview(null);
     setIsEditModalOpen(true);
+  };
+
+  const handleImageChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      const fileType = file.type || '';
+      const fileName = file.name || '';
+      const isValidType = allowedTypes.includes(fileType) || 
+                         fileName.toLowerCase().endsWith('.jpg') ||
+                         fileName.toLowerCase().endsWith('.jpeg') ||
+                         fileName.toLowerCase().endsWith('.png');
+      
+      if (!isValidType) {
+        setErrorModal({ isOpen: true, message: 'File không hợp lệ. Vui lòng chọn file JPG, JPEG hoặc PNG' });
+        e.target.value = ''; // Reset input
+        return;
+      }
+      
+      // Validate file size (max 10MB)
+      const maxSize = 10 * 1024 * 1024; // 10MB
+      if (file.size > maxSize) {
+        const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+        setErrorModal({ isOpen: true, message: `File quá lớn (${fileSizeMB}MB). Vui lòng chọn file nhỏ hơn 10MB` });
+        e.target.value = ''; // Reset input
+        return;
+      }
+      
+      setSelectedImageFile(file);
+      
+      // Create preview
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const handleUpdate = async (e) => {
@@ -215,46 +262,35 @@ const StoreManagementPage = () => {
     }
 
     try {
-      // Update store details first
+      // Update store information first
       await updateStore({ storeId: store.storeId, ...formData }).unwrap();
-
-      // Upload image if new image is selected
+      
+      // Upload image if selected
       if (selectedImageFile) {
         try {
-          const uploadResponse = await uploadStoreImage({
+          await uploadStoreImage({
             storeId: store.storeId,
             file: selectedImageFile,
           }).unwrap();
-
-          // Handle API response: data can be the URL string itself or an object
-          // Based on user report: { code: 200, message: "...", data: "https://..." }
-          const imagePath = typeof uploadResponse?.data === 'string'
-            ? uploadResponse.data
-            : (uploadResponse?.data?.imagePath || uploadResponse?.imagePath || '');
-
-          if (imagePath) {
-            // Update store with new image path
-            await updateStore({
-              storeId: store.storeId,
-              ...formData,
-              imagePath: imagePath,
-            }).unwrap();
-          }
-
-          // Refetch to ensure UI is updated
-          await refetchStore();
         } catch (uploadError) {
           console.error('Error uploading image:', uploadError);
-          // Store details updated but image failed
-          setSuccessModal({ isOpen: true, message: 'Cập nhật thông tin thành công nhưng có lỗi khi tải ảnh lên.' });
+          // Store info is updated but image upload failed - show warning
+          setErrorModal({ 
+            isOpen: true, 
+            message: 'Thông tin đại lý đã được cập nhật nhưng có lỗi khi upload hình ảnh. Vui lòng thử upload lại sau.' 
+          });
+          // Still refetch to show updated data
+          await refetchStore();
           setIsEditModalOpen(false);
           return;
         }
-      } else {
-        await refetchStore();
       }
-
+      
+      // Refetch store data to get updated image
+      await refetchStore();
       setIsEditModalOpen(false);
+      setSelectedImageFile(null);
+      setImagePreview(null);
       setSuccessModal({ isOpen: true, message: 'Cập nhật thông tin đại lý thành công!' });
 
       // Reset image states
@@ -456,6 +492,9 @@ const StoreManagementPage = () => {
         isOpen={isEditModalOpen}
         onClose={() => {
           setIsEditModalOpen(false);
+          // Reset image selection when closing modal
+          setSelectedImageFile(null);
+          setImagePreview(null);
         }}
         title="Chỉnh sửa Thông tin Đại lý"
         size="lg"
@@ -573,50 +612,52 @@ const StoreManagementPage = () => {
             onChange={(e) => setFormData({ ...formData, contractEndDate: e.target.value })}
             required
           />
-
+          
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Hình ảnh cửa hàng
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Hình ảnh chi nhánh
             </label>
-            <div className="flex items-center gap-2">
+            <div className="space-y-2">
+              {imagePreview ? (
+                <div className="relative">
+                  <img
+                    src={imagePreview}
+                    alt="Preview"
+                    className="w-full h-auto max-h-[200px] object-contain rounded-lg border border-gray-200"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedImageFile(null);
+                      setImagePreview(null);
+                    }}
+                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              ) : store?.imagePath ? (
+                <div className="relative">
+                  <img
+                    src={store.imagePath}
+                    alt="Current image"
+                    className="w-full h-auto max-h-[200px] object-contain rounded-lg border border-gray-200"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Hình ảnh hiện tại</p>
+                </div>
+              ) : null}
               <input
                 type="file"
-                accept="image/*"
+                accept=".jpg,.jpeg,.png,image/jpeg,image/png"
                 onChange={handleImageChange}
-                className="block flex-1 text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
               />
-              {selectedImageFile && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleToggleImagePreview}
-                  size="sm"
-                >
-                  {showImagePreview ? 'Ẩn' : 'Xem trước'}
-                </Button>
-              )}
+              <p className="text-xs text-gray-500">
+                Chỉ chấp nhận file JPG, JPEG, PNG. Kích thước tối đa: 10MB
+              </p>
             </div>
-            {imagePreview && showImagePreview && (
-              <div className="mt-2 flex justify-center">
-                <img
-                  src={imagePreview}
-                  alt="Preview"
-                  className="max-w-full max-h-96 object-contain rounded-lg border border-gray-200"
-                />
-              </div>
-            )}
-            {!selectedImageFile && store?.imagePath && (
-              <div className="mt-2">
-                <p className="text-sm text-gray-500 mb-2">Hình ảnh hiện tại:</p>
-                <img
-                  src={store.imagePath}
-                  alt="Current"
-                  className="max-w-full max-h-48 object-contain rounded-lg border border-gray-200"
-                />
-              </div>
-            )}
           </div>
-
+          
           <div className="flex gap-4 pt-4">
             <Button
               type="button"
@@ -629,8 +670,8 @@ const StoreManagementPage = () => {
             >
               Hủy
             </Button>
-            <Button type="submit" className="flex-1" disabled={isUpdating}>
-              {isUpdating ? 'Đang cập nhật...' : 'Cập nhật'}
+            <Button type="submit" className="flex-1" disabled={isUpdating || isUploadingImage}>
+              {isUpdating || isUploadingImage ? 'Đang cập nhật...' : 'Cập nhật'}
             </Button>
           </div>
         </form>

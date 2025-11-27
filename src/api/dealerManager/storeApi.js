@@ -21,6 +21,19 @@ export const dmStoreApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: ['Branch'],
     }),
+    // Upload hình ảnh chi nhánh
+    uploadStoreImage: builder.mutation({
+      query: ({ storeId, file }) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: `/stores/${storeId}/upload-image`,
+          method: 'POST',
+          body: formData,
+        };
+      },
+      invalidatesTags: ['Branch'],
+    }),
     // Lấy doanh thu tháng của store (từ /stores/revenue/monthly, lọc store của mình)
     getMonthlyRevenue: builder.query({
       query: () => '/stores/revenue/monthly',
@@ -38,5 +51,6 @@ export const {
   useGetMyStoreQuery,
   useUpdateMyStoreMutation,
   useGetMonthlyRevenueQuery,
+  useUploadStoreImageMutation,
 } = dmStoreApi;
 

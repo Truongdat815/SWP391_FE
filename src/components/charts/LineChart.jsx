@@ -25,11 +25,12 @@ const LineChart = ({ data, dataKey, name, color = '#3B82F6', height = 200 }) => 
   };
 
   return (
-    <ResponsiveContainer width="100%" height={height}>
-      <RechartsLineChart 
-        data={data}
-        margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
-      >
+    <div className="w-full overflow-hidden" style={{ height: `${height}px` }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <RechartsLineChart 
+          data={data}
+          margin={{ top: 5, right: 10, left: 0, bottom: 5 }}
+        >
         <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" />
         <XAxis 
           dataKey="name" 
@@ -55,7 +56,8 @@ const LineChart = ({ data, dataKey, name, color = '#3B82F6', height = 200 }) => 
           animationDuration={0}
         />
       </RechartsLineChart>
-    </ResponsiveContainer>
+      </ResponsiveContainer>
+    </div>
   );
 };
 

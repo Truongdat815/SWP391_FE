@@ -1,11 +1,12 @@
 import { useMemo, useState, useEffect } from 'react';
-import { DollarSign, ShoppingCart, Package, TrendingUp, ChevronLeft, ChevronRight } from 'lucide-react';
+import { DollarSign, ShoppingCart, Package, TrendingUp, ChevronLeft, ChevronRight, CheckCircle, Truck } from 'lucide-react';
 import DealerManagerLayout from '../../../components/layout/DealerManagerLayout';
 import MetricCard from '../../../components/shared/MetricCard';
 import Card from '../../../components/ui/Card';
 import Table from '../../../components/ui/Table';
 import Badge from '../../../components/ui/Badge';
 import Modal from '../../../components/ui/Modal';
+import Button from '../../../components/ui/Button';
 import LineChart from '../../../components/charts/LineChart';
 import BarChart from '../../../components/charts/BarChart';
 import { useGetAllOrdersQuery } from '../../../api/dealerManager/dmOrderApi';
@@ -18,7 +19,9 @@ const DealerManagerDashboard = () => {
   const [dashboardPage, setDashboardPage] = useState(1); // Trang dashboard: 1 = KPI + Charts, 2 = Chi tiết
   const [currentPage, setCurrentPage] = useState(1);
   const [isAllOrdersModalOpen, setIsAllOrdersModalOpen] = useState(false);
+  const [modalCurrentPage, setModalCurrentPage] = useState(1);
   const ordersPerPage = 5;
+  const modalOrdersPerPage = 5;
   
   const { data: ordersData, isLoading: isLoadingOrders, error: ordersError } = useGetAllOrdersQuery();
   const { data: revenueData, isLoading: isLoadingRevenue, error: revenueError } = useGetMonthlyRevenueQuery();
@@ -338,7 +341,9 @@ const DealerManagerDashboard = () => {
 
   const getStatusBadge = (status) => {
     const statusMap = {
+      DRAFT: { variant: 'default', label: 'Nháp', color: 'bg-gray-50 text-gray-700 border-gray-200' },
       PENDING: { variant: 'warning', label: 'Chờ duyệt', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+      PENDING_DEPOSIT: { variant: 'warning', label: 'Chờ đặt cọc', color: 'bg-amber-50 text-amber-700 border-amber-200' },
       CONFIRMED: { variant: 'info', label: 'Đã xác nhận', color: 'bg-blue-50 text-blue-700 border-blue-200' },
       DELIVERING: { variant: 'info', label: 'Đang giao', color: 'bg-blue-50 text-blue-700 border-blue-200' },
       DELIVERED: { variant: 'success', label: 'Hoàn thành', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
@@ -347,9 +352,16 @@ const DealerManagerDashboard = () => {
       CONTRACT_SIGNED: { variant: 'info', label: 'Đã ký hợp đồng', color: 'bg-blue-50 text-blue-700 border-blue-200' },
       CONTRACT_PENDING: { variant: 'warning', label: 'Chờ ký hợp đồng', color: 'bg-amber-50 text-amber-700 border-amber-200' },
       CANCELLED: { variant: 'error', label: 'Đã hủy', color: 'bg-red-50 text-red-700 border-red-200' },
-      DRAFT: { variant: 'default', label: 'Nháp', color: 'bg-gray-50 text-gray-700 border-gray-200' },
+      REJECTED: { variant: 'error', label: 'Đã từ chối', color: 'bg-red-50 text-red-700 border-red-200' },
+      ACCEPTED: { variant: 'info', label: 'Đã chấp nhận', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+      EVM_SIGNED: { variant: 'info', label: 'EVM đã ký', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+      SIGNED: { variant: 'success', label: 'Đã ký', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+      FILE_UPLOADED: { variant: 'info', label: 'Đã tải lên hóa đơn', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+      PAYMENT_CONFIRMED: { variant: 'success', label: 'Đã xác nhận thanh toán', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+      IN_TRANSIT: { variant: 'info', label: 'Đang vận chuyển', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+      COMPLETED: { variant: 'success', label: 'Hoàn thành', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
     };
-    const config = statusMap[status] || { variant: 'default', label: status || 'N/A', color: 'bg-gray-50 text-gray-700 border-gray-200' };
+    const config = statusMap[status] || { variant: 'default', label: 'Không xác định', color: 'bg-gray-50 text-gray-700 border-gray-200' };
     return (
       <span className={`inline-flex items-center px-3 py-1 rounded-md text-xs font-semibold ${config.color}`}>
         {config.label}
@@ -427,7 +439,7 @@ const DealerManagerDashboard = () => {
 
   return (
     <DealerManagerLayout>
-      <div className="p-4 min-h-[calc(100vh-80px)] flex flex-col">
+      <div className="p-4 h-full flex flex-col overflow-y-auto overflow-x-hidden scrollbar-hide">
         {/* Header */}
         <div className="mb-4 flex-shrink-0">
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Tổng quan</h1>
@@ -458,7 +470,7 @@ const DealerManagerDashboard = () => {
           </button>
         </div>
 
-        <div className={`flex-1 ${dashboardPage === 2 ? 'overflow-hidden' : 'space-y-4 overflow-y-auto'}`}>
+        <div className={`flex-1 ${dashboardPage === 2 ? 'overflow-hidden' : 'space-y-4 overflow-y-auto overflow-x-hidden scrollbar-hide'}`}>
         {/* Trang 1: KPI + Charts */}
         {dashboardPage === 1 && (
           <>
@@ -488,19 +500,21 @@ const DealerManagerDashboard = () => {
 
             {/* Charts - Ưu tiên thứ 2 - Đặt ngang */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <Card className="flex flex-col shadow-sm">
+              <Card className="flex flex-col shadow-sm overflow-hidden">
                 <Card.Header className="pb-2 flex-shrink-0 border-b border-gray-100">
                   <Card.Title className="text-base font-semibold text-gray-900">Doanh Thu Theo Tuần</Card.Title>
                 </Card.Header>
-                <Card.Content className="p-4 flex-1 flex items-center justify-center min-h-[300px]">
+                <Card.Content className="p-4 flex-1 flex items-center justify-center min-h-[300px] overflow-hidden">
                   {revenueChartData && revenueChartData.length > 0 && revenueChartData.some(d => d.value > 0) ? (
-                    <LineChart
-                      data={revenueChartData}
-                      dataKey="value"
-                      name="Doanh thu (triệu VND)"
-                      color="#3B82F6"
-                      height={300}
-                    />
+                    <div className="w-full h-full overflow-hidden">
+                      <LineChart
+                        data={revenueChartData}
+                        dataKey="value"
+                        name="Doanh thu (triệu VND)"
+                        color="#3B82F6"
+                        height={300}
+                      />
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400">
                       <TrendingUp size={48} className="mb-2 opacity-50" />
@@ -510,19 +524,21 @@ const DealerManagerDashboard = () => {
                 </Card.Content>
               </Card>
 
-              <Card className="flex flex-col shadow-sm">
+              <Card className="flex flex-col shadow-sm overflow-hidden">
                 <Card.Header className="pb-2 flex-shrink-0 border-b border-gray-100">
                   <Card.Title className="text-base font-semibold text-gray-900">Doanh Số Theo Nhân Viên</Card.Title>
                 </Card.Header>
-                <Card.Content className="p-4 flex-1 flex items-center justify-center min-h-[300px]">
+                <Card.Content className="p-4 flex-1 flex items-center justify-center min-h-[300px] overflow-hidden">
                   {staffRevenueData && staffRevenueData.length > 0 ? (
-                    <BarChart
-                      data={staffRevenueData}
-                      dataKey="value"
-                      name="Doanh số (triệu VND)"
-                      color="#3B82F6"
-                      height={300}
-                    />
+                    <div className="w-full h-full overflow-hidden">
+                      <BarChart
+                        data={staffRevenueData}
+                        dataKey="value"
+                        name="Doanh số (triệu VND)"
+                        color="#3B82F6"
+                        height={300}
+                      />
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-gray-400">
                       <TrendingUp size={48} className="mb-2 opacity-50" />
@@ -537,50 +553,87 @@ const DealerManagerDashboard = () => {
 
         {/* Trang 2: Chi tiết số xe + Thống kê đơn hàng + Đơn hàng gần đây */}
         {dashboardPage === 2 && (
-          <div className="grid grid-cols-1 lg:grid-cols-[400px_1fr] gap-4 h-full overflow-hidden">
-          {/* Chi tiết số xe theo mẫu và màu - Bên trái - Scroll trong card */}
-          <Card className="flex flex-col shadow-sm h-full overflow-hidden">
-            <Card.Header className="pb-2 flex-shrink-0 border-b border-gray-100">
-              <Card.Title className="text-base font-semibold text-gray-900">Chi Tiết Số Xe Trong Kho</Card.Title>
-            </Card.Header>
-            <Card.Content className="p-0 flex-1 overflow-hidden flex flex-col min-h-0">
-              {stockSummary.length === 0 ? (
-                <div className="text-center py-8 text-gray-500 text-sm p-4">Chưa có xe nào trong kho</div>
-              ) : (
-                <div className="overflow-y-auto flex-1 min-h-0 p-2">
-                  <Table>
-                    <Table.Header>
-                      <Table.Row>
-                        <Table.Head className="text-sm py-2 font-semibold">Mẫu Xe</Table.Head>
-                        <Table.Head className="text-sm py-2 font-semibold">Màu Sắc</Table.Head>
-                        <Table.Head className="text-sm text-right py-2 font-semibold">Số Lượng</Table.Head>
-                      </Table.Row>
-                    </Table.Header>
-                    <Table.Body>
-                      {stockSummary.map((item, index) => {
-                        const modelImageUrl = getModelImageUrl(item.modelName);
-                        return (
-                        <Table.Row 
+          <div className="space-y-6 h-full overflow-y-auto overflow-x-hidden scrollbar-hide">
+          {/* Thống kê đơn hàng - Compact hơn */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                  <ShoppingCart size={20} className="text-blue-600" />
+                </div>
+                <p className="text-sm font-medium text-gray-700">Đơn hàng mới hôm nay</p>
+              </div>
+              <p className="text-3xl font-bold text-gray-900">
+                {orders.filter((order) => {
+                  const orderDate = new Date(order.createdAt || order.orderDate);
+                  const today = new Date();
+                  return (
+                    orderDate.getDate() === today.getDate() &&
+                    orderDate.getMonth() === today.getMonth() &&
+                    orderDate.getFullYear() === today.getFullYear()
+                  );
+                }).length}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-lg bg-green-100 flex items-center justify-center">
+                  <Truck size={20} className="text-green-600" />
+                </div>
+                <p className="text-sm font-medium text-gray-700">Đơn hàng đang giao</p>
+              </div>
+              <p className="text-3xl font-bold text-gray-900">
+                {orders.filter((order) => order.status === 'DELIVERING').length}
+              </p>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-10 h-10 rounded-lg bg-purple-100 flex items-center justify-center">
+                  <CheckCircle size={20} className="text-purple-600" />
+                </div>
+                <p className="text-sm font-medium text-gray-700">Đơn hàng đã hoàn thành</p>
+              </div>
+              <p className="text-3xl font-bold text-gray-900">
+                {orders.filter((order) => order.status === 'DELIVERED').length}
+              </p>
+            </div>
+          </div>
+
+          {/* Grid 2 cột: Chi tiết số xe và Đơn hàng gần đây */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Chi tiết số xe theo mẫu và màu */}
+            <Card className="shadow-sm border border-gray-200 bg-white">
+              <Card.Header className="px-6 py-4 border-b border-gray-200">
+                <Card.Title className="text-lg font-semibold text-gray-900">Chi Tiết Số Xe Trong Kho</Card.Title>
+              </Card.Header>
+              <Card.Content className="p-6">
+                {stockSummary.length === 0 ? (
+                  <div className="text-center py-12 text-gray-500">
+                    <Package size={48} className="mx-auto mb-3 text-gray-300" />
+                    <p className="text-sm">Chưa có xe nào trong kho</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {stockSummary.map((item, index) => {
+                      const modelImageUrl = getModelImageUrl(item.modelName);
+                      return (
+                        <div 
                           key={`${item.modelName}-${item.colorName}-${index}`}
-                          className="hover:bg-gray-50"
+                          className="flex items-center gap-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
                         >
-                          <Table.Cell className="font-medium text-sm py-2 whitespace-nowrap">
-                            <div className="flex items-center gap-2" title={`${item.modelName} - ${item.colorName}`}>
-                              {modelImageUrl && (
-                                <img
-                                  src={modelImageUrl}
-                                  alt={item.modelName}
-                                  className="w-10 h-10 object-cover rounded border border-gray-200"
-                                  onError={(e) => {
-                                    e.target.style.display = 'none';
-                                  }}
-                                />
-                              )}
-                              <span>{item.modelName}</span>
-                            </div>
-                          </Table.Cell>
-                          <Table.Cell className="text-sm py-2 whitespace-nowrap">
-                            <div className="flex items-center gap-2" title={item.colorName}>
+                          {modelImageUrl && (
+                            <img
+                              src={modelImageUrl}
+                              alt={item.modelName}
+                              className="w-16 h-16 object-cover rounded-lg border border-gray-200 flex-shrink-0"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                              }}
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-900 mb-1">{item.modelName}</p>
+                            <div className="flex items-center gap-2">
                               {(item.colorCode || (item.colorName && /^#[0-9A-Fa-f]{6}$/.test(item.colorName))) && (
                                 <div
                                   className="w-4 h-4 rounded-full border border-gray-300 flex-shrink-0"
@@ -589,115 +642,73 @@ const DealerManagerDashboard = () => {
                                   }}
                                 />
                               )}
-                              <span>{item.colorName}</span>
+                              <span className="text-sm text-gray-600">{item.colorName}</span>
                             </div>
-                          </Table.Cell>
-                          <Table.Cell className="text-right font-semibold text-sm py-2 whitespace-nowrap">
-                            {item.quantity}
-                          </Table.Cell>
-                        </Table.Row>
-                        );
-                      })}
-                    </Table.Body>
-                  </Table>
-                </div>
-              )}
-            </Card.Content>
-          </Card>
-
-          {/* Bên phải: Thống kê đơn hàng và Đơn hàng gần đây */}
-          <div className="space-y-3 flex flex-col h-full overflow-hidden">
-            {/* Thống kê đơn hàng */}
-            <Card className="shadow-sm flex-shrink-0">
-              <Card.Header className="pb-2 flex-shrink-0 border-b border-gray-100">
-                <Card.Title className="text-base font-semibold text-gray-900">Thống Kê Đơn Hàng</Card.Title>
-              </Card.Header>
-              <Card.Content className="p-3">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg border border-blue-100">
-                    <span className="text-gray-700 text-sm font-medium">Đơn hàng mới hôm nay</span>
-                    <span className="text-xl font-bold text-blue-600">
-                      {orders.filter((order) => {
-                        const orderDate = new Date(order.createdAt || order.orderDate);
-                        const today = new Date();
-                        return (
-                          orderDate.getDate() === today.getDate() &&
-                          orderDate.getMonth() === today.getMonth() &&
-                          orderDate.getFullYear() === today.getFullYear()
-                        );
-                      }).length}
-                    </span>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-gray-900">{item.quantity}</p>
+                            <p className="text-xs text-gray-500 mt-0.5">xe</p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg border border-green-100">
-                    <span className="text-gray-700 text-sm font-medium">Đơn hàng đang giao</span>
-                    <span className="text-xl font-bold text-green-600">
-                      {orders.filter((order) => order.status === 'DELIVERING').length}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg border border-purple-100">
-                    <span className="text-gray-700 text-sm font-medium">Đơn hàng đã hoàn thành</span>
-                    <span className="text-xl font-bold text-purple-600">
-                      {orders.filter((order) => order.status === 'DELIVERED').length}
-                    </span>
-                  </div>
-                </div>
+                )}
               </Card.Content>
             </Card>
 
-            {/* Recent Orders Table - Giới hạn 5 dòng */}
-            <Card className="flex-1 shadow-sm overflow-hidden flex flex-col min-h-0">
-              <Card.Header className="pb-2 flex-shrink-0 border-b border-gray-100 flex items-center justify-between">
-                <Card.Title className="text-base font-semibold text-gray-900">Đơn Hàng Gần Đây</Card.Title>
-                {recentOrders.length > 5 && (
+            {/* Recent Orders */}
+            <Card className="shadow-sm border border-gray-200 bg-white">
+              <Card.Header className="px-6 py-4 border-b border-gray-200 flex items-center justify-between">
+                <Card.Title className="text-lg font-semibold text-gray-900">Đơn Hàng Gần Đây</Card.Title>
+                {recentOrders.length > 3 && (
                   <button 
-                    onClick={() => setIsAllOrdersModalOpen(true)}
-                    className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                    onClick={() => {
+                      setModalCurrentPage(1);
+                      setIsAllOrdersModalOpen(true);
+                    }}
+                    className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
                   >
                     Xem tất cả
                   </button>
                 )}
               </Card.Header>
-              <Card.Content className="p-3 flex-1 overflow-hidden flex flex-col min-h-0">
+              <Card.Content className="p-6">
                 {recentOrders.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 text-sm">Chưa có đơn hàng nào</div>
+                  <div className="text-center py-12 text-gray-500">
+                    <ShoppingCart size={48} className="mx-auto mb-3 text-gray-300" />
+                    <p className="text-sm">Chưa có đơn hàng nào</p>
+                  </div>
                 ) : (
-                  <div className="overflow-y-auto flex-1 min-h-0">
-                    <Table>
-                      <Table.Header>
-                        <Table.Row>
-                          <Table.Head className="text-sm py-2 font-semibold">Mã đơn</Table.Head>
-                          <Table.Head className="text-sm py-2 font-semibold">Khách hàng</Table.Head>
-                          <Table.Head className="text-sm py-2 font-semibold">Nhân viên</Table.Head>
-                          <Table.Head className="text-sm py-2 font-semibold">Ngày</Table.Head>
-                          <Table.Head className="text-sm py-2 font-semibold">Giá trị</Table.Head>
-                          <Table.Head className="text-sm py-2 font-semibold">Trạng thái</Table.Head>
-                        </Table.Row>
-                      </Table.Header>
-                      <Table.Body>
-                        {recentOrders.slice(0, 5).map((order) => (
-                          <Table.Row key={order.orderId} className="hover:bg-gray-50">
-                            <Table.Cell className="font-mono text-sm py-2">
-                              #{order.orderId || `ELEC-${order.orderId}`}
-                            </Table.Cell>
-                            <Table.Cell className="font-medium text-sm py-2">
-                              {order.customerName || 'N/A'}
-                            </Table.Cell>
-                            <Table.Cell className="text-sm py-2">
-                              {getStaffName(order)}
-                            </Table.Cell>
-                            <Table.Cell className="text-sm py-2">
-                              {formatDate(order.createdAt || order.orderDate)}
-                            </Table.Cell>
-                            <Table.Cell className="font-semibold text-sm py-2">
-                              {formatCurrency(order.totalAmount || order.totalPrice || 0)}
-                            </Table.Cell>
-                            <Table.Cell className="text-sm py-2">
+                  <div className="space-y-4">
+                    {recentOrders.slice(0, 3).map((order) => (
+                      <div 
+                        key={order.orderId} 
+                        className="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors border border-gray-200"
+                      >
+                        <div className="flex items-start justify-between gap-4 mb-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="font-mono text-sm font-semibold text-gray-900">
+                                #{order.orderId || `ELEC-${order.orderId}`}
+                              </span>
                               {getStatusBadge(order.status)}
-                            </Table.Cell>
-                          </Table.Row>
-                        ))}
-                      </Table.Body>
-                    </Table>
+                            </div>
+                            <p className="text-sm font-semibold text-gray-900 mb-1">
+                              {order.customerName || 'N/A'}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              {getStaffName(order)} • {formatDate(order.createdAt || order.orderDate)}
+                            </p>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-base font-bold text-gray-900">
+                              {formatCurrency(order.totalAmount || order.totalPrice || 0)}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 )}
               </Card.Content>
@@ -711,50 +722,122 @@ const DealerManagerDashboard = () => {
       {/* Modal hiển thị toàn bộ đơn hàng */}
       <Modal
         isOpen={isAllOrdersModalOpen}
-        onClose={() => setIsAllOrdersModalOpen(false)}
+        onClose={() => {
+          setIsAllOrdersModalOpen(false);
+          setModalCurrentPage(1);
+        }}
         title="Tất Cả Đơn Hàng"
         size="2xl"
       >
-        <div className="max-h-[70vh] overflow-y-auto">
+        <div className="space-y-4">
           {recentOrders.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 text-sm">Chưa có đơn hàng nào</div>
+            <div className="text-center py-12 text-gray-500">
+              <ShoppingCart size={48} className="mx-auto mb-3 text-gray-300" />
+              <p className="text-sm">Chưa có đơn hàng nào</p>
+            </div>
           ) : (
-            <Table>
-              <Table.Header>
-                <Table.Row>
-                  <Table.Head className="text-sm py-2 font-semibold">Mã đơn</Table.Head>
-                  <Table.Head className="text-sm py-2 font-semibold">Khách hàng</Table.Head>
-                  <Table.Head className="text-sm py-2 font-semibold">Nhân viên</Table.Head>
-                  <Table.Head className="text-sm py-2 font-semibold">Ngày</Table.Head>
-                  <Table.Head className="text-sm py-2 font-semibold">Giá trị</Table.Head>
-                  <Table.Head className="text-sm py-2 font-semibold">Trạng thái</Table.Head>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {recentOrders.map((order) => (
-                  <Table.Row key={order.orderId} className="hover:bg-gray-50">
-                    <Table.Cell className="font-mono text-sm py-2">
-                      #{order.orderId || `ELEC-${order.orderId}`}
-                    </Table.Cell>
-                    <Table.Cell className="font-medium text-sm py-2">
-                      {order.customerName || 'N/A'}
-                    </Table.Cell>
-                    <Table.Cell className="text-sm py-2">
-                      {getStaffName(order)}
-                    </Table.Cell>
-                    <Table.Cell className="text-sm py-2">
-                      {formatDate(order.createdAt || order.orderDate)}
-                    </Table.Cell>
-                    <Table.Cell className="font-semibold text-sm py-2">
-                      {formatCurrency(order.totalAmount || order.totalPrice || 0)}
-                    </Table.Cell>
-                    <Table.Cell className="text-sm py-2">
-                      {getStatusBadge(order.status)}
-                    </Table.Cell>
-                  </Table.Row>
-                ))}
-              </Table.Body>
-            </Table>
+            <>
+              <div className="max-h-[60vh] overflow-y-auto scrollbar-hide" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                <Table>
+                  <Table.Header>
+                    <Table.Row className="bg-gray-50">
+                      <Table.Head className="text-xs font-semibold text-gray-700 py-3 px-4">Mã đơn</Table.Head>
+                      <Table.Head className="text-xs font-semibold text-gray-700 py-3 px-4">Khách hàng</Table.Head>
+                      <Table.Head className="text-xs font-semibold text-gray-700 py-3 px-4">Nhân viên</Table.Head>
+                      <Table.Head className="text-xs font-semibold text-gray-700 py-3 px-4">Ngày</Table.Head>
+                      <Table.Head className="text-xs font-semibold text-gray-700 py-3 px-4">Giá trị</Table.Head>
+                      <Table.Head className="text-xs font-semibold text-gray-700 py-3 px-4">Trạng thái</Table.Head>
+                    </Table.Row>
+                  </Table.Header>
+                  <Table.Body>
+                    {recentOrders
+                      .slice((modalCurrentPage - 1) * modalOrdersPerPage, modalCurrentPage * modalOrdersPerPage)
+                      .map((order) => (
+                        <Table.Row key={order.orderId} className="hover:bg-gray-50 border-b border-gray-100">
+                          <Table.Cell className="font-mono text-sm py-3 px-4 text-gray-900">
+                            #{order.orderId || `ELEC-${order.orderId}`}
+                          </Table.Cell>
+                          <Table.Cell className="font-medium text-sm py-3 px-4 text-gray-900">
+                            {order.customerName || 'N/A'}
+                          </Table.Cell>
+                          <Table.Cell className="text-sm py-3 px-4 text-gray-700">
+                            {getStaffName(order)}
+                          </Table.Cell>
+                          <Table.Cell className="text-sm py-3 px-4 text-gray-700">
+                            {formatDate(order.createdAt || order.orderDate)}
+                          </Table.Cell>
+                          <Table.Cell className="font-semibold text-sm py-3 px-4 text-gray-900">
+                            {formatCurrency(order.totalAmount || order.totalPrice || 0)}
+                          </Table.Cell>
+                          <Table.Cell className="text-sm py-3 px-4">
+                            {getStatusBadge(order.status)}
+                          </Table.Cell>
+                        </Table.Row>
+                      ))}
+                  </Table.Body>
+                </Table>
+              </div>
+              
+              {/* Phân trang */}
+              {recentOrders.length > modalOrdersPerPage && (
+                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                  <div className="text-sm text-gray-600">
+                    Hiển thị {((modalCurrentPage - 1) * modalOrdersPerPage) + 1} đến {Math.min(modalCurrentPage * modalOrdersPerPage, recentOrders.length)} trong {recentOrders.length} kết quả
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setModalCurrentPage(prev => Math.max(1, prev - 1))}
+                      disabled={modalCurrentPage === 1}
+                    >
+                      <ChevronLeft size={16} className="mr-1" />
+                      Trước
+                    </Button>
+                    <div className="flex items-center gap-1">
+                      {Array.from({ length: Math.ceil(recentOrders.length / modalOrdersPerPage) }, (_, i) => i + 1)
+                        .filter(page => {
+                          const totalPages = Math.ceil(recentOrders.length / modalOrdersPerPage);
+                          if (totalPages <= 7) return true;
+                          if (page === 1 || page === totalPages) return true;
+                          if (Math.abs(page - modalCurrentPage) <= 1) return true;
+                          return false;
+                        })
+                        .map((page, index, array) => {
+                          const totalPages = Math.ceil(recentOrders.length / modalOrdersPerPage);
+                          const prevPage = array[index - 1];
+                          const showEllipsis = prevPage && page - prevPage > 1;
+                          
+                          return (
+                            <div key={page} className="flex items-center gap-1">
+                              {showEllipsis && (
+                                <span className="px-2 text-gray-400">...</span>
+                              )}
+                              <Button
+                                variant={modalCurrentPage === page ? "primary" : "outline"}
+                                size="sm"
+                                onClick={() => setModalCurrentPage(page)}
+                                className="min-w-[40px]"
+                              >
+                                {page}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setModalCurrentPage(prev => Math.min(Math.ceil(recentOrders.length / modalOrdersPerPage), prev + 1))}
+                      disabled={modalCurrentPage >= Math.ceil(recentOrders.length / modalOrdersPerPage)}
+                    >
+                      Tiếp
+                      <ChevronRight size={16} className="ml-1" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </Modal>

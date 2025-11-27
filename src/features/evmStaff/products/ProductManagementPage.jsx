@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, Plus, Edit, Trash2, Box, Layers, ChevronRight, Package, Truck, Zap, Battery, Gauge, Upload } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import EVMStaffLayout from '../../../components/layout/EVMStaffLayout';
@@ -68,6 +68,8 @@ const ProductManagementPage = () => {
   });
   const [colorImageFile, setColorImageFile] = useState(null);
   const [uploadImageFile, setUploadImageFile] = useState(null);
+  const [currentImageIndex, setCurrentImageIndex] = useState({}); // Track current image index for each model
+  const imageIntervalRefs = useRef({}); // Store interval refs for cleanup
 
   const { data: modelsData, isLoading: isLoadingModels, error: modelsError } = useGetAllModelsQuery();
   const { data: colorsData, error: colorsError } = useGetAllColorsQuery();
@@ -115,6 +117,25 @@ const ProductManagementPage = () => {
     return map;
   }, [allModelColors]);
 
+  // Get images for each model (from model colors)
+  const modelImagesMap = useMemo(() => {
+    const map = new Map();
+    allModelColors.forEach((mc) => {
+      const imageUrl = mc.imageUrl || mc.image || mc.imagePath || mc.imageFileUrl || mc.imageFile;
+      if (imageUrl) {
+        if (!map.has(mc.modelId)) {
+          map.set(mc.modelId, []);
+        }
+        map.get(mc.modelId).push({
+          imageUrl,
+          colorId: mc.colorId,
+          colorName: colors.find((c) => c.colorId === mc.colorId)?.colorName || 'N/A',
+        });
+      }
+    });
+    return map;
+  }, [allModelColors, colors]);
+
   const filteredModels = useMemo(() => {
     return models.filter((model) => {
       const matchesSearch =
@@ -123,6 +144,56 @@ const ProductManagementPage = () => {
       return matchesSearch;
     });
   }, [models, searchTerm]);
+
+  // Auto-rotate images for each model
+  useEffect(() => {
+    // Initialize indices for all models with images
+    filteredModels.forEach((model) => {
+      const images = modelImagesMap.get(model.modelId) || [];
+      if (images.length > 0) {
+        setCurrentImageIndex((prev) => {
+          if (prev[model.modelId] === undefined) {
+            return { ...prev, [model.modelId]: 0 };
+          }
+          return prev;
+        });
+      }
+    });
+
+    // Set up intervals for models with multiple images
+    filteredModels.forEach((model) => {
+      const images = modelImagesMap.get(model.modelId) || [];
+      if (images.length > 1) {
+        // Clear existing interval if any
+        if (imageIntervalRefs.current[model.modelId]) {
+          clearInterval(imageIntervalRefs.current[model.modelId]);
+        }
+
+        // Set up interval to rotate images
+        const intervalId = setInterval(() => {
+          setCurrentImageIndex((prev) => {
+            const currentIdx = prev[model.modelId] || 0;
+            const images = modelImagesMap.get(model.modelId) || [];
+            if (images.length > 0) {
+              const nextIdx = (currentIdx + 1) % images.length;
+              return { ...prev, [model.modelId]: nextIdx };
+            }
+            return prev;
+          });
+        }, 3500); // Change image every 3.5 seconds
+
+        imageIntervalRefs.current[model.modelId] = intervalId;
+      }
+    });
+
+    // Cleanup intervals on unmount or when models/images change
+    return () => {
+      Object.values(imageIntervalRefs.current).forEach((intervalId) => {
+        if (intervalId) clearInterval(intervalId);
+      });
+      imageIntervalRefs.current = {};
+    };
+  }, [filteredModels, modelImagesMap]);
 
   const getStatusBadge = (status) => {
     const normalizedStatus = status?.toUpperCase() || 'ACTIVE';
@@ -433,7 +504,7 @@ const ProductManagementPage = () => {
   const handleCreateColor = async (e) => {
     e.preventDefault();
     if (!selectedModel) {
-      showNotification('Vui lòng chọn model trước', 'error');
+      showNotification('Vui lòng chọn mẫu xe trước', 'error');
       return;
     }
     
@@ -513,7 +584,7 @@ const ProductManagementPage = () => {
           price: '',
         });
         setColorImageFile(null);
-        showNotification('Thêm màu cho model thành công!', 'success');
+        showNotification('Thêm màu cho mẫu xe thành công!', 'success');
       }
     } catch (error) {
       // Lỗi khi tạo model color
@@ -597,12 +668,8 @@ const ProductManagementPage = () => {
   };
 
   const formatCurrency = (amount) => {
-    if (!amount) return '$0';
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-    }).format(amount);
+    if (!amount) return '0₫';
+    return new Intl.NumberFormat('vi-VN').format(amount) + '₫';
   };
 
   const formatCurrencyVND = (amount) => {
@@ -629,14 +696,24 @@ const ProductManagementPage = () => {
 
   const getTransactionStatusBadge = (status) => {
     const statusMap = {
+      DRAFT: { variant: 'default', label: 'Nháp' },
       PENDING: { variant: 'warning', label: 'Chờ xử lý' },
+      CONFIRMED: { variant: 'info', label: 'Đã xác nhận' },
       ACCEPTED: { variant: 'info', label: 'Đã chấp nhận' },
-      REJECTED: { variant: 'error', label: 'Đã từ chối' },
+      EVM_SIGNED: { variant: 'info', label: 'Chờ ký hợp đồng' },
+      SIGNED: { variant: 'success', label: 'Đã ký hợp đồng' },
+      CONTRACT_SIGNED: { variant: 'success', label: 'Đã ký hợp đồng' },
+      FILE_UPLOADED: { variant: 'info', label: 'Đã upload hóa đơn' },
+      PAYMENT_CONFIRMED: { variant: 'info', label: 'Đã xác nhận thanh toán' },
+      PROCESSING: { variant: 'info', label: 'Đang xử lý' },
+      IN_TRANSIT: { variant: 'info', label: 'Đang vận chuyển' },
       SHIPPING: { variant: 'info', label: 'Đang vận chuyển' },
       DELIVERED: { variant: 'success', label: 'Đã giao' },
-      CANCELLED: { variant: 'default', label: 'Đã hủy' },
+      COMPLETED: { variant: 'success', label: 'Hoàn thành' },
+      CANCELLED: { variant: 'error', label: 'Đã hủy' },
+      REJECTED: { variant: 'error', label: 'Đã từ chối' },
     };
-    const config = statusMap[status] || { variant: 'default', label: status || 'N/A' };
+    const config = statusMap[status] || { variant: 'default', label: status || 'Không xác định' };
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
@@ -829,7 +906,7 @@ const ProductManagementPage = () => {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-gray-500 text-sm font-medium">Tổng số xe</p>
+                  <p className="text-gray-500 text-sm font-medium">Tổng số mẫu xe</p>
                   <p className="text-3xl font-bold mt-2 text-gray-900">{models.length}</p>
                 </div>
                 <div className="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -889,7 +966,7 @@ const ProductManagementPage = () => {
                 <div className="flex items-center gap-4">
                   <div className="flex-1">
                     <SearchBar
-                      placeholder="Tìm kiếm theo mã transaction, tên model..."
+                      placeholder="Tìm kiếm theo mã transaction, tên mẫu xe..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
                     />
@@ -923,7 +1000,7 @@ const ProductManagementPage = () => {
                       <Table.Header>
                         <Table.Row>
                           <Table.Head>MÃ TRANSACTION</Table.Head>
-                          <Table.Head>MODEL</Table.Head>
+                          <Table.Head>MẪU XE</Table.Head>
                           <Table.Head>MÀU</Table.Head>
                           <Table.Head>ĐẠI LÝ</Table.Head>
                           <Table.Head>SỐ LƯỢNG</Table.Head>
@@ -1025,6 +1102,9 @@ const ProductManagementPage = () => {
                 {filteredModels.map((model, index) => {
                   const basePrice = modelPriceMap.get(model.modelId) || 0;
                   const colorCount = allModelColors.filter((mc) => mc.modelId === model.modelId).length;
+                  const modelImages = modelImagesMap.get(model.modelId) || [];
+                  const currentIdx = currentImageIndex[model.modelId] || 0;
+                  const currentImage = modelImages[currentIdx];
 
                   return (
                     <motion.div
@@ -1035,19 +1115,61 @@ const ProductManagementPage = () => {
                       className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer"
                       onClick={() => setSelectedModel(model)}
                     >
-                      {/* Card Header */}
-                      <div className="h-32 bg-gradient-to-br from-gray-50 to-gray-100 p-6 relative overflow-hidden border-b border-gray-200">
-                        <div className="absolute top-0 right-0 w-32 h-32 bg-gray-200/30 rounded-full -mr-16 -mt-16"></div>
-                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-gray-200/30 rounded-full -ml-12 -mb-12"></div>
-                        <div className="relative z-10 flex items-center justify-between">
-                          <div className="w-16 h-16 bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center shadow-sm">
-                            <Zap size={32} className="text-gray-700" />
+                      {/* Card Header with Image Carousel */}
+                      <div className="h-48 relative overflow-hidden border-b border-gray-200 bg-gradient-to-br from-gray-50 to-gray-100">
+                        {modelImages.length > 0 ? (
+                          <>
+                            <AnimatePresence mode="wait">
+                              <motion.img
+                                key={`${model.modelId}-${currentIdx}`}
+                                src={currentImage.imageUrl}
+                                alt={`${model.modelName} - ${currentImage.colorName}`}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                transition={{ duration: 0.5 }}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                }}
+                              />
+                            </AnimatePresence>
+                            {/* Image indicators */}
+                            {modelImages.length > 1 && (
+                              <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1.5">
+                                {modelImages.map((_, idx) => (
+                                  <div
+                                    key={idx}
+                                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                                      idx === currentIdx
+                                        ? 'w-6 bg-white'
+                                        : 'w-1.5 bg-white/50'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            )}
+                            {/* Model ID overlay */}
+                            <div className="absolute top-3 right-3 bg-white/90 backdrop-blur-sm px-3 py-1.5 rounded-lg shadow-sm">
+                              <p className="text-gray-500 text-xs font-medium">Mẫu xe</p>
+                              <p className="text-gray-900 text-sm font-bold">ELEC-{model.modelId}</p>
+                            </div>
+                          </>
+                        ) : (
+                          <div className="h-full flex items-center justify-center relative">
+                            <div className="absolute top-0 right-0 w-32 h-32 bg-gray-200/30 rounded-full -mr-16 -mt-16"></div>
+                            <div className="absolute bottom-0 left-0 w-24 h-24 bg-gray-200/30 rounded-full -ml-12 -mb-12"></div>
+                            <div className="relative z-10 flex items-center justify-between w-full px-6">
+                              <div className="w-16 h-16 bg-white border-2 border-gray-200 rounded-xl flex items-center justify-center shadow-sm">
+                                <Zap size={32} className="text-gray-700" />
+                              </div>
+                              <div className="text-right">
+                                <p className="text-gray-500 text-xs font-medium">Mẫu xe</p>
+                                <p className="text-gray-900 text-lg font-bold">ELEC-{model.modelId}</p>
+                              </div>
+                            </div>
                           </div>
-                          <div className="text-right">
-                            <p className="text-gray-500 text-xs font-medium">Model</p>
-                            <p className="text-gray-900 text-lg font-bold">ELEC-{model.modelId}</p>
-                          </div>
-                        </div>
+                        )}
                       </div>
 
                       {/* Card Body */}
@@ -1087,7 +1209,7 @@ const ProductManagementPage = () => {
                         <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                           <div>
                             <p className="text-xs text-gray-500">Giá từ</p>
-                            <p className="text-lg font-bold text-gray-900">{formatCurrency(basePrice)}</p>
+                            <p className="text-lg font-bold text-gray-900">{formatCurrencyVND(basePrice)}</p>
                           </div>
                           <div className="text-right">
                             <p className="text-xs text-gray-500">Màu sắc</p>
@@ -1212,7 +1334,7 @@ const ProductManagementPage = () => {
                           ></div>
                           <div>
                             <p className="font-medium text-gray-900">{color?.colorName || 'N/A'}</p>
-                            <p className="text-sm text-gray-500">{formatCurrency(mc.price)}</p>
+                            <p className="text-sm text-gray-500">{formatCurrencyVND(mc.price)}</p>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -1507,7 +1629,7 @@ const ProductManagementPage = () => {
                   <span className="font-medium">Màu:</span> {colors.find((c) => c.colorId === selectedModelColor.colorId)?.colorName || 'N/A'}
                 </p>
                 <p className="text-sm text-gray-600">
-                  <span className="font-medium">Model:</span> {selectedModel?.modelName || 'N/A'}
+                  <span className="font-medium">Mẫu xe:</span> {selectedModel?.modelName || 'N/A'}
                 </p>
               </div>
             )}

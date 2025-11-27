@@ -6,7 +6,6 @@ import {
   ShoppingCart,
   Tag,
   Users,
-  Settings,
   LogOut,
   Menu,
   X,
@@ -60,13 +59,26 @@ const DealerManagerLayout = ({ children }) => {
         } bg-white border-r border-gray-200 transition-all duration-300 overflow-hidden flex flex-col`}
       >
         {/* Logo */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+            <div className="flex items-center w-full">
+              <div className="bg-white rounded-xl p-2 shadow-md border-2 border-gray-200 cursor-default w-full flex justify-center" style={{ pointerEvents: 'auto', opacity: 1 }}>
+                <img 
+                  src="/images/electra-logo1.png" 
+                  alt="Electra Logo" 
+                  className="h-16 w-28 object-contain cursor-default"
+                  style={{ pointerEvents: 'auto', opacity: 1 }}
+                  onError={(e) => {
+                    // Fallback nếu logo chưa có, hiển thị icon cũ
+                    e.target.style.display = 'none';
+                    const fallback = e.target.nextElementSibling;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+              </div>
+              <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center hidden">
                 <span className="text-white font-bold text-xl">E</span>
               </div>
-              <span className="text-xl font-bold text-gray-900">Electra</span>
             </div>
             <button
               onClick={() => setIsSidebarOpen(false)}
@@ -107,15 +119,8 @@ const DealerManagerLayout = ({ children }) => {
           </ul>
         </nav>
 
-        {/* Settings & Logout */}
-        <div className="p-4 border-t border-gray-200 space-y-2">
-          <a
-            href="#"
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
-          >
-            <Settings size={20} />
-            <span>Cài Đặt</span>
-          </a>
+        {/* Logout */}
+        <div className="p-4 border-t border-gray-200">
           <button
             onClick={handleLogout}
             className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-gray-700 hover:bg-gray-100 transition-colors"
@@ -139,7 +144,7 @@ const DealerManagerLayout = ({ children }) => {
         </header>
 
         {/* Content */}
-        <main className="flex-1 overflow-y-auto bg-gray-50">{children}</main>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-hide bg-gray-50">{children}</main>
       </div>
     </div>
   );

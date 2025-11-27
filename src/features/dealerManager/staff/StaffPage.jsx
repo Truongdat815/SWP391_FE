@@ -270,10 +270,15 @@ const StaffPage = () => {
         console.log('Update status result:', result);
       }
 
-      setSuccessModal({
-        isOpen: true,
-        message: `Đã ${newStatus === 'DISABLED' ? 'khóa' : 'kích hoạt'} tài khoản thành công!`,
-      });
+      // Kiểm tra response có thành công không
+      if (result?.code === 200 || result?.code === 201 || (result && !result.code)) {
+        setSuccessModal({
+          isOpen: true,
+          message: `Đã ${newStatus === 'DISABLED' ? 'khóa' : 'kích hoạt'} tài khoản thành công!`,
+        });
+      } else {
+        throw new Error(result?.message || 'Cập nhật trạng thái không thành công');
+      }
     } catch (error) {
       if (import.meta.env.DEV) {
         console.error('Error updating staff status:', {
@@ -347,15 +352,9 @@ const StaffPage = () => {
     <DealerManagerLayout>
       <div className="space-y-6 p-6">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Quản lý Đội Ngũ</h1>
-            <p className="text-gray-600 mt-1">Xem và quản lý nhân viên tại đại lý.</p>
-          </div>
-          <Button onClick={() => setIsCreateModalOpen(true)}>
-            <UserPlus size={20} className="mr-2" />
-            Thêm Nhân viên
-          </Button>
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900">Quản lý Đội Ngũ</h1>
+          <p className="text-gray-600 mt-1">Xem và quản lý nhân viên tại đại lý.</p>
         </div>
 
         {/* Search */}
@@ -450,58 +449,6 @@ const StaffPage = () => {
           )}
         </div>
       </div>
-
-      {/* Create Modal */}
-      <Modal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        title="Thêm Nhân viên Mới"
-        size="lg"
-      >
-        <form onSubmit={handleCreate} className="space-y-4">
-          <Input
-            label="Họ và tên"
-            value={formData.fullName}
-            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-            required
-          />
-          <Input
-            label="Email"
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            required
-          />
-          <Input
-            label="Số điện thoại"
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            required
-          />
-          <Input
-            label="Mật khẩu"
-            type="password"
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            required
-          />
-          <div className="flex gap-4 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setIsCreateModalOpen(false)}
-              className="flex-1"
-              disabled={isCreating}
-            >
-              Hủy
-            </Button>
-            <Button type="submit" className="flex-1" disabled={isCreating}>
-              {isCreating ? 'Đang tạo...' : 'Tạo'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
 
       {/* Edit Modal */}
       <Modal

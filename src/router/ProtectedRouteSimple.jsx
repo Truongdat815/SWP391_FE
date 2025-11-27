@@ -15,27 +15,21 @@ const ProtectedRouteSimple = ({ children }) => {
 
   useEffect(() => {
     const checkAuth = async () => {
-      console.log('Checking auth for path:', location.pathname);
-      
       // Check if there's a logout flag - if yes, don't restore any auth state
       const logoutFlag = localStorage.getItem('_logout_flag');
       if (logoutFlag) {
-        console.log('Logout flag detected, skipping auth restore');
         setIsLoading(false);
         return;
       }
       
       const roleFromPath = getRoleFromPath(location.pathname);
-      console.log('Role from path:', roleFromPath);
       
       // Only restore from localStorage if we're not authenticated AND there's no current role
       // This prevents restoring old auth data after logout
       if (roleFromPath && !isAuthenticated && !currentRole) {
         const authData = getAuthFromStorage(roleFromPath);
-        console.log('Auth data from storage:', authData);
         
         if (authData && authData.token) {
-          console.log('Setting credentials from storage');
           dispatch(setCredentials({
             user: authData.user,
             token: authData.token,
@@ -65,7 +59,6 @@ const ProtectedRouteSimple = ({ children }) => {
   // Check if there's a logout flag - if yes, don't allow access
   const logoutFlag = localStorage.getItem('_logout_flag');
   if (logoutFlag) {
-    console.log('Logout flag detected, redirecting to login');
     return <Navigate to="/login" replace />;
   }
   
@@ -74,21 +67,22 @@ const ProtectedRouteSimple = ({ children }) => {
   // This prevents using stale localStorage data after logout
   const hasValidAuth = isAuthenticated || (!isAuthenticated && !currentRole && roleFromPath && getAuthFromStorage(roleFromPath)?.token);
 
-  console.log('Final auth check:', {
-    isAuthenticated,
-    roleFromPath,
-    hasValidAuth,
-    currentRole
-  });
-
   if (!hasValidAuth) {
-    console.log('No valid auth, redirecting to login');
     return <Navigate to="/login" replace />;
   }
 
   // Check for pending status
   if (user && user.status === 'PENDING' && location.pathname !== '/change-password') {
     return <Navigate to="/change-password" replace />;
+  }
+
+  // Check for disabled/inactive status - không cho phép truy cập
+  if (user && (user.status === 'DISABLED' || user.status === 'INACTIVE')) {
+    // Clear auth và redirect về login
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.setItem('_logout_flag', 'true');
+    return <Navigate to="/login" replace />;
   }
 
   return children;

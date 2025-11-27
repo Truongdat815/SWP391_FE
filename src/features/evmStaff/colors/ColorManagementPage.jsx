@@ -32,8 +32,8 @@ const ColorManagementPage = () => {
   });
   const [showColorPicker, setShowColorPicker] = useState(false);
 
-  const { data: colorsData, isLoading, error } = useGetAllColorsQuery();
-  const { data: modelColorsData } = useGetAllModelColorsQuery();
+  const { data: colorsData, isLoading, error, refetch: refetchColors } = useGetAllColorsQuery();
+  const { data: modelColorsData, refetch: refetchModelColors } = useGetAllModelColorsQuery();
   const { data: modelsData } = useGetAllModelsQuery();
 
   const [createColor, { isLoading: isCreating }] = useCreateColorMutation();
@@ -66,7 +66,7 @@ const ColorManagementPage = () => {
     const associatedModelColors = modelColors.filter((mc) => mc.colorId === colorId);
     return associatedModelColors.map((mc) => {
       const model = models.find((m) => m.modelId === mc.modelId);
-      return model?.modelName || `Model ${mc.modelId}`;
+      return model?.modelName || `Mẫu xe ${mc.modelId}`;
     });
   };
 
@@ -86,6 +86,8 @@ const ColorManagementPage = () => {
     
     try {
       await createColor(formData).unwrap();
+      // Refetch để cập nhật UI ngay lập tức
+      await refetchColors();
       setIsCreateModalOpen(false);
       setFormData({ colorName: '', colorCode: '' });
       setShowColorPicker(false);
@@ -122,6 +124,8 @@ const ColorManagementPage = () => {
     
     try {
       await updateColor({ id: selectedColor.colorId, ...formData }).unwrap();
+      // Refetch để cập nhật UI ngay lập tức
+      await refetchColors();
       setIsEditModalOpen(false);
       setSelectedColor(null);
       showNotification('Cập nhật màu thành công!', 'success');
@@ -141,6 +145,8 @@ const ColorManagementPage = () => {
 
     try {
       await deleteColor(colorToDelete.colorId).unwrap();
+      // Refetch để cập nhật UI ngay lập tức
+      await refetchColors();
       setIsDeleteModalOpen(false);
       setColorToDelete(null);
       showNotification('Xóa màu thành công!', 'success');
@@ -249,10 +255,10 @@ const ColorManagementPage = () => {
             </div>
             <Dropdown
               options={[
-                { value: 'all', label: 'Lọc theo Model' },
+                { value: 'all', label: 'Lọc theo Mẫu xe' },
                 ...models.map((model) => ({
                   value: model.modelId?.toString(),
-                  label: model.modelName || `Model ${model.modelId}`,
+                  label: model.modelName || `Mẫu xe ${model.modelId}`,
                 })),
               ]}
               value={modelFilter}

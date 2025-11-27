@@ -65,15 +65,81 @@ const OrderManagementPage = () => {
   const models = modelsData?.data || [];
   const modelColors = modelColorsData?.data || [];
 
-  // Tính toán metrics
+  // Tính toán doanh thu tháng hiện tại từ các đơn hàng
   const currentMonthRevenue = useMemo(() => {
-    const currentMonth = new Date().getMonth() + 1;
-    const currentYear = new Date().getFullYear();
-    const revenue = monthlyRevenue.find(
-      (rev) => rev.month === currentMonth && rev.year === currentYear
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+    
+    // Lấy giá trị đơn hàng (totalAmount, totalPrice, hoặc tính từ orderDetails)
+    const getOrderValue = (order) => {
+      let orderValue = order.totalPrice || order.totalAmount || order.price || 0;
+      
+      // Nếu không có totalAmount/totalPrice hoặc bằng 0, tính từ orderDetails
+      if (!orderValue || orderValue === 0) {
+        const orderDetails = order.getOrderDetailsResponses || order.orderDetails || [];
+        orderValue = orderDetails.reduce((detailSum, detail) => {
+          const price = detail.price || detail.unitPrice || 0;
+          const quantity = detail.quantity || 1;
+          return detailSum + (price * quantity);
+        }, 0);
+      }
+      
+      return Number(orderValue) || 0;
+    };
+    
+    // 1. Tính từ đơn hàng đã thanh toán đầy đủ (FULLY_PAID)
+    const fullyPaidOrders = orders.filter((order) => {
+      const orderDate = new Date(order.createdAt || order.orderDate || order.createdDate);
+      return (
+        orderDate.getMonth() === currentMonth &&
+        orderDate.getFullYear() === currentYear &&
+        order.status === 'FULLY_PAID'
+      );
+    });
+    
+    const fullyPaidRevenue = fullyPaidOrders.reduce((sum, order) => {
+      return sum + getOrderValue(order);
+    }, 0);
+    
+    // 2. Tính tiền cọc từ đơn hàng đã đặt cọc nhưng bị hủy (bỏ cọc)
+    // Bao gồm:
+    // - Đơn hàng có status CANCELLED hoặc REJECTED và có totalAmount > 0 (đã có giá trị, có thể đã đặt cọc)
+    // - Hoặc có thể kiểm tra qua payment history nếu có
+    const cancelledDepositOrders = orders.filter((order) => {
+      const orderDate = new Date(order.createdAt || order.orderDate || order.createdDate);
+      const totalValue = getOrderValue(order);
+      return (
+        orderDate.getMonth() === currentMonth &&
+        orderDate.getFullYear() === currentYear &&
+        (order.status === 'CANCELLED' || order.status === 'REJECTED') &&
+        // Chỉ tính nếu đơn hàng có giá trị (có thể đã đặt cọc)
+        totalValue > 0
+      );
+    });
+    
+    // Tính tiền cọc: lấy từ depositAmount nếu có, nếu không thì tính 30% của totalAmount
+    const depositRevenue = cancelledDepositOrders.reduce((sum, order) => {
+      const totalValue = getOrderValue(order);
+      // Ưu tiên lấy từ depositAmount/depositPrice, nếu không có thì tính 30% của totalAmount
+      const depositAmount = order.depositAmount || 
+                           order.depositPrice || 
+                           order.paidDepositAmount ||
+                           (totalValue * 0.3); // Mặc định 30% nếu không có thông tin cụ thể
+      return sum + depositAmount;
+    }, 0);
+    
+    // Tổng doanh thu = đơn đã thanh toán đầy đủ + tiền cọc của đơn bị hủy
+    const totalRevenue = fullyPaidRevenue + depositRevenue;
+    
+    // Nếu có dữ liệu từ API và khớp với tháng hiện tại, ưu tiên dùng API
+    const apiRevenue = monthlyRevenue.find(
+      (rev) => rev.month === (currentMonth + 1) && rev.year === currentYear
     );
-    return revenue?.totalRevenue || 0;
-  }, [monthlyRevenue]);
+    
+    // Ưu tiên dùng API nếu có và > 0, nếu không thì dùng tính toán từ orders
+    return (apiRevenue?.totalRevenue && apiRevenue.totalRevenue > 0) ? apiRevenue.totalRevenue : totalRevenue;
+  }, [orders, monthlyRevenue]);
 
   const pendingOrders = orders.filter(
     (order) => order.status === 'PENDING' || order.status === 'DRAFT'
@@ -115,7 +181,9 @@ const OrderManagementPage = () => {
 
   const getStatusBadge = (status) => {
     const statusMap = {
+      DRAFT: { variant: 'default', label: 'Nháp' },
       PENDING: { variant: 'warning', label: 'Chờ duyệt' },
+      PENDING_DEPOSIT: { variant: 'warning', label: 'Chờ đặt cọc' },
       CONFIRMED: { variant: 'info', label: 'Đã xác nhận' },
       DELIVERING: { variant: 'info', label: 'Đang giao' },
       DELIVERED: { variant: 'success', label: 'Hoàn thành' },
@@ -124,9 +192,9 @@ const OrderManagementPage = () => {
       CONTRACT_SIGNED: { variant: 'info', label: 'Đã ký hợp đồng' },
       CONTRACT_PENDING: { variant: 'warning', label: 'Chờ ký hợp đồng' },
       CANCELLED: { variant: 'error', label: 'Đã hủy' },
-      DRAFT: { variant: 'default', label: 'Nháp' },
+      REJECTED: { variant: 'error', label: 'Đã từ chối' },
     };
-    const config = statusMap[status] || { variant: 'default', label: status || 'N/A' };
+    const config = statusMap[status] || { variant: 'default', label: 'Không xác định' };
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
@@ -190,7 +258,7 @@ const OrderManagementPage = () => {
       errors.customerPhone = 'Số điện thoại không hợp lệ';
     }
     if (!formData.modelId) {
-      errors.modelId = 'Vui lòng chọn model xe';
+      errors.modelId = 'Vui lòng chọn mẫu xe';
     }
     if (!formData.colorId) {
       errors.colorId = 'Vui lòng chọn màu sắc';
@@ -474,10 +542,6 @@ const OrderManagementPage = () => {
             </p>
           </div>
           <div className="flex gap-3">
-            <Button variant="outline" onClick={handleExportReport}>
-              <Download size={20} className="mr-2" />
-              Xuất Báo Cáo
-            </Button>
             <Button onClick={handleOpenCreateOrderModal}>
               <Plus size={20} className="mr-2" />
               Tạo Đơn Hàng Mới
@@ -971,14 +1035,14 @@ const OrderManagementPage = () => {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Model xe *
+                Mẫu xe *
               </label>
               <Dropdown
                 options={[
-                  { value: '', label: 'Chọn model' },
+                  { value: '', label: 'Chọn mẫu xe' },
                   ...models.map((model) => ({
                     value: model.modelId?.toString(),
-                    label: model.modelName || `Model ${model.modelId}`,
+                    label: model.modelName || `Mẫu xe ${model.modelId}`,
                   })),
                 ]}
                 value={formData.modelId}
@@ -988,7 +1052,7 @@ const OrderManagementPage = () => {
                     setFormErrors({ ...formErrors, modelId: '' });
                   }
                 }}
-                placeholder="Chọn model"
+                placeholder="Chọn mẫu xe"
               />
               {formErrors.modelId && (
                 <p className="text-sm text-red-600 mt-1">{formErrors.modelId}</p>

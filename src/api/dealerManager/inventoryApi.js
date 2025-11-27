@@ -17,12 +17,23 @@ export const inventoryApi = baseApi.injectEndpoints({
       }),
     }),
     // Cập nhật giá của store stock
+    // Theo Swagger: chỉ cần modelId, colorId, và price
     updateStockPrice: builder.mutation({
-      query: ({ storeStockId, price }) => ({
-        url: '/store-stocks/update-price',
-        method: 'PUT',
-        body: { storeStockId, price },
-      }),
+      query: ({ modelId, colorId, price }) => {
+        const body = { 
+          modelId: Number(modelId),
+          colorId: Number(colorId),
+          price: Number(price),
+        };
+        
+        console.log('API updateStockPrice request body:', body);
+        
+        return {
+          url: '/store-stocks/update-price',
+          method: 'PUT',
+          body,
+        };
+      },
       invalidatesTags: ['Inventory'],
     }),
     // Lấy tất cả inventory transactions
@@ -90,9 +101,10 @@ export const inventoryApi = baseApi.injectEndpoints({
     }),
     // Xác nhận đã nhận hàng (confirm-delivery)
     confirmDelivery: builder.mutation({
-      query: (inventoryId) => ({
+      query: ({ inventoryId, vehicles }) => ({
         url: `/inventory-transactions/confirm-delivery/${inventoryId}`,
         method: 'PUT',
+        body: vehicles ? { vehicles } : undefined,
       }),
       invalidatesTags: ['Inventory'],
     }),
@@ -130,6 +142,14 @@ export const inventoryApi = baseApi.injectEndpoints({
     getStoreStockById: builder.query({
       query: (storeStockId) => `/store-stocks/${storeStockId}`,
       providesTags: ['Inventory'],
+      transformResponse: (response) => {
+        // API có thể trả về { code, message, data } hoặc data trực tiếp
+        if (response?.data !== undefined && response?.code !== undefined) {
+          return { data: response.data };
+        }
+        // Nếu response đã là data trực tiếp
+        return { data: response };
+      },
     }),
     // Lấy inventory transaction theo ID
     getInventoryTransactionById: builder.query({
@@ -156,6 +176,25 @@ export const inventoryApi = baseApi.injectEndpoints({
         },
       }),
     }),
+    // Download vehicle Excel
+    getVehicleExcel: builder.query({
+      query: (inventoryId) => ({
+        url: `/inventory-transactions/${inventoryId}/vehicle-excel`,
+        responseHandler: async (response) => {
+          if (!response.ok) {
+            const errorText = await response.text().catch(() => 'Failed to download Excel');
+            throw new Error(errorText);
+          }
+          const blob = await response.blob();
+          return blob;
+        },
+      }),
+    }),
+    // Lấy danh sách xe đã bán
+    getSoldVehicles: builder.query({
+      query: (storeId) => `/store-stocks/${storeId}/sold-vehicles`,
+      providesTags: ['Inventory'],
+    }),
   }),
 });
 
@@ -176,5 +215,7 @@ export const {
   useGetPaymentInfoQuery,
   useGetContractHtmlQuery,
   useGetContractQuery,
+  useGetVehicleExcelQuery,
+  useGetSoldVehiclesQuery,
 } = inventoryApi;
 

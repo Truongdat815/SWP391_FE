@@ -1,49 +1,60 @@
-import { useState } from 'react';
-import { User, Lock, Bell, Globe } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { User, Lock } from 'lucide-react';
 import EVMStaffLayout from '../../../components/layout/EVMStaffLayout';
-import Card from '../../../components/ui/Card';
 import Input from '../../../components/ui/Input';
 import Button from '../../../components/ui/Button';
+import Toast from '../../../components/shared/Toast';
+import { useGetMeQuery } from '../../../api/auth/authApi';
+import { useToast } from '../../../hooks/useToast';
 
 const SettingsPage = () => {
+  const { toasts, showToast, removeToast } = useToast();
+  const { data: userResponse, isLoading: isLoadingUser } = useGetMeQuery();
+  const userData = userResponse?.data;
+  
   const [activeTab, setActiveTab] = useState('profile');
   const [profileData, setProfileData] = useState({
-    fullName: 'Nguyễn Văn A',
-    email: 'nguyenvana@example.com',
-    phone: '0987654321',
+    fullName: '',
+    email: '',
+    phone: '',
   });
+  
+  // Load user data vào form
+  useEffect(() => {
+    if (userData) {
+      setProfileData({
+        fullName: userData.fullName || userData.name || userData.username || '',
+        email: userData.email || '',
+        phone: userData.phone || userData.phoneNumber || '',
+      });
+    }
+  }, [userData]);
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     newPassword: '',
     confirmPassword: '',
   });
-  const [notifications, setNotifications] = useState({
-    emailNotifications: true,
-    pushNotifications: false,
-    orderUpdates: true,
-  });
-
   const handleProfileUpdate = async (e) => {
     e.preventDefault();
     
     // Validation
     if (!profileData.fullName?.trim()) {
-      alert('Vui lòng nhập họ và tên');
+      showToast('Vui lòng nhập họ và tên', 'error');
       return;
     }
     
     if (!profileData.email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(profileData.email)) {
-      alert('Email không hợp lệ');
+      showToast('Email không hợp lệ', 'error');
       return;
     }
     
     if (!profileData.phone || !/^[0-9]{10,11}$/.test(profileData.phone.replace(/\s/g, ''))) {
-      alert('Số điện thoại phải có 10-11 chữ số');
+      showToast('Số điện thoại phải có 10-11 chữ số', 'error');
       return;
     }
     
     // TODO: Implement profile update API
-    alert('Cập nhật thông tin thành công!');
+    showToast('Cập nhật thông tin thành công!', 'success');
   };
 
   const handlePasswordChange = async (e) => {
@@ -51,22 +62,22 @@ const SettingsPage = () => {
     
     // Validation
     if (!passwordData.currentPassword) {
-      alert('Vui lòng nhập mật khẩu hiện tại');
+      showToast('Vui lòng nhập mật khẩu hiện tại', 'error');
       return;
     }
     
     if (!passwordData.newPassword || passwordData.newPassword.length < 6) {
-      alert('Mật khẩu mới phải có ít nhất 6 ký tự');
+      showToast('Mật khẩu mới phải có ít nhất 6 ký tự', 'error');
       return;
     }
     
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('Mật khẩu mới không khớp!');
+      showToast('Mật khẩu mới không khớp!', 'error');
       return;
     }
     
     // TODO: Implement password change API
-    alert('Đổi mật khẩu thành công!');
+    showToast('Đổi mật khẩu thành công!', 'success');
     setPasswordData({
       currentPassword: '',
       newPassword: '',
@@ -77,7 +88,6 @@ const SettingsPage = () => {
   const tabs = [
     { id: 'profile', label: 'Thông tin cá nhân', icon: User },
     { id: 'password', label: 'Đổi mật khẩu', icon: Lock },
-    { id: 'notifications', label: 'Thông báo', icon: Bell },
   ];
 
   return (
@@ -193,82 +203,10 @@ const SettingsPage = () => {
               </form>
             )}
 
-            {/* Notifications Tab */}
-            {activeTab === 'notifications' && (
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900 mb-4">Cài đặt thông báo</h2>
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900">Thông báo qua email</p>
-                        <p className="text-sm text-gray-500">Nhận thông báo qua email</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={notifications.emailNotifications}
-                          onChange={(e) =>
-                            setNotifications({
-                              ...notifications,
-                              emailNotifications: e.target.checked,
-                            })
-                          }
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                      </label>
-                    </div>
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900">Thông báo đẩy</p>
-                        <p className="text-sm text-gray-500">Nhận thông báo đẩy trên trình duyệt</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={notifications.pushNotifications}
-                          onChange={(e) =>
-                            setNotifications({
-                              ...notifications,
-                              pushNotifications: e.target.checked,
-                            })
-                          }
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                      </label>
-                    </div>
-                    <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                      <div>
-                        <p className="font-medium text-gray-900">Cập nhật đơn hàng</p>
-                        <p className="text-sm text-gray-500">Nhận thông báo khi có cập nhật đơn hàng</p>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={notifications.orderUpdates}
-                          onChange={(e) =>
-                            setNotifications({
-                              ...notifications,
-                              orderUpdates: e.target.checked,
-                            })
-                          }
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                      </label>
-                    </div>
-                  </div>
-                </div>
-                <div className="flex justify-end">
-                  <Button onClick={() => alert('Đã lưu cài đặt thông báo!')}>Lưu cài đặt</Button>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
+      <Toast toasts={toasts} removeToast={removeToast} />
     </EVMStaffLayout>
   );
 };

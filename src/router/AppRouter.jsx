@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 
 import HomePage from '../features/public/home/HomePage';
+import ModelDetailPage from '../features/public/model-detail/ModelDetailPage';
 import LoginPage from '../features/public/login/LoginPage';
 import ChangePasswordPage from '../features/public/change-password/ChangePasswordPage';
 import ProtectedRoute from './ProtectedRouteSimple';
@@ -37,13 +38,13 @@ import ProductManagementPage from '../features/evmStaff/products/ProductManageme
 import DealerOrdersPage from '../features/evmStaff/orders/DealerOrdersPage';
 import ColorManagementPage from '../features/evmStaff/colors/ColorManagementPage';
 import DealersPage from '../features/evmStaff/dealers/DealersPage';
-import SettingsPage from '../features/evmStaff/settings/SettingsPage';
 
 function AppRouter() {
   return (
     <Routes>
       {/* Public routes */}
       <Route path="/" element={<HomePage />} />
+      <Route path="/model/:modelId" element={<ModelDetailPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route
         path="/change-password"
@@ -108,6 +109,7 @@ function AppRouter() {
                 <Route path="orders" element={<DealerManagerOrderManagementPage />} />
                 <Route path="promotions" element={<PromotionPage />} />
                 <Route path="staff" element={<StaffPage />} />
+                <Route path="store" element={<StoreManagementPage />} />
                 <Route path="" element={<Navigate to="/dealer-manager/dashboard" replace />} />
               </Routes>
             </RoleRoute>
@@ -127,7 +129,6 @@ function AppRouter() {
                 <Route path="orders" element={<DealerOrdersPage />} />
                 <Route path="colors" element={<ColorManagementPage />} />
                 <Route path="dealers" element={<DealersPage />} />
-                <Route path="settings" element={<SettingsPage />} />
                 <Route path="" element={<Navigate to="/evm-staff/dashboard" replace />} />
               </Routes>
             </RoleRoute>

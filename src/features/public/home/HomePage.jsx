@@ -100,6 +100,30 @@ const HomePage = () => {
     }
   }, [products.length]);
 
+  // Đảm bảo video luôn tắt tiếng
+  useEffect(() => {
+    const checkAndMuteVideo = () => {
+      const iframe = document.querySelector('iframe[src*="youtube.com/embed"]');
+      if (iframe) {
+        // YouTube embed đã có mute=1 trong URL, nhưng đảm bảo thêm bằng cách này
+        try {
+          // Thử mute video thông qua postMessage (nếu có thể)
+          iframe.contentWindow?.postMessage('{"event":"command","func":"mute","args":""}', '*');
+        } catch (e) {
+          // Ignore CORS errors
+        }
+      }
+    };
+
+    // Kiểm tra ngay khi component mount
+    checkAndMuteVideo();
+    
+    // Kiểm tra định kỳ để đảm bảo video luôn mute
+    const interval = setInterval(checkAndMuteVideo, 1000);
+    
+    return () => clearInterval(interval);
+  }, []);
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -153,11 +177,24 @@ const HomePage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-20">
             {/* Logo */}
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-lg">
+            <div className="flex items-center gap-3 p-2">
+              <div className="bg-white rounded-xl p-2 shadow-lg border-2 border-gray-200 cursor-default" style={{ pointerEvents: 'auto', opacity: 1 }}>
+                <img 
+                  src="/images/electra-logo1.png" 
+                  alt="Electra Logo" 
+                  className="h-14 w-24 object-contain cursor-default"
+                  style={{ pointerEvents: 'auto', opacity: 1 }}
+                  onError={(e) => {
+                    // Fallback nếu logo chưa có, hiển thị icon cũ
+                    e.target.style.display = 'none';
+                    const fallback = e.target.nextElementSibling;
+                    if (fallback) fallback.style.display = 'flex';
+                  }}
+                />
+              </div>
+              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-lg hidden">
                 <span className="text-white font-bold text-2xl">E</span>
               </div>
-              <span className="text-2xl font-bold text-white">Electra</span>
             </div>
 
             {/* Navigation */}
@@ -340,6 +377,64 @@ const HomePage = () => {
         )}
       </section>
 
+      {/* Video Section */}
+      <section className="relative py-24 bg-gray-900 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <div className="inline-block px-4 py-2 bg-green-600/20 border border-green-500/50 rounded-full mb-4">
+              <span className="text-green-400 text-sm font-semibold">VIDEO</span>
+            </div>
+            <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+              Khám phá Electra
+            </h2>
+            <p className="text-lg text-gray-300 max-w-3xl mx-auto">
+              Xem video giới thiệu về dòng xe điện Electra và công nghệ tiên tiến
+            </p>
+          </div>
+          
+          {/* Video Container */}
+          <div className="relative w-full max-w-5xl mx-auto rounded-2xl overflow-hidden shadow-2xl bg-gray-800">
+            <div className="aspect-video relative">
+              {/* 
+                TẠM THỜI: Đang dùng YouTube embed
+                Để ẩn hoàn toàn YouTube branding và xem được offline:
+                1. Download video từ: https://youtu.be/C1EH61NgCIE
+                2. Đặt file vào: public/videos/electra-intro.mp4
+                3. Uncomment code video local bên dưới và comment YouTube embed
+              */}
+              
+              {/* YouTube Embed - Tạm thời sử dụng */}
+              <iframe
+                className="w-full h-full"
+                src="https://www.youtube.com/embed/C1EH61NgCIE?autoplay=1&mute=1&controls=0&loop=1&playlist=C1EH61NgCIE&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3&volume=0"
+                title="Electra Video"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+                style={{ pointerEvents: 'none' }}
+                allow="autoplay; muted"
+              ></iframe>
+              
+              {/* Video Local - Uncomment khi đã có file video trong public/videos/electra-intro.mp4 */}
+              {/*
+              <video
+                className="w-full h-full object-cover"
+                autoPlay
+                muted
+                loop
+                playsInline
+                controls={false}
+                style={{ pointerEvents: 'none' }}
+              >
+                <source src="/videos/electra-intro.mp4" type="video/mp4" />
+                <source src="/videos/electra-intro.webm" type="video/webm" />
+              </video>
+              */}
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* Products Section */}
       <section id="products" className="py-24 bg-gray-900">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -410,7 +505,7 @@ const HomePage = () => {
                 <div className="p-6">
                   <h3 className="text-xl font-bold text-white mb-1">{product.name}</h3>
                   <p className="text-gray-400 text-sm mb-4">
-                    Model {product.year} • {product.type}
+                    Mẫu xe {product.year} • {product.type}
                   </p>
 
                   {/* Specifications Grid */}
@@ -465,14 +560,27 @@ const HomePage = () => {
       {/* Footer */}
       <footer className="bg-gray-900 border-t border-gray-800 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-5 gap-12 mb-12">
+          <div className="grid md:grid-cols-4 gap-12 mb-12">
             {/* Logo & Tagline */}
             <div className="md:col-span-2">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center">
+              <div className="flex items-center gap-3 mb-4 p-2">
+                <div className="bg-white rounded-xl p-2 shadow-lg border-2 border-gray-200 cursor-default" style={{ pointerEvents: 'auto', opacity: 1 }}>
+                  <img 
+                    src="/images/electra-logo1.png" 
+                    alt="Electra Logo" 
+                    className="h-14 w-24 object-contain cursor-default"
+                    style={{ pointerEvents: 'auto', opacity: 1 }}
+                    onError={(e) => {
+                      // Fallback nếu logo chưa có, hiển thị icon cũ
+                      e.target.style.display = 'none';
+                      const fallback = e.target.nextElementSibling;
+                      if (fallback) fallback.style.display = 'flex';
+                    }}
+                  />
+                </div>
+                <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center hidden">
                   <span className="text-white font-bold text-2xl">E</span>
                 </div>
-                <span className="text-2xl font-bold text-white">Electra</span>
               </div>
               <p className="text-gray-400 text-lg mb-6">
                 Dẫn đầu kỷ nguyên di chuyển bằng điện.
@@ -546,20 +654,6 @@ const HomePage = () => {
               </ul>
             </div>
 
-            {/* Newsletter */}
-            <div>
-              <h4 className="font-semibold text-white mb-4 text-lg">Đăng ký nhận tin</h4>
-              <div className="space-y-3">
-                <Input
-                  type="email"
-                  placeholder="Email của bạn"
-                  className="bg-gray-800 border-gray-700 text-white placeholder-gray-500"
-                />
-                <Button className="w-full bg-green-600 hover:bg-green-700 text-white">
-                  Đăng ký
-                </Button>
-              </div>
-            </div>
           </div>
 
           {/* Copyright */}
