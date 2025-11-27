@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Search, ChevronLeft, ChevronRight, FileText, ShoppingBag, CheckCircle, Package, DollarSign, List, Grid, ChevronDown, Eye, Truck, Filter, RefreshCw, XCircle, Edit, Car, Trash2 } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, FileText, ShoppingBag, CheckCircle, Package, DollarSign, List, Grid, ChevronDown, Eye, Truck, Filter, RefreshCw, XCircle, Edit, Car, Trash2, Wallet } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import DealerStaffLayout from '../../../components/layout/DealerStaffLayout';
@@ -34,10 +34,9 @@ const OrderManagementPage = () => {
   const [isConfirmContractModalOpen, setIsConfirmContractModalOpen] = useState(false);
   const [isConfirmDeliverModalOpen, setIsConfirmDeliverModalOpen] = useState(false);
   const [isVehicleAssignmentModalOpen, setIsVehicleAssignmentModalOpen] = useState(false);
-  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [selectedContractId, setSelectedContractId] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState('VNPAY');
+  const [selectedContractType, setSelectedContractType] = useState('DEPOSIT');
   const [viewMode, setViewMode] = useState('table'); // 'table' or 'card'
 
   const { data: ordersData, isLoading, error, refetch } = useGetAllOrdersQuery();
@@ -52,36 +51,30 @@ const OrderManagementPage = () => {
 
   // ... (rest of the file)
 
-  const handlePayment = (order) => {
-    setSelectedOrder(order);
-    setPaymentMethod('VNPAY'); // Default to VNPAY
-    setIsPaymentModalOpen(true);
-  };
-
-  const handleCreatePayment = async () => {
-    if (!selectedOrder) return;
+  const handlePayment = async (order) => {
+    if (!order) return;
 
     try {
+      // Determine paymentType based on order status
+      // SALE-SIGNED or SALE_SIGNED uses BALANCE, PENDING_DEPOSIT uses DEPOSIT
+      const paymentType = (order.status === 'SALE-SIGNED' || order.status === 'SALE_SIGNED') ? 'BALANCE' : 'DEPOSIT';
+
       const paymentData = {
-        orderId: selectedOrder.orderId,
-        paymentType: 'DEPOSIT',
-        paymentMethod: paymentMethod,
+        orderId: order.orderId,
+        paymentType: paymentType,
+        paymentMethod: 'CASH', // Only use cash payment
       };
 
       const response = await createPayment(paymentData).unwrap();
 
-      if (paymentMethod === 'VNPAY' && response.data?.paymentUrl) {
-        // Redirect to VNPay
-        window.location.href = response.data.paymentUrl;
-      } else if (paymentMethod === 'CASH') {
-        toast.success('Tạo thanh toán tiền mặt thành công. Vui lòng xác nhận thanh toán.');
-        setIsPaymentModalOpen(false);
-        // Navigate to PaymentManagementPage
-        navigate('/dealer-staff/payments');
-      } else {
-        toast.success('Tạo thanh toán thành công');
-        setIsPaymentModalOpen(false);
-      }
+      toast.success('Tạo thanh toán tiền mặt thành công. Vui lòng xác nhận thanh toán.');
+      
+      // Navigate to PaymentManagementPage to confirm cash payment
+      navigate('/dealer-staff/payments', {
+        state: {
+          highlightOrderId: order.orderId
+        }
+      });
     } catch (error) {
       console.error('Error creating payment:', error);
       toast.error(error?.data?.message || 'Có lỗi xảy ra khi tạo thanh toán');
@@ -154,20 +147,13 @@ const OrderManagementPage = () => {
 
   // Calculate stats
   const stats = useMemo(() => {
-    // Only count revenue from orders with specific statuses
-    const revenueStatuses = ['DEPOSIT_PAID', 'FULLY_PAID', 'DELIVERED'];
-    const revenue = orders
-      .filter(o => revenueStatuses.includes(o.status))
-      .reduce((sum, o) => sum + (o.totalPayment || 0), 0);
-
     return {
       total: orders.length,
       pending: orders.filter(o => o.status === 'PENDING' || o.status === 'DRAFT').length,
-      confirmed: orders.filter(o => o.status === 'CONFIRMED').length,
-      completed: orders.filter(o => o.status === 'FULLY_PAID').length,
+      confirmed: orders.filter(o => o.status === 'PENDING_DEPOSIT').length, // Chờ đặt cọc
+      completed: orders.filter(o => o.status === 'DEPOSIT_PAID').length, // Đã đặt cọc
       delivered: orders.filter(o => o.status === 'DELIVERED').length,
       cancelled: orders.filter(o => o.status === 'CANCELLED').length,
-      revenue: revenue,
     };
   }, [orders]);
 
@@ -322,7 +308,19 @@ const OrderManagementPage = () => {
 
   const handleCreateContract = async (order) => {
     try {
-      const response = await createContract({ orderId: order.orderId }).unwrap();
+      // Determine contractType: DEPOSIT if no contract exists, SALE if contract exists
+      const contractsList = Array.isArray(contracts) ? contracts : [];
+      const orderContracts = contractsList.filter(contract => 
+        contract && contract.orderId === order.orderId
+      );
+      const contractType = orderContracts.length === 0 ? 'DEPOSIT' : 'SALE';
+
+      const payload = {
+        orderId: Number(order.orderId),
+        contractType: String(contractType)
+      };
+
+      const response = await createContract(payload).unwrap();
       const contractData = response?.data || response;
 
       // Điều hướng đến trang quản lý hợp đồng với highlight
@@ -342,8 +340,22 @@ const OrderManagementPage = () => {
   const handleContractClick = async (order) => {
     if (!order.contractId || order.contractId <= 0) {
       // Chưa có hợp đồng - hiển thị modal xác nhận
-      if (canCreateContract(order)) {
+      if (canCreateContract(order) || isSignedStatus(order.status)) {
         setSelectedOrder(order);
+        
+        // If status is "đã ký", set contractType to SALE
+        if (isSignedStatus(order.status)) {
+          setSelectedContractType('SALE');
+        } else {
+          // Auto-determine contractType: DEPOSIT if no contract exists, SALE if contract exists
+          const contractsList = Array.isArray(contracts) ? contracts : [];
+          const orderContracts = contractsList.filter(contract => 
+            contract && contract.orderId === order.orderId
+          );
+          const defaultContractType = orderContracts.length === 0 ? 'DEPOSIT' : 'SALE';
+          setSelectedContractType(defaultContractType);
+        }
+        
         setIsConfirmContractModalOpen(true);
       } else {
         toast.error('Đơn hàng chưa được xác nhận, không thể tạo hợp đồng');
@@ -369,12 +381,23 @@ const OrderManagementPage = () => {
   const handleCreateContractConfirmed = async () => {
     if (!selectedOrder) return;
 
+    if (!selectedContractType || (selectedContractType !== 'DEPOSIT' && selectedContractType !== 'SALE')) {
+      toast.error('Vui lòng chọn loại hợp đồng');
+      return;
+    }
+
     try {
-      const response = await createContract({ orderId: selectedOrder.orderId }).unwrap();
+      const payload = {
+        orderId: Number(selectedOrder.orderId),
+        contractType: String(selectedContractType)
+      };
+
+      const response = await createContract(payload).unwrap();
       const contractData = response?.data || response;
 
       setIsConfirmContractModalOpen(false);
       setSelectedOrder(null);
+      setSelectedContractType('DEPOSIT'); // Reset to default
 
       // Điều hướng đến trang quản lý hợp đồng với highlight
       const contractId = contractData?.contractId || contractData?.id;
@@ -558,6 +581,13 @@ const OrderManagementPage = () => {
     try {
       await confirmDepositPayment(order.orderId).unwrap();
       toast.success('Đã xác nhận thanh toán cọc thành công');
+      // Navigate to PaymentManagementPage with orderId
+      navigate('/dealer-staff/payments', {
+        state: {
+          orderId: order.orderId,
+          highlightOrderId: order.orderId
+        }
+      });
     } catch (error) {
       console.error('Error confirming deposit payment:', error);
       toast.error(error?.data?.message || 'Có lỗi xảy ra khi xác nhận thanh toán cọc');
@@ -604,6 +634,10 @@ const OrderManagementPage = () => {
     return order.status === 'DEPOSIT_PAID';
   };
 
+  const isSignedStatus = (status) => {
+    return status === 'CONTRACT_SIGNED' || status === 'DEPOSIT_SIGNED';
+  };
+
   const canAssignVehicles = (order) => {
     return order.status === 'CONFIRMED';
   };
@@ -641,7 +675,7 @@ const OrderManagementPage = () => {
       <div className="mx-auto max-w-[90rem] px-0 py-4 pl-10 pr-10 pt-8 space-y-4">
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <MetricCard
             title="Tổng đơn"
             value={stats.total}
@@ -650,15 +684,15 @@ const OrderManagementPage = () => {
             compact
           />
           <MetricCard
-            title="Đã xác nhận"
+            title="Chờ đặt cọc"
             value={stats.confirmed}
             icon={CheckCircle}
             className="border-l-4 border-l-blue-600 compact"
             compact
           />
           <MetricCard
-            title="Đã thanh toán"
-            value={stats.completed + stats.delivered}
+            title="Đã đặt cọc"
+            value={stats.completed}
             icon={Package}
             className="border-l-4 border-l-green-500 compact"
             compact
@@ -668,12 +702,6 @@ const OrderManagementPage = () => {
             value={stats.delivered}
             icon={Truck}
             className="border-l-4 border-l-green-600 compact"
-            compact
-          />
-          <MetricCard
-            title="Doanh thu"
-            value={formatCurrency(stats.revenue)}
-            className="border-l-4 border-l-purple-500 compact"
             compact
           />
         </div>
@@ -799,9 +827,9 @@ const OrderManagementPage = () => {
                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Sản Phẩm</th>
                         <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Tổng Tiền</th>
                         <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">Ngày Tạo</th>
-                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Trạng Thái</th>
+                        <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Trạng Thái</th>
                         <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Hợp Đồng</th>
-                        <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wider">Thao tác</th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-slate-500 uppercase tracking-wider">Thao tác</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-slate-200">
@@ -841,8 +869,10 @@ const OrderManagementPage = () => {
                             <td className="px-4 py-3 whitespace-nowrap text-sm text-slate-500">
                               {formatDate(order.orderDate)}
                             </td>
-                            <td className="px-4 py-3 whitespace-nowrap text-center">
-                              {getStatusBadge(order.status, order)}
+                            <td className="px-4 py-3 whitespace-nowrap text-right">
+                              <div className="flex justify-end">
+                                {getStatusBadge(order.status, order)}
+                              </div>
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
                               <div className="flex items-center justify-center gap-2">
@@ -851,19 +881,24 @@ const OrderManagementPage = () => {
                                   disabled={isCreatingContract}
                                   className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${order.contractId && order.contractId > 0
                                     ? 'bg-blue-100 text-blue-800 hover:bg-blue-200 cursor-pointer'
-                                    : canCreateContract(order)
+                                    : canCreateContract(order) || isSignedStatus(order.status)
                                       ? 'bg-gray-100 text-gray-700 hover:bg-gray-200 cursor-pointer'
                                       : 'bg-gray-50 text-gray-400 cursor-not-allowed'
                                     }`}
                                 >
                                   {order.contractId && order.contractId > 0
                                     ? 'Xem hợp đồng'
+                                    : isSignedStatus(order.status)
+                                      ? 'Hợp đồng'
                                     : canCreateContract(order)
                                       ? 'Tạo hợp đồng'
                                       : '-'
                                   }
                                 </button>
-
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 whitespace-nowrap text-center" onClick={(e) => e.stopPropagation()}>
+                              <div className="flex items-center justify-center gap-2">
                                 <button
                                   onClick={() => handleOpenViewModal(order)}
                                   className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
@@ -872,13 +907,24 @@ const OrderManagementPage = () => {
                                   <Eye size={18} />
                                 </button>
 
-                                {order.status === 'PENDING_DEPOSIT' && (
+                                {(order.status === 'PENDING_DEPOSIT' || order.status === 'SALE-SIGNED' || order.status === 'SALE_SIGNED') && (
                                   <button
                                     onClick={() => handlePayment(order)}
                                     className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                                     title="Thanh toán"
                                   >
-                                    <DollarSign size={18} />
+                                    <Wallet size={18} />
+                                  </button>
+                                )}
+
+                                {order.status === 'PENDING_DEPOSIT' && (
+                                  <button
+                                    onClick={() => handleConfirmDepositPayment(order)}
+                                    disabled={isConfirmingDepositPayment}
+                                    className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+                                    title="Xác nhận đã nhận tiền cọc"
+                                  >
+                                    <CheckCircle size={18} />
                                   </button>
                                 )}
 
@@ -900,17 +946,6 @@ const OrderManagementPage = () => {
                                     title="Tạo yêu cầu đặt cọc"
                                   >
                                     <FileText size={18} />
-                                  </button>
-                                )}
-
-                                {order.status === 'PENDING_DEPOSIT' && (
-                                  <button
-                                    onClick={() => handleConfirmDepositPayment(order)}
-                                    disabled={isConfirmingDepositPayment}
-                                    className="p-1.5 text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                                    title="Xác nhận đã nhận tiền cọc"
-                                  >
-                                    <DollarSign size={18} />
                                   </button>
                                 )}
 
@@ -1166,6 +1201,7 @@ const OrderManagementPage = () => {
           onClose={() => {
             setIsConfirmContractModalOpen(false);
             setSelectedOrder(null);
+            setSelectedContractType('DEPOSIT');
           }}
           title="Tạo hợp đồng"
           size="md"
@@ -1182,19 +1218,34 @@ const OrderManagementPage = () => {
               </div>
             </div>
 
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-2">
+                Loại hợp đồng <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={selectedContractType}
+                onChange={(e) => setSelectedContractType(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none bg-white"
+              >
+                <option value="DEPOSIT">Đặt cọc (DEPOSIT)</option>
+                <option value="SALE">Bán hàng (SALE)</option>
+              </select>
+            </div>
+
             <div className="flex justify-end gap-3 pt-4">
               <Button
                 variant="outline"
                 onClick={() => {
                   setIsConfirmContractModalOpen(false);
                   setSelectedOrder(null);
+                  setSelectedContractType('DEPOSIT');
                 }}
               >
                 Hủy
               </Button>
               <Button
                 onClick={handleCreateContractConfirmed}
-                disabled={isCreatingContract}
+                disabled={isCreatingContract || !selectedContractType}
                 className="bg-green-600 hover:bg-green-700 text-white"
               >
                 {isCreatingContract ? 'Đang tạo...' : 'Tạo hợp đồng'}
@@ -1257,60 +1308,6 @@ const OrderManagementPage = () => {
           orderDetails={vehicleAssignmentOrderDetails?.data}
         />
       </div>
-      {/* Payment Modal */}
-      <Modal
-        isOpen={isPaymentModalOpen}
-        onClose={() => setIsPaymentModalOpen(false)}
-        title="Thanh toán đặt cọc"
-        size="md"
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            Chọn phương thức thanh toán cho đơn hàng <strong>{selectedOrder?.orderCode || selectedOrder?.orderId}</strong>
-          </p>
-
-          <div className="space-y-3">
-            <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-              <input
-                type="radio"
-                name="paymentMethod"
-                value="VNPAY"
-                checked={paymentMethod === 'VNPAY'}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="ml-3 font-medium text-gray-900">VNPAY</span>
-            </label>
-
-            <label className="flex items-center p-3 border rounded-lg cursor-pointer hover:bg-gray-50 transition-colors">
-              <input
-                type="radio"
-                name="paymentMethod"
-                value="CASH"
-                checked={paymentMethod === 'CASH'}
-                onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-              />
-              <span className="ml-3 font-medium text-gray-900">Tiền mặt</span>
-            </label>
-          </div>
-
-          <div className="flex justify-end gap-3 mt-6">
-            <Button
-              variant="outline"
-              onClick={() => setIsPaymentModalOpen(false)}
-            >
-              Hủy
-            </Button>
-            <Button
-              onClick={handleCreatePayment}
-              disabled={isCreatingPayment}
-            >
-              {isCreatingPayment ? 'Đang xử lý...' : 'Xác nhận thanh toán'}
-            </Button>
-          </div>
-        </div>
-      </Modal>
     </DealerStaffLayout >
   );
 };

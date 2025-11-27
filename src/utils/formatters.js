@@ -69,6 +69,18 @@ export const getOrderStatusConfig = (status) => {
       color: 'bg-indigo-100 text-indigo-800',
       label: 'Đã ký'
     },
+    DEPOSIT_SIGNED: {
+      color: 'bg-indigo-100 text-indigo-800',
+      label: 'Đã ký'
+    },
+    'SALE-SIGNED': {
+      color: 'bg-purple-100 text-purple-800',
+      label: 'Đã bán'
+    },
+    SALE_SIGNED: {
+      color: 'bg-purple-100 text-purple-800',
+      label: 'Đã bán'
+    },
     DEPOSIT_PAID: {
       color: 'bg-amber-100 text-amber-800',
       label: 'Đã đặt cọc'
@@ -101,6 +113,10 @@ export const getContractStatusConfig = (status) => {
       label: 'Nháp'
     },
     SIGNED: {
+      color: 'bg-blue-100 text-blue-800',
+      label: 'Đã ký'
+    },
+    DEPOSIT_SIGNED: {
       color: 'bg-blue-100 text-blue-800',
       label: 'Đã ký'
     },

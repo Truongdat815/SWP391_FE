@@ -1,5 +1,5 @@
 import { useState, useMemo, useEffect } from 'react';
-import { Search, Filter, Plus, Calendar, RefreshCw, CreditCard, Banknote, CheckCircle, AlertCircle, MoreVertical, ChevronDown } from 'lucide-react';
+import { Search, Filter, Plus, Calendar, RefreshCw, CreditCard, Banknote, CheckCircle, AlertCircle, MoreVertical } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import DealerStaffLayout from '../../../components/layout/DealerStaffLayout';
@@ -9,9 +9,10 @@ import Modal from '../../../components/ui/Modal';
 import { useToast } from '../../../components/ui/Toast';
 import LoadingSkeleton from '../../../components/shared/LoadingSkeleton';
 import Stepper from '../../../components/ui/Stepper';
-import { useGetAllPaymentsQuery, useGetPaymentByIdQuery, useCreatePaymentMutation, useConfirmCashPaymentMutation } from '../../../api/dealerStaff/paymentApi';
-import { useGetAllContractsQuery, useGetContractDetailQuery } from '../../../api/dealerStaff/contractApi';
-import { formatCurrency, formatDate, getPaymentStatusConfig, getPaymentTypeLabel, getPaymentMethodLabel, getContractStatusConfig, getEffectiveContractStatus, getEffectiveRemainingAmount, isPaymentRequired } from '../../../utils/formatters';
+import { useGetAllPaymentsQuery, useGetPaymentByIdQuery, useCreatePaymentMutation, useConfirmCashPaymentMutation, useGetPaymentsByOrderQuery } from '../../../api/dealerStaff/paymentApi';
+import { useGetAllContractsQuery, useGetContractDetailQuery, useCreateContractMutation } from '../../../api/dealerStaff/contractApi';
+import { useGetAllOrdersQuery } from '../../../api/dealerStaff/orderApi';
+import { formatCurrency, formatDate, getPaymentStatusConfig, getPaymentTypeLabel, getPaymentMethodLabel, getContractStatusConfig, getEffectiveContractStatus, getEffectiveRemainingAmount, isPaymentRequired, getOrderStatusConfig } from '../../../utils/formatters';
 
 const PAYMENT_STEPS = [
   { id: 'contract', label: 'Chọn hợp đồng' },
@@ -114,9 +115,6 @@ const PaymentManagementPage = () => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10);
 
-  // Payment history modal state
-  const [isPaymentHistoryModalOpen, setIsPaymentHistoryModalOpen] = useState(false);
-  const [selectedContractForHistory, setSelectedContractForHistory] = useState(null);
 
   // Create Payment Modal
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -125,21 +123,28 @@ const PaymentManagementPage = () => {
   const [paymentType, setPaymentType] = useState('DEPOSIT'); // Mặc định là DEPOSIT
   const [paymentMethod, setPaymentMethod] = useState('VNPAY'); // Mặc định là VNPAY
 
-  // View Payment Detail Dropdown
-  const [openDropdownId, setOpenDropdownId] = useState(null);
+  // Payment History Modal
+  const [isPaymentHistoryModalOpen, setIsPaymentHistoryModalOpen] = useState(false);
+  const [selectedOrderForHistory, setSelectedOrderForHistory] = useState(null);
+  const [selectedContractType, setSelectedContractType] = useState('DEPOSIT');
+
+  // Confirm Cash Payment Modal
+  const [isConfirmCashModalOpen, setIsConfirmCashModalOpen] = useState(false);
+  const [selectedPaymentForConfirm, setSelectedPaymentForConfirm] = useState(null);
 
   const { data: paymentsData, isLoading, error, refetch: refetchPayments } = useGetAllPaymentsQuery();
+  const { data: ordersData, isLoading: isLoadingOrders, refetch: refetchOrders } = useGetAllOrdersQuery();
   const { data: contractsData, refetch: refetchContracts } = useGetAllContractsQuery();
   const [createPayment, { isLoading: creatingPayment }] = useCreatePaymentMutation();
   const [confirmCashPayment, { isLoading: isConfirmingCash }] = useConfirmCashPaymentMutation();
+  const [createContract, { isLoading: isCreatingContract }] = useCreateContractMutation();
 
-  // Get contract detail when contractId is provided
-  const contractIdFromRoute = location.state?.contractId;
-  const { data: contractDetailData, isLoading: isLoadingContractDetail } = useGetContractDetailQuery(contractIdFromRoute, {
-    skip: !contractIdFromRoute,
-  });
+  // Get orderId from route state
+  const orderIdFromRoute = location.state?.orderId;
+  const highlightOrderId = location.state?.highlightOrderId;
 
   const payments = Array.isArray(paymentsData?.data) ? paymentsData.data : [];
+  const orders = Array.isArray(ordersData?.data) ? ordersData.data : [];
   const contracts = Array.isArray(contractsData?.data) ? contractsData.data : [];
 
   // Debug logging
@@ -152,72 +157,49 @@ const PaymentManagementPage = () => {
     error
   });
 
-  // Filter contracts that can create payment (only SIGNED status and payment required)
-  const availableContracts = useMemo(() => {
-    return contracts.filter(contract =>
-      contract.status === 'SIGNED' &&
-      isPaymentRequired(contract.totalPayment) &&
-      getEffectiveRemainingAmount(contract) > 0
-    );
-  }, [contracts]);
-
-  // Filter contracts for display (need payment)
-  const contractsNeedPayment = useMemo(() => {
-    console.log('All contracts:', contracts.map(c => ({
-      id: c.contractId,
-      status: c.status,
-      remainingAmount: c.remainingAmountToPay,
-      totalPayment: c.totalPayment,
-      effectiveStatus: getEffectiveContractStatus(c),
-      effectiveRemaining: getEffectiveRemainingAmount(c)
-    })));
-
-    // Filter out DRAFT status contracts
-    const filtered = contracts.filter(c => c.status !== 'DRAFT');
-
-    console.log('Filtered contracts for payment:', filtered.map(c => ({
-      id: c.contractId,
-      status: c.status,
-      remainingAmount: c.remainingAmountToPay,
-      effectiveStatus: getEffectiveContractStatus(c),
-      effectiveRemaining: getEffectiveRemainingAmount(c)
-    })));
-
-    // Sort contracts by contract code (descending - large to small)
-    return [...filtered].sort((a, b) => {
-      const codeA = a.contractCode || '';
-      const codeB = b.contractCode || '';
-      return codeB.localeCompare(codeA); // Reversed for descending order
+  // Filter orders for display (only orders that have payments)
+  const ordersNeedPayment = useMemo(() => {
+    // Only show orders that have at least one payment
+    // Match by orderId or orderCode (check both payment and payment.data)
+    return orders.filter(order => {
+      const hasPayment = payments.some(payment => {
+        const paymentOrderCode = payment.orderCode || payment.data?.orderCode;
+        const paymentOrderId = payment.orderId || payment.data?.orderId;
+        
+        return paymentOrderId === order.orderId || 
+               paymentOrderCode === order.orderCode;
+      });
+      return hasPayment;
     });
-  }, [contracts]);
+  }, [orders, payments]);
 
-  // Filter contracts based on search, status, date range, and total value
-  const filteredContracts = useMemo(() => {
-    if (!Array.isArray(contractsNeedPayment)) return [];
-    return contractsNeedPayment.filter((contract) => {
+  // Filter orders based on search, status, date range, and total value
+  const filteredOrders = useMemo(() => {
+    if (!Array.isArray(ordersNeedPayment)) return [];
+    return ordersNeedPayment.filter((order) => {
       const matchesSearch =
-        contract.contractId?.toString().includes(searchTerm) ||
-        contract.contractCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contract.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        contract.orderId?.toString().includes(searchTerm);
-      const matchesStatus = statusFilter === 'all' || contract.status === statusFilter;
+        order.orderId?.toString().includes(searchTerm) ||
+        order.orderCode?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        order.customerName?.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
 
       // Date range filter
       let matchesDateRange = true;
       if (dateRange.start || dateRange.end) {
-        const contractDate = new Date(contract.contractDate);
+        const orderDate = new Date(order.orderDate);
         if (dateRange.start) {
-          matchesDateRange = matchesDateRange && contractDate >= new Date(dateRange.start);
+          matchesDateRange = matchesDateRange && orderDate >= new Date(dateRange.start);
         }
         if (dateRange.end) {
-          matchesDateRange = matchesDateRange && contractDate <= new Date(dateRange.end);
+          matchesDateRange = matchesDateRange && orderDate <= new Date(dateRange.end);
         }
       }
 
       // Total value filter
       let matchesTotalValue = true;
       if (totalValueFilter.min || totalValueFilter.max) {
-        const totalPayment = contract.totalPayment || 0;
+        const totalPayment = order.totalPayment || 0;
         if (totalValueFilter.min) {
           matchesTotalValue = matchesTotalValue && totalPayment >= parseFloat(totalValueFilter.min);
         }
@@ -228,39 +210,26 @@ const PaymentManagementPage = () => {
 
       return matchesSearch && matchesStatus && matchesDateRange && matchesTotalValue;
     });
-  }, [contractsNeedPayment, searchTerm, statusFilter, dateRange, totalValueFilter]);
+  }, [ordersNeedPayment, searchTerm, statusFilter, dateRange, totalValueFilter]);
 
-  // Check if contract from route state
+  // Handle orderId from route state - highlight the order
   useEffect(() => {
-    if (contractIdFromRoute && contractDetailData && !isLoadingContractDetail) {
-      const contractDetail = contractDetailData?.data || contractDetailData;
-
-      // Check if payment is required
-      if (!isPaymentRequired(contractDetail?.totalPayment)) {
-        toast.error('Hợp đồng có tổng giá trị <= 5₫ không cần thanh toán');
-        window.history.replaceState({}, document.title);
-        return;
-      }
-
-      // Check if contract is SIGNED
-      if (contractDetail?.status === 'SIGNED') {
-        setSelectedContract(contractDetail);
-        setIsCreateModalOpen(true);
-        // Set default payment type based on whether deposit has been paid
-        // If remainingAmountToPay equals totalPayment, no deposit has been paid yet
-        if (contractDetail.remainingAmountToPay === contractDetail.totalPayment) {
-          setPaymentType('DEPOSIT');
-        } else {
-          setPaymentType('BALANCE');
+    if (highlightOrderId) {
+      // Scroll to highlighted order after a short delay
+      setTimeout(() => {
+        const element = document.getElementById(`order-${highlightOrderId}`);
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          element.classList.add('ring-2', 'ring-blue-500', 'ring-offset-2');
+          setTimeout(() => {
+            element.classList.remove('ring-2', 'ring-blue-500', 'ring-offset-2');
+          }, 3000);
         }
-        setPaymentMethod('VNPAY');
-      } else {
-        toast.error('Chỉ có thể tạo thanh toán khi hợp đồng đã được ký');
-      }
+      }, 500);
       // Clear state
       window.history.replaceState({}, document.title);
     }
-  }, [contractIdFromRoute, contractDetailData, isLoadingContractDetail]);
+  }, [highlightOrderId]);
 
   // Handle VNPay callback
   useEffect(() => {
@@ -274,6 +243,7 @@ const PaymentManagementPage = () => {
         toast.success('Thanh toán thành công!');
         // Refresh data
         refetchPayments();
+        refetchOrders();
         refetchContracts();
         // Navigate to payments page without callback params
         navigate('/dealer-staff/payments', { replace: true });
@@ -286,14 +256,62 @@ const PaymentManagementPage = () => {
   }, [location, toast, navigate]);
 
   // Handle opening payment history modal
-  const handleOpenPaymentHistory = (contract) => {
-    setSelectedContractForHistory(contract);
+  const handleOpenPaymentHistory = (order) => {
+    setSelectedOrderForHistory(order);
+    
+    // Auto-determine contractType: DEPOSIT if no contract exists, SALE if contract exists
+    const contractsList = Array.isArray(contracts) ? contracts : [];
+    const orderContracts = contractsList.filter(contract => 
+      contract && contract.orderId === order.orderId
+    );
+    const defaultContractType = orderContracts.length === 0 ? 'DEPOSIT' : 'SALE';
+    setSelectedContractType(defaultContractType);
+    
     setIsPaymentHistoryModalOpen(true);
   };
 
   const handleClosePaymentHistory = () => {
     setIsPaymentHistoryModalOpen(false);
-    setSelectedContractForHistory(null);
+    setSelectedOrderForHistory(null);
+    setSelectedContractType('DEPOSIT');
+  };
+
+  // Handle create contract
+  const handleCreateContract = async (order) => {
+    if (!order) {
+      toast.error('Vui lòng chọn đơn hàng');
+      return;
+    }
+
+    if (!order.orderId) {
+      toast.error('Đơn hàng không hợp lệ');
+      return;
+    }
+
+    if (!selectedContractType || (selectedContractType !== 'DEPOSIT' && selectedContractType !== 'SALE')) {
+      toast.error('Vui lòng chọn loại hợp đồng');
+      return;
+    }
+
+    try {
+      // Ensure orderId is a number and contractType is a string
+      const payload = {
+        orderId: Number(order.orderId),
+        contractType: String(selectedContractType)
+      };
+
+      console.log('Creating contract with payload:', payload);
+
+      await createContract(payload).unwrap();
+      
+      toast.success(`Đã tạo hợp đồng ${selectedContractType === 'DEPOSIT' ? 'đặt cọc' : 'bán hàng'} thành công!`);
+      refetchContracts();
+      refetchOrders();
+      setSelectedContractType('DEPOSIT'); // Reset to default
+    } catch (error) {
+      console.error('Error creating contract:', error);
+      toast.error(error?.data?.message || 'Có lỗi xảy ra khi tạo hợp đồng');
+    }
   };
 
 
@@ -354,27 +372,14 @@ const PaymentManagementPage = () => {
   }, [payments, searchTerm, statusFilter, dateRange, totalValueFilter]);
 
 
-  // Pagination for contracts only
-  const totalPages = Math.ceil(filteredContracts.length / itemsPerPage);
+  // Pagination for orders
+  const totalPages = Math.ceil(filteredOrders.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
   const endIndex = startIndex + itemsPerPage;
-  const paginatedContracts = filteredContracts.slice(startIndex, endIndex);
+  const paginatedOrders = filteredOrders.slice(startIndex, endIndex);
 
-  // Debug logging after all variables are defined
-  console.log('PaymentManagementPage Final Debug:', {
-    contractsNeedPayment: contractsNeedPayment?.length || 0,
-    filteredContracts: filteredContracts?.length || 0,
-    paginatedContracts: paginatedContracts?.length || 0,
-    totalPages,
-    currentPage
-  });
-
-  const getStatusBadge = (status, isContract = false, contract = null) => {
-    let effectiveStatus = status;
-    if (isContract && contract) {
-      effectiveStatus = getEffectiveContractStatus(contract);
-    }
-    const config = isContract ? getContractStatusConfig(effectiveStatus) : getPaymentStatusConfig(status);
+  const getStatusBadge = (status) => {
+    const config = getOrderStatusConfig(status);
     return (
       <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${config.color}`}>
         {config.label}
@@ -382,12 +387,46 @@ const PaymentManagementPage = () => {
     );
   };
 
-  const handleConfirmCash = async (paymentId) => {
+  // Get payments for an order
+  const getOrderPayments = (order) => {
+    return payments.filter(payment => {
+      // Match by orderId or orderCode
+      const paymentOrderCode = payment.orderCode || payment.data?.orderCode;
+      const paymentOrderId = payment.orderId || payment.data?.orderId;
+      
+      return paymentOrderId === order.orderId || 
+             paymentOrderCode === order.orderCode ||
+             paymentOrderCode === order.orderCode;
+    }).sort((a, b) => {
+      const dateA = new Date(a.createdAt || a.data?.createdAt || 0);
+      const dateB = new Date(b.createdAt || b.data?.createdAt || 0);
+      return dateB - dateA;
+    });
+  };
+
+  const handleOpenConfirmCashModal = (payment) => {
+    setSelectedPaymentForConfirm(payment);
+    setIsConfirmCashModalOpen(true);
+  };
+
+  const handleCloseConfirmCashModal = () => {
+    setIsConfirmCashModalOpen(false);
+    setSelectedPaymentForConfirm(null);
+  };
+
+  const handleConfirmCash = async () => {
+    if (!selectedPaymentForConfirm) return;
+
+    const paymentData = selectedPaymentForConfirm.data || selectedPaymentForConfirm;
+    const paymentId = paymentData.paymentId || selectedPaymentForConfirm.paymentId;
+
     try {
       await confirmCashPayment(paymentId).unwrap();
       toast.success('Xác nhận thanh toán tiền mặt thành công');
       refetchPayments();
+      refetchOrders();
       refetchContracts();
+      handleCloseConfirmCashModal();
     } catch (error) {
       console.error('Error confirming cash payment:', error);
       toast.error(error?.data?.message || 'Có lỗi xảy ra khi xác nhận thanh toán');
@@ -462,7 +501,7 @@ const PaymentManagementPage = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isLoadingOrders) {
     return (
       <DealerStaffLayout>
         <div className="flex items-center justify-center h-64">
@@ -513,9 +552,13 @@ const PaymentManagementPage = () => {
                 className="h-10 rounded-lg border border-slate-300 bg-slate-50 px-4 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-primary"
               >
                 <option value="all">Tất cả trạng thái</option>
-                <option value="SIGNED">Đã ký</option>
+                <option value="DRAFT">Nháp</option>
+                <option value="CONFIRMED">Đã xác nhận</option>
+                <option value="PENDING_DEPOSIT">Chờ đặt cọc</option>
                 <option value="DEPOSIT_PAID">Đã đặt cọc</option>
                 <option value="FULLY_PAID">Đã thanh toán đủ</option>
+                <option value="DELIVERED">Đã giao</option>
+                <option value="CANCELLED">Đã hủy</option>
               </select>
             </div>
           </div>
@@ -595,11 +638,11 @@ const PaymentManagementPage = () => {
 
         {/* Table */}
         <div className="overflow-hidden rounded-xl border border-slate-200 bg-white ">
-          {paginatedContracts.length === 0 ? (
+          {paginatedOrders.length === 0 ? (
             <div className="p-8 text-center text-slate-500">
               {searchTerm || statusFilter !== 'all'
-                ? 'Không tìm thấy hợp đồng'
-                : 'Chưa có hợp đồng nào'}
+                ? 'Không tìm thấy đơn hàng'
+                : 'Chưa có đơn hàng nào'}
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -607,22 +650,16 @@ const PaymentManagementPage = () => {
                 <thead className="bg-slate-50">
                   <tr>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                      Mã Hợp đồng
+                      Mã Đơn hàng
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                      Ngày hợp đồng
+                      Ngày tạo
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
                       Khách hàng
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                      Tổng giá trị
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                      Đặt cọc
-                    </th>
-                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
-                      Còn lại thanh toán
+                      Tổng tiền
                     </th>
                     <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-slate-500">
                       Trạng thái
@@ -633,87 +670,47 @@ const PaymentManagementPage = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-200">
-                  {paginatedContracts.flatMap((contract) => {
-                    // Get payments for this contract
-                    const contractPayments = payments.filter(payment =>
-                      payment.contractCode === contract.contractCode
-                    );
+                  {paginatedOrders.map((order) => {
+                    const orderPayments = getOrderPayments(order);
+                    const isHighlighted = highlightOrderId === order.orderId;
 
-                    const contractRow = (
+                    return (
                       <motion.tr
-                        key={contract.contractId}
+                        key={order.orderId}
+                        id={`order-${order.orderId}`}
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
-                        className="hover:bg-slate-50 transition-colors"
+                        className={`hover:bg-slate-50 transition-colors ${isHighlighted ? 'bg-blue-50' : ''}`}
                       >
                         <td className="px-4 py-4 whitespace-nowrap text-sm font-medium text-slate-900">
-                          {contract.contractCode}
+                          {order.orderCode || `#${order.orderId}`}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-600">
-                          {formatDate(contract.contractDate)}
+                          {formatDate(order.orderDate)}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm text-slate-600">
-                          {contract.customerName}
+                          {order.customerName || 'N/A'}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-slate-900">
-                          {formatCurrency(contract.totalPayment)}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">
-                          {formatCurrency(contract.depositPrice)}
-                        </td>
-                        <td className="px-4 py-4 whitespace-nowrap text-sm font-semibold text-orange-600">
-                          {formatCurrency(getEffectiveRemainingAmount(contract))}
+                          {formatCurrency(order.totalPayment || 0)}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm">
-                          {getStatusBadge(contract.status, true, contract)}
+                          {getStatusBadge(order.status)}
                         </td>
                         <td className="px-4 py-4 whitespace-nowrap text-sm">
                           <div className="flex items-center gap-2">
-                            <Button
-                              onClick={() => {
-                                setSelectedContract(contract);
-                                setIsCreateModalOpen(true);
-                                setPaymentStep(2); // Skip step 1 since contract is already selected
-                                // Set payment type based on contract status
-                                if (contract.status === 'SIGNED' && (contract.remainingAmountToPay === contract.totalPayment)) {
-                                  setPaymentType('DEPOSIT');
-                                } else {
-                                  setPaymentType('BALANCE');
-                                }
-                                setPaymentMethod('VNPAY'); // Set default payment method
-                              }}
-                              size="sm"
-                              disabled={getEffectiveRemainingAmount(contract) === 0 || !isPaymentRequired(contract.totalPayment)}
-                              className="bg-primary hover:bg-primary/90 text-white disabled:bg-gray-300 disabled:text-gray-500 disabled:cursor-not-allowed"
-                              title={
-                                !isPaymentRequired(contract.totalPayment)
-                                  ? 'Hợp đồng có tổng giá trị <= 5₫ không cần thanh toán'
-                                  : getEffectiveRemainingAmount(contract) === 0
-                                    ? 'Hợp đồng đã thanh toán đủ'
-                                    : ''
-                              }
-                            >
-                              Tạo thanh toán
-                            </Button>
-
-                            {/* Payment History Button */}
-                            {contractPayments.length > 0 && (
+                            {orderPayments.length > 0 && (
                               <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleOpenPaymentHistory(contract);
-                                }}
+                                onClick={() => handleOpenPaymentHistory(order)}
                                 className="flex items-center gap-1 px-3 py-1 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-medium"
                               >
-                                <span>Lịch sử ({contractPayments.length})</span>
+                                <span>Lịch sử</span>
                               </button>
                             )}
                           </div>
                         </td>
                       </motion.tr>
                     );
-
-                    return contractRow;
                   })}
                 </tbody>
               </table>
@@ -726,8 +723,8 @@ const PaymentManagementPage = () => {
           <div className="mt-6 flex items-center justify-between">
             <p className="text-sm text-slate-600 ">
               Hiển thị <span className="font-medium">{startIndex + 1}</span> đến{' '}
-              <span className="font-medium">{Math.min(endIndex, filteredContracts.length)}</span> của{' '}
-              <span className="font-medium">{filteredContracts.length}</span> kết quả
+              <span className="font-medium">{Math.min(endIndex, filteredOrders.length)}</span> của{' '}
+              <span className="font-medium">{filteredOrders.length}</span> kết quả
             </p>
             <div className="flex items-center gap-2">
               <Button
@@ -762,127 +759,8 @@ const PaymentManagementPage = () => {
         size="xl"
       >
         <div className="space-y-6">
-          {/* If contract is selected from route, show payment form directly */}
-          {contractIdFromRoute && isLoadingContractDetail ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="text-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                <p className="text-slate-600">Đang tải thông tin hợp đồng...</p>
-              </div>
-            </div>
-          ) : contractIdFromRoute && selectedContract ? (
-            <div className="space-y-4">
-              {/* Contract Info - Compact */}
-              <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-                <div className="grid grid-cols-3 gap-3 text-sm">
-                  <div>
-                    <p className="text-xs text-slate-500 mb-0.5">Mã hợp đồng</p>
-                    <p className="font-semibold text-slate-900">{selectedContract.contractCode}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 mb-0.5">Ngày hợp đồng</p>
-                    <p className="font-semibold text-slate-900">{formatDate(selectedContract.contractDate)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 mb-0.5">Khách hàng</p>
-                    <p className="font-semibold text-slate-900">{selectedContract.customerName}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 mb-0.5">Tổng thanh toán</p>
-                    <p className="font-semibold text-slate-900">{formatCurrency(selectedContract.totalPayment)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 mb-0.5">Đặt cọc</p>
-                    <p className="font-semibold text-blue-600">{formatCurrency(selectedContract.depositPrice)}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 mb-0.5">Còn lại</p>
-                    <p className="font-semibold text-orange-600">{formatCurrency(getEffectiveRemainingAmount(selectedContract))}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Payment Type Selection - Compact */}
-              <div>
-                <label className="block text-sm font-semibold text-slate-900 mb-2">
-                  Loại thanh toán <span className="text-red-500">*</span>
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  <motion.button
-                    onClick={() => setPaymentType('DEPOSIT')}
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    disabled={getPaidAmount(selectedContract) > 0}
-                    className={`p-3 rounded-lg border-2 transition-all text-left ${paymentType === 'DEPOSIT'
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-slate-200 hover:border-blue-300 bg-white text-slate-700'
-                      } ${getPaidAmount(selectedContract) > 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <AlertCircle size={18} className={paymentType === 'DEPOSIT' ? 'text-blue-600' : 'text-slate-400'} />
-                      <p className="font-semibold text-sm">Đặt cọc</p>
-                    </div>
-                    <p className="text-xs text-slate-600">{formatCurrency(selectedContract.depositPrice || 0)}</p>
-                  </motion.button>
-                  <motion.button
-                    onClick={() => setPaymentType('BALANCE')}
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
-                    disabled={getPaidAmount(selectedContract) === 0}
-                    className={`p-3 rounded-lg border-2 transition-all text-left ${paymentType === 'BALANCE'
-                      ? 'border-blue-600 bg-blue-50 text-blue-700'
-                      : 'border-slate-200 hover:border-blue-300 bg-white text-slate-700'
-                      } ${getPaidAmount(selectedContract) === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <div className="flex items-center gap-2 mb-1">
-                      <CheckCircle size={18} className={paymentType === 'BALANCE' ? 'text-blue-600' : 'text-slate-400'} />
-                      <p className="font-semibold text-sm">Thanh toán số dư</p>
-                    </div>
-                    <p className="text-xs text-slate-600">{formatCurrency(getEffectiveRemainingAmount(selectedContract) || 0)}</p>
-                  </motion.button>
-                </div>
-              </div>
-
-              {/* Payment Summary - Compact with VNPay info */}
-              <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2">
-                    <CreditCard size={18} className="text-blue-600" />
-                    <span className="text-sm font-semibold text-slate-700">Phương thức: VNPay</span>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-xs text-slate-500">Số tiền thanh toán</p>
-                    <p className="font-bold text-lg text-blue-600">
-                      {formatCurrency(
-                        paymentType === 'DEPOSIT'
-                          ? (selectedContract.depositPrice || 0)
-                          : (getEffectiveRemainingAmount(selectedContract) || 0)
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex justify-end gap-3 pt-2">
-                <Button
-                  variant="outline"
-                  onClick={handleCloseModal}
-                  className="px-5"
-                >
-                  Hủy
-                </Button>
-                <Button
-                  onClick={handleCreatePayment}
-                  disabled={!paymentType || creatingPayment}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-6 font-semibold"
-                >
-                  {creatingPayment ? 'Đang xử lý...' : 'Thanh toán'}
-                </Button>
-              </div>
-            </div>
-          ) : selectedContract && !contractIdFromRoute ? (
-            // Direct payment form when contract selected from table
+          {/* Payment form when contract is selected */}
+          {selectedContract ? (
             <div className="space-y-4">
               {/* Contract Info - Compact */}
               <div className="p-4 rounded-lg bg-slate-50 border border-slate-200">
@@ -1013,45 +891,9 @@ const PaymentManagementPage = () => {
                       Chọn hợp đồng cần thanh toán
                     </h3>
 
-                    {availableContracts.length === 0 ? (
                       <div className="text-center py-8 text-slate-500">
-                        Không có hợp đồng nào cần thanh toán
-                      </div>
-                    ) : (
-                      <div className="space-y-2 max-h-96 overflow-y-auto">
-                        {availableContracts.map((contract) => (
-                          <motion.div
-                            key={contract.contractId}
-                            onClick={() => setSelectedContract(contract)}
-                            whileHover={{ scale: 1.01 }}
-                            className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${selectedContract?.contractId === contract.contractId
-                              ? 'border-primary bg-primary/5'
-                              : 'border-slate-200 hover:border-primary/50'
-                              }`}
-                          >
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="font-semibold text-slate-900 ">
-                                  Hợp đồng HD-{contract.contractId}
-                                </p>
-                                <p className="text-sm text-slate-600 ">
-                                  {contract.customerName} • Đơn hàng #{contract.orderId}
-                                </p>
-                                <p className="text-sm text-slate-500 mt-1">
-                                  Ngày tạo: {formatDate(contract.createdAt)}
-                                </p>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-semibold text-primary text-lg">
-                                  {formatCurrency(contract.totalValue || contract.totalAmount)}
-                                </p>
-                                {getStatusBadge(contract.status)}
-                              </div>
+                      Vui lòng chọn hợp đồng từ danh sách hợp đồng để tạo thanh toán
                             </div>
-                          </motion.div>
-                        ))}
-                      </div>
-                    )}
                   </motion.div>
                 )}
 
@@ -1264,41 +1106,39 @@ const PaymentManagementPage = () => {
         </div>
       </Modal>
 
-      {/* Payment History Modal - Simple List */}
+      {/* Payment History Modal */}
       <Modal
         isOpen={isPaymentHistoryModalOpen}
         onClose={handleClosePaymentHistory}
         title="Lịch sử thanh toán"
-        size="lg"
+        size="xl"
       >
-        {selectedContractForHistory && (
+        {selectedOrderForHistory && (
           <div className="space-y-4">
-            {/* Contract Info - Simple */}
-            <div className="p-3 bg-slate-50 rounded-lg border">
+            {/* Order Info */}
+            <div className="p-3 bg-slate-50 rounded-lg border border-slate-200">
               <div className="flex justify-between items-center">
                 <div>
-                  <span className="text-sm text-slate-600">Hợp đồng: </span>
-                  <span className="font-semibold">{selectedContractForHistory.contractCode}</span>
+                  <span className="text-sm text-slate-600">Đơn hàng: </span>
+                  <span className="font-semibold">{selectedOrderForHistory.orderCode || `#${selectedOrderForHistory.orderId}`}</span>
                   <span className="text-sm text-slate-600 ml-3">Khách hàng: </span>
-                  <span className="font-semibold">{selectedContractForHistory.customerName}</span>
+                  <span className="font-semibold">{selectedOrderForHistory.customerName || 'N/A'}</span>
                 </div>
                 <div className="text-right">
-                  <div className="text-sm text-slate-600">Còn lại: <span className="font-bold text-orange-600">{formatCurrency(getEffectiveRemainingAmount(selectedContractForHistory))}</span></div>
+                  <div className="text-sm text-slate-600">Tổng tiền: <span className="font-bold text-slate-900">{formatCurrency(selectedOrderForHistory.totalPayment || 0)}</span></div>
                 </div>
               </div>
             </div>
 
-            {/* Payment List - Simple */}
+            {/* Payment Info - Latest Payment Only */}
             <div className="space-y-2">
-              <h3 className="text-sm font-semibold text-slate-700">Danh sách thanh toán</h3>
+              <h3 className="text-sm font-semibold text-slate-700">Thanh toán mới nhất</h3>
 
-              <div className="max-h-[400px] overflow-y-auto">
+              <div>
                 {(() => {
-                  const contractPayments = payments.filter(payment =>
-                    payment.contractCode === selectedContractForHistory.contractCode
-                  ).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+                  const orderPayments = getOrderPayments(selectedOrderForHistory);
 
-                  if (contractPayments.length === 0) {
+                  if (orderPayments.length === 0) {
                     return (
                       <div className="p-6 text-center text-slate-500">
                         Chưa có lịch sử thanh toán nào
@@ -1306,62 +1146,156 @@ const PaymentManagementPage = () => {
                     );
                   }
 
+                  // Get latest payment (first one after sorting)
+                  const latestPayment = orderPayments[0];
+                  const paymentData = latestPayment.data || latestPayment;
+                  const paymentId = paymentData.paymentId || latestPayment.paymentId;
+                  const paymentCode = paymentData.paymentCode || latestPayment.paymentCode;
+                  const status = paymentData.status || latestPayment.status;
+                  const paymentMethod = paymentData.paymentMethod || latestPayment.paymentMethod;
+                  const paymentType = paymentData.paymentType || latestPayment.paymentType;
+                  const amount = paymentData.amount || latestPayment.amount || latestPayment.totalAmount || 0;
+                  const createdAt = paymentData.createdAt || latestPayment.createdAt;
+
                   return (
-                    <ul className="space-y-2">
-                      {contractPayments.map((payment, index) => (
-                        <li key={payment.paymentId} className="p-3 bg-white border border-slate-200 rounded-lg">
+                    <div className="p-4 bg-white border border-slate-200 rounded-lg">
                           <div className="flex justify-between items-start">
                             <div className="flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="font-medium text-slate-900">{payment.paymentCode}</span>
-                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${payment.status === 'COMPLETED' || payment.status === 'SUCCESS'
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="font-medium text-slate-900">Payment ID: {paymentId}</span>
+                            <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                              status === 'COMPLETED' || status === 'SUCCESS'
                                     ? 'bg-green-100 text-green-700'
-                                    : payment.status === 'PENDING'
+                                : status === 'DEPOSIT_SIGNED'
+                                  ? 'bg-blue-100 text-blue-700'
+                                : status === 'PENDING'
                                       ? 'bg-yellow-100 text-yellow-700'
-                                      : payment.status === 'FAILED'
+                                  : status === 'FAILED'
                                         ? 'bg-red-100 text-red-700'
                                         : 'bg-gray-100 text-gray-700'
                                   }`}>
-                                  {payment.status === 'COMPLETED' ? 'Hoàn thành' :
-                                    payment.status === 'SUCCESS' ? 'Thành công' :
-                                      payment.status === 'PENDING' ? 'Chờ xử lý' :
-                                        payment.status === 'FAILED' ? 'Thất bại' : payment.status}
+                              {status === 'COMPLETED' ? 'Hoàn thành' :
+                                status === 'SUCCESS' ? 'Thành công' :
+                                  status === 'DEPOSIT_SIGNED' ? 'Đã ký' :
+                                  status === 'PENDING' ? 'Chờ xử lý' :
+                                    status === 'FAILED' ? 'Thất bại' : status}
                                 </span>
                               </div>
-                              <div className="text-sm text-slate-600">
-                                <span>{formatDate(payment.createdAt)}</span>
-                                <span className="mx-2">•</span>
-                                <span>{payment.paymentMethod === 'VNPAY' ? 'VNPay' : 'Tiền mặt'}</span>
-                                <span className="mx-2">•</span>
-                                <span>{payment.paymentType === 'DEPOSIT' ? 'Đặt cọc' : 'Thanh toán số dư'}</span>
+                          <div className="text-sm text-slate-600 space-y-1">
+                            <div>
+                              <span className="font-medium">Ngày:</span> <span>{formatDate(createdAt)}</span>
                               </div>
+                            <div>
+                              <span className="font-medium">Phương thức:</span> <span>{paymentMethod === 'VNPAY' ? 'VNPay' : paymentMethod === 'CASH' ? 'Tiền mặt' : paymentMethod}</span>
                             </div>
-                            <div className="text-right">
-                              <div className="font-bold text-green-600">{formatCurrency(payment.amount)}</div>
-                              {payment.status === 'DRAFT' && payment.paymentMethod === 'CASH' && (
+                            <div>
+                              <span className="font-medium">Loại:</span> <span>{paymentType === 'DEPOSIT' ? 'Đặt cọc' : 'Thanh toán số dư'}</span>
+                            </div>
+                            {paymentCode && (
+                              <div>
+                                <span className="font-medium">Mã thanh toán:</span> <span>{paymentCode}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="text-right ml-4">
+                          <div className="font-bold text-lg text-green-600 mb-2">{formatCurrency(amount)}</div>
+                          {status === 'DRAFT' && paymentMethod === 'CASH' && (
                                 <Button
                                   size="sm"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    handleConfirmCash(payment.paymentId);
+                                handleOpenConfirmCashModal(latestPayment);
                                   }}
-                                  disabled={isConfirmingCash}
-                                  className="mt-1 h-7 text-xs bg-green-600 hover:bg-green-700 text-white"
+                              className="h-8 text-xs bg-green-600 hover:bg-green-700 text-white"
                                 >
-                                  {isConfirmingCash ? 'Đang xử lý...' : 'Xác nhận tiền mặt'}
+                              Xác nhận tiền mặt
                                 </Button>
                               )}
                             </div>
                           </div>
-                        </li>
-                      ))}
-                    </ul>
+                    </div>
                   );
                 })()}
               </div>
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Confirm Cash Payment Modal */}
+      <Modal
+        isOpen={isConfirmCashModalOpen}
+        onClose={handleCloseConfirmCashModal}
+        title="Xác nhận thanh toán tiền mặt"
+        size="md"
+      >
+        {selectedPaymentForConfirm && (() => {
+          const paymentData = selectedPaymentForConfirm.data || selectedPaymentForConfirm;
+          const paymentId = paymentData.paymentId || selectedPaymentForConfirm.paymentId;
+          const paymentCode = paymentData.paymentCode || selectedPaymentForConfirm.paymentCode;
+          const amount = paymentData.amount || selectedPaymentForConfirm.amount || selectedPaymentForConfirm.totalAmount || 0;
+          const paymentMethod = paymentData.paymentMethod || selectedPaymentForConfirm.paymentMethod;
+          const paymentType = paymentData.paymentType || selectedPaymentForConfirm.paymentType;
+          const createdAt = paymentData.createdAt || selectedPaymentForConfirm.createdAt;
+
+          return (
+            <div className="space-y-4">
+              {/* Payment Info */}
+              <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Payment ID:</span>
+                    <span className="font-semibold">{paymentId}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Mã thanh toán:</span>
+                    <span className="font-semibold">{paymentCode || 'N/A'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Số tiền:</span>
+                    <span className="font-semibold text-green-600 text-base">{formatCurrency(amount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Phương thức:</span>
+                    <span className="font-semibold">{paymentMethod === 'VNPAY' ? 'VNPay' : paymentMethod === 'CASH' ? 'Tiền mặt' : paymentMethod}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Loại:</span>
+                    <span className="font-semibold">{paymentType === 'DEPOSIT' ? 'Đặt cọc' : 'Thanh toán số dư'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-600">Ngày tạo:</span>
+                    <span className="font-semibold">{formatDate(createdAt)}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-800">
+                  Bạn có chắc chắn muốn xác nhận đã nhận thanh toán tiền mặt cho payment này?
+                </p>
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex justify-end gap-3 pt-2">
+                <Button
+                  variant="outline"
+                  onClick={handleCloseConfirmCashModal}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  onClick={handleConfirmCash}
+                  disabled={isConfirmingCash}
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                >
+                  {isConfirmingCash ? 'Đang xử lý...' : 'Xác nhận'}
+                </Button>
+              </div>
+            </div>
+          );
+        })()}
       </Modal>
 
     </DealerStaffLayout>

@@ -13,7 +13,7 @@ import { useGetAllModelsQuery } from '../../../api/admin/modelApi';
 import { useGetAllModelColorsQuery } from '../../../api/evmStaff/productApi';
 import { useGetAllPromotionsQuery } from '../../../api/dealerManager/promotionApi';
 import { useGetStoreStocksQuery } from '../../../api/dealerStaff/storeStockApi';
-import { useCreateDraftOrderMutation, useConfirmOrderMutation, useDeleteOrderMutation, useGetOrderByIdQuery } from '../../../api/dealerStaff/orderApi';
+import { useCreateDraftOrderMutation, useConfirmOrderMutation, useDeleteOrderMutation, useGetOrderByIdQuery, useGetOrderDetailsQuery } from '../../../api/dealerStaff/orderApi';
 import { useCreateQuoteMutation, useGetQuoteByOrderIdQuery, useUpdateQuoteMutation } from '../../../api/dealerStaff/quotationApi';
 import { useCreateContractMutation } from '../../../api/dealerStaff/contractApi';
 import { useGetAllStoresQuery, useGetStoreByNameQuery } from '../../../api/admin/storeApi';
@@ -94,6 +94,30 @@ const CreateOrderPage = () => {
     existingOrderId,
     { skip: !editMode || !existingOrderId }
   );
+
+  // Get order details for step 3
+  const { data: orderDetailsData, isLoading: loadingOrderDetails } = useGetOrderDetailsQuery(
+    orderId,
+    { skip: !orderId || currentStep !== 3 }
+  );
+
+  // Calculate totals from order details
+  const calculatedTotals = useMemo(() => {
+    if (!orderDetailsData?.data || !Array.isArray(orderDetailsData.data)) {
+      return null;
+    }
+
+    const details = orderDetailsData.data;
+    return {
+      totalPrice: details.reduce((sum, d) => sum + (d.unitPrice * d.quantity), 0),
+      totalLicensePlateFee: details.reduce((sum, d) => sum + (d.licensePlateFee || 0), 0),
+      totalServiceFee: details.reduce((sum, d) => sum + (d.serviceFee || 0), 0),
+      totalOtherTax: details.reduce((sum, d) => sum + (d.otherTax || 0), 0),
+      totalOtherFees: details.reduce((sum, d) => sum + (d.otherFees || 0), 0),
+      totalPromotionAmount: details.reduce((sum, d) => sum + (d.discountAmount || 0), 0),
+      totalPayment: details.reduce((sum, d) => sum + (d.totalPrice || 0), 0),
+    };
+  }, [orderDetailsData]);
 
   // Load existing quote data if in edit mode - DISABLED since order data contains everything
   // const { data: existingQuoteData, isLoading: loadingExistingQuote } = useGetQuoteByOrderIdQuery(
@@ -585,41 +609,65 @@ const CreateOrderPage = () => {
   };
 
   const handleCreateQuoteHtml = () => {
-    if (!orderSummary) {
+    if (!orderDetailsData?.data || orderDetailsData.data.length === 0) {
       toast.error('Không có dữ liệu báo giá');
       return;
     }
 
     // Get store info - prioritize storeId from order, then fallback to storeName
     let store = null;
-    const storeId = orderSummary?.storeId;
     const storeNameToFind = orderSummary?.storeName || user?.storeName;
 
     if (storesData?.data && Array.isArray(storesData.data)) {
-      // First try to find by storeId (from order)
-      if (storeId) {
-        store = storesData.data.find(s => s.storeId === storeId || s.storeId?.toString() === storeId?.toString());
-      }
-
-      // If not found by storeId, try by storeName
-      if (!store && storeNameToFind) {
+      // Try by storeName
+      if (storeNameToFind) {
         store = storesData.data.find(s => s.storeName === storeNameToFind);
       }
     }
 
+    // Transform order details to match template format
+    const transformedOrderDetails = orderDetailsData.data.map(detail => ({
+      modelName: detail.modelName,
+      colorName: detail.colorName,
+      quantity: detail.quantity,
+      unitPrice: detail.unitPrice,
+      licensePlateFee: detail.licensePlateFee || 0,
+      serviceFee: detail.serviceFee || 0,
+      otherTax: detail.otherTax || 0,
+      otherFees: detail.otherFees || 0,
+      registrationFee: (detail.serviceFee || 0) + (detail.otherTax || 0) + (detail.otherFees || 0), // Keep for backward compatibility if needed
+      promotionName: detail.promotionName,
+      discountAmount: detail.discountAmount || 0,
+      totalPrice: detail.totalPrice,
+    }));
+
+    // Create order summary object for template
+    const orderForTemplate = {
+      orderCode: orderCode || orderId,
+      storeName: storeNameToFind,
+      getOrderDetailsResponses: transformedOrderDetails,
+      totalPrice: calculatedTotals?.totalPrice || 0,
+      totalLicensePlateFee: calculatedTotals?.totalLicensePlateFee || 0,
+      totalServiceFee: calculatedTotals?.totalServiceFee || 0,
+      totalOtherTax: calculatedTotals?.totalOtherTax || 0,
+      totalOtherFees: calculatedTotals?.totalOtherFees || 0,
+      totalRegistrationFee: (calculatedTotals?.totalServiceFee || 0) + (calculatedTotals?.totalOtherTax || 0) + (calculatedTotals?.totalOtherFees || 0), // Keep for backward compatibility
+      totalPromotionAmount: calculatedTotals?.totalPromotionAmount || 0,
+      totalPayment: calculatedTotals?.totalPayment || 0,
+    };
+
     // Debug log in development
     if (import.meta.env.DEV) {
       console.log('Store lookup:', {
-        storeId,
         storeNameToFind,
         storeFound: !!store,
         storeAddress: store?.address,
         storePhone: store?.phone,
-        orderSummary: orderSummary,
+        orderForTemplate: orderForTemplate,
       });
     }
 
-    const htmlContent = generateQuoteHtml(orderSummary, selectedCustomer, user, store);
+    const htmlContent = generateQuoteHtml(orderForTemplate, selectedCustomer, user, store);
 
     // Open new window
     const printWindow = window.open('', '_blank');
@@ -1140,45 +1188,67 @@ const CreateOrderPage = () => {
                       <h3 className="text-sm font-medium text-slate-600 mb-2">
                         Sản phẩm đã chọn
                       </h3>
-                      <div className="space-y-2">
-                        {orderSummary?.getOrderDetailsResponses?.map((detail, index) => (
-                          <div key={index} className="p-4 bg-slate-50 rounded-lg">
-                            <div className="flex justify-between items-start">
-                              <div>
-                                <p className="font-semibold text-slate-900">
-                                  {detail.modelName}
-                                </p>
-                                <p className="text-sm text-slate-600">
-                                  Màu: {detail.colorName} • Số lượng: {detail.quantity}
-                                </p>
-                                <p className="text-sm text-slate-600">
-                                  Đơn giá: {formatCurrency(detail.unitPrice)}
-                                </p>
-                                {detail.licensePlateFee > 0 && (
+                      {loadingOrderDetails ? (
+                        <div className="text-center py-8">
+                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                          <p className="text-slate-600">Đang tải chi tiết đơn hàng...</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          {orderDetailsData?.data?.map((detail, index) => (
+                            <div key={detail.orderDetailId || index} className="p-4 bg-slate-50 rounded-lg">
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <p className="font-semibold text-slate-900">
+                                    {detail.modelName}
+                                  </p>
                                   <p className="text-sm text-slate-600">
-                                    Phí biển số: {formatCurrency(detail.licensePlateFee)}
+                                    Màu: {detail.colorName} • Số lượng: {detail.quantity}
                                   </p>
-                                )}
-                                {detail.registrationFee > 0 && (
                                   <p className="text-sm text-slate-600">
-                                    Phí đăng ký: {formatCurrency(detail.registrationFee)}
+                                    Đơn giá: {formatCurrency(detail.unitPrice)}
                                   </p>
-                                )}
-                                {detail.promotionName && (
-                                  <p className="text-sm text-green-600">
-                                    Khuyến mãi: {detail.promotionName} (-{formatCurrency(detail.discountAmount)})
+                                  {detail.licensePlateFee > 0 && (
+                                    <p className="text-sm text-slate-600">
+                                      Phí biển số: {formatCurrency(detail.licensePlateFee)}
+                                    </p>
+                                  )}
+                                  {detail.serviceFee > 0 && (
+                                    <p className="text-sm text-slate-600">
+                                      Phí dịch vụ: {formatCurrency(detail.serviceFee)}
+                                    </p>
+                                  )}
+                                  {detail.otherTax > 0 && (
+                                    <p className="text-sm text-slate-600">
+                                      Thuế khác: {formatCurrency(detail.otherTax)}
+                                    </p>
+                                  )}
+                                  {detail.otherFees > 0 && (
+                                    <p className="text-sm text-slate-600">
+                                      Phí khác: {formatCurrency(detail.otherFees)}
+                                    </p>
+                                  )}
+                                  {detail.promotionName && (
+                                    <p className="text-sm text-green-600">
+                                      Khuyến mãi: {detail.promotionName} (-{formatCurrency(detail.discountAmount)})
+                                    </p>
+                                  )}
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-semibold text-slate-900">
+                                    {formatCurrency(detail.totalPrice)}
                                   </p>
-                                )}
-                              </div>
-                              <div className="text-right">
-                                <p className="font-semibold text-slate-900">
-                                  {formatCurrency(detail.totalPrice)}
-                                </p>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
+                          ))}
+                          {(!orderDetailsData?.data || orderDetailsData.data.length === 0) && (
+                            <div className="text-center py-8 text-slate-500">
+                              Không có sản phẩm nào
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                   </div>
@@ -1251,12 +1321,14 @@ const CreateOrderPage = () => {
                     Số sản phẩm
                   </p>
                   <p className="font-medium text-slate-900">
-                    {orderDetails.length} sản phẩm
+                    {currentStep === 3 && orderDetailsData?.data
+                      ? orderDetailsData.data.length
+                      : orderDetails.length} sản phẩm
                   </p>
                 </div>
 
                 {/* Pricing - CHỈ hiển thị khi ở step 3 */}
-                {currentStep === 3 && orderSummary && (
+                {currentStep === 3 && calculatedTotals && (
                   <>
                     <div className="border-t border-slate-200 pt-3">
                       <h4 className="text-sm font-semibold text-slate-700 mb-2">
@@ -1265,24 +1337,36 @@ const CreateOrderPage = () => {
                       <div className="space-y-1.5">
                         <div className="flex justify-between text-sm">
                           <span className="text-slate-600">Tổng tiền hàng:</span>
-                          <span className="font-medium">{formatCurrency(orderSummary.totalPrice)}</span>
+                          <span className="font-medium">{formatCurrency(calculatedTotals.totalPrice)}</span>
                         </div>
-                        {orderSummary.totalLicensePlateFee > 0 && (
+                        {calculatedTotals.totalLicensePlateFee > 0 && (
                           <div className="flex justify-between text-sm">
                             <span className="text-slate-600">Tổng phí biển số:</span>
-                            <span className="font-medium">{formatCurrency(orderSummary.totalLicensePlateFee)}</span>
+                            <span className="font-medium">{formatCurrency(calculatedTotals.totalLicensePlateFee)}</span>
                           </div>
                         )}
-                        {orderSummary.totalRegistrationFee > 0 && (
+                        {calculatedTotals.totalServiceFee > 0 && (
                           <div className="flex justify-between text-sm">
-                            <span className="text-slate-600">Tổng phí đăng ký:</span>
-                            <span className="font-medium">{formatCurrency(orderSummary.totalRegistrationFee)}</span>
+                            <span className="text-slate-600">Tổng phí dịch vụ:</span>
+                            <span className="font-medium">{formatCurrency(calculatedTotals.totalServiceFee)}</span>
                           </div>
                         )}
-                        {orderSummary.totalPromotionAmount > 0 && (
+                        {calculatedTotals.totalOtherTax > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-600">Tổng thuế khác:</span>
+                            <span className="font-medium">{formatCurrency(calculatedTotals.totalOtherTax)}</span>
+                          </div>
+                        )}
+                        {calculatedTotals.totalOtherFees > 0 && (
+                          <div className="flex justify-between text-sm">
+                            <span className="text-slate-600">Tổng phí khác:</span>
+                            <span className="font-medium">{formatCurrency(calculatedTotals.totalOtherFees)}</span>
+                          </div>
+                        )}
+                        {calculatedTotals.totalPromotionAmount > 0 && (
                           <div className="flex justify-between text-sm text-green-600">
                             <span>Tổng giảm giá:</span>
-                            <span className="font-medium">-{formatCurrency(orderSummary.totalPromotionAmount)}</span>
+                            <span className="font-medium">-{formatCurrency(calculatedTotals.totalPromotionAmount)}</span>
                           </div>
                         )}
                       </div>
@@ -1293,7 +1377,7 @@ const CreateOrderPage = () => {
                           TỔNG THANH TOÁN:
                         </span>
                         <span className="font-bold text-primary text-lg">
-                          {formatCurrency(orderSummary.totalPayment)}
+                          {formatCurrency(calculatedTotals.totalPayment)}
                         </span>
                       </div>
                     </div>

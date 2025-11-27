@@ -96,7 +96,7 @@ const ContractManagementPage = () => {
   // Calculate stats
   const stats = useMemo(() => {
     const total = contracts.length;
-    const signed = contracts.filter(c => c.status === 'SIGNED').length;
+    const signed = contracts.filter(c => c.status === 'SIGNED' || c.status === 'DEPOSIT_SIGNED').length;
     const fullyPaid = contracts.filter(c => c.status === 'FULLY_PAID').length;
     const totalRevenue = contracts
       .filter(c => ['FULLY_PAID', 'COMPLETED'].includes(c.status))
@@ -359,7 +359,7 @@ const ContractManagementPage = () => {
     >
       <div className="mx-auto max-w-[90rem] px-0 py-4 pl-10 pr-10 pt-8 space-y-4">
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
           <MetricCard
             title="Tổng hợp đồng"
             value={stats.total}
@@ -372,19 +372,6 @@ const ContractManagementPage = () => {
             value={stats.signed}
             icon={CheckCircle}
             className="border-l-4 border-l-green-500 compact"
-            compact
-          />
-          <MetricCard
-            title="Đã thanh toán"
-            value={stats.fullyPaid}
-            icon={CreditCard}
-            className="border-l-4 border-l-purple-500 compact"
-            compact
-          />
-          <MetricCard
-            title="Doanh thu"
-            value={formatCurrency(stats.totalRevenue)}
-            className="border-l-4 border-l-orange-500 compact"
             compact
           />
         </div>
@@ -455,12 +442,6 @@ const ContractManagementPage = () => {
                         <th className="px-3 py-3.5 text-left text-sm font-semibold text-slate-900 " scope="col">
                           Tổng Giá Trị
                         </th>
-                        <th className="px-3 py-3.5 text-left text-sm font-semibold text-slate-900 " scope="col">
-                          Đặt Cọc
-                        </th>
-                        <th className="px-2 py-3.5 text-left text-sm font-semibold text-slate-900 " scope="col">
-                          Còn Lại
-                        </th>
                         <th className="px-3 py-3.5 text-left pl-8 text-sm font-semibold text-slate-900 " scope="col">
                           Trạng thái
                         </th>
@@ -516,12 +497,6 @@ const ContractManagementPage = () => {
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm font-semibold text-slate-900 ">
                             {formatCurrency(contract.totalPayment || 0)}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm text-slate-600 ">
-                            {formatCurrency(contract.depositPrice || 0)}
-                          </td>
-                          <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-orange-600 ">
-                            {formatCurrency(getEffectiveRemainingAmount(contract))}
                           </td>
                           <td className="whitespace-nowrap px-3 py-4 text-sm">
                             {getStatusBadge(contract)}

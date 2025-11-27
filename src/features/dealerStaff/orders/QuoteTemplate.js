@@ -112,10 +112,13 @@ export const generateQuoteHtml = (order, customer, user, store = null) => {
   // Calculate totals
   const totalProductPrice = order.totalPrice || 0;
   const totalLicensePlateFee = order.totalLicensePlateFee || 0;
-  const totalRegistrationFee = order.totalRegistrationFee || 0;
+  const totalServiceFee = order.totalServiceFee || 0;
+  const totalOtherTax = order.totalOtherTax || 0;
+  const totalOtherFees = order.totalOtherFees || 0;
   const totalPromotion = order.totalPromotionAmount || 0;
   const totalPayment = order.totalPayment || 0;
-  const fees = totalLicensePlateFee + totalRegistrationFee;
+  // Calculate total fees (license plate + service + tax + other fees)
+  const totalFees = totalLicensePlateFee + totalServiceFee + totalOtherTax + totalOtherFees;
 
   const amountInWords = readMoney(totalPayment);
 
@@ -316,14 +319,23 @@ export const generateQuoteHtml = (order, customer, user, store = null) => {
             <th>Màu sắc</th>
             <th style="width: 60px">Số lượng</th>
             <th>Đơn giá</th>
-            <th>Phí đăng ký</th>
             <th>Phí biển số</th>
+            <th>Phí dịch vụ</th>
+            <th>Thuế khác</th>
+            <th>Phí khác</th>
             <th>Khuyến mãi</th>
             <th>Thành tiền</th>
           </tr>
         </thead>
         <tbody>
-          ${order.getOrderDetailsResponses?.map((item, index) => `
+          ${order.getOrderDetailsResponses?.map((item, index) => {
+            // Use new format fields if available, otherwise fallback to old format
+            const serviceFee = item.serviceFee !== undefined ? (item.serviceFee || 0) : 0;
+            const otherTax = item.otherTax !== undefined ? (item.otherTax || 0) : 0;
+            const otherFees = item.otherFees !== undefined ? (item.otherFees || 0) : 0;
+            const licensePlateFee = item.licensePlateFee || 0;
+            
+            return `
             <tr>
               <td>${index + 1}</td>
               <td class="text-left">
@@ -335,12 +347,15 @@ export const generateQuoteHtml = (order, customer, user, store = null) => {
               <td>${item.colorName}</td>
               <td>${item.quantity}</td>
               <td class="text-right">${formatCurrency(item.unitPrice)}</td>
-              <td class="text-right">${formatCurrency(item.registrationFee)}</td>
-              <td class="text-right">${formatCurrency(item.licensePlateFee)}</td>
+              <td class="text-right">${formatCurrency(licensePlateFee)}</td>
+              <td class="text-right">${formatCurrency(serviceFee)}</td>
+              <td class="text-right">${formatCurrency(otherTax)}</td>
+              <td class="text-right">${formatCurrency(otherFees)}</td>
               <td class="text-right">${item.discountAmount > 0 ? '-' + formatCurrency(item.discountAmount) : '-'}</td>
               <td class="text-right font-bold">${formatCurrency(item.totalPrice)}</td>
             </tr>
-          `).join('')}
+          `;
+          }).join('')}
         </tbody>
       </table>
 
@@ -350,14 +365,42 @@ export const generateQuoteHtml = (order, customer, user, store = null) => {
             <span>Tổng giá sản phẩm:</span>
             <span>${formatCurrency(totalProductPrice)}</span>
           </div>
+          ${totalLicensePlateFee > 0 ? `
+          <div class="summary-row">
+            <span>Phí biển số:</span>
+            <span>+${formatCurrency(totalLicensePlateFee)}</span>
+          </div>
+          ` : ''}
+          ${totalServiceFee > 0 ? `
+          <div class="summary-row">
+            <span>Phí dịch vụ:</span>
+            <span>+${formatCurrency(totalServiceFee)}</span>
+          </div>
+          ` : ''}
+          ${totalOtherTax > 0 ? `
+          <div class="summary-row">
+            <span>Thuế khác:</span>
+            <span>+${formatCurrency(totalOtherTax)}</span>
+          </div>
+          ` : ''}
+          ${totalOtherFees > 0 ? `
+          <div class="summary-row">
+            <span>Phí khác:</span>
+            <span>+${formatCurrency(totalOtherFees)}</span>
+          </div>
+          ` : ''}
+          ${(totalLicensePlateFee === 0 && totalServiceFee === 0 && totalOtherTax === 0 && totalOtherFees === 0 && order.totalRegistrationFee > 0) ? `
           <div class="summary-row">
             <span>Phí đăng ký + biển số:</span>
-            <span>+${formatCurrency(fees)}</span>
+            <span>+${formatCurrency(order.totalRegistrationFee + totalLicensePlateFee)}</span>
           </div>
+          ` : ''}
+          ${totalPromotion > 0 ? `
           <div class="summary-row">
             <span>Khuyến mãi:</span>
             <span>-${formatCurrency(totalPromotion)}</span>
           </div>
+          ` : ''}
           <div class="summary-row summary-total">
             <span>TỔNG THANH TOÁN:</span>
             <span>${formatCurrency(totalPayment)}</span>

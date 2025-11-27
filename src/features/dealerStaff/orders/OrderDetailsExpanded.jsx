@@ -101,29 +101,59 @@ const OrderDetailsExpanded = ({ order, onViewContract }) => {
           </h4>
         </div>
         
-        <div className="p-4 space-y-3">
+        <div className="p-4 space-y-4">
           {order.getOrderDetailsResponses?.map((detail, idx) => (
-            <div key={detail.orderDetailId || idx} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-indigo-100 rounded-lg">
-                  <Car size={16} className="text-indigo-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-semibold text-slate-900">{detail.modelName}</p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <div className="w-3 h-3 rounded-full border border-slate-300" style={{backgroundColor: detail.colorName?.toLowerCase()}}></div>
-                    <span className="text-xs text-slate-600">{detail.colorName}</span>
-                    <span className="text-xs text-slate-400">•</span>
-                    <span className="text-xs text-slate-600">SL: {detail.quantity}</span>
+            <div key={detail.orderDetailId || idx} className="border border-slate-200 rounded-lg overflow-hidden">
+              {/* Product Info */}
+              <div className="flex items-center justify-between p-3 bg-slate-50">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-indigo-100 rounded-lg">
+                    <Car size={16} className="text-indigo-600" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-slate-900">{detail.modelName}</p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <div className="w-3 h-3 rounded-full border border-slate-300" style={{backgroundColor: detail.colorName?.toLowerCase()}}></div>
+                      <span className="text-xs text-slate-600">{detail.colorName}</span>
+                      <span className="text-xs text-slate-400">•</span>
+                      <span className="text-xs text-slate-600">SL: {detail.quantity}</span>
+                    </div>
                   </div>
                 </div>
+                <div className="text-right">
+                  <p className="text-sm font-bold text-slate-900">{formatCurrency(detail.totalPrice)}</p>
+                  {detail.promotionName && detail.discountAmount > 0 && (
+                    <p className="text-xs text-green-600">-{formatCurrency(detail.discountAmount)}</p>
+                  )}
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm font-bold text-slate-900">{formatCurrency(detail.totalPrice)}</p>
-                {detail.promotionName && detail.discountAmount > 0 && (
-                  <p className="text-xs text-green-600">-{formatCurrency(detail.discountAmount)}</p>
-                )}
-              </div>
+
+              {/* Vehicles Info */}
+              {detail.vehicles && detail.vehicles.length > 0 && (
+                <div className="p-3 bg-white border-t border-slate-200">
+                  <p className="text-xs font-semibold text-slate-700 mb-2">Thông tin xe:</p>
+                  <div className="space-y-2">
+                    {detail.vehicles.map((vehicle, vIdx) => (
+                      <div key={vehicle.vehicleId || vIdx} className="p-2 bg-blue-50 rounded border border-blue-100">
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <span className="text-slate-500">VIN:</span>
+                            <span className="ml-1 font-medium text-slate-900">{vehicle.vin || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Engine No:</span>
+                            <span className="ml-1 font-medium text-slate-900">{vehicle.engineNo || 'N/A'}</span>
+                          </div>
+                          <div>
+                            <span className="text-slate-500">Battery No:</span>
+                            <span className="ml-1 font-medium text-slate-900">{vehicle.batteryNo || 'N/A'}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           ))}
           
